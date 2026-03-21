@@ -485,6 +485,10 @@ def open_session(
     activity_code = db.get(ActivityCode, s.activity_code_id)
     employee = db.get(Employee, s.employee_id)
 
+    # Load all activity codes and employees for the edit form
+    activity_codes = db.execute(select(ActivityCode)).scalars().all()
+    employees = db.execute(select(Employee)).scalars().all()
+
     # Load participants (all for admin, own for regular user)
     stmt = select(Participant).order_by(
         Participant.apellido_paterno,
@@ -510,6 +514,8 @@ def open_session(
             "session": s,
             "activity_code": activity_code,
             "employee": employee,
+            "activity_codes": activity_codes,
+            "employees": employees,
             "participants": participants,
             "attended_ids": attended_ids,
             "current_user": current_user,
@@ -551,6 +557,33 @@ async def save_attendance(
         )
         db.add(att)
 
+    db.commit()
+
+    return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)
+
+
+@router.post("/listado/{session_id}/edit")
+def edit_session(
+    session_id: int,
+    session_date: str = Form(...),
+    activity_code_id: int = Form(...),
+    employee_id: int = Form(...),
+    hours: float | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    _check_session_access(s, current_user)
+
+    s.session_date = _parse_date(session_date)
+    s.activity_code_id = activity_code_id
+    s.employee_id = employee_id
+    s.hours = hours
+
+    db.add(s)
     db.commit()
 
     return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)

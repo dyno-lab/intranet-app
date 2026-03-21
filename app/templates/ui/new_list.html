@@ -207,6 +207,7 @@
           <th>Inicial</th>
           <th>Apellido</th>
           <th>Edad</th>
+          <th>Género</th>
           <th>Apt</th>
           <th>Edificio</th>
           <th class="text-end">Acciones</th>
@@ -221,6 +222,7 @@
             <td>{{ p.inicial or '' }}</td>
             <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
             <td>{{ r.age if r.age is not none else '' }}</td>
+            <td>{{ p.genero or '' }}</td>
             <td>{{ p.apart or '' }}</td>
             <td>{{ p.edificio or '' }}</td>
             <td class="text-end">

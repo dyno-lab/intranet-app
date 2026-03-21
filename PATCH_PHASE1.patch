@@ -1,0 +1,758 @@
+From cf6a94f32100b0da24f74b53e638a7cb7490cc20 Mon Sep 17 00:00:00 2001
+From: OpenClaw Assistant <assistant@openclaw.ai>
+Date: Sat, 21 Mar 2026 16:20:09 +0000
+Subject: [PATCH] Phase 1 improvements: complete attendance flow, fix edit
+ form, centralize deps
+
+- Add GET/POST /ui/listado/{session_id} for marking attendance
+- Add POST /ui/listado/{session_id}/delete for session deletion
+- Complete edit_participant.html with all demographic fields
+- Add age calculator and back button to edit form
+- Update listado.html with session info card
+- Centralize get_db() in app/api/deps.py (removed from 8 files)
+- Fix attendance.py API route (was duplicate of sessions.py)
+- Remove phantom 'notes' field from SessionCreate/SessionOut schemas
+---
+ app/api/deps.py                        |  11 ++
+ app/api/routes/activity_codes.py       |   9 +-
+ app/api/routes/attendance.py           |  44 +----
+ app/api/routes/auth.py                 |  10 +-
+ app/api/routes/employees.py            |   9 +-
+ app/api/routes/participants.py         |   9 +-
+ app/api/routes/sessions.py             |   9 +-
+ app/api/routes/ui.py                   | 134 +++++++++++++--
+ app/core/auth.py                       |  10 +-
+ app/schemas/session.py                 |   8 +-
+ app/templates/ui/edit_participant.html | 215 +++++++++++++++++++++----
+ app/templates/ui/listado.html          |  40 ++++-
+ 12 files changed, 367 insertions(+), 141 deletions(-)
+ create mode 100644 app/api/deps.py
+
+diff --git a/app/api/deps.py b/app/api/deps.py
+new file mode 100644
+index 0000000..de5457f
+--- /dev/null
++++ b/app/api/deps.py
+@@ -0,0 +1,11 @@
++from sqlalchemy.orm import Session
++
++from app.db.session import SessionLocal
++
++
++def get_db():
++    db = SessionLocal()
++    try:
++        yield db
++    finally:
++        db.close()
+diff --git a/app/api/routes/activity_codes.py b/app/api/routes/activity_codes.py
+index f914ede..bd6c701 100644
+--- a/app/api/routes/activity_codes.py
++++ b/app/api/routes/activity_codes.py
+@@ -2,19 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
+ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.activity_code import ActivityCode
+ from app.schemas.activity_code import ActivityCodeCreate, ActivityCodeOut
+ 
+ router = APIRouter()
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+ @router.get("", response_model=list[ActivityCodeOut])
+ def list_codes(active_only: bool = True, db: Session = Depends(get_db)):
+     stmt = select(ActivityCode)
+diff --git a/app/api/routes/attendance.py b/app/api/routes/attendance.py
+index d324f76..dde9019 100644
+--- a/app/api/routes/attendance.py
++++ b/app/api/routes/attendance.py
+@@ -1,46 +1,16 @@
+ from fastapi import APIRouter, Depends, HTTPException
+ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+-from datetime import date
+ 
+-from app.db.session import SessionLocal
+-from app.models.activity_session import ActivitySession
+-from app.models.activity_code import ActivityCode
+-from app.models.employee import Employee
+-from app.schemas.session import SessionCreate, SessionOut
++from app.api.deps import get_db
++from app.models.attendance import Attendance
+ 
+ router = APIRouter()
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+ 
+-@router.get("", response_model=list[SessionOut])
+-def list_sessions(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db)):
+-    stmt = select(ActivitySession)
+-    if from_date:
+-        stmt = stmt.where(ActivitySession.session_date >= from_date)
+-    if to_date:
+-        stmt = stmt.where(ActivitySession.session_date <= to_date)
+-    stmt = stmt.order_by(ActivitySession.session_date.desc())
++@router.get("")
++def list_attendance(session_id: int | None = None, db: Session = Depends(get_db)):
++    stmt = select(Attendance)
++    if session_id:
++        stmt = stmt.where(Attendance.session_id == session_id)
+     return list(db.execute(stmt).scalars().all())
+-
+-@router.post("", response_model=SessionOut)
+-def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
+-    # Validar FKs
+-    code = db.get(ActivityCode, payload.activity_code_id)
+-    if not code:
+-        raise HTTPException(status_code=404, detail="activity_code_id no existe")
+-
+-    emp = db.get(Employee, payload.employee_id)
+-    if not emp:
+-        raise HTTPException(status_code=404, detail="employee_id no existe")
+-
+-    obj = ActivitySession(**payload.model_dump())
+-    db.add(obj)
+-    db.commit()
+-    db.refresh(obj)
+-    return obj
+\ No newline at end of file
+diff --git a/app/api/routes/auth.py b/app/api/routes/auth.py
+index f47d7c1..9135c92 100644
+--- a/app/api/routes/auth.py
++++ b/app/api/routes/auth.py
+@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
+ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.user import User
+ from app.core.security import verify_password
+ 
+@@ -12,14 +12,6 @@ router = APIRouter()
+ templates = Jinja2Templates(directory="app/templates")
+ 
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+-
+ @router.get("/login", response_class=HTMLResponse)
+ def login_page(request: Request):
+     return templates.TemplateResponse("auth/login.html", {"request": request})
+diff --git a/app/api/routes/employees.py b/app/api/routes/employees.py
+index 441e673..5a2a70d 100644
+--- a/app/api/routes/employees.py
++++ b/app/api/routes/employees.py
+@@ -2,19 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
+ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.employee import Employee
+ from app.schemas.employee import EmployeeCreate, EmployeeOut
+ 
+ router = APIRouter()
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+ @router.get("", response_model=list[EmployeeOut])
+ def list_employees(active_only: bool = True, db: Session = Depends(get_db)):
+     stmt = select(Employee)
+diff --git a/app/api/routes/participants.py b/app/api/routes/participants.py
+index 9c0038c..06727b3 100644
+--- a/app/api/routes/participants.py
++++ b/app/api/routes/participants.py
+@@ -2,19 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
+ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.participant import Participant
+ from app.schemas.participant import ParticipantCreate, ParticipantOut
+ 
+ router = APIRouter()
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+ @router.post("", response_model=ParticipantOut)
+ def create_participant(payload: ParticipantCreate, db: Session = Depends(get_db)):
+     existing = db.execute(select(Participant).where(Participant.expediente_num == payload.expediente_num)).scalar_one_or_none()
+diff --git a/app/api/routes/sessions.py b/app/api/routes/sessions.py
+index d324f76..30fe8a7 100644
+--- a/app/api/routes/sessions.py
++++ b/app/api/routes/sessions.py
+@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
+ from sqlalchemy import select
+ from datetime import date
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.activity_session import ActivitySession
+ from app.models.activity_code import ActivityCode
+ from app.models.employee import Employee
+@@ -11,13 +11,6 @@ from app.schemas.session import SessionCreate, SessionOut
+ 
+ router = APIRouter()
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+ @router.get("", response_model=list[SessionOut])
+ def list_sessions(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db)):
+     stmt = select(ActivitySession)
+diff --git a/app/api/routes/ui.py b/app/api/routes/ui.py
+index 61cf9b5..9c9ae2b 100644
+--- a/app/api/routes/ui.py
++++ b/app/api/routes/ui.py
+@@ -17,23 +17,12 @@ from app.models.user import User
+ 
+ from app.core.auth import get_current_user, require_admin
+ from app.core.config import settings
++from app.api.deps import get_db
+ 
+ router = APIRouter()
+ templates = Jinja2Templates(directory="app/templates")
+ 
+ 
+-# ============================================================
+-# DB
+-# ============================================================
+-
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+-
+ # ============================================================
+ # HELPERS
+ # ============================================================
+@@ -472,4 +461,123 @@ def create_session_ui(
+     db.commit()
+     db.refresh(s)
+ 
+-    return RedirectResponse(f"/ui/listado/{s.session_id}", status_code=303)
+\ No newline at end of file
++    return RedirectResponse(f"/ui/listado/{s.session_id}", status_code=303)
++
++
++# ============================================================
++# LISTADO - OPEN SESSION (mark attendance)
++# ============================================================
++
++@router.get("/listado/{session_id}", response_class=HTMLResponse)
++def open_session(
++    session_id: int,
++    request: Request,
++    db: Session = Depends(get_db),
++    current_user: User = Depends(get_current_user),
++):
++    s = db.get(ActivitySession, session_id)
++    if not s:
++        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
++
++    _check_session_access(s, current_user)
++
++    # Load activity code and employee for session info card
++    activity_code = db.get(ActivityCode, s.activity_code_id)
++    employee = db.get(Employee, s.employee_id)
++
++    # Load participants (all for admin, own for regular user)
++    stmt = select(Participant).order_by(
++        Participant.apellido_paterno,
++        Participant.nombre,
++    )
++    if current_user.role != "admin":
++        stmt = stmt.where(
++            Participant.created_by_user_id == current_user.user_id
++        )
++    participants = db.execute(stmt).scalars().all()
++
++    # Load existing attendance for this session
++    att_stmt = select(Attendance.participant_id).where(
++        Attendance.session_id == session_id,
++        Attendance.attended == True,  # noqa
++    )
++    attended_ids = set(db.execute(att_stmt).scalars().all())
++
++    return templates.TemplateResponse(
++        "ui/listado.html",
++        {
++            "request": request,
++            "session": s,
++            "activity_code": activity_code,
++            "employee": employee,
++            "participants": participants,
++            "attended_ids": attended_ids,
++            "current_user": current_user,
++            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
++            "years": list(range(date.today().year - 2, date.today().year + 3)),
++        },
++    )
++
++
++@router.post("/listado/{session_id}")
++async def save_attendance(
++    session_id: int,
++    request: Request,
++    db: Session = Depends(get_db),
++    current_user: User = Depends(get_current_user),
++):
++    s = db.get(ActivitySession, session_id)
++    if not s:
++        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
++
++    _check_session_access(s, current_user)
++
++    # Parse form data to get list of checked participant ids
++    form = await request.form()
++    present = [int(v) for v in form.getlist("present")]
++
++    # Delete existing attendance for this session
++    db.execute(
++        delete(Attendance).where(Attendance.session_id == session_id)
++    )
++
++    # Insert new attendance records
++    for pid in present:
++        att = Attendance(
++            participant_id=pid,
++            session_id=session_id,
++            attended=True,
++            marked_by=current_user.username,
++        )
++        db.add(att)
++
++    db.commit()
++
++    return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)
++
++
++@router.post("/listado/{session_id}/delete")
++def delete_session(
++    session_id: int,
++    db: Session = Depends(get_db),
++    current_user: User = Depends(get_current_user),
++):
++    s = db.get(ActivitySession, session_id)
++    if not s:
++        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
++
++    _check_session_access(s, current_user)
++
++    # Delete all attendance records for this session
++    db.execute(
++        delete(Attendance).where(Attendance.session_id == session_id)
++    )
++
++    # Delete the session itself
++    db.execute(
++        delete(ActivitySession).where(ActivitySession.session_id == session_id)
++    )
++
++    db.commit()
++
++    return RedirectResponse("/ui/listado", status_code=303)
+\ No newline at end of file
+diff --git a/app/core/auth.py b/app/core/auth.py
+index 9efe813..b37424c 100644
+--- a/app/core/auth.py
++++ b/app/core/auth.py
+@@ -2,18 +2,10 @@ from fastapi import Request, Depends, HTTPException, status
+ from fastapi.responses import RedirectResponse
+ from sqlalchemy.orm import Session
+ 
+-from app.db.session import SessionLocal
++from app.api.deps import get_db
+ from app.models.user import User
+ 
+ 
+-def get_db():
+-    db = SessionLocal()
+-    try:
+-        yield db
+-    finally:
+-        db.close()
+-
+-
+ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+     """
+     Para UI:
+diff --git a/app/schemas/session.py b/app/schemas/session.py
+index ab6f1c9..6731e13 100644
+--- a/app/schemas/session.py
++++ b/app/schemas/session.py
+@@ -1,12 +1,13 @@
+ from datetime import date
+-from pydantic import BaseModel, Field
++from pydantic import BaseModel
++
+ 
+ class SessionCreate(BaseModel):
+     session_date: date
+     activity_code_id: int
+     employee_id: int
+     hours: float | None = None
+-    notes: str | None = Field(default=None, max_length=255)
++
+ 
+ class SessionOut(BaseModel):
+     session_id: int
+@@ -14,7 +15,6 @@ class SessionOut(BaseModel):
+     activity_code_id: int
+     employee_id: int
+     hours: float | None
+-    notes: str | None
+ 
+     class Config:
+-        from_attributes = True
+\ No newline at end of file
++        from_attributes = True
+diff --git a/app/templates/ui/edit_participant.html b/app/templates/ui/edit_participant.html
+index c4ce86e..d0ee3d7 100644
+--- a/app/templates/ui/edit_participant.html
++++ b/app/templates/ui/edit_participant.html
+@@ -7,58 +7,203 @@
+ 
+ <div class="card shadow-sm">
+   <div class="card-body">
+-    <form method="post">
++    <form method="post" class="row g-2">
+ 
+ {% if phase2_expediente_enabled %}
+-<div class="row g-2">
+-  <div class="col-md-3">
+-    <label class="form-label">Año expediente *</label>
+-    <select class="form-select" name="exp_year" id="exp_year" required>
+-      <option value="">Selecciona</option>
+-      {% for y in years %}
+-      <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
+-      {% endfor %}
+-    </select>
+-  </div>
++<div class="col-md-3">
++  <label class="form-label">Año expediente *</label>
++  <select class="form-select" name="exp_year" id="exp_year" required>
++    <option value="">Selecciona</option>
++    {% for y in years %}
++    <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
++    {% endfor %}
++  </select>
++</div>
+ 
+-  <div class="col-md-3">
+-    <label class="form-label">Siglas empleado *</label>
+-    <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
+-  </div>
++<div class="col-md-3">
++  <label class="form-label">Siglas empleado *</label>
++  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
++</div>
+ 
+-  <div class="col-md-3">
+-    <label class="form-label">4 dígitos *</label>
+-    <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
+-    <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
+-  </div>
++<div class="col-md-3">
++  <label class="form-label">4 dígitos *</label>
++  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
++  <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
++</div>
+ 
+-  <div class="col-md-3">
+-    <label class="form-label">Vista previa</label>
+-    <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
+-  </div>
++<div class="col-md-3">
++  <label class="form-label">Vista previa</label>
++  <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
+ </div>
+ 
+-<div class="mt-2">
++<div class="col-12">
+   <label class="form-label">Expediente actual</label>
+   <input class="form-control" value="{{ p.expediente_num }}" readonly>
+ </div>
+ {% else %}
+-<input class="form-control mb-2" name="expediente_num" value="{{ p.expediente_num }}" required>
++<div class="col-md-4">
++  <label class="form-label">Número de expediente *</label>
++  <input class="form-control" name="expediente_num" value="{{ p.expediente_num }}" required>
++</div>
+ {% endif %}
+-      <input class="form-control mb-2" name="nombre" value="{{ p.nombre }}" required>
+-      <input class="form-control mb-2" name="inicial" value="{{ p.inicial }}">
+-      <input class="form-control mb-2" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
+-      <input class="form-control mb-2" name="apellido_materno" value="{{ p.apellido_materno }}">
+-      <input type="date" class="form-control mb-2" name="fecha_nacimiento" value="{{ p.fecha_nacimiento }}">
+-      <input class="form-control mb-2" name="edificio" value="{{ p.edificio }}">
+-      <input class="form-control mb-2" name="apart" value="{{ p.apart }}">
+ 
+-      <button class="btn btn-primary w-100">Guardar Cambios</button>
++      <div class="col-md-3">
++        <label class="form-label">Nombre *</label>
++        <input class="form-control" name="nombre" value="{{ p.nombre }}" required>
++      </div>
++
++      <div class="col-md-1">
++        <label class="form-label">Inicial</label>
++        <input class="form-control" name="inicial" maxlength="10" value="{{ p.inicial or '' }}">
++      </div>
++
++      <div class="col-md-3">
++        <label class="form-label">Apellido Paterno *</label>
++        <input class="form-control" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
++      </div>
++
++      <div class="col-md-3">
++        <label class="form-label">Apellido Materno</label>
++        <input class="form-control" name="apellido_materno" value="{{ p.apellido_materno or '' }}">
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">Género</label>
++        <select class="form-select" name="genero">
++          <option value="">Selecciona</option>
++          <option value="F" {% if p.genero == 'F' %}selected{% endif %}>F</option>
++          <option value="M" {% if p.genero == 'M' %}selected{% endif %}>M</option>
++        </select>
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">Fecha de nacimiento</label>
++        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ p.fecha_nacimiento or '' }}">
++      </div>
++
++      <div class="col-md-1">
++        <label class="form-label">Edad</label>
++        <input class="form-control" id="edad" readonly placeholder="Auto">
++      </div>
++
++      <div class="col-md-3">
++        <label class="form-label">Estatus</label>
++        <select class="form-select" name="estatus">
++          <option value="">Selecciona</option>
++          <option value="Activo" {% if p.estatus == 'Activo' %}selected{% endif %}>Activo</option>
++          <option value="No Activo" {% if p.estatus == 'No Activo' %}selected{% endif %}>No Activo</option>
++          <option value="Deceso" {% if p.estatus == 'Deceso' %}selected{% endif %}>Deceso</option>
++          <option value="Transferencia" {% if p.estatus == 'Transferencia' %}selected{% endif %}>Transferencia</option>
++          <option value="Baja" {% if p.estatus == 'Baja' %}selected{% endif %}>Baja</option>
++        </select>
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">VCA</label>
++        <select class="form-select" name="vca">
++          <option value="">Selecciona</option>
++          <option value="SI" {% if p.vca == 'SI' %}selected{% endif %}>SI</option>
++          <option value="NO" {% if p.vca == 'NO' %}selected{% endif %}>NO</option>
++        </select>
++      </div>
++
++      <div class="col-md-3">
++        <label class="form-label">Participa por primera vez</label>
++        <select class="form-select" name="primera_vez">
++          <option value="">Selecciona</option>
++          <option value="SI" {% if p.primera_vez == 'SI' %}selected{% endif %}>SI</option>
++          <option value="NO" {% if p.primera_vez == 'NO' %}selected{% endif %}>NO</option>
++        </select>
++      </div>
++
++      <div class="col-md-4">
++        <label class="form-label">Composición Familiar</label>
++        <select class="form-select" name="composicion_familiar">
++          <option value="">Selecciona</option>
++          {% set cf_options = ['Solo(a)', 'Madre soltera', 'Padre soltero', 'Adulto Mayor (60+) con niños', '2 adultos con menores', '2 adultos sin menores', 'Ambos padres', 'Encargado con menor'] %}
++          {% for opt in cf_options %}
++          <option value="{{ opt }}" {% if p.composicion_familiar == opt %}selected{% endif %}>{{ opt }}</option>
++          {% endfor %}
++        </select>
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">Grupo familiar</label>
++        <select class="form-select" name="grupo_familiar">
++          <option value="">Selecciona</option>
++          {% set gf_options = ['1', '2', '3', '4', '5', '6', '7', '8', '9 ó +'] %}
++          {% for opt in gf_options %}
++          <option value="{{ opt }}" {% if p.grupo_familiar == opt %}selected{% endif %}>{{ opt }}</option>
++          {% endfor %}
++        </select>
++      </div>
++
++      <div class="col-md-4">
++        <label class="form-label">Fuente de ingreso principal</label>
++        <select class="form-select" name="fuente_ingreso_principal">
++          <option value="">Selecciona</option>
++          {% set fi_options = ['PAN', 'TANF', 'Seguro social', 'Beneficio por desempleo', 'Empleado', 'Negocio propio', 'Pensión alimentaria', 'Pensión por retiro', 'No formal (trabajo independiente-cuenta propia)', 'No respondió', 'Desempleado'] %}
++          {% for opt in fi_options %}
++          <option value="{{ opt }}" {% if p.fuente_ingreso_principal == opt %}selected{% endif %}>{{ opt }}</option>
++          {% endfor %}
++        </select>
++      </div>
++
++      <div class="col-md-3">
++        <label class="form-label">Rango de ingreso</label>
++        <select class="form-select" name="rango_ingreso">
++          <option value="">Selecciona</option>
++          {% set ri_options = ['0 - 100', '101 - 500', '501 - 1000', '1001 - 2000', '2001 o más'] %}
++          {% for opt in ri_options %}
++          <option value="{{ opt }}" {% if p.rango_ingreso == opt %}selected{% endif %}>{{ opt }}</option>
++          {% endfor %}
++        </select>
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">Edificio</label>
++        <input class="form-control" name="edificio" maxlength="50" value="{{ p.edificio or '' }}">
++      </div>
++
++      <div class="col-md-2">
++        <label class="form-label">Apt</label>
++        <input class="form-control" name="apart" maxlength="50" value="{{ p.apart or '' }}">
++      </div>
++
++      <div class="col-12 mt-3">
++        <button class="btn btn-primary w-100">Guardar Cambios</button>
++      </div>
+ 
+     </form>
+   </div>
+ </div>
+ 
++<div class="mt-3">
++  <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver a Lista</a>
++</div>
++
++<script>
++  function calcAge(dobStr) {
++    if (!dobStr) return "";
++    const dob = new Date(dobStr + "T00:00:00");
++    if (isNaN(dob.getTime())) return "";
++    const today = new Date();
++    let age = today.getFullYear() - dob.getFullYear();
++    const m = today.getMonth() - dob.getMonth();
++    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
++    return age >= 0 ? String(age) : "";
++  }
++
++  const dobInput = document.getElementById("fecha_nacimiento");
++  const ageInput = document.getElementById("edad");
++
++  if (dobInput && ageInput) {
++    ageInput.value = calcAge(dobInput.value);
++    dobInput.addEventListener("change", () => {
++      ageInput.value = calcAge(dobInput.value);
++    });
++  }
++</script>
+ 
+ <script>
+ (function () {
+@@ -87,4 +232,4 @@
+   updateExpPreview();
+ })();
+ </script>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+diff --git a/app/templates/ui/listado.html b/app/templates/ui/listado.html
+index 786257d..f7b00a2 100644
+--- a/app/templates/ui/listado.html
++++ b/app/templates/ui/listado.html
+@@ -4,11 +4,47 @@
+ {% block content %}
+ <div class="d-flex justify-content-between align-items-center mb-3">
+   <h4 class="mb-0">Marcar Asistencia</h4>
+-  <a class="btn btn-outline-secondary" href="/ui/listado">Volver a Sesiones</a>
++  <div>
++    {% if current_user and current_user.role == "admin" %}
++    <form method="post"
++          action="/ui/listado/{{ session.session_id }}/delete"
++          style="display:inline;"
++          onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
++      <button class="btn btn-outline-danger">Eliminar Sesión</button>
++    </form>
++    {% endif %}
++    <a class="btn btn-outline-secondary" href="/ui/listado">Volver a Sesiones</a>
++  </div>
+ </div>
+ 
++<!-- Session info card -->
+ <div class="card shadow-sm mb-3">
+   <div class="card-body">
++    <div class="row">
++      <div class="col-md-3">
++        <strong>Fecha:</strong> {{ session.session_date }}
++      </div>
++      <div class="col-md-4">
++        <strong>Actividad:</strong>
++        {% if activity_code %}
++          {{ activity_code.code }} - {{ activity_code.description or '' }}
++        {% else %}
++          N/A
++        {% endif %}
++      </div>
++      <div class="col-md-3">
++        <strong>Empleado:</strong>
++        {% if employee %}
++          {{ employee.full_name }}
++        {% else %}
++          N/A
++        {% endif %}
++      </div>
++      <div class="col-md-2">
++        <strong>Horas:</strong> {{ session.hours or '—' }}
++      </div>
++    </div>
++    <hr class="my-2">
+     <p class="mb-0 text-muted">
+       Marca los participantes que asistieron y presiona <strong>Guardar Asistencia</strong>.
+     </p>
+@@ -50,4 +86,4 @@
+     </div>
+   </div>
+ </form>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+-- 
+2.43.0
+
