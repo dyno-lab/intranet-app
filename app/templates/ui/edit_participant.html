@@ -7,58 +7,203 @@
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <form method="post">
+    <form method="post" class="row g-2">
 
 {% if phase2_expediente_enabled %}
-<div class="row g-2">
-  <div class="col-md-3">
-    <label class="form-label">Año expediente *</label>
-    <select class="form-select" name="exp_year" id="exp_year" required>
-      <option value="">Selecciona</option>
-      {% for y in years %}
-      <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="col-md-3">
-    <label class="form-label">Siglas empleado *</label>
-    <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
-  </div>
-
-  <div class="col-md-3">
-    <label class="form-label">4 dígitos *</label>
-    <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
-    <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
-  </div>
-
-  <div class="col-md-3">
-    <label class="form-label">Vista previa</label>
-    <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
-  </div>
+<div class="col-md-3">
+  <label class="form-label">Año expediente *</label>
+  <select class="form-select" name="exp_year" id="exp_year" required>
+    <option value="">Selecciona</option>
+    {% for y in years %}
+    <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
 </div>
 
-<div class="mt-2">
+<div class="col-md-3">
+  <label class="form-label">Siglas empleado *</label>
+  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
+</div>
+
+<div class="col-md-3">
+  <label class="form-label">4 dígitos *</label>
+  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
+  <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
+</div>
+
+<div class="col-md-3">
+  <label class="form-label">Vista previa</label>
+  <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
+</div>
+
+<div class="col-12">
   <label class="form-label">Expediente actual</label>
   <input class="form-control" value="{{ p.expediente_num }}" readonly>
 </div>
 {% else %}
-<input class="form-control mb-2" name="expediente_num" value="{{ p.expediente_num }}" required>
+<div class="col-md-4">
+  <label class="form-label">Número de expediente *</label>
+  <input class="form-control" name="expediente_num" value="{{ p.expediente_num }}" required>
+</div>
 {% endif %}
-      <input class="form-control mb-2" name="nombre" value="{{ p.nombre }}" required>
-      <input class="form-control mb-2" name="inicial" value="{{ p.inicial }}">
-      <input class="form-control mb-2" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
-      <input class="form-control mb-2" name="apellido_materno" value="{{ p.apellido_materno }}">
-      <input type="date" class="form-control mb-2" name="fecha_nacimiento" value="{{ p.fecha_nacimiento }}">
-      <input class="form-control mb-2" name="edificio" value="{{ p.edificio }}">
-      <input class="form-control mb-2" name="apart" value="{{ p.apart }}">
 
-      <button class="btn btn-primary w-100">Guardar Cambios</button>
+      <div class="col-md-3">
+        <label class="form-label">Nombre *</label>
+        <input class="form-control" name="nombre" value="{{ p.nombre }}" required>
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label">Inicial</label>
+        <input class="form-control" name="inicial" maxlength="10" value="{{ p.inicial or '' }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Apellido Paterno *</label>
+        <input class="form-control" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Apellido Materno</label>
+        <input class="form-control" name="apellido_materno" value="{{ p.apellido_materno or '' }}">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Género</label>
+        <select class="form-select" name="genero">
+          <option value="">Selecciona</option>
+          <option value="F" {% if p.genero == 'F' %}selected{% endif %}>F</option>
+          <option value="M" {% if p.genero == 'M' %}selected{% endif %}>M</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Fecha de nacimiento</label>
+        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ p.fecha_nacimiento or '' }}">
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label">Edad</label>
+        <input class="form-control" id="edad" readonly placeholder="Auto">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Estatus</label>
+        <select class="form-select" name="estatus">
+          <option value="">Selecciona</option>
+          <option value="Activo" {% if p.estatus == 'Activo' %}selected{% endif %}>Activo</option>
+          <option value="No Activo" {% if p.estatus == 'No Activo' %}selected{% endif %}>No Activo</option>
+          <option value="Deceso" {% if p.estatus == 'Deceso' %}selected{% endif %}>Deceso</option>
+          <option value="Transferencia" {% if p.estatus == 'Transferencia' %}selected{% endif %}>Transferencia</option>
+          <option value="Baja" {% if p.estatus == 'Baja' %}selected{% endif %}>Baja</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">VCA</label>
+        <select class="form-select" name="vca">
+          <option value="">Selecciona</option>
+          <option value="SI" {% if p.vca == 'SI' %}selected{% endif %}>SI</option>
+          <option value="NO" {% if p.vca == 'NO' %}selected{% endif %}>NO</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Participa por primera vez</label>
+        <select class="form-select" name="primera_vez">
+          <option value="">Selecciona</option>
+          <option value="SI" {% if p.primera_vez == 'SI' %}selected{% endif %}>SI</option>
+          <option value="NO" {% if p.primera_vez == 'NO' %}selected{% endif %}>NO</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Composición Familiar</label>
+        <select class="form-select" name="composicion_familiar">
+          <option value="">Selecciona</option>
+          {% set cf_options = ['Solo(a)', 'Madre soltera', 'Padre soltero', 'Adulto Mayor (60+) con niños', '2 adultos con menores', '2 adultos sin menores', 'Ambos padres', 'Encargado con menor'] %}
+          {% for opt in cf_options %}
+          <option value="{{ opt }}" {% if p.composicion_familiar == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Grupo familiar</label>
+        <select class="form-select" name="grupo_familiar">
+          <option value="">Selecciona</option>
+          {% set gf_options = ['1', '2', '3', '4', '5', '6', '7', '8', '9 ó +'] %}
+          {% for opt in gf_options %}
+          <option value="{{ opt }}" {% if p.grupo_familiar == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Fuente de ingreso principal</label>
+        <select class="form-select" name="fuente_ingreso_principal">
+          <option value="">Selecciona</option>
+          {% set fi_options = ['PAN', 'TANF', 'Seguro social', 'Beneficio por desempleo', 'Empleado', 'Negocio propio', 'Pensión alimentaria', 'Pensión por retiro', 'No formal (trabajo independiente-cuenta propia)', 'No respondió', 'Desempleado'] %}
+          {% for opt in fi_options %}
+          <option value="{{ opt }}" {% if p.fuente_ingreso_principal == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Rango de ingreso</label>
+        <select class="form-select" name="rango_ingreso">
+          <option value="">Selecciona</option>
+          {% set ri_options = ['0 - 100', '101 - 500', '501 - 1000', '1001 - 2000', '2001 o más'] %}
+          {% for opt in ri_options %}
+          <option value="{{ opt }}" {% if p.rango_ingreso == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Edificio</label>
+        <input class="form-control" name="edificio" maxlength="50" value="{{ p.edificio or '' }}">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Apt</label>
+        <input class="form-control" name="apart" maxlength="50" value="{{ p.apart or '' }}">
+      </div>
+
+      <div class="col-12 mt-3">
+        <button class="btn btn-primary w-100">Guardar Cambios</button>
+      </div>
 
     </form>
   </div>
 </div>
 
+<div class="mt-3">
+  <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver a Lista</a>
+</div>
+
+<script>
+  function calcAge(dobStr) {
+    if (!dobStr) return "";
+    const dob = new Date(dobStr + "T00:00:00");
+    if (isNaN(dob.getTime())) return "";
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    return age >= 0 ? String(age) : "";
+  }
+
+  const dobInput = document.getElementById("fecha_nacimiento");
+  const ageInput = document.getElementById("edad");
+
+  if (dobInput && ageInput) {
+    ageInput.value = calcAge(dobInput.value);
+    dobInput.addEventListener("change", () => {
+      ageInput.value = calcAge(dobInput.value);
+    });
+  }
+</script>
 
 <script>
 (function () {

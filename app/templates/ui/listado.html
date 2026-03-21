@@ -4,11 +4,47 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0">Marcar Asistencia</h4>
-  <a class="btn btn-outline-secondary" href="/ui/listado">Volver a Sesiones</a>
+  <div>
+    {% if current_user and current_user.role == "admin" %}
+    <form method="post"
+          action="/ui/listado/{{ session.session_id }}/delete"
+          style="display:inline;"
+          onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
+      <button class="btn btn-outline-danger">Eliminar Sesión</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="/ui/listado">Volver a Sesiones</a>
+  </div>
 </div>
 
+<!-- Session info card -->
 <div class="card shadow-sm mb-3">
   <div class="card-body">
+    <div class="row">
+      <div class="col-md-3">
+        <strong>Fecha:</strong> {{ session.session_date }}
+      </div>
+      <div class="col-md-4">
+        <strong>Actividad:</strong>
+        {% if activity_code %}
+          {{ activity_code.code }} - {{ activity_code.description or '' }}
+        {% else %}
+          N/A
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <strong>Empleado:</strong>
+        {% if employee %}
+          {{ employee.full_name }}
+        {% else %}
+          N/A
+        {% endif %}
+      </div>
+      <div class="col-md-2">
+        <strong>Horas:</strong> {{ session.hours or '—' }}
+      </div>
+    </div>
+    <hr class="my-2">
     <p class="mb-0 text-muted">
       Marca los participantes que asistieron y presiona <strong>Guardar Asistencia</strong>.
     </p>

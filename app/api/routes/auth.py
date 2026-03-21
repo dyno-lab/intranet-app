@@ -4,20 +4,12 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.user import User
 from app.core.security import verify_password
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.get("/login", response_class=HTMLResponse)

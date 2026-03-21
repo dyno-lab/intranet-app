@@ -2,18 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.participant import Participant
 from app.schemas.participant import ParticipantCreate, ParticipantOut
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("", response_model=ParticipantOut)
 def create_participant(payload: ParticipantCreate, db: Session = Depends(get_db)):

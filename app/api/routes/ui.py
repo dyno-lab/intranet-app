@@ -17,21 +17,10 @@ from app.models.user import User
 
 from app.core.auth import get_current_user, require_admin
 from app.core.config import settings
+from app.api.deps import get_db
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-
-# ============================================================
-# DB
-# ============================================================
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # ============================================================
@@ -473,3 +462,122 @@ def create_session_ui(
     db.refresh(s)
 
     return RedirectResponse(f"/ui/listado/{s.session_id}", status_code=303)
+
+
+# ============================================================
+# LISTADO - OPEN SESSION (mark attendance)
+# ============================================================
+
+@router.get("/listado/{session_id}", response_class=HTMLResponse)
+def open_session(
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    _check_session_access(s, current_user)
+
+    # Load activity code and employee for session info card
+    activity_code = db.get(ActivityCode, s.activity_code_id)
+    employee = db.get(Employee, s.employee_id)
+
+    # Load participants (all for admin, own for regular user)
+    stmt = select(Participant).order_by(
+        Participant.apellido_paterno,
+        Participant.nombre,
+    )
+    if current_user.role != "admin":
+        stmt = stmt.where(
+            Participant.created_by_user_id == current_user.user_id
+        )
+    participants = db.execute(stmt).scalars().all()
+
+    # Load existing attendance for this session
+    att_stmt = select(Attendance.participant_id).where(
+        Attendance.session_id == session_id,
+        Attendance.attended == True,  # noqa
+    )
+    attended_ids = set(db.execute(att_stmt).scalars().all())
+
+    return templates.TemplateResponse(
+        "ui/listado.html",
+        {
+            "request": request,
+            "session": s,
+            "activity_code": activity_code,
+            "employee": employee,
+            "participants": participants,
+            "attended_ids": attended_ids,
+            "current_user": current_user,
+            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+            "years": list(range(date.today().year - 2, date.today().year + 3)),
+        },
+    )
+
+
+@router.post("/listado/{session_id}")
+async def save_attendance(
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    _check_session_access(s, current_user)
+
+    # Parse form data to get list of checked participant ids
+    form = await request.form()
+    present = [int(v) for v in form.getlist("present")]
+
+    # Delete existing attendance for this session
+    db.execute(
+        delete(Attendance).where(Attendance.session_id == session_id)
+    )
+
+    # Insert new attendance records
+    for pid in present:
+        att = Attendance(
+            participant_id=pid,
+            session_id=session_id,
+            attended=True,
+            marked_by=current_user.username,
+        )
+        db.add(att)
+
+    db.commit()
+
+    return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)
+
+
+@router.post("/listado/{session_id}/delete")
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    _check_session_access(s, current_user)
+
+    # Delete all attendance records for this session
+    db.execute(
+        delete(Attendance).where(Attendance.session_id == session_id)
+    )
+
+    # Delete the session itself
+    db.execute(
+        delete(ActivitySession).where(ActivitySession.session_id == session_id)
+    )
+
+    db.commit()
+
+    return RedirectResponse("/ui/listado", status_code=303)

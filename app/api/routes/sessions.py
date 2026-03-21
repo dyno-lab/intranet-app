@@ -3,20 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import date
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
 from app.schemas.session import SessionCreate, SessionOut
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.get("", response_model=list[SessionOut])
 def list_sessions(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db)):

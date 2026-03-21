@@ -2,18 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeOut
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.get("", response_model=list[EmployeeOut])
 def list_employees(active_only: bool = True, db: Session = Depends(get_db)):

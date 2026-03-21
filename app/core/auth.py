@@ -2,16 +2,8 @@ from fastapi import Request, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.user import User
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:

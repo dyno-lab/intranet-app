@@ -2,18 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
+from app.api.deps import get_db
 from app.models.activity_code import ActivityCode
 from app.schemas.activity_code import ActivityCodeCreate, ActivityCodeOut
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.get("", response_model=list[ActivityCodeOut])
 def list_codes(active_only: bool = True, db: Session = Depends(get_db)):
