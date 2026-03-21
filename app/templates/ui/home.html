@@ -2,13 +2,109 @@
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h4>Menú Principal</h4>
-    <div class="d-flex gap-3 mt-3">
-      <a class="btn btn-primary" href="/ui/new-list">Participantes</a>
-      <a class="btn btn-success" href="/ui/listado">Asistencias</a>
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+    <div class="text-center mb-4">
+      <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle bg-white shadow-sm border"
+           style="width: 110px; height: 110px;">
+        <span class="fs-1">✨</span>
+      </div>
+      <h1 class="fw-bold mb-2">Programa Faro de Esperanza</h1>
+      <p class="text-secondary fs-5 mb-0">Menú Estadístico</p>
     </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-md-5">
+        <div class="row g-4 justify-content-center">
+          <div class="col-12 col-md-6 col-xl-4">
+            <a href="/ui/new-list" class="text-decoration-none">
+              <div class="card h-100 border-primary border-2 shadow-sm text-center">
+                <div class="card-body py-4 px-3">
+                  <div class="display-5 mb-3">👥</div>
+                  <h3 class="h4 text-dark fw-semibold">Participantes</h3>
+                  <p class="text-muted mb-0">Registrar, consultar y actualizar participantes.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-4">
+            <a href="/ui/listado" class="text-decoration-none">
+              <div class="card h-100 border-success border-2 shadow-sm text-center">
+                <div class="card-body py-4 px-3">
+                  <div class="display-5 mb-3">📋</div>
+                  <h3 class="h4 text-dark fw-semibold">Asistencias</h3>
+                  <p class="text-muted mb-0">Crear sesiones, marcar asistencia y revisar listados.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-4">
+            <form method="post" action="/logout" class="h-100">
+              <button type="submit" class="btn p-0 border-0 bg-transparent w-100 h-100 text-start">
+                <div class="card h-100 border-danger border-2 shadow-sm text-center">
+                  <div class="card-body py-4 px-3">
+                    <div class="display-5 mb-3">🚪</div>
+                    <h3 class="h4 text-dark fw-semibold">Cerrar sesión</h3>
+                    <p class="text-muted mb-0">Salir de forma segura del sistema.</p>
+                  </div>
+                </div>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {% if current_user and current_user.role == "admin" %}
+        <hr class="my-5">
+
+        <div class="text-center mb-4">
+          <h2 class="h4 fw-bold mb-2">Administración</h2>
+          <p class="text-muted mb-0">Opciones disponibles para usuarios administradores.</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+          <div class="col-12 col-md-6 col-xl-4">
+            <a href="/ui/admin/users" class="text-decoration-none">
+              <div class="card h-100 border-warning border-2 shadow-sm text-center">
+                <div class="card-body py-4 px-3">
+                  <div class="display-6 mb-3">👤</div>
+                  <h3 class="h5 text-dark fw-semibold">Usuarios</h3>
+                  <p class="text-muted mb-0">Gestionar cuentas, roles y accesos.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-4">
+            <a href="/ui/admin/activity-codes" class="text-decoration-none">
+              <div class="card h-100 border-warning border-2 shadow-sm text-center">
+                <div class="card-body py-4 px-3">
+                  <div class="display-6 mb-3">🗂️</div>
+                  <h3 class="h5 text-dark fw-semibold">Actividades</h3>
+                  <p class="text-muted mb-0">Administrar códigos y descripciones de actividad.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-4">
+            <a href="/ui/admin/employees" class="text-decoration-none">
+              <div class="card h-100 border-warning border-2 shadow-sm text-center">
+                <div class="card-body py-4 px-3">
+                  <div class="display-6 mb-3">🧑‍💼</div>
+                  <h3 class="h5 text-dark fw-semibold">Empleados</h3>
+                  <p class="text-muted mb-0">Mantener el catálogo del personal disponible.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <p class="text-center text-muted small mt-4 mb-0">Derechos reservados Christian X. Ramirez</p>
   </div>
 </div>
 {% endblock %}

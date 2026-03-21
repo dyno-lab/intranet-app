@@ -9,20 +9,24 @@
 
 <body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/ui">Intranet</a>
+    <a class="navbar-brand fw-semibold" href="/ui">Programa Faro de Esperanza</a>
 
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link" href="/ui">Inicio</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/ui/new-list">New List</a>
+          <a class="nav-link" href="/ui/new-list">Participantes</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/ui/listado">Listado</a>
+          <a class="nav-link" href="/ui/listado">Asistencias</a>
         </li>
         {% if current_user and current_user.role == "admin" %}
         <li class="nav-item dropdown">
@@ -49,7 +53,7 @@
         </span>
 
         <form method="post" action="/logout" class="mb-0">
-          <button class="btn btn-outline-light btn-sm">Logout</button>
+          <button class="btn btn-outline-light btn-sm">Cerrar sesión</button>
         </form>
       </div>
       {% endif %}
