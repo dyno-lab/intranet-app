@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Intranet{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/ui">Intranet</a>
+
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/ui">Inicio</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/ui/new-list">New List</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/ui/listado">Listado</a>
+        </li>
+      </ul>
+
+      {% if current_user %}
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-white small">
+          Usuario:
+          <strong>{{ current_user.username }}</strong>
+          {% if current_user.role == "admin" %}
+            <span class="badge bg-warning text-dark">admin</span>
+          {% endif %}
+        </span>
+
+        <form method="post" action="/logout" class="mb-0">
+          <button class="btn btn-outline-light btn-sm">Logout</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

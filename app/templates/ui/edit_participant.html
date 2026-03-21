@@ -1,0 +1,90 @@
+{% extends "ui/_base.html" %}
+{% block title %}Editar{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-3">Editar Participante</h4>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post">
+
+{% if phase2_expediente_enabled %}
+<div class="row g-2">
+  <div class="col-md-3">
+    <label class="form-label">Año expediente *</label>
+    <select class="form-select" name="exp_year" id="exp_year" required>
+      <option value="">Selecciona</option>
+      {% for y in years %}
+      <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Siglas empleado *</label>
+    <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">4 dígitos *</label>
+    <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
+    <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Vista previa</label>
+    <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
+  </div>
+</div>
+
+<div class="mt-2">
+  <label class="form-label">Expediente actual</label>
+  <input class="form-control" value="{{ p.expediente_num }}" readonly>
+</div>
+{% else %}
+<input class="form-control mb-2" name="expediente_num" value="{{ p.expediente_num }}" required>
+{% endif %}
+      <input class="form-control mb-2" name="nombre" value="{{ p.nombre }}" required>
+      <input class="form-control mb-2" name="inicial" value="{{ p.inicial }}">
+      <input class="form-control mb-2" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
+      <input class="form-control mb-2" name="apellido_materno" value="{{ p.apellido_materno }}">
+      <input type="date" class="form-control mb-2" name="fecha_nacimiento" value="{{ p.fecha_nacimiento }}">
+      <input class="form-control mb-2" name="edificio" value="{{ p.edificio }}">
+      <input class="form-control mb-2" name="apart" value="{{ p.apart }}">
+
+      <button class="btn btn-primary w-100">Guardar Cambios</button>
+
+    </form>
+  </div>
+</div>
+
+
+<script>
+(function () {
+  const yearEl = document.getElementById("exp_year");
+  const initEl = document.getElementById("exp_employee_initials");
+  const seqEl  = document.getElementById("exp_seq4");
+  const prevEl = document.getElementById("exp_preview");
+
+  function updateExpPreview() {
+    if (!yearEl || !initEl || !seqEl || !prevEl) return;
+    const y = (yearEl.value || "YYYY").trim();
+    const initials = (initEl.value || "XX").trim().toUpperCase();
+    const seq = (seqEl.value || "0000").trim();
+    prevEl.value = `FE-${y}-${initials || "XX"}-${seq || "0000"}`;
+  }
+
+  if (initEl) {
+    initEl.addEventListener("input", () => {
+      initEl.value = initEl.value.toUpperCase();
+      updateExpPreview();
+    });
+  }
+  if (yearEl) yearEl.addEventListener("change", updateExpPreview);
+  if (seqEl)  seqEl.addEventListener("input", updateExpPreview);
+
+  updateExpPreview();
+})();
+</script>
+{% endblock %}

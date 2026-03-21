@@ -1,0 +1,296 @@
+{% extends "ui/_base.html" %}
+{% block title %}New List{% endblock %}
+
+{% block content %}
+<h4 class="mb-3">New List - Registro de Participantes</h4>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="post" action="/ui/new-list/create" class="row g-2">
+
+      {% if phase2_expediente_enabled %}
+<div class="col-md-2">
+  <label class="form-label">Año expediente *</label>
+  <select class="form-select" name="exp_year" id="exp_year" required>
+    <option value="">Selecciona</option>
+    {% for y in years %}
+    <option value="{{ y }}">{{ y }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="col-md-2">
+  <label class="form-label">Siglas empleado *</label>
+  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
+</div>
+
+<div class="col-md-2">
+  <label class="form-label">4 dígitos *</label>
+  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
+  <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
+</div>
+
+<div class="col-md-2">
+  <label class="form-label">Vista previa</label>
+  <input class="form-control" id="exp_preview" readonly placeholder="FE-YYYY-XX-0000">
+</div>
+{% else %}
+<div class="col-md-2">
+  <label class="form-label">Número de expediente *</label>
+  <input class="form-control" name="expediente_num" required>
+</div>
+{% endif %}
+
+
+      <div class="col-md-3">
+        <label class="form-label">Nombre *</label>
+        <input class="form-control" name="nombre" required>
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label">Inicial</label>
+        <input class="form-control" name="inicial" maxlength="10">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Apellido Paterno *</label>
+        <input class="form-control" name="apellido_paterno" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Apellido Materno</label>
+        <input class="form-control" name="apellido_materno">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Género</label>
+        <select class="form-select" name="genero">
+          <option value="">Selecciona</option>
+          <option value="F">F</option>
+          <option value="M">M</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Fecha de nacimiento</label>
+        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label">Edad</label>
+        <input class="form-control" id="edad" readonly placeholder="Auto">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">VCA</label>
+        <select class="form-select" name="vca">
+          <option value="">Selecciona</option>
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Participa por primera vez</label>
+        <select class="form-select" name="primera_vez">
+          <option value="">Selecciona</option>
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Composición Familiar</label>
+        <select class="form-select" name="composicion_familiar">
+          <option value="">Selecciona</option>
+          <option>Solo(a)</option>
+          <option>Madre soltera</option>
+          <option>Padre soltero</option>
+          <option>Adulto Mayor (60+) con niños</option>
+          <option>2 adultos con menores</option>
+          <option>2 adultos sin menores</option>
+          <option>Ambos padres</option>
+          <option>Encargado con menor</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Grupo familiar</label>
+        <select class="form-select" name="grupo_familiar">
+          <option value="">Selecciona</option>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          <option>6</option>
+          <option>7</option>
+          <option>8</option>
+          <option>9 ó +</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Fuente de ingreso principal</label>
+        <select class="form-select" name="fuente_ingreso_principal">
+          <option value="">Selecciona</option>
+          <option>PAN</option>
+          <option>TANF</option>
+          <option>Seguro social</option>
+          <option>Beneficio por desempleo</option>
+          <option>Empleado</option>
+          <option>Negocio propio</option>
+          <option>Pensión alimentaria</option>
+          <option>Pensión por retiro</option>
+          <option>No formal (trabajo independiente-cuenta propia)</option>
+          <option>No respondió</option>
+          <option>Desempleado</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Rango de ingreso</label>
+        <select class="form-select" name="rango_ingreso">
+          <option value="">Selecciona</option>
+          <option>0 - 100</option>
+          <option>101 - 500</option>
+          <option>501 - 1000</option>
+          <option>1001 - 2000</option>
+          <option>2001 o más</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Edificio</label>
+        <input class="form-control" name="edificio" maxlength="50">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Apt</label>
+        <input class="form-control" name="apart" maxlength="50">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Estatus</label>
+        <select class="form-select" name="estatus">
+          <option value="">Selecciona</option>
+          <option value="Activo">Activo</option>
+          <option value="No Activo">No Activo</option>
+          <option value="Deceso">Deceso</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Baja">Baja</option>
+        </select>
+      </div>
+
+      <div class="col-12 mt-3">
+        <button class="btn btn-success w-100">Guardar Participante</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h5 class="mb-0">Participantes Registrados</h5>
+  <span class="text-muted small">
+    {% if current_user %}Viendo como: {{ current_user.username }}{% endif %}
+  </span>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Número de expediente</th>
+          <th>Nombre</th>
+          <th>Inicial</th>
+          <th>Apellido</th>
+          <th>Edad</th>
+          <th>Apt</th>
+          <th>Edificio</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          {% set p = r.p %}
+          <tr>
+            <td>{{ p.expediente_num }}</td>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.inicial or '' }}</td>
+            <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+            <td>{{ r.age if r.age is not none else '' }}</td>
+            <td>{{ p.apart or '' }}</td>
+            <td>{{ p.edificio or '' }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
+
+              {% if current_user and current_user.role == "admin" %}
+              <form method="post"
+                    action="/ui/new-list/{{ p.participant_id }}/delete"
+                    style="display:inline;"
+                    onsubmit="return confirm('¿Eliminar participante?');">
+                <button class="btn btn-sm btn-danger">Eliminar</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function calcAge(dobStr) {
+    if (!dobStr) return "";
+    const dob = new Date(dobStr + "T00:00:00");
+    if (isNaN(dob.getTime())) return "";
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    return age >= 0 ? String(age) : "";
+  }
+
+  const dobInput = document.getElementById("fecha_nacimiento");
+  const ageInput = document.getElementById("edad");
+
+  if (dobInput && ageInput) {
+    dobInput.addEventListener("change", () => {
+      ageInput.value = calcAge(dobInput.value);
+    });
+  }
+</script>
+
+
+<script>
+(function () {
+  const yearEl = document.getElementById("exp_year");
+  const initEl = document.getElementById("exp_employee_initials");
+  const seqEl  = document.getElementById("exp_seq4");
+  const prevEl = document.getElementById("exp_preview");
+
+  function updateExpPreview() {
+    if (!yearEl || !initEl || !seqEl || !prevEl) return;
+    const y = (yearEl.value || "YYYY").trim();
+    const initials = (initEl.value || "XX").trim().toUpperCase();
+    // Mantener lo que escriba el usuario; si escribe menos de 4, se muestra tal cual.
+    const seq = (seqEl.value || "0000").trim();
+    prevEl.value = `FE-${y}-${initials || "XX"}-${seq || "0000"}`;
+  }
+
+  if (initEl) {
+    initEl.addEventListener("input", () => {
+      initEl.value = initEl.value.toUpperCase();
+      updateExpPreview();
+    });
+  }
+  if (yearEl) yearEl.addEventListener("change", updateExpPreview);
+  if (seqEl)  seqEl.addEventListener("input", updateExpPreview);
+
+  updateExpPreview();
+})();
+</script>
+{% endblock %}
