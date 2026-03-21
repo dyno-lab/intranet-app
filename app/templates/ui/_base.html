@@ -24,6 +24,18 @@
         <li class="nav-item">
           <a class="nav-link" href="/ui/listado">Listado</a>
         </li>
+        {% if current_user and current_user.role == "admin" %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            ⚙️ Admin
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/ui/admin/users">Usuarios</a></li>
+            <li><a class="dropdown-item" href="/ui/admin/activity-codes">Actividades</a></li>
+            <li><a class="dropdown-item" href="/ui/admin/employees">Empleados</a></li>
+          </ul>
+        </li>
+        {% endif %}
       </ul>
 
       {% if current_user %}

@@ -1,0 +1,112 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Gestión de Empleados{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">🧑‍💼 Gestión de Empleados</h3>
+
+<!-- Create new employee -->
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <strong>Crear nuevo empleado</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/employees/create" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label for="full_name" class="form-label">Nombre completo</label>
+        <input type="text" class="form-control" name="full_name" id="full_name" required>
+      </div>
+      <div class="col-md-5">
+        <label for="employee_code" class="form-label">Código de empleado</label>
+        <input type="text" class="form-control" name="employee_code" id="employee_code">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Employee list -->
+<div class="card">
+  <div class="card-header">
+    <strong>Empleados registrados</strong>
+    <span class="badge bg-secondary ms-2">{{ employees | length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Nombre completo</th>
+          <th>Código</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr class="{{ 'text-muted text-decoration-line-through' if not emp.is_active }}">
+          <td>{{ emp.employee_id }}</td>
+          <td>{{ emp.full_name }}</td>
+          <td>{{ emp.employee_code or '-' }}</td>
+          <td>
+            {% if emp.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#edit-emp-{{ emp.employee_id }}">
+              Editar
+            </button>
+            <form method="post" action="/ui/admin/employees/{{ emp.employee_id }}/delete"
+                  class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar al empleado {{ emp.full_name }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        <!-- Collapsible edit row -->
+        <tr class="collapse" id="edit-emp-{{ emp.employee_id }}">
+          <td colspan="5" class="bg-light">
+            <form method="post" action="/ui/admin/employees/{{ emp.employee_id }}/edit" class="row g-2 align-items-end p-2">
+              <div class="col-md-3">
+                <label class="form-label small">Nombre completo</label>
+                <input type="text" class="form-control form-control-sm" name="full_name" value="{{ emp.full_name }}" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Código de empleado</label>
+                <input type="text" class="form-control form-control-sm" name="employee_code" value="{{ emp.employee_code or '' }}">
+              </div>
+              <div class="col-md-2">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" name="is_active" id="active-emp-{{ emp.employee_id }}"
+                         {{ 'checked' if emp.is_active }}>
+                  <label class="form-check-label" for="active-emp-{{ emp.employee_id }}">Activo</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn btn-sm btn-success">Guardar</button>
+                <button type="button" class="btn btn-sm btn-secondary"
+                        data-bs-toggle="collapse" data-bs-target="#edit-emp-{{ emp.employee_id }}">Cancelar</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

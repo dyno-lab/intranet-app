@@ -1,0 +1,136 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">👥 Gestión de Usuarios</h3>
+
+<!-- Create new user -->
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <strong>Crear nuevo usuario</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/users/create" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="username" class="form-label">Nombre de usuario</label>
+        <input type="text" class="form-control" name="username" id="username" required>
+      </div>
+      <div class="col-md-3">
+        <label for="password" class="form-label">Contraseña</label>
+        <input type="password" class="form-control" name="password" id="password" required>
+      </div>
+      <div class="col-md-3">
+        <label for="role" class="form-label">Rol</label>
+        <select class="form-select" name="role" id="role">
+          <option value="user" selected>user</option>
+          <option value="admin">admin</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- User list -->
+<div class="card">
+  <div class="card-header">
+    <strong>Usuarios registrados</strong>
+    <span class="badge bg-secondary ms-2">{{ users | length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th>Creado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr class="{{ 'text-muted text-decoration-line-through' if not user.is_active }}">
+          <td>{{ user.user_id }}</td>
+          <td>{{ user.username }}</td>
+          <td>
+            {% if user.role == "admin" %}
+              <span class="badge bg-warning text-dark">admin</span>
+            {% else %}
+              <span class="badge bg-info">user</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if user.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '-' }}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#edit-user-{{ user.user_id }}">
+              Editar
+            </button>
+            {% if user.user_id != current_user.user_id %}
+            <form method="post" action="/ui/admin/users/{{ user.user_id }}/delete"
+                  class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar al usuario {{ user.username }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        <!-- Collapsible edit row -->
+        <tr class="collapse" id="edit-user-{{ user.user_id }}">
+          <td colspan="6" class="bg-light">
+            <form method="post" action="/ui/admin/users/{{ user.user_id }}/edit" class="row g-2 align-items-end p-2">
+              <div class="col-md-3">
+                <label class="form-label small">Usuario</label>
+                <input type="text" class="form-control form-control-sm" name="username" value="{{ user.username }}" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small">Rol</label>
+                <select class="form-select form-select-sm" name="role">
+                  <option value="user" {{ 'selected' if user.role == 'user' }}>user</option>
+                  <option value="admin" {{ 'selected' if user.role == 'admin' }}>admin</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small">Nueva contraseña</label>
+                <input type="password" class="form-control form-control-sm" name="new_password" placeholder="(sin cambiar)">
+              </div>
+              <div class="col-md-2">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ user.user_id }}"
+                         {{ 'checked' if user.is_active }}>
+                  <label class="form-check-label" for="active-{{ user.user_id }}">Activo</label>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-success">Guardar</button>
+                <button type="button" class="btn btn-sm btn-secondary"
+                        data-bs-toggle="collapse" data-bs-target="#edit-user-{{ user.user_id }}">Cancelar</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

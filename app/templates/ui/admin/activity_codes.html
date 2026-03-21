@@ -1,0 +1,112 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Gestión de Códigos de Actividad{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">📋 Gestión de Códigos de Actividad</h3>
+
+<!-- Create new activity code -->
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <strong>Crear nuevo código de actividad</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/activity-codes/create" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="code" class="form-label">Código</label>
+        <input type="text" class="form-control" name="code" id="code" required>
+      </div>
+      <div class="col-md-6">
+        <label for="description" class="form-label">Descripción</label>
+        <input type="text" class="form-control" name="description" id="description">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Activity codes list -->
+<div class="card">
+  <div class="card-header">
+    <strong>Códigos de actividad</strong>
+    <span class="badge bg-secondary ms-2">{{ codes | length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ac in codes %}
+        <tr class="{{ 'text-muted text-decoration-line-through' if not ac.is_active }}">
+          <td>{{ ac.activity_code_id }}</td>
+          <td><strong>{{ ac.code }}</strong></td>
+          <td>{{ ac.description or '-' }}</td>
+          <td>
+            {% if ac.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#edit-ac-{{ ac.activity_code_id }}">
+              Editar
+            </button>
+            <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/delete"
+                  class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar el código {{ ac.code }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        <!-- Collapsible edit row -->
+        <tr class="collapse" id="edit-ac-{{ ac.activity_code_id }}">
+          <td colspan="5" class="bg-light">
+            <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/edit" class="row g-2 align-items-end p-2">
+              <div class="col-md-3">
+                <label class="form-label small">Código</label>
+                <input type="text" class="form-control form-control-sm" name="code" value="{{ ac.code }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Descripción</label>
+                <input type="text" class="form-control form-control-sm" name="description" value="{{ ac.description or '' }}">
+              </div>
+              <div class="col-md-2">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" name="is_active" id="active-ac-{{ ac.activity_code_id }}"
+                         {{ 'checked' if ac.is_active }}>
+                  <label class="form-check-label" for="active-ac-{{ ac.activity_code_id }}">Activo</label>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-success">Guardar</button>
+                <button type="button" class="btn btn-sm btn-secondary"
+                        data-bs-toggle="collapse" data-bs-target="#edit-ac-{{ ac.activity_code_id }}">Cancelar</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
