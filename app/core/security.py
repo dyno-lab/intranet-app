@@ -7,7 +7,6 @@ pwd_context = CryptContext(
 )
 
 def hash_password(password: str) -> str:
-    # Por defecto generará bcrypt si bcrypt está disponible
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

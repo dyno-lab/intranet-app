@@ -108,7 +108,7 @@ def admin_edit_user(
     user.role = role if role in ("admin", "user") else "user"
     user.is_active = is_active == "on"
 
-    if new_password and new_password.strip():
+    if new_password and new_password.strip() and len(new_password.strip()) > 0:
         user.password_hash = hash_password(new_password.strip())
 
     db.add(user)
