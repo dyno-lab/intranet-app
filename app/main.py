@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
@@ -17,6 +18,7 @@ from app.api.routes.employees import router as employees_router
 from app.api.routes.activity_codes import router as activity_codes_router
 
 app = FastAPI(title="Intranet App")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Session middleware (LOGIN)
 SESSION_SECRET = os.environ.get("SESSION_SECRET", "CAMBIA_ESTA_CLAVE_SUPER_SECRETA")
