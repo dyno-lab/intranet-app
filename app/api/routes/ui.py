@@ -159,16 +159,16 @@ def new_list(
         for p in participants
     ]
 
-    return templates.TemplateResponse(
-        "ui/new_list.html",
-        {
-            "request": request,
-            "rows": rows,
-            "current_user": current_user,
-            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
-        },
-    )
+    context = {
+        "request": request,
+        "rows": rows,
+        "current_user": current_user,
+        "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+        "years": list(range(date.today().year - 2, date.today().year + 3)),
+    }
+    context.update(_participant_form_catalogs(db))
+
+    return templates.TemplateResponse("ui/new_list.html", context)
 
 
 @router.post("/new-list/create")
@@ -298,16 +298,16 @@ def edit_participant_form(
 
     _check_participant_access(p, current_user)
 
-    return templates.TemplateResponse(
-        "ui/edit_participant.html",
-        {
-            "request": request,
-            "p": p,
-            "current_user": current_user,
-            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
-        },
-    )
+    context = {
+        "request": request,
+        "p": p,
+        "current_user": current_user,
+        "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+        "years": list(range(date.today().year - 2, date.today().year + 3)),
+    }
+    context.update(_participant_form_catalogs(db))
+
+    return templates.TemplateResponse("ui/edit_participant.html", context)
 
 
 @router.post("/new-list/{participant_id}/edit")
