@@ -119,7 +119,7 @@
           <td>{{ report.report_year }}</td>
           <td>{{ report.notes or '-' }}</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-secondary" disabled>Próximo paso: participantes/notas</button>
+            <a class="btn btn-sm btn-primary" href="/ui/school-grades/{{ report.report_id }}">Abrir</a>
           </td>
         </tr>
         {% endfor %}

@@ -1,0 +1,105 @@
+{% extends "ui/_base.html" %}
+{% block title %}Informe de notas{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-1">Informe de notas</h4>
+    <div class="text-muted">
+      {{ proposal.code if proposal else '' }} - {{ proposal.name if proposal else '' }} | Mes {{ report.report_month }} | Año {{ report.report_year }}
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/ui/school-grades">Volver</a>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Añadir participante (0 a 21 años)</h5>
+    <form method="post" action="/ui/school-grades/{{ report.report_id }}/participants/add" class="row g-2 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label">Participante *</label>
+        <select class="form-select" name="participant_id" required>
+          <option value="">Selecciona...</option>
+          {% for row in eligible_rows %}
+          {% set p = row.p %}
+          {% if p.participant_id not in existing_participant_ids %}
+          <option value="{{ p.participant_id }}">
+            {{ p.expediente_num }} | {{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }} | Edad {{ row.age }}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Grado</label>
+        <select class="form-select" name="grade_level">
+          <option value="">Selecciona...</option>
+          {% for grade in grade_options %}
+          <option value="{{ grade }}">{{ grade }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" name="is_content_room" id="is_content_room">
+          <label class="form-check-label" for="is_content_room">Salón contenido</label>
+        </div>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Añadir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <h5 class="mb-3">Participantes añadidos</h5>
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Expediente</th>
+          <th>Nombre</th>
+          <th>Inicial</th>
+          <th>Apellidos</th>
+          <th>Género</th>
+          <th>Edad</th>
+          <th>Edificio</th>
+          <th>Apartamento</th>
+          <th>Grado</th>
+          <th>Salón contenido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report_items %}
+        {% set item = row[0] %}
+        {% set p = row[1] %}
+        {% set age = (eligible_rows | selectattr('p.participant_id', 'equalto', p.participant_id) | map(attribute='age') | list | first) %}
+        <tr>
+          <td>{{ p.expediente_num }}</td>
+          <td>{{ p.nombre }}</td>
+          <td>{{ p.inicial or '' }}</td>
+          <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+          <td>{{ p.genero or '' }}</td>
+          <td>{{ age if age is not none else '' }}</td>
+          <td>{{ p.edificio or '' }}</td>
+          <td>{{ p.apart or '' }}</td>
+          <td>{{ item.grade_level or '' }}</td>
+          <td>{{ 'Sí' if item.is_content_room else 'No' }}</td>
+        </tr>
+        {% endfor %}
+        {% if report_items|length == 0 %}
+        <tr><td colspan="10" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
