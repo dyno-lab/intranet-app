@@ -416,6 +416,10 @@ def listado_selector(
             "employees": employees,
             "proposals": proposals,
             "selected_proposal_id": proposal_id,
+            "selected_month": month,
+            "selected_year": year,
+            "month_options": month_options,
+            "filter_years": filter_years,
             "from_date": fd,
             "to_date": td,
             "current_user": current_user,
@@ -605,6 +609,16 @@ def delete_session(
     _check_session_access(s, current_user)
 
     db.execute(
+        delete(Attendance).where(Attendance.session_id == session_id)
+    )
+    db.execute(
+        delete(ActivitySession).where(ActivitySession.session_id == session_id)
+    )
+
+    db.commit()
+
+    return RedirectResponse("/ui/listado", status_code=303)
+e(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
     db.execute(

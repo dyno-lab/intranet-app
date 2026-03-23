@@ -21,16 +21,39 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
+        <label class="form-label">Mes</label>
+        <select class="form-select" name="month">
+          <option value="">Todos</option>
+          {% for month_value, month_label in month_options %}
+            <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año</label>
+        <select class="form-select" name="year">
+          <option value="">Todos</option>
+          {% for option_year in filter_years %}
+            <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
         <label class="form-label">Desde</label>
         <input type="date" class="form-control" name="from_date" value="{{ from_date or '' }}">
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label class="form-label">Hasta</label>
         <input type="date" class="form-control" name="to_date" value="{{ to_date or '' }}">
       </div>
-      <div class="col-md-1">
+      <div class="col-md-1 d-grid">
         <button class="btn btn-outline-primary w-100">Buscar</button>
+      </div>
+      <div class="col-md-12">
+        <div class="small text-muted mt-1">
+          Puedes filtrar por propuesta, mes y año. Si además usas Desde/Hasta, se combinan ambos filtros.
+        </div>
       </div>
       <div class="col-md-2">
         <a class="btn btn-outline-secondary w-100" href="/ui/listado">Limpiar</a>
