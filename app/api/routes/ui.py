@@ -74,12 +74,7 @@ def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, acti
     if proposal_id is None:
         stmt = stmt.where(ActivityCode.proposal_id.is_(None))
     else:
-        stmt = stmt.where(
-            or_(
-                ActivityCode.proposal_id.is_(None),
-                ActivityCode.proposal_id == proposal_id,
-            )
-        )
+        stmt = stmt.where(ActivityCode.proposal_id == proposal_id)
 
     stmt = stmt.order_by(ActivityCode.code)
     return db.execute(stmt).scalars().all()

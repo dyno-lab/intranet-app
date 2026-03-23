@@ -186,7 +186,7 @@
         return;
       }
       const optionProposal = option.dataset.proposalId || '';
-      const allowed = optionProposal === '' || optionProposal === selectedProposal;
+      const allowed = optionProposal === selectedProposal;
       option.hidden = !allowed;
       if (!allowed && option.selected) {
         activitySelect.value = '';
