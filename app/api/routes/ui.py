@@ -14,6 +14,8 @@ from app.models.employee import Employee
 from app.models.attendance import Attendance
 from app.models.proposal import Proposal
 from app.models.user import User
+from app.models.catalog_type import CatalogType
+from app.models.catalog_option import CatalogOption
 
 from app.core.auth import get_current_user, require_admin
 from app.core.config import settings

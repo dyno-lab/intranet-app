@@ -90,11 +90,9 @@
         <label class="form-label">Estatus</label>
         <select class="form-select" name="estatus">
           <option value="">Selecciona</option>
-          <option value="Activo" {% if p.estatus == 'Activo' %}selected{% endif %}>Activo</option>
-          <option value="No Activo" {% if p.estatus == 'No Activo' %}selected{% endif %}>No Activo</option>
-          <option value="Deceso" {% if p.estatus == 'Deceso' %}selected{% endif %}>Deceso</option>
-          <option value="Transferencia" {% if p.estatus == 'Transferencia' %}selected{% endif %}>Transferencia</option>
-          <option value="Baja" {% if p.estatus == 'Baja' %}selected{% endif %}>Baja</option>
+          {% for opt in estatus_options %}
+          <option value="{{ opt.value }}" {% if p.estatus == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -120,9 +118,8 @@
         <label class="form-label">Composición Familiar</label>
         <select class="form-select" name="composicion_familiar">
           <option value="">Selecciona</option>
-          {% set cf_options = ['Solo(a)', 'Madre soltera', 'Padre soltero', 'Adulto Mayor (60+) con niños', '2 adultos con menores', '2 adultos sin menores', 'Ambos padres', 'Encargado con menor'] %}
-          {% for opt in cf_options %}
-          <option value="{{ opt }}" {% if p.composicion_familiar == opt %}selected{% endif %}>{{ opt }}</option>
+          {% for opt in composicion_familiar_options %}
+          <option value="{{ opt.value }}" {% if p.composicion_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
           {% endfor %}
         </select>
       </div>
@@ -131,9 +128,8 @@
         <label class="form-label">Grupo familiar</label>
         <select class="form-select" name="grupo_familiar">
           <option value="">Selecciona</option>
-          {% set gf_options = ['1', '2', '3', '4', '5', '6', '7', '8', '9 ó +'] %}
-          {% for opt in gf_options %}
-          <option value="{{ opt }}" {% if p.grupo_familiar == opt %}selected{% endif %}>{{ opt }}</option>
+          {% for opt in grupo_familiar_options %}
+          <option value="{{ opt.value }}" {% if p.grupo_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
           {% endfor %}
         </select>
       </div>
@@ -142,9 +138,8 @@
         <label class="form-label">Fuente de ingreso principal</label>
         <select class="form-select" name="fuente_ingreso_principal">
           <option value="">Selecciona</option>
-          {% set fi_options = ['PAN', 'TANF', 'Seguro social', 'Beneficio por desempleo', 'Empleado', 'Negocio propio', 'Pensión alimentaria', 'Pensión por retiro', 'No formal (trabajo independiente-cuenta propia)', 'No respondió', 'Desempleado'] %}
-          {% for opt in fi_options %}
-          <option value="{{ opt }}" {% if p.fuente_ingreso_principal == opt %}selected{% endif %}>{{ opt }}</option>
+          {% for opt in fuente_ingreso_principal_options %}
+          <option value="{{ opt.value }}" {% if p.fuente_ingreso_principal == opt.value %}selected{% endif %}>{{ opt.label }}</option>
           {% endfor %}
         </select>
       </div>
@@ -153,9 +148,8 @@
         <label class="form-label">Rango de ingreso</label>
         <select class="form-select" name="rango_ingreso">
           <option value="">Selecciona</option>
-          {% set ri_options = ['0 - 100', '101 - 500', '501 - 1000', '1001 - 2000', '2001 o más'] %}
-          {% for opt in ri_options %}
-          <option value="{{ opt }}" {% if p.rango_ingreso == opt %}selected{% endif %}>{{ opt }}</option>
+          {% for opt in rango_ingreso_options %}
+          <option value="{{ opt.value }}" {% if p.rango_ingreso == opt.value %}selected{% endif %}>{{ opt.label }}</option>
           {% endfor %}
         </select>
       </div>

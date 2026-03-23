@@ -103,14 +103,9 @@
         <label class="form-label">Composición Familiar</label>
         <select class="form-select" name="composicion_familiar">
           <option value="">Selecciona</option>
-          <option>Solo(a)</option>
-          <option>Madre soltera</option>
-          <option>Padre soltero</option>
-          <option>Adulto Mayor (60+) con niños</option>
-          <option>2 adultos con menores</option>
-          <option>2 adultos sin menores</option>
-          <option>Ambos padres</option>
-          <option>Encargado con menor</option>
+          {% for opt in composicion_familiar_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -118,15 +113,9 @@
         <label class="form-label">Grupo familiar</label>
         <select class="form-select" name="grupo_familiar">
           <option value="">Selecciona</option>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          <option>6</option>
-          <option>7</option>
-          <option>8</option>
-          <option>9 ó +</option>
+          {% for opt in grupo_familiar_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -134,17 +123,9 @@
         <label class="form-label">Fuente de ingreso principal</label>
         <select class="form-select" name="fuente_ingreso_principal">
           <option value="">Selecciona</option>
-          <option>PAN</option>
-          <option>TANF</option>
-          <option>Seguro social</option>
-          <option>Beneficio por desempleo</option>
-          <option>Empleado</option>
-          <option>Negocio propio</option>
-          <option>Pensión alimentaria</option>
-          <option>Pensión por retiro</option>
-          <option>No formal (trabajo independiente-cuenta propia)</option>
-          <option>No respondió</option>
-          <option>Desempleado</option>
+          {% for opt in fuente_ingreso_principal_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -152,11 +133,9 @@
         <label class="form-label">Rango de ingreso</label>
         <select class="form-select" name="rango_ingreso">
           <option value="">Selecciona</option>
-          <option>0 - 100</option>
-          <option>101 - 500</option>
-          <option>501 - 1000</option>
-          <option>1001 - 2000</option>
-          <option>2001 o más</option>
+          {% for opt in rango_ingreso_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -174,11 +153,9 @@
         <label class="form-label">Estatus</label>
         <select class="form-select" name="estatus">
           <option value="">Selecciona</option>
-          <option value="Activo">Activo</option>
-          <option value="No Activo">No Activo</option>
-          <option value="Deceso">Deceso</option>
-          <option value="Transferencia">Transferencia</option>
-          <option value="Baja">Baja</option>
+          {% for opt in estatus_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
         </select>
       </div>
 
