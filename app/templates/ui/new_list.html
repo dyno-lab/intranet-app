@@ -208,6 +208,7 @@
           <th>Apellido</th>
           <th>Edad</th>
           <th>Género</th>
+          <th>Estado</th>
           <th>Apt</th>
           <th>Edificio</th>
           <th class="text-end">Acciones</th>
@@ -216,13 +217,20 @@
       <tbody>
         {% for r in rows %}
           {% set p = r.p %}
-          <tr>
+          <tr class="{{ '' if r.is_active else 'table-danger' }}">
             <td>{{ p.expediente_num }}</td>
             <td>{{ p.nombre }}</td>
             <td>{{ p.inicial or '' }}</td>
             <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
             <td>{{ r.age if r.age is not none else '' }}</td>
             <td>{{ p.genero or '' }}</td>
+            <td>
+              {% if r.is_active %}
+                <span class="badge bg-success">● Activo</span>
+              {% else %}
+                <span class="badge bg-danger">● Inactivo</span>
+              {% endif %}
+            </td>
             <td>{{ p.apart or '' }}</td>
             <td>{{ p.edificio or '' }}</td>
             <td class="text-end">
@@ -278,7 +286,6 @@
     if (!yearEl || !initEl || !seqEl || !prevEl) return;
     const y = (yearEl.value || "YYYY").trim();
     const initials = (initEl.value || "XX").trim().toUpperCase();
-    // Mantener lo que escriba el usuario; si escribe menos de 4, se muestra tal cual.
     const seq = (seqEl.value || "0000").trim();
     prevEl.value = `FE-${y}-${initials || "XX"}-${seq || "0000"}`;
   }

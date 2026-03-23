@@ -56,6 +56,11 @@ def _check_session_access(s: ActivitySession, user: User):
         raise HTTPException(status_code=403)
 
 
+def _is_participant_active(participant: Participant) -> bool:
+    estatus = (participant.estatus or "").strip().lower()
+    return estatus in {"activo", "active"}
+
+
 # ============================================================
 # HOME
 # ============================================================
@@ -99,7 +104,7 @@ def new_list(
     participants = db.execute(stmt).scalars().all()
 
     rows = [
-        {"p": p, "age": _calc_age(p.fecha_nacimiento)}
+        {"p": p, "age": _calc_age(p.fecha_nacimiento), "is_active": _is_participant_active(p)}
         for p in participants
     ]
 
@@ -525,6 +530,10 @@ def open_session(
             Participant.created_by_user_id == current_user.user_id
         )
     participants = db.execute(stmt).scalars().all()
+    participant_status_map = {
+        p.participant_id: _is_participant_active(p)
+        for p in participants
+    }
 
     att_stmt = select(Attendance.participant_id).where(
         Attendance.session_id == session_id,
@@ -544,6 +553,7 @@ def open_session(
             "employees": employees,
             "proposals": proposals,
             "participants": participants,
+            "participant_status_map": participant_status_map,
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
@@ -567,6 +577,21 @@ async def save_attendance(
 
     form = await request.form()
     present = [int(v) for v in form.getlist("present")]
+
+    if present:
+        participant_stmt = select(Participant).where(Participant.participant_id.in_(present))
+        if current_user.role != "admin":
+            participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+        selected_participants = db.execute(participant_stmt).scalars().all()
+        selected_map = {p.participant_id: p for p in selected_participants}
+
+        missing_ids = [pid for pid in present if pid not in selected_map]
+        if missing_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso para registrar asistencia para uno o más participantes.")
+
+        inactive_ids = [pid for pid, participant in selected_map.items() if not _is_participant_active(participant)]
+        if inactive_ids:
+            raise HTTPException(status_code=400, detail="No se puede registrar asistencia para participantes inactivos.")
 
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
