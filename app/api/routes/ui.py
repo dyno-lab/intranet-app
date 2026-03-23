@@ -360,14 +360,17 @@ def listado_selector(
     request: Request,
     from_date: str | None = None,
     to_date: str | None = None,
-    proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     fd = _parse_date(from_date) if from_date else None
     td = _parse_date(to_date) if to_date else None
+    proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
+    month_int = int(month) if month and month.strip() else None
+    year_int = int(year) if year and year.strip() else None
 
     stmt = (
         select(
@@ -394,12 +397,12 @@ def listado_selector(
         stmt = stmt.where(ActivitySession.session_date >= fd)
     if td:
         stmt = stmt.where(ActivitySession.session_date <= td)
-    if proposal_id:
-        stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
-    if month:
-        stmt = stmt.where(func.month(ActivitySession.session_date) == month)
-    if year:
-        stmt = stmt.where(func.year(ActivitySession.session_date) == year)
+    if proposal_id_int:
+        stmt = stmt.where(ActivitySession.proposal_id == proposal_id_int)
+    if month_int:
+        stmt = stmt.where(func.month(ActivitySession.session_date) == month_int)
+    if year_int:
+        stmt = stmt.where(func.year(ActivitySession.session_date) == year_int)
 
     sessions = db.execute(stmt).all()
 
@@ -438,9 +441,9 @@ def listado_selector(
             "activity_codes": activity_codes,
             "employees": employees,
             "proposals": proposals,
-            "selected_proposal_id": proposal_id,
-            "selected_month": month,
-            "selected_year": year,
+            "selected_proposal_id": proposal_id_int,
+            "selected_month": month_int,
+            "selected_year": year_int,
             "month_options": month_options,
             "filter_years": filter_years,
             "from_date": fd,
