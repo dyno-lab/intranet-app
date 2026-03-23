@@ -59,6 +59,20 @@ def _parse_grade_value(value: str | None) -> float | None:
     return number
 
 
+def _grade_letter(average: float | None) -> str:
+    if average is None:
+        return ""
+    if average >= 90:
+        return "A"
+    if average >= 80:
+        return "B"
+    if average >= 70:
+        return "C"
+    if average >= 60:
+        return "D"
+    return "F"
+
+
 @router.get("", response_class=HTMLResponse)
 def school_grade_reports_index(
     request: Request,
