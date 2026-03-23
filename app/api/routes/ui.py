@@ -85,6 +85,33 @@ def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, acti
     return db.execute(stmt).scalars().all()
 
 
+def _load_catalog_options(db: Session, key: str):
+    catalog_type = db.execute(
+        select(CatalogType).where(CatalogType.key == key, CatalogType.is_active == True)  # noqa: E712
+    ).scalar_one_or_none()
+    if not catalog_type:
+        return []
+
+    return db.execute(
+        select(CatalogOption)
+        .where(
+            CatalogOption.catalog_type_id == catalog_type.catalog_type_id,
+            CatalogOption.is_active == True,  # noqa: E712
+        )
+        .order_by(CatalogOption.sort_order, CatalogOption.label)
+    ).scalars().all()
+
+
+def _participant_form_catalogs(db: Session):
+    return {
+        "composicion_familiar_options": _load_catalog_options(db, "composicion_familiar"),
+        "grupo_familiar_options": _load_catalog_options(db, "grupo_familiar"),
+        "fuente_ingreso_principal_options": _load_catalog_options(db, "fuente_ingreso_principal"),
+        "rango_ingreso_options": _load_catalog_options(db, "rango_ingreso"),
+        "estatus_options": _load_catalog_options(db, "estatus_participante"),
+    }
+
+
 # ============================================================
 # HOME
 # ============================================================
