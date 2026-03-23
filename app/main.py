@@ -9,6 +9,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
+from app.api.routes.catalogs import router as catalogs_router
+from app.api.routes.school_grades import router as school_grades_router
 
 # ✅ API routers (no rompen FASE 1 porque van bajo /api)
 from app.api.routes.sessions import router as sessions_router

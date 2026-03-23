@@ -262,6 +262,48 @@ BEGIN
     ) v([value], [label], sort_order)
     WHERE ct.[key] = 'estatus_participante';
 END;
+
+IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.school_grade_reports (
+        report_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        report_month INT NOT NULL,
+        report_year INT NOT NULL,
+        notes VARCHAR(500) NULL,
+        created_by_user_id INT NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_school_grade_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_school_grade_reports_period UNIQUE (proposal_id, report_month, report_year)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.school_grade_report_items', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.school_grade_report_items (
+        report_item_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_id INT NOT NULL,
+        participant_id INT NOT NULL,
+        grade_level VARCHAR(20) NULL,
+        is_content_room BIT NOT NULL CONSTRAINT DF_school_grade_report_items_is_content_room DEFAULT 0,
+        spanish_grade DECIMAL(5,2) NULL,
+        english_grade DECIMAL(5,2) NULL,
+        math_grade DECIMAL(5,2) NULL,
+        science_grade DECIMAL(5,2) NULL,
+        social_studies_grade DECIMAL(5,2) NULL,
+        elective_1_grade DECIMAL(5,2) NULL,
+        elective_2_grade DECIMAL(5,2) NULL,
+        elective_3_grade DECIMAL(5,2) NULL,
+        elective_4_grade DECIMAL(5,2) NULL,
+        average_grade DECIMAL(5,2) NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_report_items_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_report_items_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_school_grade_report_items_reports FOREIGN KEY (report_id) REFERENCES dbo.school_grade_reports(report_id),
+        CONSTRAINT FK_school_grade_report_items_participants FOREIGN KEY (participant_id) REFERENCES dbo.participants(participant_id),
+        CONSTRAINT UQ_school_grade_report_items_participant UNIQUE (report_id, participant_id)
+    );
+END;
 """
 
 
