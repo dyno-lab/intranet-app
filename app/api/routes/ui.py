@@ -4,7 +4,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import Session
 
 from app.models.participant import Participant
@@ -361,6 +361,8 @@ def listado_selector(
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -394,6 +396,10 @@ def listado_selector(
         stmt = stmt.where(ActivitySession.session_date <= td)
     if proposal_id:
         stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
+    if month:
+        stmt = stmt.where(func.month(ActivitySession.session_date) == month)
+    if year:
+        stmt = stmt.where(func.year(ActivitySession.session_date) == year)
 
     sessions = db.execute(stmt).all()
 
@@ -406,6 +412,23 @@ def listado_selector(
     proposals = db.execute(
         select(Proposal).order_by(Proposal.code)
     ).scalars().all()
+
+    month_options = [
+        (1, "Enero"),
+        (2, "Febrero"),
+        (3, "Marzo"),
+        (4, "Abril"),
+        (5, "Mayo"),
+        (6, "Junio"),
+        (7, "Julio"),
+        (8, "Agosto"),
+        (9, "Septiembre"),
+        (10, "Octubre"),
+        (11, "Noviembre"),
+        (12, "Diciembre"),
+    ]
+    current_year = date.today().year
+    filter_years = list(range(current_year - 2, current_year + 3))
 
     return templates.TemplateResponse(
         "ui/select_session.html",
