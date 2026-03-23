@@ -75,28 +75,65 @@
           <th>Apartamento</th>
           <th>Grado</th>
           <th>Salón contenido</th>
+          <th>Español</th>
+          <th>Inglés</th>
+          <th>Mat.</th>
+          <th>Ciencias</th>
+          <th>Est. Soc.</th>
+          <th>Electiva 1</th>
+          <th>Electiva 2</th>
+          <th>Electiva 3</th>
+          <th>Electiva 4</th>
+          <th>Average</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for row in report_items %}
         {% set item = row[0] %}
         {% set p = row[1] %}
-        {% set age = (eligible_rows | selectattr('p.participant_id', 'equalto', p.participant_id) | map(attribute='age') | list | first) %}
         <tr>
-          <td>{{ p.expediente_num }}</td>
-          <td>{{ p.nombre }}</td>
-          <td>{{ p.inicial or '' }}</td>
-          <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
-          <td>{{ p.genero or '' }}</td>
-          <td>{{ age if age is not none else '' }}</td>
-          <td>{{ p.edificio or '' }}</td>
-          <td>{{ p.apart or '' }}</td>
-          <td>{{ item.grade_level or '' }}</td>
-          <td>{{ 'Sí' if item.is_content_room else 'No' }}</td>
+          <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/edit">
+            <td>{{ p.expediente_num }}</td>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.inicial or '' }}</td>
+            <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+            <td>{{ p.genero or '' }}</td>
+            <td>{{ age_map.get(p.participant_id, '') }}</td>
+            <td>{{ p.edificio or '' }}</td>
+            <td>{{ p.apart or '' }}</td>
+            <td>
+              <select class="form-select form-select-sm" name="grade_level">
+                <option value="">Selecciona...</option>
+                {% for grade in grade_options %}
+                <option value="{{ grade }}" {% if item.grade_level == grade %}selected{% endif %}>{{ grade }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" name="is_content_room" {% if item.is_content_room %}checked{% endif %}>
+            </td>
+            <td><input class="form-control form-control-sm" name="spanish_grade" value="{{ item.spanish_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="english_grade" value="{{ item.english_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="math_grade" value="{{ item.math_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="science_grade" value="{{ item.science_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="social_studies_grade" value="{{ item.social_studies_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="elective_1_grade" value="{{ item.elective_1_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="elective_2_grade" value="{{ item.elective_2_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="elective_3_grade" value="{{ item.elective_3_grade or '' }}"></td>
+            <td><input class="form-control form-control-sm" name="elective_4_grade" value="{{ item.elective_4_grade or '' }}"></td>
+            <td><strong>{{ item.average_grade or '' }}</strong></td>
+            <td class="text-nowrap">
+              <button class="btn btn-sm btn-success">Guardar</button>
+          </form>
+              <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
+                <button class="btn btn-sm btn-outline-danger">Quitar</button>
+              </form>
+            </td>
         </tr>
         {% endfor %}
         {% if report_items|length == 0 %}
-        <tr><td colspan="10" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
+        <tr><td colspan="21" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
         {% endif %}
       </tbody>
     </table>

@@ -20,6 +20,17 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 GRADE_OPTIONS = ["EE", "K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+GRADE_FIELDS = [
+    "spanish_grade",
+    "english_grade",
+    "math_grade",
+    "science_grade",
+    "social_studies_grade",
+    "elective_1_grade",
+    "elective_2_grade",
+    "elective_3_grade",
+    "elective_4_grade",
+]
 
 
 def _calc_age(dob):
@@ -27,6 +38,25 @@ def _calc_age(dob):
         return None
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def _compute_average(values: list[float | None]) -> float | None:
+    valid = [float(v) for v in values if v is not None]
+    if not valid:
+        return None
+    return round(sum(valid) / len(valid), 2)
+
+
+def _parse_grade_value(value: str | None) -> float | None:
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if raw == "":
+        return None
+    number = float(raw)
+    if number < 0 or number > 100:
+        raise ValueError("Las notas deben estar entre 0 y 100.")
+    return number
 
 
 @router.get("", response_class=HTMLResponse)
@@ -139,11 +169,13 @@ def school_grade_report_detail(
     ).scalars().all()
 
     eligible_rows = []
+    age_map = {}
     for participant in participants:
         age = _calc_age(participant.fecha_nacimiento)
         if age is None or age < 0 or age > 21:
             continue
         eligible_rows.append({"p": participant, "age": age})
+        age_map[participant.participant_id] = age
 
     report_items = db.execute(
         select(SchoolGradeReportItem, Participant)
@@ -165,6 +197,7 @@ def school_grade_report_detail(
             "report_items": report_items,
             "existing_participant_ids": existing_participant_ids,
             "grade_options": GRADE_OPTIONS,
+            "age_map": age_map,
             "msg": msg,
         },
     )
@@ -213,3 +246,70 @@ def add_participant_to_school_grade_report(
     db.commit()
 
     return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante añadido al informe.", status_code=303)
+
+
+@router.post("/{report_id}/items/{report_item_id}/edit")
+def edit_school_grade_report_item(
+    report_id: int,
+    report_item_id: int,
+    grade_level: str | None = Form(default=None),
+    is_content_room: str | None = Form(default=None),
+    spanish_grade: str | None = Form(default=None),
+    english_grade: str | None = Form(default=None),
+    math_grade: str | None = Form(default=None),
+    science_grade: str | None = Form(default=None),
+    social_studies_grade: str | None = Form(default=None),
+    elective_1_grade: str | None = Form(default=None),
+    elective_2_grade: str | None = Form(default=None),
+    elective_3_grade: str | None = Form(default=None),
+    elective_4_grade: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.get(SchoolGradeReportItem, report_item_id)
+    if not item or item.report_id != report_id:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
+
+    try:
+        values = {
+            "spanish_grade": _parse_grade_value(spanish_grade),
+            "english_grade": _parse_grade_value(english_grade),
+            "math_grade": _parse_grade_value(math_grade),
+            "science_grade": _parse_grade_value(science_grade),
+            "social_studies_grade": _parse_grade_value(social_studies_grade),
+            "elective_1_grade": _parse_grade_value(elective_1_grade),
+            "elective_2_grade": _parse_grade_value(elective_2_grade),
+            "elective_3_grade": _parse_grade_value(elective_3_grade),
+            "elective_4_grade": _parse_grade_value(elective_4_grade),
+        }
+    except ValueError as exc:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: {exc}", status_code=303)
+
+    item.grade_level = (grade_level or "").strip() or None
+    item.is_content_room = is_content_room == "on"
+    for field, value in values.items():
+        setattr(item, field, value)
+
+    item.average_grade = _compute_average([values[field] for field in GRADE_FIELDS])
+
+    db.add(item)
+    db.commit()
+
+    return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Registro actualizado exitosamente.", status_code=303)
+
+
+@router.post("/{report_id}/items/{report_item_id}/delete")
+def delete_school_grade_report_item(
+    report_id: int,
+    report_item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.get(SchoolGradeReportItem, report_item_id)
+    if not item or item.report_id != report_id:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
+
+    db.delete(item)
+    db.commit()
+
+    return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante removido del informe.", status_code=303)
