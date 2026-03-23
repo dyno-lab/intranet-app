@@ -465,7 +465,9 @@ def listado_selector(
 
     sessions = db.execute(stmt).all()
 
-    activity_codes = _load_activity_codes_for_proposal(db, proposal_id_int, active_only=True)
+    activity_codes = db.execute(
+        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
+    ).scalars().all()
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()
