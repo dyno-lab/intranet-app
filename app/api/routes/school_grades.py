@@ -176,11 +176,15 @@ def school_grade_report_detail(
 
     proposal = db.get(Proposal, report.proposal_id)
 
-    participants = db.execute(
+    participant_stmt = (
         select(Participant)
         .where(Participant.is_active == True)  # noqa: E712
         .order_by(Participant.apellido_paterno, Participant.nombre)
-    ).scalars().all()
+    )
+    if current_user.role != "admin":
+        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+
+    participants = db.execute(participant_stmt).scalars().all()
 
     eligible_rows = []
     age_map = {}
@@ -234,6 +238,9 @@ def add_participant_to_school_grade_report(
     participant = db.get(Participant, participant_id)
     if not participant:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
+
+    if current_user.role != "admin" and participant.created_by_user_id != current_user.user_id:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: No tienes permiso para usar ese participante.", status_code=303)
 
     age = _calc_age(participant.fecha_nacimiento)
     if age is None or age < 0 or age > 21:
