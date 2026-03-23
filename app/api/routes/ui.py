@@ -618,13 +618,3 @@ def delete_session(
     db.commit()
 
     return RedirectResponse("/ui/listado", status_code=303)
-e(
-        delete(Attendance).where(Attendance.session_id == session_id)
-    )
-    db.execute(
-        delete(ActivitySession).where(ActivitySession.session_id == session_id)
-    )
-
-    db.commit()
-
-    return RedirectResponse("/ui/listado", status_code=303)
