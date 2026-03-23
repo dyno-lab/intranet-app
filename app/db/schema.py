@@ -149,6 +149,119 @@ BEGIN
     INSERT INTO dbo.catalog_types ([key], [name], [description])
     VALUES ('estatus_participante', 'Estatus del Participante', 'Opciones del campo estatus');
 END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'composicion_familiar'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('Solo(a)', 'Solo(a)', 1),
+        ('Madre soltera', 'Madre soltera', 2),
+        ('Padre soltero', 'Padre soltero', 3),
+        ('Adulto Mayor (60+) con niños', 'Adulto Mayor (60+) con niños', 4),
+        ('2 adultos con menores', '2 adultos con menores', 5),
+        ('2 adultos sin menores', '2 adultos sin menores', 6),
+        ('Ambos padres', 'Ambos padres', 7),
+        ('Encargado con menor', 'Encargado con menor', 8)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'composicion_familiar';
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'grupo_familiar'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('1', '1', 1),
+        ('2', '2', 2),
+        ('3', '3', 3),
+        ('4', '4', 4),
+        ('5', '5', 5),
+        ('6', '6', 6),
+        ('7', '7', 7),
+        ('8', '8', 8),
+        ('9 ó +', '9 ó +', 9)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'grupo_familiar';
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'fuente_ingreso_principal'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('PAN', 'PAN', 1),
+        ('TANF', 'TANF', 2),
+        ('Seguro social', 'Seguro social', 3),
+        ('Beneficio por desempleo', 'Beneficio por desempleo', 4),
+        ('Empleado', 'Empleado', 5),
+        ('Negocio propio', 'Negocio propio', 6),
+        ('Pensión alimentaria', 'Pensión alimentaria', 7),
+        ('Pensión por retiro', 'Pensión por retiro', 8),
+        ('No formal (trabajo independiente-cuenta propia)', 'No formal (trabajo independiente-cuenta propia)', 9),
+        ('No respondió', 'No respondió', 10),
+        ('Desempleado', 'Desempleado', 11)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'fuente_ingreso_principal';
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'rango_ingreso'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('0 - 100', '0 - 100', 1),
+        ('101 - 500', '101 - 500', 2),
+        ('501 - 1000', '501 - 1000', 3),
+        ('1001 - 2000', '1001 - 2000', 4),
+        ('2001 o más', '2001 o más', 5)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'rango_ingreso';
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'estatus_participante'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('Activo', 'Activo', 1),
+        ('No Activo', 'No Activo', 2),
+        ('Deceso', 'Deceso', 3),
+        ('Transferencia', 'Transferencia', 4),
+        ('Baja', 'Baja', 5)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'estatus_participante';
+END;
 """
 
 
