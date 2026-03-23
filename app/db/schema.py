@@ -57,6 +57,34 @@ WHERE is_active IS NULL
         WHEN LTRIM(RTRIM(LOWER(ISNULL(estatus, '')))) IN ('activo', 'active') THEN 1
         ELSE 0
       END;
+
+IF COL_LENGTH('dbo.activity_codes', 'proposal_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_codes
+    ADD proposal_id INT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_activity_codes_proposals'
+)
+BEGIN
+    ALTER TABLE dbo.activity_codes
+    ADD CONSTRAINT FK_activity_codes_proposals
+    FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_activity_codes_proposal_id'
+      AND object_id = OBJECT_ID('dbo.activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_activity_codes_proposal_id
+    ON dbo.activity_codes(proposal_id);
+END;
 """
 
 

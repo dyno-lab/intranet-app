@@ -68,7 +68,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Propuesta</label>
-          <select class="form-select" name="proposal_id">
+          <select class="form-select" name="proposal_id" id="edit_proposal_id_select">
             <option value="">Sin propuesta</option>
             {% for p in proposals %}
               <option value="{{ p.proposal_id }}" {% if p.proposal_id == session.proposal_id %}selected{% endif %}>
@@ -79,9 +79,9 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Código de actividad *</label>
-          <select class="form-select" name="activity_code_id" required>
+          <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
             {% for c in activity_codes %}
-              <option value="{{ c.activity_code_id }}" {% if c.activity_code_id == session.activity_code_id %}selected{% endif %}>
+              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if c.activity_code_id == session.activity_code_id %}selected{% endif %}>
                 {{ c.code }} - {{ c.description or '' }}
               </option>
             {% endfor %}
@@ -159,4 +159,29 @@
     </div>
   </div>
 </form>
+
+<script>
+(function () {
+  const proposalSelect = document.getElementById('edit_proposal_id_select');
+  const activitySelect = document.getElementById('edit_activity_code_select');
+  if (!proposalSelect || !activitySelect) return;
+
+  function refreshActivities() {
+    const selectedProposal = proposalSelect.value || '';
+    const options = Array.from(activitySelect.options);
+
+    options.forEach((option) => {
+      const optionProposal = option.dataset.proposalId || '';
+      const allowed = optionProposal === '' || optionProposal === selectedProposal;
+      option.hidden = !allowed;
+      if (!allowed && option.selected) {
+        activitySelect.value = '';
+      }
+    });
+  }
+
+  proposalSelect.addEventListener('change', refreshActivities);
+  refreshActivities();
+})();
+</script>
 {% endblock %}

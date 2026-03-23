@@ -4,7 +4,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.participant import Participant
@@ -57,8 +57,30 @@ def _check_session_access(s: ActivitySession, user: User):
 
 
 def _is_participant_active(participant: Participant) -> bool:
-    estatus = (participant.estatus or "").strip().lower()
-    return estatus in {"activo", "active"}
+    return bool(getattr(participant, "is_active", False))
+
+
+def _activity_code_allowed_for_proposal(activity_code: ActivityCode, proposal_id: int | None) -> bool:
+    return activity_code.proposal_id is None or activity_code.proposal_id == proposal_id
+
+
+def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
+    stmt = select(ActivityCode)
+    if active_only:
+        stmt = stmt.where(ActivityCode.is_active == True)  # noqa: E712
+
+    if proposal_id is None:
+        stmt = stmt.where(ActivityCode.proposal_id.is_(None))
+    else:
+        stmt = stmt.where(
+            or_(
+                ActivityCode.proposal_id.is_(None),
+                ActivityCode.proposal_id == proposal_id,
+            )
+        )
+
+    stmt = stmt.order_by(ActivityCode.code)
+    return db.execute(stmt).scalars().all()
 
 
 # ============================================================
@@ -332,6 +354,9 @@ def edit_participant_save(
     if exists:
         raise HTTPException(status_code=400, detail="Expediente ya existe.")
 
+    normalized_estatus = (estatus or "").strip()
+    participant_is_active = normalized_estatus.lower() in {"activo", "active"}
+
     p.expediente_num = expediente_num_final
     p.nombre = nombre
     p.inicial = inicial
@@ -341,7 +366,8 @@ def edit_participant_save(
     p.genero = genero
     p.edificio = edificio
     p.apart = apart
-    p.estatus = estatus
+    p.estatus = normalized_estatus or None
+    p.is_active = participant_is_active
     p.vca = vca
     p.primera_vez = primera_vez
     p.composicion_familiar = composicion_familiar
@@ -415,9 +441,7 @@ def listado_selector(
 
     sessions = db.execute(stmt).all()
 
-    activity_codes = db.execute(
-        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
-    ).scalars().all()
+    activity_codes = _load_activity_codes_for_proposal(db, proposal_id_int, active_only=True)
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()
@@ -480,6 +504,12 @@ def create_session_ui(
         if not proposal:
             raise HTTPException(status_code=400, detail="La propuesta seleccionada no existe.")
 
+    activity_code = db.get(ActivityCode, activity_code_id)
+    if not activity_code:
+        raise HTTPException(status_code=400, detail="El código de actividad seleccionado no existe.")
+    if not _activity_code_allowed_for_proposal(activity_code, proposal_id):
+        raise HTTPException(status_code=400, detail="La actividad no pertenece a la propuesta seleccionada.")
+
     s = ActivitySession(
         session_date=_parse_date(session_date),
         activity_code_id=activity_code_id,
@@ -517,9 +547,7 @@ def open_session(
     employee = db.get(Employee, s.employee_id)
     proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
 
-    activity_codes = db.execute(
-        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
-    ).scalars().all()
+    activity_codes = _load_activity_codes_for_proposal(db, s.proposal_id, active_only=True)
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()
@@ -639,6 +667,12 @@ def edit_session(
         s.proposal_id = proposal.proposal_id
     else:
         s.proposal_id = None
+
+    activity_code = db.get(ActivityCode, activity_code_id)
+    if not activity_code:
+        raise HTTPException(status_code=400, detail="El código de actividad seleccionado no existe.")
+    if not _activity_code_allowed_for_proposal(activity_code, s.proposal_id):
+        raise HTTPException(status_code=400, detail="La actividad no pertenece a la propuesta seleccionada.")
 
     s.session_date = _parse_date(session_date)
     s.activity_code_id = activity_code_id

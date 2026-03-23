@@ -159,8 +159,11 @@ def admin_activity_codes(
     current_user: User = Depends(require_admin),
 ):
     codes = db.execute(
-        select(ActivityCode).order_by(ActivityCode.code)
-    ).scalars().all()
+        select(ActivityCode, Proposal.code.label("proposal_code"), Proposal.name.label("proposal_name"))
+        .outerjoin(Proposal, ActivityCode.proposal_id == Proposal.proposal_id)
+        .order_by(ActivityCode.code)
+    ).all()
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
 
     return templates.TemplateResponse(
         "ui/admin/activity_codes.html",
@@ -168,6 +171,7 @@ def admin_activity_codes(
             "request": request,
             "current_user": current_user,
             "codes": codes,
+            "proposals": proposals,
             "msg": msg,
         },
     )
@@ -177,6 +181,7 @@ def admin_activity_codes(
 def admin_create_activity_code(
     code: str = Form(...),
     description: str | None = Form(default=None),
+    proposal_id: int | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -189,9 +194,18 @@ def admin_create_activity_code(
             status_code=303,
         )
 
+    if proposal_id:
+        proposal = db.get(Proposal, proposal_id)
+        if not proposal:
+            return RedirectResponse(
+                "/ui/admin/activity-codes?msg=Error: La propuesta seleccionada no existe.",
+                status_code=303,
+            )
+
     ac = ActivityCode(
-        code=code,
+        code=code.strip(),
         description=description,
+        proposal_id=proposal_id if proposal_id else None,
     )
     db.add(ac)
     db.commit()
@@ -207,6 +221,7 @@ def admin_edit_activity_code(
     activity_code_id: int,
     code: str = Form(...),
     description: str | None = Form(default=None),
+    proposal_id: int | None = Form(default=None),
     is_active: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -230,8 +245,17 @@ def admin_edit_activity_code(
             status_code=303,
         )
 
-    ac.code = code
+    if proposal_id:
+        proposal = db.get(Proposal, proposal_id)
+        if not proposal:
+            return RedirectResponse(
+                "/ui/admin/activity-codes?msg=Error: La propuesta seleccionada no existe.",
+                status_code=303,
+            )
+
+    ac.code = code.strip()
     ac.description = description
+    ac.proposal_id = proposal_id if proposal_id else None
     ac.is_active = is_active == "on"
 
     db.add(ac)

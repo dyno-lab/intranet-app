@@ -74,7 +74,7 @@
 
       <div class="col-md-3">
         <label class="form-label">Propuesta</label>
-        <select class="form-select" name="proposal_id">
+        <select class="form-select" name="proposal_id" id="proposal_id_select">
           <option value="">Sin propuesta</option>
           {% for proposal in proposals if proposal.is_active %}
             <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
@@ -84,12 +84,13 @@
 
       <div class="col-md-3">
         <label class="form-label">Código de actividad *</label>
-        <select class="form-select" name="activity_code_id" required>
+        <select class="form-select" name="activity_code_id" id="activity_code_select" required>
           <option value="">Selecciona...</option>
           {% for c in activity_codes %}
-            <option value="{{ c.activity_code_id }}">{{ c.code }} - {{ c.description }}</option>
+            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}">{{ c.code }} - {{ c.description }}</option>
           {% endfor %}
         </select>
+        <div class="form-text">Se muestran actividades globales o de la propuesta seleccionada.</div>
       </div>
 
       <div class="col-md-3">
@@ -168,5 +169,34 @@
     </table>
   </div>
 </div>
+
+<script>
+(function () {
+  const proposalSelect = document.getElementById('proposal_id_select');
+  const activitySelect = document.getElementById('activity_code_select');
+  if (!proposalSelect || !activitySelect) return;
+
+  function refreshActivities() {
+    const selectedProposal = proposalSelect.value || '';
+    const options = Array.from(activitySelect.options);
+
+    options.forEach((option, index) => {
+      if (index === 0) {
+        option.hidden = false;
+        return;
+      }
+      const optionProposal = option.dataset.proposalId || '';
+      const allowed = optionProposal === '' || optionProposal === selectedProposal;
+      option.hidden = !allowed;
+      if (!allowed && option.selected) {
+        activitySelect.value = '';
+      }
+    });
+  }
+
+  proposalSelect.addEventListener('change', refreshActivities);
+  refreshActivities();
+})();
+</script>
 
 {% endblock %}
