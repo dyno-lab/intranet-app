@@ -40,6 +40,23 @@ BEGIN
     CREATE INDEX IX_activity_sessions_proposal_id
     ON dbo.activity_sessions(proposal_id);
 END;
+
+IF COL_LENGTH('dbo.participants', 'is_active') IS NULL
+BEGIN
+    ALTER TABLE dbo.participants
+    ADD is_active BIT NOT NULL CONSTRAINT DF_participants_is_active DEFAULT 1;
+END;
+
+UPDATE dbo.participants
+SET is_active = CASE
+    WHEN LTRIM(RTRIM(LOWER(ISNULL(estatus, '')))) IN ('activo', 'active') THEN 1
+    ELSE 0
+END
+WHERE is_active IS NULL
+   OR is_active <> CASE
+        WHEN LTRIM(RTRIM(LOWER(ISNULL(estatus, '')))) IN ('activo', 'active') THEN 1
+        ELSE 0
+      END;
 """
 
 

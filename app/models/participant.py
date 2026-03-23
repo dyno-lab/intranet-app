@@ -51,6 +51,7 @@ class Participant(Base):
     grupo_familiar: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fuente_ingreso_principal: Mapped[str | None] = mapped_column(String(100), nullable=True)
     rango_ingreso: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
     # Auditoría
     created_at: Mapped[datetime] = mapped_column(

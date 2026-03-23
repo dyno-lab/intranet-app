@@ -180,6 +180,9 @@ def create_participant(
     if exists:
         raise HTTPException(status_code=400, detail="Expediente ya existe.")
 
+    normalized_estatus = (estatus or "").strip()
+    participant_is_active = normalized_estatus.lower() in {"activo", "active"}
+
     p = Participant(
         expediente_num=expediente_num,
         nombre=nombre,
@@ -190,13 +193,14 @@ def create_participant(
         genero=genero,
         edificio=edificio,
         apart=apart,
-        estatus=estatus,
+        estatus=normalized_estatus or None,
         vca=vca,
         primera_vez=primera_vez,
         composicion_familiar=composicion_familiar,
         grupo_familiar=grupo_familiar,
         fuente_ingreso_principal=fuente_ingreso_principal,
         rango_ingreso=rango_ingreso,
+        is_active=participant_is_active,
         created_by_user_id=current_user.user_id,
     )
 
