@@ -314,9 +314,3 @@ def delete_school_grade_report_item(
     db.commit()
 
     return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante removido del informe.", status_code=303)
-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
-
-    db.delete(item)
-    db.commit()
-
-    return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante removido del informe.", status_code=303)
