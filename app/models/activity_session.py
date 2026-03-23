@@ -31,6 +31,12 @@ class ActivitySession(Base):
         index=True,
     )
 
+    proposal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("proposals.proposal_id"),
+        nullable=True,
+        index=True,
+    )
+
     hours: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Auditoría

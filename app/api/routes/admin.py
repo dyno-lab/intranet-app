@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
+from app.models.proposal import Proposal
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -52,7 +53,6 @@ def admin_create_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    # Check if username already exists
     existing = db.execute(
         select(User).where(User.username == username)
     ).scalar_one_or_none()
@@ -94,7 +94,6 @@ def admin_edit_user(
             status_code=303,
         )
 
-    # Check username uniqueness (excluding current user)
     existing = db.execute(
         select(User).where(User.username == username, User.user_id != user_id)
     ).scalar_one_or_none()
@@ -219,7 +218,6 @@ def admin_edit_activity_code(
             status_code=303,
         )
 
-    # Check code uniqueness
     existing = db.execute(
         select(ActivityCode).where(
             ActivityCode.code == code,
@@ -251,7 +249,6 @@ def admin_delete_activity_code(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    # Check if it has associated sessions
     session_count = db.execute(
         select(func.count()).select_from(ActivitySession).where(
             ActivitySession.activity_code_id == activity_code_id
@@ -352,7 +349,6 @@ def admin_edit_employee(
             status_code=303,
         )
 
-    # Check employee_code uniqueness
     if employee_code:
         existing = db.execute(
             select(Employee).where(
@@ -385,7 +381,6 @@ def admin_delete_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    # Check if it has associated sessions
     session_count = db.execute(
         select(func.count()).select_from(ActivitySession).where(
             ActivitySession.employee_id == employee_id
@@ -410,5 +405,107 @@ def admin_delete_employee(
 
     return RedirectResponse(
         "/ui/admin/employees?msg=Empleado eliminado exitosamente.",
+        status_code=303,
+    )
+
+
+# ============================================================
+# PROPOSAL MANAGEMENT
+# ============================================================
+
+@router.get("/proposals", response_class=HTMLResponse)
+def admin_proposals(
+    request: Request,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(
+        select(Proposal).order_by(Proposal.code)
+    ).scalars().all()
+
+    return templates.TemplateResponse(
+        "ui/admin/proposals.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "proposals": proposals,
+            "msg": msg,
+        },
+    )
+
+
+@router.post("/proposals/create")
+def admin_create_proposal(
+    code: str = Form(...),
+    name: str = Form(...),
+    description: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    code = code.strip()
+    name = name.strip()
+
+    existing = db.execute(
+        select(Proposal).where(Proposal.code == code)
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: El código de propuesta ya existe.",
+            status_code=303,
+        )
+
+    proposal = Proposal(code=code, name=name, description=description)
+    db.add(proposal)
+    db.commit()
+
+    return RedirectResponse(
+        "/ui/admin/proposals?msg=Propuesta creada exitosamente.",
+        status_code=303,
+    )
+
+
+@router.post("/proposals/{proposal_id}/edit")
+def admin_edit_proposal(
+    proposal_id: int,
+    code: str = Form(...),
+    name: str = Form(...),
+    description: str | None = Form(default=None),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: Propuesta no encontrada.",
+            status_code=303,
+        )
+
+    code = code.strip()
+    name = name.strip()
+
+    existing = db.execute(
+        select(Proposal).where(
+            Proposal.code == code,
+            Proposal.proposal_id != proposal_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: El código de propuesta ya está en uso.",
+            status_code=303,
+        )
+
+    proposal.code = code
+    proposal.name = name
+    proposal.description = description
+    proposal.is_active = is_active == "on"
+
+    db.add(proposal)
+    db.commit()
+
+    return RedirectResponse(
+        "/ui/admin/proposals?msg=Propuesta actualizada exitosamente.",
         status_code=303,
     )

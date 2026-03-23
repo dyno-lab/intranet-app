@@ -17,7 +17,6 @@
   </div>
 </div>
 
-<!-- Session info card -->
 <div class="card shadow-sm mb-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -27,11 +26,19 @@
       </button>
     </div>
 
-    <div class="row">
-      <div class="col-md-3">
+    <div class="row g-2">
+      <div class="col-md-2">
         <strong>Fecha:</strong> {{ session.session_date }}
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
+        <strong>Propuesta:</strong>
+        {% if proposal %}
+          {{ proposal.code }} - {{ proposal.name }}
+        {% else %}
+          <span class="text-muted">Sin propuesta</span>
+        {% endif %}
+      </div>
+      <div class="col-md-3">
         <strong>Actividad:</strong>
         {% if activity_code %}
           {{ activity_code.code }} - {{ activity_code.description or '' }}
@@ -39,7 +46,7 @@
           N/A
         {% endif %}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <strong>Empleado:</strong>
         {% if employee %}
           {{ employee.full_name }}
@@ -52,15 +59,25 @@
       </div>
     </div>
 
-    <!-- Collapsible edit form -->
     <div class="collapse mt-3" id="editSessionForm">
       <hr>
       <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2">
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">Fecha *</label>
           <input type="date" class="form-control" name="session_date" value="{{ session.session_date }}" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+          <label class="form-label">Propuesta</label>
+          <select class="form-select" name="proposal_id">
+            <option value="">Sin propuesta</option>
+            {% for p in proposals %}
+              <option value="{{ p.proposal_id }}" {% if p.proposal_id == session.proposal_id %}selected{% endif %}>
+                {{ p.code }} - {{ p.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
           <label class="form-label">Código de actividad *</label>
           <select class="form-select" name="activity_code_id" required>
             {% for c in activity_codes %}
@@ -70,7 +87,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">Empleado *</label>
           <select class="form-select" name="employee_id" required>
             {% for e in employees %}

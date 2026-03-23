@@ -7,10 +7,20 @@
   <h4 class="mb-0">Listado - Sesiones</h4>
 </div>
 
-<!-- FILTRO POR FECHAS -->
 <div class="card shadow-sm mb-3">
   <div class="card-body">
     <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id">
+          <option value="">Todas</option>
+          {% for proposal in proposals %}
+            <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>
+              {{ proposal.code }} - {{ proposal.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="col-md-3">
         <label class="form-label">Desde</label>
         <input type="date" class="form-control" name="from_date" value="{{ from_date or '' }}">
@@ -19,29 +29,37 @@
         <label class="form-label">Hasta</label>
         <input type="date" class="form-control" name="to_date" value="{{ to_date or '' }}">
       </div>
-      <div class="col-md-3">
+      <div class="col-md-1">
         <button class="btn btn-outline-primary w-100">Buscar</button>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <a class="btn btn-outline-secondary w-100" href="/ui/listado">Limpiar</a>
       </div>
     </form>
   </div>
 </div>
 
-<!-- CREAR SESIÓN -->
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Crear Sesión</h5>
 
     <form method="post" action="/ui/listado/create-session" class="row g-2">
-
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label class="form-label">Fecha *</label>
         <input type="date" class="form-control" name="session_date" required>
       </div>
 
-      <div class="col-md-5">
+      <div class="col-md-3">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id">
+          <option value="">Sin propuesta</option>
+          {% for proposal in proposals if proposal.is_active %}
+            <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
         <label class="form-label">Código de actividad *</label>
         <select class="form-select" name="activity_code_id" required>
           <option value="">Selecciona...</option>
@@ -69,12 +87,10 @@
       <div class="col-12 mt-2">
         <button class="btn btn-success w-100">Crear y Abrir Sesión</button>
       </div>
-
     </form>
   </div>
 </div>
 
-<!-- LISTA DE SESIONES -->
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
     <h5 class="mb-3">Sesiones Registradas</h5>
@@ -83,6 +99,7 @@
       <thead>
         <tr>
           <th>Fecha</th>
+          <th>Propuesta</th>
           <th>Código</th>
           <th>Actividad</th>
           <th>Empleado</th>
@@ -94,6 +111,14 @@
         {% for s in sessions %}
         <tr>
           <td>{{ s.session_date }}</td>
+          <td>
+            {% if s.proposal_code %}
+              <span class="badge bg-info text-dark">{{ s.proposal_code }}</span>
+              <div class="small text-muted">{{ s.proposal_name }}</div>
+            {% else %}
+              <span class="text-muted">Sin propuesta</span>
+            {% endif %}
+          </td>
           <td>{{ s.code }}</td>
           <td>{{ s.description }}</td>
           <td>{{ s.employee_code }}</td>
@@ -113,7 +138,7 @@
 
         {% if sessions|length == 0 %}
         <tr>
-          <td colspan="6" class="text-muted">No hay sesiones para ese rango de fechas.</td>
+          <td colspan="7" class="text-muted">No hay sesiones para ese filtro.</td>
         </tr>
         {% endif %}
       </tbody>

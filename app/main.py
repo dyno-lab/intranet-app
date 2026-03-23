@@ -16,6 +16,7 @@ from app.api.routes.participants import router as participants_router
 from app.api.routes.attendance import router as attendance_router
 from app.api.routes.employees import router as employees_router
 from app.api.routes.activity_codes import router as activity_codes_router
+from app.db.schema import ensure_schema_updates
 
 app = FastAPI(title="Intranet App")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -41,6 +42,11 @@ app.include_router(participants_router, prefix="/api/participants", tags=["parti
 app.include_router(attendance_router, prefix="/api/attendance", tags=["attendance"])
 app.include_router(employees_router, prefix="/api/employees", tags=["employees"])
 app.include_router(activity_codes_router, prefix="/api/activity-codes", tags=["activity-codes"])
+
+
+@app.on_event("startup")
+def startup_schema_updates():
+    ensure_schema_updates()
 
 
 @app.get("/")

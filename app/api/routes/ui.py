@@ -7,12 +7,12 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
 from app.models.participant import Participant
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
 from app.models.attendance import Attendance
+from app.models.proposal import Proposal
 from app.models.user import User
 
 from app.core.auth import get_current_user, require_admin
@@ -117,14 +117,10 @@ def new_list(
 
 @router.post("/new-list/create")
 def create_participant(
-    # FASE 1 (estable): expediente_num manual
     expediente_num: str | None = Form(default=None),
-
-    # FASE 2: FE-YYYY-XX-#### (generado)
     exp_year: int | None = Form(default=None),
     exp_employee_initials: str | None = Form(default=None),
     exp_seq4: str | None = Form(default=None),
-
     nombre: str = Form(...),
     inicial: str | None = Form(default=None),
     apellido_paterno: str = Form(...),
@@ -140,15 +136,10 @@ def create_participant(
     grupo_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
-
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # ==========================
-    # Determinar expediente_num
-    # ==========================
     if settings.PHASE2_EXPEDIENTE_ENABLED:
-        # Validaciones básicas
         if exp_year is None:
             raise HTTPException(status_code=400, detail="Selecciona el año del expediente.")
 
@@ -160,7 +151,6 @@ def create_participant(
         if not (len(seq4) == 4 and seq4.isdigit()):
             raise HTTPException(status_code=400, detail="Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
 
-        # Regla: seq4 es único por empleado (created_by_user_id), sin importar el año
         used_seq = db.execute(
             select(Participant).where(
                 Participant.created_by_user_id == current_user.user_id,
@@ -175,12 +165,10 @@ def create_participant(
 
         expediente_num = f"FE-{exp_year}-{initials}-{seq4}"
     else:
-        # FASE 1 (estable)
         expediente_num = (expediente_num or "").strip()
         if not expediente_num:
             raise HTTPException(status_code=400, detail="Número de expediente es requerido.")
 
-    # Unicidad del expediente completo (siempre)
     exists = db.execute(
         select(Participant).where(Participant.expediente_num == expediente_num)
     ).scalar_one_or_none()
@@ -198,20 +186,15 @@ def create_participant(
         edificio=edificio,
         apart=apart,
         estatus=estatus,
-
-        # Campos extra “New List”
         vca=vca,
         primera_vez=primera_vez,
         composicion_familiar=composicion_familiar,
         grupo_familiar=grupo_familiar,
         fuente_ingreso_principal=fuente_ingreso_principal,
         rango_ingreso=rango_ingreso,
-
-        # Ownership
         created_by_user_id=current_user.user_id,
     )
 
-    # Guardar componentes del expediente (FASE 2)
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         p.exp_year = exp_year
         p.exp_employee_initials = initials
@@ -221,6 +204,7 @@ def create_participant(
     db.commit()
 
     return RedirectResponse("/ui/new-list", status_code=303)
+
 
 @router.post("/new-list/{participant_id}/delete")
 def delete_participant(
@@ -233,11 +217,6 @@ def delete_participant(
     db.commit()
 
     return RedirectResponse("/ui/new-list", status_code=303)
-
-
-# ============================================================
-# LISTADO - SESIONES
-# ============================================================
 
 
 # ============================================================
@@ -274,15 +253,10 @@ def edit_participant_form(
 @router.post("/new-list/{participant_id}/edit")
 def edit_participant_save(
     participant_id: int,
-
-    # FASE 1 (estable): expediente manual
     expediente_num: str | None = Form(default=None),
-
-    # FASE 2: FE-YYYY-XX-####
     exp_year: int | None = Form(default=None),
     exp_employee_initials: str | None = Form(default=None),
     exp_seq4: str | None = Form(default=None),
-
     nombre: str = Form(...),
     inicial: str | None = Form(default=None),
     apellido_paterno: str = Form(...),
@@ -292,14 +266,12 @@ def edit_participant_save(
     edificio: str | None = Form(default=None),
     apart: str | None = Form(default=None),
     estatus: str | None = Form(default=None),
-
     vca: str | None = Form(default=None),
     primera_vez: str | None = Form(default=None),
     composicion_familiar: str | None = Form(default=None),
     grupo_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
-
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -311,9 +283,6 @@ def edit_participant_save(
 
     _check_participant_access(p, current_user)
 
-    # ==========================
-    # Determinar expediente_num
-    # ==========================
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
             raise HTTPException(status_code=400, detail="Selecciona el año del expediente.")
@@ -326,7 +295,6 @@ def edit_participant_save(
         if not (len(seq4) == 4 and seq4.isdigit()):
             raise HTTPException(status_code=400, detail="Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
 
-        # Unicidad por empleado (dueño del participante)
         used_seq = db.execute(
             select(Participant).where(
                 Participant.created_by_user_id == p.created_by_user_id,
@@ -346,7 +314,6 @@ def edit_participant_save(
         if not expediente_num_final:
             raise HTTPException(status_code=400, detail="Número de expediente es requerido.")
 
-    # Unicidad del expediente completo
     exists = db.execute(
         select(Participant).where(
             Participant.expediente_num == expediente_num_final,
@@ -356,7 +323,6 @@ def edit_participant_save(
     if exists:
         raise HTTPException(status_code=400, detail="Expediente ya existe.")
 
-    # Update fields
     p.expediente_num = expediente_num_final
     p.nombre = nombre
     p.inicial = inicial
@@ -367,7 +333,6 @@ def edit_participant_save(
     p.edificio = edificio
     p.apart = apart
     p.estatus = estatus
-
     p.vca = vca
     p.primera_vez = primera_vez
     p.composicion_familiar = composicion_familiar
@@ -385,11 +350,17 @@ def edit_participant_save(
 
     return RedirectResponse("/ui/new-list", status_code=303)
 
+
+# ============================================================
+# LISTADO - SESIONES
+# ============================================================
+
 @router.get("/listado", response_class=HTMLResponse)
 def listado_selector(
     request: Request,
     from_date: str | None = None,
     to_date: str | None = None,
+    proposal_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -405,10 +376,13 @@ def listado_selector(
             Employee.employee_code,
             Employee.full_name,
             ActivitySession.hours,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
         )
         .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
-        .order_by(ActivitySession.session_date.desc())
+        .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
+        .order_by(ActivitySession.session_date.desc(), ActivitySession.session_id.desc())
     )
 
     if current_user.role != "admin":
@@ -418,11 +392,20 @@ def listado_selector(
         stmt = stmt.where(ActivitySession.session_date >= fd)
     if td:
         stmt = stmt.where(ActivitySession.session_date <= td)
+    if proposal_id:
+        stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
 
     sessions = db.execute(stmt).all()
 
-    activity_codes = db.execute(select(ActivityCode)).scalars().all()
-    employees = db.execute(select(Employee)).scalars().all()
+    activity_codes = db.execute(
+        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
+    ).scalars().all()
+    employees = db.execute(
+        select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
+    ).scalars().all()
+    proposals = db.execute(
+        select(Proposal).order_by(Proposal.code)
+    ).scalars().all()
 
     return templates.TemplateResponse(
         "ui/select_session.html",
@@ -431,6 +414,8 @@ def listado_selector(
             "sessions": sessions,
             "activity_codes": activity_codes,
             "employees": employees,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
             "from_date": fd,
             "to_date": td,
             "current_user": current_user,
@@ -445,14 +430,22 @@ def create_session_ui(
     session_date: str = Form(...),
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
+    proposal_id: int | None = Form(default=None),
     hours: float | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal = None
+    if proposal_id:
+        proposal = db.get(Proposal, proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=400, detail="La propuesta seleccionada no existe.")
+
     s = ActivitySession(
         session_date=_parse_date(session_date),
         activity_code_id=activity_code_id,
         employee_id=employee_id,
+        proposal_id=proposal.proposal_id if proposal else None,
         hours=hours,
         created_by_user_id=current_user.user_id,
     )
@@ -481,15 +474,18 @@ def open_session(
 
     _check_session_access(s, current_user)
 
-    # Load activity code and employee for session info card
     activity_code = db.get(ActivityCode, s.activity_code_id)
     employee = db.get(Employee, s.employee_id)
+    proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
 
-    # Load all activity codes and employees for the edit form
-    activity_codes = db.execute(select(ActivityCode)).scalars().all()
-    employees = db.execute(select(Employee)).scalars().all()
+    activity_codes = db.execute(
+        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
+    ).scalars().all()
+    employees = db.execute(
+        select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
+    ).scalars().all()
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
 
-    # Load participants (all for admin, own for regular user)
     stmt = select(Participant).order_by(
         Participant.apellido_paterno,
         Participant.nombre,
@@ -500,10 +496,9 @@ def open_session(
         )
     participants = db.execute(stmt).scalars().all()
 
-    # Load existing attendance for this session
     att_stmt = select(Attendance.participant_id).where(
         Attendance.session_id == session_id,
-        Attendance.attended == True,  # noqa
+        Attendance.attended == True,
     )
     attended_ids = set(db.execute(att_stmt).scalars().all())
 
@@ -514,8 +509,10 @@ def open_session(
             "session": s,
             "activity_code": activity_code,
             "employee": employee,
+            "proposal": proposal,
             "activity_codes": activity_codes,
             "employees": employees,
+            "proposals": proposals,
             "participants": participants,
             "attended_ids": attended_ids,
             "current_user": current_user,
@@ -538,16 +535,13 @@ async def save_attendance(
 
     _check_session_access(s, current_user)
 
-    # Parse form data to get list of checked participant ids
     form = await request.form()
     present = [int(v) for v in form.getlist("present")]
 
-    # Delete existing attendance for this session
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
 
-    # Insert new attendance records
     for pid in present:
         att = Attendance(
             participant_id=pid,
@@ -568,6 +562,7 @@ def edit_session(
     session_date: str = Form(...),
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
+    proposal_id: int | None = Form(default=None),
     hours: float | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -577,6 +572,14 @@ def edit_session(
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
     _check_session_access(s, current_user)
+
+    if proposal_id:
+        proposal = db.get(Proposal, proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=400, detail="La propuesta seleccionada no existe.")
+        s.proposal_id = proposal.proposal_id
+    else:
+        s.proposal_id = None
 
     s.session_date = _parse_date(session_date)
     s.activity_code_id = activity_code_id
@@ -601,12 +604,9 @@ def delete_session(
 
     _check_session_access(s, current_user)
 
-    # Delete all attendance records for this session
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
-
-    # Delete the session itself
     db.execute(
         delete(ActivitySession).where(ActivitySession.session_id == session_id)
     )
