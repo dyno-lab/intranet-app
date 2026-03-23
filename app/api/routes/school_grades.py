@@ -198,6 +198,7 @@ def school_grade_report_detail(
             "existing_participant_ids": existing_participant_ids,
             "grade_options": GRADE_OPTIONS,
             "age_map": age_map,
+            "grade_letter": _grade_letter,
             "msg": msg,
         },
     )
@@ -308,6 +309,12 @@ def delete_school_grade_report_item(
     item = db.get(SchoolGradeReportItem, report_item_id)
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
+
+    db.delete(item)
+    db.commit()
+
+    return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante removido del informe.", status_code=303)
+grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
     db.delete(item)
     db.commit()

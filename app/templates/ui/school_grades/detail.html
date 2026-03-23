@@ -61,30 +61,29 @@
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
-    <h5 class="mb-3">Participantes añadidos</h5>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Participantes añadidos</h5>
+      <span class="text-muted small">Guarda cada fila luego de editar notas o grado.</span>
+    </div>
     <table class="table table-sm table-hover align-middle">
       <thead>
         <tr>
           <th>Expediente</th>
           <th>Nombre</th>
-          <th>Inicial</th>
-          <th>Apellidos</th>
-          <th>Género</th>
           <th>Edad</th>
-          <th>Edificio</th>
-          <th>Apartamento</th>
           <th>Grado</th>
-          <th>Salón contenido</th>
-          <th>Español</th>
-          <th>Inglés</th>
-          <th>Mat.</th>
-          <th>Ciencias</th>
-          <th>Est. Soc.</th>
-          <th>Electiva 1</th>
-          <th>Electiva 2</th>
-          <th>Electiva 3</th>
-          <th>Electiva 4</th>
+          <th>Salón</th>
+          <th>Esp</th>
+          <th>Ing</th>
+          <th>Mat</th>
+          <th>Cien</th>
+          <th>Soc</th>
+          <th>E1</th>
+          <th>E2</th>
+          <th>E3</th>
+          <th>E4</th>
           <th>Average</th>
+          <th>Letra</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -94,14 +93,15 @@
         {% set p = row[1] %}
         <tr>
           <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/edit">
-            <td>{{ p.expediente_num }}</td>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.inicial or '' }}</td>
-            <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
-            <td>{{ p.genero or '' }}</td>
+            <td>
+              <div><strong>{{ p.expediente_num }}</strong></div>
+              <div class="small text-muted">{{ p.nombre }} {{ p.apellido_paterno }}</div>
+            </td>
+            <td>
+              {{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}
+              <div class="small text-muted">{{ p.genero or '' }} · {{ p.edificio or '' }} {{ p.apart or '' }}</div>
+            </td>
             <td>{{ age_map.get(p.participant_id, '') }}</td>
-            <td>{{ p.edificio or '' }}</td>
-            <td>{{ p.apart or '' }}</td>
             <td>
               <select class="form-select form-select-sm" name="grade_level">
                 <option value="">Selecciona...</option>
@@ -113,16 +113,26 @@
             <td class="text-center">
               <input type="checkbox" name="is_content_room" {% if item.is_content_room %}checked{% endif %}>
             </td>
-            <td><input class="form-control form-control-sm" name="spanish_grade" value="{{ item.spanish_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="english_grade" value="{{ item.english_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="math_grade" value="{{ item.math_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="science_grade" value="{{ item.science_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="social_studies_grade" value="{{ item.social_studies_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="elective_1_grade" value="{{ item.elective_1_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="elective_2_grade" value="{{ item.elective_2_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="elective_3_grade" value="{{ item.elective_3_grade or '' }}"></td>
-            <td><input class="form-control form-control-sm" name="elective_4_grade" value="{{ item.elective_4_grade or '' }}"></td>
-            <td><strong>{{ item.average_grade or '' }}</strong></td>
+            <td><input class="form-control form-control-sm text-center" name="spanish_grade" value="{{ item.spanish_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="english_grade" value="{{ item.english_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="math_grade" value="{{ item.math_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="science_grade" value="{{ item.science_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="social_studies_grade" value="{{ item.social_studies_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_1_grade" value="{{ item.elective_1_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_2_grade" value="{{ item.elective_2_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_3_grade" value="{{ item.elective_3_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_4_grade" value="{{ item.elective_4_grade or '' }}" placeholder="0-100"></td>
+            <td>
+              {% if item.average_grade is not none %}
+              <span class="badge bg-primary">{{ item.average_grade }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set letter = grade_letter(item.average_grade) %}
+              {% if letter %}
+              <span class="badge {% if letter == 'A' %}bg-success{% elif letter == 'B' %}bg-info text-dark{% elif letter == 'C' %}bg-warning text-dark{% elif letter == 'D' %}bg-secondary{% else %}bg-danger{% endif %}">{{ letter }}</span>
+              {% endif %}
+            </td>
             <td class="text-nowrap">
               <button class="btn btn-sm btn-success">Guardar</button>
           </form>
@@ -133,7 +143,7 @@
         </tr>
         {% endfor %}
         {% if report_items|length == 0 %}
-        <tr><td colspan="21" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
+        <tr><td colspan="17" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
         {% endif %}
       </tbody>
     </table>
