@@ -63,6 +63,7 @@ def school_dropout_reports_index(
     ]
     current_year = date.today().year
     year_options = list(range(current_year - 2, current_year + 3))
+    month_lookup = dict(month_options)
 
     return templates.TemplateResponse(
         "ui/school_dropout/index.html",
@@ -72,6 +73,7 @@ def school_dropout_reports_index(
             "reports": reports,
             "proposals": proposals,
             "month_options": month_options,
+            "month_lookup": month_lookup,
             "year_options": year_options,
             "selected_proposal_id": proposal_id,
             "selected_month": month,

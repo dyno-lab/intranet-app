@@ -115,7 +115,7 @@
         {% set proposal_name = row[2] %}
         <tr>
           <td><span class="badge bg-info text-dark">{{ proposal_code }}</span> {{ proposal_name }}</td>
-          <td>{{ report.report_month }}</td>
+          <td>{{ month_lookup.get(report.report_month, report.report_month) }}</td>
           <td>{{ report.report_year }}</td>
           <td>{{ report.notes or '-' }}</td>
           <td class="text-end">
