@@ -138,12 +138,12 @@ def school_dropout_report_detail(
 
     participant_stmt = (
         select(Participant)
-        .where(
-            Participant.is_active == True,  # noqa: E712
-            Participant.created_by_user_id == report.created_by_user_id,
-        )
+        .where(Participant.is_active == True)  # noqa: E712
         .order_by(Participant.apellido_paterno, Participant.nombre)
     )
+    if current_user.role != "admin":
+        participant_stmt = participant_stmt.where(Participant.created_by_user_id == report.created_by_user_id)
+
     participants = db.execute(participant_stmt).scalars().all()
 
     eligible_rows = []
@@ -197,7 +197,7 @@ def add_participant_to_school_dropout_report(
     participant = db.get(Participant, participant_id)
     if not participant:
         return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
-    if participant.created_by_user_id != report.created_by_user_id:
+    if current_user.role != "admin" and participant.created_by_user_id != report.created_by_user_id:
         return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: No tienes permiso para usar ese participante.", status_code=303)
 
     age = _calc_age(participant.fecha_nacimiento)
