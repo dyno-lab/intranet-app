@@ -43,6 +43,7 @@ USER_RESIDENTIAL = {
     "MHR": "Manuel Hernandez Rosa",
     "RH": "Rafael Hernandez",
     "CL": "Columbus Landing",
+    "ADMIN": "Global",
 }
 
 RESIDENTIAL_MUNICIPALITY = {
@@ -101,11 +102,13 @@ def bonafide_report(
     current_user: User = Depends(get_current_user),
 ):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
-    report_users = db.execute(select(User).where(User.is_active == True).order_by(User.username)).scalars().all()  # noqa: E712
+    report_users = db.execute(
+        select(User).where(User.is_active == True, User.role != "admin").order_by(User.username)
+    ).scalars().all()  # noqa: E712
     current_year = date.today().year
     year_options = list(range(current_year - 2, current_year + 3))
     month_lookup = dict(MONTH_OPTIONS)
-    user_residential_map = {user.user_id: _residential_from_user(user) for user in report_users}
+    user_residential_map = {user.user_id: f"{user.username} = {_residential_from_user(user)}" for user in report_users}
 
     selected_user = None
     is_global = False
