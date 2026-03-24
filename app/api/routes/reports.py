@@ -247,6 +247,7 @@ def reports_home(
             "request": request,
             "current_user": current_user,
             "report_options": REPORT_OPTIONS,
+            "period_type_options": PERIOD_TYPE_OPTIONS,
             "selected_report_key": report_key,
             "selected_proposal_id": proposal_id,
             "selected_month": month,
@@ -284,7 +285,7 @@ def reports_run(
         )
 
     return RedirectResponse(
-        f"/ui/reports?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}",
+        f"/ui/reports?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}",
         status_code=303,
     )
 
@@ -379,4 +380,6 @@ def bonafide_report_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+,
     )
