@@ -24,6 +24,7 @@
     .new-entry-note { margin-bottom: 14px; font-size: 10px; }
     .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin-top: 20px; }
     .sig { text-align: center; }
+    .sig-line { border-top: 1px solid #111; margin: 0 auto 8px auto; width: 90%; }
     .sig-name { font-weight: 700; }
     .sig-title { margin-top: 4px; }
     .page-number { text-align: right; font-size: 10px; color: #666; margin-top: 8px; }
@@ -94,6 +95,7 @@
       <div class="signatures">
         {% for sig in signatures %}
         <div class="sig">
+          <div class="sig-line"></div>
           <div class="sig-name">{{ sig.name }}</div>
           <div class="sig-title">{{ sig.title }}</div>
         </div>
