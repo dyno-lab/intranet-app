@@ -229,7 +229,7 @@ REPORT_OPTIONS = [
 ]
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 def reports_home(
     request: Request,
     report_key: str = "bonafide",
