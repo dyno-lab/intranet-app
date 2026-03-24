@@ -41,13 +41,13 @@
         {% if current_user.role == 'admin' %}
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
-          {% for employee in employees %}
-          <option value="{{ employee.employee_id }}" {% if selected_employee_id == employee.employee_id %}selected{% endif %}>{{ employee.full_name }}</option>
+          {% for report_user in report_users %}
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ report_user.username }}</option>
           {% endfor %}
         </select>
         {% else %}
-        <input class="form-control" value="{{ selected_employee.full_name if selected_employee else '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ selected_employee.employee_id if selected_employee else '' }}">
+        <input class="form-control" value="{{ residential_name or '' }}" readonly>
+        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
       <div class="col-md-2 d-grid">
@@ -57,7 +57,7 @@
   </div>
 </div>
 
-{% if selected_proposal_id and selected_month and selected_year and selected_employee %}
+{% if selected_proposal_id and selected_month and selected_year and selected_user %}
 <div class="card shadow-sm">
   <div class="card-body p-4">
     <div class="text-center mb-4">

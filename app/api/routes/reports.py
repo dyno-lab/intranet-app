@@ -11,7 +11,6 @@ from app.api.deps import get_db
 from app.core.auth import get_current_user
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
-from app.models.employee import Employee
 from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.user import User
@@ -24,6 +23,27 @@ MONTH_OPTIONS = [
     (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
     (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
 ]
+
+USER_RESIDENTIAL = {
+    "AC": "Aristides Chavier",
+    "PJR": "Pedro J. Rosaly",
+    "JPL": "Juan Ponce de Leon",
+    "ERA": "Ernesto Ramos Antonini",
+    "RLN": "Rafael Lopez Nussa",
+    "LC": "La Ceiba",
+    "LS": "Leonardo Santiago",
+    "VP": "Villa del Parque",
+    "BDM": "Brisas del Mar",
+    "BV": "Bella Vista",
+    "VG": "Valles de Guayama",
+    "JG": "Jardines de Guamani",
+    "FC": "Fernando Calimano",
+    "SAC": "San Antonio Carioca",
+    "EC": "El Carmen",
+    "MHR": "Manuel Hernandez Rosa",
+    "RH": "Rafael Hernandez",
+    "CL": "Columbus Landing",
+}
 
 RESIDENTIAL_MUNICIPALITY = {
     "ARISTIDES CHAVIER": "Ponce",
@@ -63,6 +83,13 @@ def _normalize_text(value: str | None) -> str:
     return (value or "").strip()
 
 
+def _residential_from_user(user: User | None) -> str:
+    if not user:
+        return ""
+    username = _normalize_text(user.username).upper()
+    return USER_RESIDENTIAL.get(username, _normalize_text(user.username))
+
+
 @router.get("/bonafide", response_class=HTMLResponse)
 def bonafide_report(
     request: Request,
@@ -74,35 +101,24 @@ def bonafide_report(
     current_user: User = Depends(get_current_user),
 ):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
-    employees = db.execute(select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)).scalars().all()  # noqa: E712
+    report_users = db.execute(select(User).where(User.is_active == True).order_by(User.username)).scalars().all()  # noqa: E712
     current_year = date.today().year
     year_options = list(range(current_year - 2, current_year + 3))
     month_lookup = dict(MONTH_OPTIONS)
 
-    selected_employee = None
+    selected_user = None
     if current_user.role == "admin":
         if employee_id:
-            selected_employee = db.get(Employee, employee_id)
+            selected_user = db.get(User, employee_id)
     else:
-        selected_employee = db.execute(
-            select(Employee).where(Employee.employee_id == employee_id)
-        ).scalar_one_or_none() if employee_id else None
-
-    if current_user.role != "admin":
-        own_employee = db.execute(
-            select(Employee).join(ActivitySession, ActivitySession.employee_id == Employee.employee_id)
-            .where(ActivitySession.created_by_user_id == current_user.user_id)
-            .order_by(Employee.full_name)
-        ).scalars().first()
-        if own_employee and not selected_employee:
-            selected_employee = own_employee
-            employee_id = own_employee.employee_id
+        selected_user = current_user
+        employee_id = current_user.user_id
 
     rows = []
     municipality = None
     residential_name = None
-    if proposal_id and month and year and selected_employee:
-        residential_name = _normalize_text(selected_employee.full_name)
+    if proposal_id and month and year and selected_user:
+        residential_name = _residential_from_user(selected_user)
         municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
 
         stmt = (
@@ -114,7 +130,7 @@ def bonafide_report(
                 ActivitySession.proposal_id == proposal_id,
                 extract("month", ActivitySession.session_date) == month,
                 extract("year", ActivitySession.session_date) == year,
-                ActivitySession.employee_id == selected_employee.employee_id,
+                ActivitySession.created_by_user_id == selected_user.user_id,
             )
             .distinct()
             .order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
@@ -140,7 +156,7 @@ def bonafide_report(
             "request": request,
             "current_user": current_user,
             "proposals": proposals,
-            "employees": employees,
+            "report_users": report_users,
             "month_options": MONTH_OPTIONS,
             "month_lookup": month_lookup,
             "year_options": year_options,
@@ -148,7 +164,7 @@ def bonafide_report(
             "selected_month": month,
             "selected_year": year,
             "selected_employee_id": employee_id,
-            "selected_employee": selected_employee,
+            "selected_user": selected_user,
             "residential_name": residential_name,
             "municipality": municipality,
             "rows": rows,
