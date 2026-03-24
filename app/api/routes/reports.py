@@ -228,6 +228,13 @@ REPORT_OPTIONS = [
     {"value": "todos", "label": "Todos"},
 ]
 
+PERIOD_TYPE_OPTIONS = [
+    {"value": "monthly", "label": "Mensual"},
+    {"value": "quarterly", "label": "Trimestral"},
+    {"value": "annual", "label": "Anual"},
+    {"value": "custom", "label": "Personalizado"},
+]
+
 
 @router.get("/", response_class=HTMLResponse)
 def reports_home(
