@@ -58,7 +58,7 @@
   </div>
 </div>
 
-{% if selected_proposal_id and selected_month and selected_year and selected_user %}
+{% if selected_proposal_id and selected_month and selected_year and (selected_user or is_global) %}
 <div class="card shadow-sm">
   <div class="card-body p-4">
     <div class="text-center mb-4">
