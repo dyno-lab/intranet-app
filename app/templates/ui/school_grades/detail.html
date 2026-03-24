@@ -16,7 +16,12 @@
       {{ proposal.code if proposal else '' }} - {{ proposal.name if proposal else '' }} | Mes {{ report.report_month }} | Año {{ report.report_year }}
     </div>
   </div>
-  <a class="btn btn-outline-secondary" href="/ui/school-grades">Volver</a>
+  <div class="d-flex gap-2">
+    <form method="post" action="/ui/school-grades/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de notas completo?');">
+      <button class="btn btn-outline-danger">Borrar informe</button>
+    </form>
+    <a class="btn btn-outline-secondary" href="/ui/school-grades">Volver</a>
+  </div>
 </div>
 
 <div class="card shadow-sm mb-4">
@@ -83,7 +88,7 @@
           <th>E3</th>
           <th>E4</th>
           <th>Average</th>
-          <th>Letra</th>
+          <th>Nota</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -94,12 +99,15 @@
         <tr>
           <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/edit">
             <td>
-              <div><strong>{{ p.expediente_num }}</strong></div>
-              <div class="small text-muted">{{ p.nombre }} {{ p.apellido_paterno }}</div>
+              <strong>{{ p.expediente_num }}</strong>
             </td>
             <td>
-              {{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}
-              <div class="small text-muted">{{ p.genero or '' }} · {{ p.edificio or '' }} {{ p.apart or '' }}</div>
+              <div>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
+              <div class="small text-muted mt-1">
+                {% if p.genero %}<span class="me-2">Sexo: {{ p.genero }}</span>{% endif %}
+                {% if p.edificio %}<span class="me-2">Edificio: {{ p.edificio }}</span>{% endif %}
+                {% if p.apart %}<span>Apartamento: {{ p.apart }}</span>{% endif %}
+              </div>
             </td>
             <td>{{ age_map.get(p.participant_id, '') }}</td>
             <td>

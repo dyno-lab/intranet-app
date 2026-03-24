@@ -320,6 +320,28 @@ def edit_school_grade_report_item(
     return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Registro actualizado exitosamente.", status_code=303)
 
 
+@router.post("/{report_id}/delete")
+def delete_school_grade_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    report = db.get(SchoolGradeReport, report_id)
+    if not report:
+        return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
+
+    report_items = db.execute(
+        select(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
+    ).scalars().all()
+    for item in report_items:
+        db.delete(item)
+
+    db.delete(report)
+    db.commit()
+
+    return RedirectResponse("/ui/school-grades?msg=Informe de notas eliminado exitosamente.", status_code=303)
+
+
 @router.post("/{report_id}/items/{report_item_id}/delete")
 def delete_school_grade_report_item(
     report_id: int,
