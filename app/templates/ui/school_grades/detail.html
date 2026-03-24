@@ -102,13 +102,7 @@
             <td>
               <strong>{{ p.expediente_num }}</strong>
             </td>
-            <td>
-              <div>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
-              <div class="small text-muted mt-1">
-                {% if p.edificio %}<span class="me-2">Edificio: {{ p.edificio }}</span>{% endif %}
-                {% if p.apart %}<span>Apartamento: {{ p.apart }}</span>{% endif %}
-              </div>
-            </td>
+            <td>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
             <td>{{ age_map.get(p.participant_id, '') }}</td>
             <td>{{ p.genero or '' }}</td>
             <td>
