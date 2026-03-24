@@ -13,6 +13,7 @@ from app.api.routes.catalogs import router as catalogs_router
 from app.api.routes.school_grades import router as school_grades_router
 from app.api.routes.school_dropout import router as school_dropout_router
 from app.api.routes.pregnancy import router as pregnancy_router
+from app.api.routes.reports import router as reports_router
 
 # ✅ API routers (no rompen FASE 1 porque van bajo /api)
 from app.api.routes.sessions import router as sessions_router
@@ -62,4 +63,3 @@ def startup_schema_updates():
 def root():
     # Mantiene tu UX: manda al login o al home según lo que ya tenías
     return RedirectResponse(url="/ui/home")
-")
