@@ -1,0 +1,138 @@
+{% extends "ui/_base.html" %}
+{% block title %}Deserción escolar{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Deserción escolar</h4>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id">
+          <option value="">Todas</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Mes</label>
+        <select class="form-select" name="month">
+          <option value="">Todos</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año</label>
+        <select class="form-select" name="year">
+          <option value="">Todos</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-primary">Buscar</button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <a class="btn btn-outline-secondary" href="/ui/school-dropout">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Crear Informe de Deserción Escolar</h5>
+    <form method="post" action="/ui/school-dropout/create" class="row g-2">
+      <div class="col-md-4">
+        <label class="form-label">Propuesta *</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Mes *</label>
+        <select class="form-select" name="report_month" required>
+          <option value="">Selecciona...</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}">{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año *</label>
+        <select class="form-select" name="report_year" required>
+          <option value="">Selecciona...</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}">{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Observaciones generales</label>
+        <input type="text" class="form-control" name="notes">
+      </div>
+      <div class="col-12 d-grid mt-2">
+        <button class="btn btn-success">Crear informe</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <h5 class="mb-3">Informes creados</h5>
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Propuesta</th>
+          <th>Mes</th>
+          <th>Año</th>
+          <th>Observaciones</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in reports %}
+        {% set report = row[0] %}
+        {% set proposal_code = row[1] %}
+        {% set proposal_name = row[2] %}
+        <tr>
+          <td><span class="badge bg-info text-dark">{{ proposal_code }}</span> {{ proposal_name }}</td>
+          <td>{{ report.report_month }}</td>
+          <td>{{ report.report_year }}</td>
+          <td>{{ report.notes or '-' }}</td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              <a class="btn btn-sm btn-primary" href="/ui/school-dropout/{{ report.report_id }}">Abrir</a>
+              <form method="post" action="/ui/school-dropout/{{ report.report_id }}/delete" class="d-inline" onsubmit="return confirm('¿Borrar este informe de deserción escolar completo?');">
+                <button class="btn btn-sm btn-outline-danger">Borrar</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if reports|length == 0 %}
+        <tr><td colspan="5" class="text-muted">No hay informes de deserción escolar creados.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

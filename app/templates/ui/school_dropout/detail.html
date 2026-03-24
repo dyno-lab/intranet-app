@@ -1,0 +1,115 @@
+{% extends "ui/_base.html" %}
+{% block title %}Informe de deserción escolar{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-1">Informe de deserción escolar</h4>
+    <div class="text-muted">
+      {{ proposal.code if proposal else '' }} - {{ proposal.name if proposal else '' }} | Mes {{ report.report_month }} | Año {{ report.report_year }}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="post" action="/ui/school-dropout/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de deserción escolar completo?');">
+      <button class="btn btn-outline-danger">Borrar informe</button>
+    </form>
+    <a class="btn btn-outline-secondary" href="/ui/school-dropout">Volver</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Añadir participante (0 a 21 años)</h5>
+    <form method="post" action="/ui/school-dropout/{{ report.report_id }}/participants/add" class="row g-2 align-items-end">
+      <div class="col-md-10">
+        <label class="form-label">Participante *</label>
+        <select class="form-select" name="participant_id" required>
+          <option value="">Selecciona...</option>
+          {% for row in eligible_rows %}
+          {% set p = row.p %}
+          {% if p.participant_id not in existing_participant_ids %}
+          <option value="{{ p.participant_id }}">
+            {{ p.expediente_num }} | {{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }} | Edad {{ row.age }}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Añadir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Participantes añadidos</h5>
+      <span class="text-muted small">Guarda cada fila luego de editar los datos.</span>
+    </div>
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Expediente</th>
+          <th>Nombre</th>
+          <th>Edad</th>
+          <th>Sexo</th>
+          <th>Tutorías</th>
+          <th>Grado</th>
+          <th>Escuela</th>
+          <th>10 sem</th>
+          <th>20 sem</th>
+          <th>30 sem</th>
+          <th>40 sem</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report_items %}
+        {% set item = row[0] %}
+        {% set p = row[1] %}
+        <tr>
+          <form method="post" action="/ui/school-dropout/{{ report.report_id }}/items/{{ item.report_item_id }}/edit">
+            <td><strong>{{ p.expediente_num }}</strong></td>
+            <td>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+            <td>{{ age_map.get(p.participant_id, '') }}</td>
+            <td>{{ p.genero or '' }}</td>
+            <td class="text-center"><input type="checkbox" name="attended_tutoring" {% if item.attended_tutoring %}checked{% endif %}></td>
+            <td>
+              <select class="form-select form-select-sm" name="current_grade">
+                <option value="">Selecciona...</option>
+                {% for grade in grade_options %}
+                <option value="{{ grade }}" {% if item.current_grade == grade %}selected{% endif %}>{{ grade }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center"><input type="checkbox" name="attended_school" {% if item.attended_school %}checked{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="report_10_weeks" {% if item.report_10_weeks %}checked{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="report_20_weeks" {% if item.report_20_weeks %}checked{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="report_30_weeks" {% if item.report_30_weeks %}checked{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="report_40_weeks" {% if item.report_40_weeks %}checked{% endif %}></td>
+            <td class="text-nowrap">
+              <button class="btn btn-sm btn-success">Guardar</button>
+          </form>
+              <form method="post" action="/ui/school-dropout/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
+                <button class="btn btn-sm btn-outline-danger">Quitar</button>
+              </form>
+            </td>
+        </tr>
+        {% endfor %}
+        {% if report_items|length == 0 %}
+        <tr><td colspan="12" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

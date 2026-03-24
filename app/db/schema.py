@@ -304,6 +304,43 @@ BEGIN
         CONSTRAINT UQ_school_grade_report_items_participant UNIQUE (report_id, participant_id)
     );
 END;
+
+IF OBJECT_ID(N'dbo.school_dropout_reports', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.school_dropout_reports (
+        report_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        report_month INT NOT NULL,
+        report_year INT NOT NULL,
+        notes VARCHAR(500) NULL,
+        created_by_user_id INT NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_reports_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_reports_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_school_dropout_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_school_dropout_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.school_dropout_report_items', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.school_dropout_report_items (
+        report_item_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_id INT NOT NULL,
+        participant_id INT NOT NULL,
+        attended_tutoring BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_attended_tutoring DEFAULT 0,
+        current_grade VARCHAR(20) NULL,
+        attended_school BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_attended_school DEFAULT 0,
+        report_10_weeks BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_report_10_weeks DEFAULT 0,
+        report_20_weeks BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_report_20_weeks DEFAULT 0,
+        report_30_weeks BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_report_30_weeks DEFAULT 0,
+        report_40_weeks BIT NOT NULL CONSTRAINT DF_school_dropout_report_items_report_40_weeks DEFAULT 0,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_report_items_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_report_items_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_school_dropout_report_items_reports FOREIGN KEY (report_id) REFERENCES dbo.school_dropout_reports(report_id),
+        CONSTRAINT FK_school_dropout_report_items_participants FOREIGN KEY (participant_id) REFERENCES dbo.participants(participant_id),
+        CONSTRAINT UQ_school_dropout_report_items_participant UNIQUE (report_id, participant_id)
+    );
+END;
 """
 
 

@@ -11,6 +11,7 @@ from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.catalogs import router as catalogs_router
 from app.api.routes.school_grades import router as school_grades_router
+from app.api.routes.school_dropout import router as school_dropout_router
 
 # ✅ API routers (no rompen FASE 1 porque van bajo /api)
 from app.api.routes.sessions import router as sessions_router
@@ -38,6 +39,8 @@ app.include_router(auth_router)               # /login, /logout
 app.include_router(ui_router, prefix="/ui")   # /ui/...
 app.include_router(admin_router, prefix="/ui/admin")  # /ui/admin/...
 app.include_router(catalogs_router, prefix="/ui/admin/catalogs")  # /ui/admin/catalogs/...
+app.include_router(school_grades_router, prefix="/ui/school-grades")
+app.include_router(school_dropout_router, prefix="/ui/school-dropout")
 
 # ✅ API (para Postman / integraciones)
 app.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
