@@ -71,8 +71,10 @@ RESIDENTIAL_MUNICIPALITY = {
 }
 
 FIXED_SIGNATURES = [
-    {"label": "Preparado por", "name": "______________________________", "title": "Programa Faro de Esperanza"},
-    {"label": "Revisado por", "name": "______________________________", "title": "Programa Faro de Esperanza"},
+    {"name": "Karla Santiago Pérez", "title": "Coordinadora Educativa"},
+    {"name": "Alice E. Beard García", "title": "Coordinadora Prevención"},
+    {"name": "Annjellyn Arroyo Pagán", "title": "Coordinadora de Arte, Cultura y Recreación"},
+    {"name": "Josmary Cosme", "title": "Coordinadora Desarrollo Económico y Servicio al Residente"},
 ]
 
 ROWS_PER_BONAFIDE_PAGE = 26

@@ -20,11 +20,13 @@
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
     .footer { margin-top: 14px; font-size: 11px; }
-    .footer-text { margin: 10px 0 18px 0; }
-    .signatures { display: flex; justify-content: space-between; gap: 24px; margin-top: 28px; }
-    .sig { width: 48%; text-align: center; }
-    .sig-line { border-top: 1px solid #111; padding-top: 6px; margin-top: 28px; }
-    .page-number { text-align: right; font-size: 10px; color: #666; margin-top: 6px; }
+    .footer-text { margin: 10px 0 8px 0; line-height: 1.35; }
+    .new-entry-note { margin-bottom: 14px; font-size: 10px; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin-top: 20px; }
+    .sig { text-align: center; }
+    .sig-name { font-weight: 700; }
+    .sig-title { margin-top: 4px; }
+    .page-number { text-align: right; font-size: 10px; color: #666; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -86,13 +88,14 @@
 
     <div class="footer">
       <div class="footer-text">
-        Certifico que las personas incluidas en este listado participaron al menos una vez durante la propuesta y el mes seleccionado.
+        Los residentes bonafides antes mencionados participaron de los servicios/actividades desarrolladas por el Programa Faro de Esperanza de los Centros Sor Isolina Ferré, durante el mes indicado.
       </div>
+      <div class="new-entry-note">(*) Participante de nuevo ingreso.</div>
       <div class="signatures">
         {% for sig in signatures %}
         <div class="sig">
-          <div class="sig-line">{{ sig.label }}</div>
-          <div>{{ sig.title }}</div>
+          <div class="sig-name">{{ sig.name }}</div>
+          <div class="sig-title">{{ sig.title }}</div>
         </div>
         {% endfor %}
       </div>
