@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from datetime import date
+from io import BytesIO
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract
 from sqlalchemy.orm import Session
+from openpyxl import Workbook
+from openpyxl.styles import Font
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user
@@ -91,15 +94,13 @@ def _residential_from_user(user: User | None) -> str:
     return USER_RESIDENTIAL.get(username, _normalize_text(user.username))
 
 
-@router.get("/bonafide", response_class=HTMLResponse)
-def bonafide_report(
-    request: Request,
-    proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
-    employee_id: int | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+def _build_bonafide_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | None,
+    year: int | None,
+    employee_id: int | None,
 ):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
     report_users = db.execute(
@@ -162,26 +163,99 @@ def bonafide_report(
                 "apartamento": participant.apart or "",
             })
 
-    return templates.TemplateResponse(
-        "ui/reports/bonafide.html",
-        {
-            "request": request,
-            "current_user": current_user,
-            "proposals": proposals,
-            "report_users": report_users,
-            "user_residential_map": user_residential_map,
-            "month_options": MONTH_OPTIONS,
-            "month_lookup": month_lookup,
-            "year_options": year_options,
-            "selected_proposal_id": proposal_id,
-            "selected_month": month,
-            "selected_year": year,
-            "selected_employee_id": employee_id,
-            "selected_user": selected_user,
-            "is_global": is_global,
-            "residential_name": residential_name,
-            "municipality": municipality,
-            "rows": rows,
-            "signatures": FIXED_SIGNATURES,
-        },
+    return {
+        "proposals": proposals,
+        "report_users": report_users,
+        "user_residential_map": user_residential_map,
+        "month_options": MONTH_OPTIONS,
+        "month_lookup": month_lookup,
+        "year_options": year_options,
+        "selected_proposal_id": proposal_id,
+        "selected_month": month,
+        "selected_year": year,
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "municipality": municipality,
+        "rows": rows,
+        "signatures": FIXED_SIGNATURES,
+    }
+
+
+@router.get("/bonafide", response_class=HTMLResponse)
+def bonafide_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/bonafide.html", context)
+
+
+@router.get("/bonafide/excel")
+def bonafide_report_excel(
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+
+    if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/bonafide", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bonafide"
+
+    ws["A1"] = "Programa Faro de Esperanza"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Listado Bonafide"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Fecha"
+    ws["B4"] = f"{context['month_lookup'].get(month, month)} {year}"
+    ws["A5"] = "Residencial"
+    ws["B5"] = context["residential_name"] or ""
+    ws["A6"] = "Municipio"
+    ws["B6"] = context["municipality"] or ""
+
+    headers = ["#", "Expediente", "Nombre", "F", "M", "Edad", "Edif.", "Apto."]
+    header_row = 8
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+
+    for row_index, row in enumerate(context["rows"], start=header_row + 1):
+        ws.cell(row=row_index, column=1, value=row["index"])
+        ws.cell(row=row_index, column=2, value=row["expediente"])
+        ws.cell(row=row_index, column=3, value=row["nombre"])
+        ws.cell(row=row_index, column=4, value=row["f"])
+        ws.cell(row=row_index, column=5, value=row["m"])
+        ws.cell(row=row_index, column=6, value=row["edad"])
+        ws.cell(row=row_index, column=7, value=row["edificio"])
+        ws.cell(row=row_index, column=8, value=row["apartamento"])
+
+    widths = {"A": 6, "B": 20, "C": 40, "D": 6, "E": 6, "F": 8, "G": 12, "H": 12}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    safe_residential = (context["residential_name"] or "bonafide").replace(" ", "_")
+    filename = f"bonafide_{safe_residential}_{year}_{month}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
