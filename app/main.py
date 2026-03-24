@@ -41,6 +41,7 @@ app.include_router(admin_router, prefix="/ui/admin")  # /ui/admin/...
 app.include_router(catalogs_router, prefix="/ui/admin/catalogs")  # /ui/admin/catalogs/...
 app.include_router(school_grades_router, prefix="/ui/school-grades")
 app.include_router(school_dropout_router, prefix="/ui/school-dropout")
+app.include_router(pregnancy_router, prefix="/ui/pregnancy")
 
 # ✅ API (para Postman / integraciones)
 app.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
@@ -58,4 +59,4 @@ def startup_schema_updates():
 @app.get("/")
 def root():
     # Mantiene tu UX: manda al login o al home según lo que ya tenías
-    return RedirectResponse(url="/ui/home")
+    return RedirectResponse(url="/ui/home")e")

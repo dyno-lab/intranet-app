@@ -341,6 +341,42 @@ BEGIN
         CONSTRAINT UQ_school_dropout_report_items_participant UNIQUE (report_id, participant_id)
     );
 END;
+
+IF OBJECT_ID(N'dbo.pregnancy_reports', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.pregnancy_reports (
+        report_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        report_month INT NOT NULL,
+        report_year INT NOT NULL,
+        notes VARCHAR(500) NULL,
+        created_by_user_id INT NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_reports_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_reports_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_pregnancy_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_pregnancy_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.pregnancy_report_items', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.pregnancy_report_items (
+        report_item_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_id INT NOT NULL,
+        participant_id INT NOT NULL,
+        participated_workshops BIT NOT NULL CONSTRAINT DF_pregnancy_report_items_participated_workshops DEFAULT 0,
+        is_pregnant BIT NOT NULL CONSTRAINT DF_pregnancy_report_items_is_pregnant DEFAULT 0,
+        gestation_time VARCHAR(50) NULL,
+        has_children BIT NOT NULL CONSTRAINT DF_pregnancy_report_items_has_children DEFAULT 0,
+        children_count INT NULL,
+        children_ages VARCHAR(100) NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_report_items_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_report_items_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_pregnancy_report_items_reports FOREIGN KEY (report_id) REFERENCES dbo.pregnancy_reports(report_id),
+        CONSTRAINT FK_pregnancy_report_items_participants FOREIGN KEY (participant_id) REFERENCES dbo.participants(participant_id),
+        CONSTRAINT UQ_pregnancy_report_items_participant UNIQUE (report_id, participant_id)
+    );
+END;
 """
 
 
