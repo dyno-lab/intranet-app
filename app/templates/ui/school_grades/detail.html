@@ -76,6 +76,7 @@
           <th>Expediente</th>
           <th>Nombre</th>
           <th>Edad</th>
+          <th>Sexo</th>
           <th>Grado</th>
           <th>Salón</th>
           <th>Esp</th>
@@ -104,12 +105,12 @@
             <td>
               <div>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
               <div class="small text-muted mt-1">
-                {% if p.genero %}<span class="me-2">Sexo: {{ p.genero }}</span>{% endif %}
                 {% if p.edificio %}<span class="me-2">Edificio: {{ p.edificio }}</span>{% endif %}
                 {% if p.apart %}<span>Apartamento: {{ p.apart }}</span>{% endif %}
               </div>
             </td>
             <td>{{ age_map.get(p.participant_id, '') }}</td>
+            <td>{{ p.genero or '' }}</td>
             <td>
               <select class="form-select form-select-sm" name="grade_level">
                 <option value="">Selecciona...</option>
@@ -151,7 +152,7 @@
         </tr>
         {% endfor %}
         {% if report_items|length == 0 %}
-        <tr><td colspan="17" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
+        <tr><td colspan="18" class="text-muted">Aún no se han añadido participantes a este informe.</td></tr>
         {% endif %}
       </tbody>
     </table>
