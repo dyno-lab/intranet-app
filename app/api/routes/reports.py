@@ -27,7 +27,7 @@ MONTH_OPTIONS = [
 USER_RESIDENTIAL = {
     "AC": "Aristides Chavier",
     "PJR": "Pedro J. Rosaly",
-    "JDG": "Juan Ponce de León",
+    "JPDL": "Juan Ponce de León",
     "ERA": "Ernesto Ramos Antonini",
     "RLN": "Rafael Lopez Nussa",
     "LC": "La Ceiba",
