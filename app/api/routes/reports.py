@@ -105,14 +105,7 @@ def _chunk_rows(rows: list[dict], size: int) -> list[list[dict]]:
     return chunks or [[]]
 
 
-def _build_bonafide_context(
-    db: Session,
-    current_user: User,
-    proposal_id: int | None,
-    month: int | None,
-    year: int | None,
-    employee_id: int | None,
-):
+def _base_reports_context(db: Session, current_user: User):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
     report_users = db.execute(
         select(User).where(User.is_active == True, User.role != "admin").order_by(User.username)
@@ -121,6 +114,32 @@ def _build_bonafide_context(
     year_options = list(range(current_year - 2, current_year + 3))
     month_lookup = dict(MONTH_OPTIONS)
     user_residential_map = {user.user_id: f"{user.username} = {_residential_from_user(user)}" for user in report_users}
+    residential_name = _residential_from_user(current_user) if current_user.role != "admin" else None
+    return {
+        "proposals": proposals,
+        "report_users": report_users,
+        "user_residential_map": user_residential_map,
+        "month_options": MONTH_OPTIONS,
+        "month_lookup": month_lookup,
+        "year_options": year_options,
+        "residential_name": residential_name,
+    }
+
+
+def _build_bonafide_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | None,
+    year: int | None,
+    employee_id: int | None,
+):
+    base_context = _base_reports_context(db, current_user)
+    proposals = base_context["proposals"]
+    report_users = base_context["report_users"]
+    year_options = base_context["year_options"]
+    month_lookup = base_context["month_lookup"]
+    user_residential_map = base_context["user_residential_map"]
 
     selected_user = None
     is_global = False
@@ -198,6 +217,76 @@ def _build_bonafide_context(
         "rows_per_page": ROWS_PER_BONAFIDE_PAGE,
         "signatures": FIXED_SIGNATURES,
     }
+
+
+REPORT_OPTIONS = [
+    {"value": "bonafide", "label": "Bonafide"},
+    {"value": "no-duplicado", "label": "No Duplicado"},
+    {"value": "duplicados", "label": "Duplicados"},
+    {"value": "por-programa", "label": "Informes por programa"},
+    {"value": "vca", "label": "Informe VCA"},
+    {"value": "todos", "label": "Todos"},
+]
+
+
+@router.get("", response_class=HTMLResponse)
+def reports_home(
+    request: Request,
+    report_key: str = "bonafide",
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    output: str = "screen",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _base_reports_context(db, current_user)
+    context.update(
+        {
+            "request": request,
+            "current_user": current_user,
+            "report_options": REPORT_OPTIONS,
+            "selected_report_key": report_key,
+            "selected_proposal_id": proposal_id,
+            "selected_month": month,
+            "selected_year": year,
+            "selected_employee_id": employee_id,
+            "selected_output": output,
+        }
+    )
+    return templates.TemplateResponse("ui/reports/index.html", context)
+
+
+@router.get("/run")
+def reports_run(
+    report_key: str,
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    output: str = "screen",
+):
+    if report_key == "bonafide":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        f"/ui/reports?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}",
+        status_code=303,
+    )
 
 
 @router.get("/bonafide", response_class=HTMLResponse)

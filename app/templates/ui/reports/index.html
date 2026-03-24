@@ -1,0 +1,91 @@
+{% extends "ui/_base.html" %}
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Reportes</h4>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Informe *</label>
+        <select class="form-select" name="report_key" required>
+          {% for option in report_options %}
+          <option value="{{ option.value }}" {% if selected_report_key == option.value %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Propuesta *</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Mes *</label>
+        <select class="form-select" name="month" required>
+          <option value="">Selecciona...</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año *</label>
+        <select class="form-select" name="year" required>
+          <option value="">Selecciona...</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Formato *</label>
+        <select class="form-select" name="output" required>
+          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
+          <option value="excel" {% if selected_output == 'excel' %}selected{% endif %}>Excel</option>
+          <option value="pdf" {% if selected_output == 'pdf' %}selected{% endif %}>PDF</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Residencial *</label>
+        {% if current_user.role == 'admin' %}
+        <select class="form-select" name="employee_id" required>
+          <option value="">Selecciona...</option>
+          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+          {% for report_user in report_users %}
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input class="form-control" value="{{ residential_name or '' }}" readonly>
+        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+        {% endif %}
+      </div>
+      <div class="col-md-3 d-grid">
+        <button class="btn btn-primary">Generar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-3">Diseño funcional del módulo central de Reportes</h5>
+    <ul class="mb-2">
+      <li>Un solo formulario con criterios compartidos: propuesta, mes, año y residencial/global.</li>
+      <li>Selector del informe a generar: Bonafide, No Duplicado, Duplicados, Por programa, VCA o Todos.</li>
+      <li>Selector de formato: pantalla, Excel o PDF.</li>
+      <li>Los usuarios normales solo generan los reportes de su propio residencial.</li>
+      <li>El admin puede elegir un residencial específico o Global.</li>
+      <li>La opción <strong>Todos</strong> queda como punto central para luego ejecutar/exportar varios reportes con los mismos criterios.</li>
+    </ul>
+    <div class="small text-muted">Por ahora la opción operativa conectada es <strong>Bonafide</strong>. Las demás quedan preparadas en la UX para seguir montándolas sin rehacer la entrada de reportes.</div>
+  </div>
+</div>
+{% endblock %}
