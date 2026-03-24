@@ -163,10 +163,14 @@ def _build_bonafide_context(
 
         for idx, participant in enumerate(participants, start=1):
             gender = _normalize_text(participant.genero).upper()
+            first_time = _normalize_text(getattr(participant, "primera_vez", None)).upper()
+            display_name = f"{participant.nombre} {participant.apellido_paterno} {participant.apellido_materno or ''}".strip()
+            if first_time == "SI":
+                display_name = f"{display_name} *"
             rows.append({
                 "index": idx,
                 "expediente": participant.expediente_num,
-                "nombre": f"{participant.nombre} {participant.apellido_paterno} {participant.apellido_materno or ''}".strip(),
+                "nombre": display_name,
                 "f": "X" if gender.startswith("F") else "",
                 "m": "X" if gender.startswith("M") else "",
                 "edad": _calc_age(participant.fecha_nacimiento) or "",
