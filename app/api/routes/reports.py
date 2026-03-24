@@ -198,6 +198,21 @@ def bonafide_report(
     return templates.TemplateResponse("ui/reports/bonafide.html", context)
 
 
+@router.get("/bonafide/pdf", response_class=HTMLResponse)
+def bonafide_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/bonafide_pdf.html", context)
+
+
 @router.get("/bonafide/excel")
 def bonafide_report_excel(
     proposal_id: int | None = None,

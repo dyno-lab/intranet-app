@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Bonafide PDF</title>
+  <style>
+    @page { size: letter; margin: 0.45in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: always; min-height: 10in; position: relative; }
+    .page:last-child { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 14px; }
+    .header img { max-height: 72px; display: block; margin: 0 auto 8px auto; }
+    .header .title { font-weight: 700; font-size: 16px; }
+    .header .subtitle { font-size: 12px; color: #444; }
+    .meta { font-size: 12px; margin: 10px 0 12px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 16px; }
+    .meta-row div { width: 33%; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #333; padding: 4px 6px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    .footer { margin-top: 14px; font-size: 11px; }
+    .footer-text { margin: 10px 0 18px 0; }
+    .signatures { display: flex; justify-content: space-between; gap: 24px; margin-top: 28px; }
+    .sig { width: 48%; text-align: center; }
+    .sig-line { border-top: 1px solid #111; padding-top: 6px; margin-top: 28px; }
+    .page-number { text-align: right; font-size: 10px; color: #666; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  {% for page_rows in pages %}
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/logo-faro-esperanza.png" alt="Logo">
+      <div class="title">PROGRAMA FARO DE ESPERANZA</div>
+      <div class="subtitle">Listado Bonafide</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Fecha:</strong> {{ month_lookup.get(selected_month, selected_month) }} {{ selected_year }}</div>
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+        <div><strong>Municipio:</strong> {{ municipality or '' }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:5%;">#</th>
+          <th rowspan="2" style="width:18%;">Expediente</th>
+          <th rowspan="2" style="width:35%;">Nombre</th>
+          <th colspan="2" style="width:10%;">Género</th>
+          <th rowspan="2" style="width:8%;">Edad</th>
+          <th rowspan="2" style="width:12%;">Edif.</th>
+          <th rowspan="2" style="width:12%;">Apto.</th>
+        </tr>
+        <tr>
+          <th>F</th>
+          <th>M</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_rows %}
+        <tr>
+          <td class="center">{{ row.index }}</td>
+          <td>{{ row.expediente }}</td>
+          <td>{{ row.nombre }}</td>
+          <td class="center">{{ row.f }}</td>
+          <td class="center">{{ row.m }}</td>
+          <td class="center">{{ row.edad }}</td>
+          <td class="center">{{ row.edificio }}</td>
+          <td class="center">{{ row.apartamento }}</td>
+        </tr>
+        {% endfor %}
+        {% for _ in range(rows_per_page - (page_rows|length)) %}
+        <tr>
+          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <div class="footer-text">
+        Certifico que las personas incluidas en este listado participaron al menos una vez durante la propuesta y el mes seleccionado.
+      </div>
+      <div class="signatures">
+        {% for sig in signatures %}
+        <div class="sig">
+          <div class="sig-line">{{ sig.label }}</div>
+          <div>{{ sig.title }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="page-number">Página {{ loop.index }} de {{ pages|length }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</body>
+</html>
