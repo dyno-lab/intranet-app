@@ -4,30 +4,31 @@
   <meta charset="utf-8">
   <title>Bonafide PDF</title>
   <style>
-    @page { size: letter; margin: 0.45in; }
-    body { font-family: Arial, sans-serif; color: #111; }
-    .page { page-break-after: always; min-height: 10in; position: relative; }
+    @page { size: letter; margin: 0.35in; }
+    body { font-family: Arial, sans-serif; color: #111; margin: 0; }
+    .page { page-break-after: always; position: relative; }
     .page:last-child { page-break-after: auto; }
-    .header { text-align: center; margin-bottom: 12px; }
-    .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
-    .header .title { font-weight: 700; font-size: 15px; }
-    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
-    .meta { font-size: 12px; margin: 10px 0 12px 0; }
-    .meta-row { display: flex; justify-content: space-between; gap: 16px; }
+    .header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 8px; }
+    .header img { max-width: 210px; max-height: 72px; width: auto; display: block; object-fit: contain; flex: 0 0 auto; }
+    .header-text { flex: 1 1 auto; text-align: left; }
+    .header .title { font-weight: 700; font-size: 13px; }
+    .header .subtitle { font-size: 10px; color: #444; line-height: 1.15; }
+    .meta { font-size: 11px; margin: 6px 0 8px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 12px; }
     .meta-row div { width: 33%; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th, td { border: 1px solid #333; padding: 4px 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th, td { border: 1px solid #333; padding: 2px 4px; }
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
-    .footer { margin-top: 14px; font-size: 11px; }
-    .footer-text { margin: 10px 0 8px 0; line-height: 1.35; }
-    .new-entry-note { margin-bottom: 14px; font-size: 10px; }
-    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin-top: 20px; }
+    .footer { margin-top: 8px; font-size: 10px; }
+    .footer-text { margin: 6px 0 4px 0; line-height: 1.2; }
+    .new-entry-note { margin-bottom: 8px; font-size: 9px; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; margin-top: 10px; }
     .sig { text-align: center; }
-    .sig-line { border-top: 1px solid #111; margin: 0 auto 8px auto; width: 90%; }
-    .sig-name { font-weight: 700; }
-    .sig-title { margin-top: 4px; }
-    .page-number { text-align: right; font-size: 10px; color: #666; margin-top: 8px; }
+    .sig-line { border-top: 1px solid #111; margin: 0 auto 5px auto; width: 88%; }
+    .sig-name { font-weight: 700; font-size: 9.5px; }
+    .sig-title { margin-top: 2px; font-size: 9px; line-height: 1.1; }
+    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -35,11 +36,13 @@
   <div class="page">
     <div class="header">
       <img src="/static/img/bonafide-header-avp.png" alt="Header Bonafide">
-      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-      <div class="subtitle" style="font-weight:700; color:#111;">CERTIFICACIÓN DE PARTICIPACIÓN DE RESIDENTES BONAFIDE</div>
-      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
-      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
-      <div class="subtitle">Autosuficiencia Económica y Social. Apoyo y Prevención</div>
+      <div class="header-text">
+        <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+        <div class="subtitle" style="font-weight:700; color:#111;">CERTIFICACIÓN DE PARTICIPACIÓN DE RESIDENTES BONAFIDE</div>
+        <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
+        <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
+        <div class="subtitle">Autosuficiencia Económica y Social. Apoyo y Prevención</div>
+      </div>
     </div>
 
     <div class="meta">
