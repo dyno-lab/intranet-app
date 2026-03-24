@@ -41,8 +41,9 @@
         {% if current_user.role == 'admin' %}
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
+          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
           {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ report_user.username }}</option>
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
           {% endfor %}
         </select>
         {% else %}

@@ -105,10 +105,14 @@ def bonafide_report(
     current_year = date.today().year
     year_options = list(range(current_year - 2, current_year + 3))
     month_lookup = dict(MONTH_OPTIONS)
+    user_residential_map = {user.user_id: _residential_from_user(user) for user in report_users}
 
     selected_user = None
+    is_global = False
     if current_user.role == "admin":
-        if employee_id:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
             selected_user = db.get(User, employee_id)
     else:
         selected_user = current_user
@@ -117,9 +121,13 @@ def bonafide_report(
     rows = []
     municipality = None
     residential_name = None
-    if proposal_id and month and year and selected_user:
-        residential_name = _residential_from_user(selected_user)
-        municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
+    if proposal_id and month and year and (selected_user or is_global):
+        if is_global:
+            residential_name = "Global"
+            municipality = "Todos"
+        else:
+            residential_name = _residential_from_user(selected_user)
+            municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
 
         stmt = (
             select(Participant)
@@ -130,11 +138,12 @@ def bonafide_report(
                 ActivitySession.proposal_id == proposal_id,
                 extract("month", ActivitySession.session_date) == month,
                 extract("year", ActivitySession.session_date) == year,
-                ActivitySession.created_by_user_id == selected_user.user_id,
             )
             .distinct()
             .order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
         )
+        if not is_global:
+            stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
         participants = db.execute(stmt).scalars().all()
 
         for idx, participant in enumerate(participants, start=1):
@@ -157,6 +166,7 @@ def bonafide_report(
             "current_user": current_user,
             "proposals": proposals,
             "report_users": report_users,
+            "user_residential_map": user_residential_map,
             "month_options": MONTH_OPTIONS,
             "month_lookup": month_lookup,
             "year_options": year_options,
@@ -165,6 +175,7 @@ def bonafide_report(
             "selected_year": year,
             "selected_employee_id": employee_id,
             "selected_user": selected_user,
+            "is_global": is_global,
             "residential_name": residential_name,
             "municipality": municipality,
             "rows": rows,
