@@ -67,7 +67,7 @@
           <th>Tiempo gestación</th>
           <th>Tiene hijos</th>
           <th># hijos</th>
-          <th>Edad hijos</th>
+          <th>Edades de los hijos</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -86,7 +86,7 @@
             <td><input class="form-control form-control-sm" name="gestation_time" value="{{ item.gestation_time or '' }}" placeholder="Ej. 3 meses"></td>
             <td class="text-center"><input type="checkbox" name="has_children" {% if item.has_children %}checked{% endif %}></td>
             <td><input class="form-control form-control-sm text-center" type="number" min="0" name="children_count" value="{{ item.children_count if item.children_count is not none else '' }}"></td>
-            <td><input class="form-control form-control-sm" name="children_ages" value="{{ item.children_ages or '' }}" placeholder="Ej. 2, 5"></td>
+            <td><input class="form-control form-control-sm" name="children_ages" value="{{ item.children_ages or '' }}" placeholder="Ej. 2, 5 (separadas por coma)"></td>
             <td class="text-nowrap">
               <button class="btn btn-sm btn-success">Guardar</button>
           </form>
