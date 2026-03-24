@@ -27,22 +27,38 @@
         </select>
       </div>
       <div class="col-md-2">
+        <label class="form-label">Periodo *</label>
+        <select class="form-select" name="period_type" id="periodType" required>
+          {% for option in period_type_options %}
+          <option value="{{ option.value }}" {% if selected_period_type == option.value %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 period-block period-monthly period-quarterly">
         <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
+        <select class="form-select" name="month">
           <option value="">Selecciona...</option>
           {% for month_value, month_label in month_options %}
           <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-2 period-block period-monthly period-quarterly period-annual">
         <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
+        <select class="form-select" name="year">
           <option value="">Selecciona...</option>
           {% for option_year in year_options %}
           <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="col-md-2 period-block period-custom d-none">
+        <label class="form-label">Fecha inicial *</label>
+        <input type="date" class="form-control" name="start_date">
+      </div>
+      <div class="col-md-2 period-block period-custom d-none">
+        <label class="form-label">Fecha final *</label>
+        <input type="date" class="form-control" name="end_date">
       </div>
       <div class="col-md-2">
         <label class="form-label">Formato *</label>
@@ -81,9 +97,10 @@
   <div class="card-body">
     <h5 class="mb-3">Diseño funcional del módulo central de Reportes</h5>
     <ul class="mb-2">
-      <li>Un solo formulario con criterios compartidos: propuesta, mes, año y residencial/global.</li>
+      <li>Un solo formulario con criterios compartidos: propuesta, periodo, residencial/global y formato.</li>
       <li>Selector del informe a generar: Bonafide, No Duplicado, Duplicados, Por programa, VCA o Todos.</li>
-      <li>Selector de formato: pantalla, Excel o PDF.</li>
+      <li>Mensual es el modo operativo principal.</li>
+      <li>Trimestral, anual y personalizado quedan visibles como base para seguimiento del programa.</li>
       <li>Los usuarios normales solo generan los reportes de su propio residencial.</li>
       <li>El admin puede elegir un residencial específico o Global.</li>
       <li>La opción <strong>Todos</strong> queda como punto central para luego ejecutar/exportar varios reportes con los mismos criterios.</li>
@@ -91,4 +108,29 @@
     <div class="small text-muted">Por ahora la opción operativa conectada es <strong>Bonafide</strong>. Las demás quedan preparadas en la UX para seguir montándolas sin rehacer la entrada de reportes.</div>
   </div>
 </div>
+
+<script>
+(function () {
+  const periodType = document.getElementById('periodType');
+  if (!periodType) return;
+
+  function refreshPeriodUI() {
+    const value = periodType.value;
+    document.querySelectorAll('.period-block').forEach(el => el.classList.add('d-none'));
+
+    if (value === 'monthly') {
+      document.querySelectorAll('.period-monthly').forEach(el => el.classList.remove('d-none'));
+    } else if (value === 'quarterly') {
+      document.querySelectorAll('.period-quarterly').forEach(el => el.classList.remove('d-none'));
+    } else if (value === 'annual') {
+      document.querySelectorAll('.period-annual').forEach(el => el.classList.remove('d-none'));
+    } else if (value === 'custom') {
+      document.querySelectorAll('.period-custom').forEach(el => el.classList.remove('d-none'));
+    }
+  }
+
+  periodType.addEventListener('change', refreshPeriodUI);
+  refreshPeriodUI();
+})();
+</script>
 {% endblock %}
