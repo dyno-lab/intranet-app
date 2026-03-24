@@ -75,6 +75,8 @@ FIXED_SIGNATURES = [
     {"label": "Revisado por", "name": "______________________________", "title": "Programa Faro de Esperanza"},
 ]
 
+ROWS_PER_BONAFIDE_PAGE = 26
+
 
 def _calc_age(dob):
     if not dob:
@@ -92,6 +94,13 @@ def _residential_from_user(user: User | None) -> str:
         return ""
     username = _normalize_text(user.username).upper()
     return USER_RESIDENTIAL.get(username, _normalize_text(user.username))
+
+
+def _chunk_rows(rows: list[dict], size: int) -> list[list[dict]]:
+    if size <= 0:
+        return [rows]
+    chunks = [rows[i:i + size] for i in range(0, len(rows), size)]
+    return chunks or [[]]
 
 
 def _build_bonafide_context(
@@ -179,6 +188,8 @@ def _build_bonafide_context(
         "residential_name": residential_name,
         "municipality": municipality,
         "rows": rows,
+        "pages": _chunk_rows(rows, ROWS_PER_BONAFIDE_PAGE),
+        "rows_per_page": ROWS_PER_BONAFIDE_PAGE,
         "signatures": FIXED_SIGNATURES,
     }
 
