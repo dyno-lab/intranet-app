@@ -19,7 +19,11 @@
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
     .footer { margin-top: 16px; font-size: 10px; }
-    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 5px; }
+    .signature-block { margin-top: 26px; }
+    .signature-line { margin-top: 16px; width: 320px; border-top: 1px solid #111; }
+    .footer-logo { margin-top: 18px; text-align: center; }
+    .footer-logo img { max-width: 220px; max-height: 60px; object-fit: contain; }
+    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -74,8 +78,13 @@
 
     <div class="footer">
       <div>Yo, {{ authorized_name or '______________________________' }}, funcionario autorizado, certifico que la información presentada en este informe corresponde al periodo seleccionado y refleja participantes no duplicados por edad y sexo.</div>
-      <div style="margin-top:12px; width:320px; border-top:1px solid #111;"></div>
-      <div style="margin-top:6px;">{{ authorized_name or '' }}</div>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div style="margin-top:6px;">{{ authorized_name or '' }}</div>
+      </div>
+      <div class="footer-logo">
+        <img src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro de Esperanza">
+      </div>
       <div class="page-number">Página 1 de 1</div>
     </div>
   </div>
