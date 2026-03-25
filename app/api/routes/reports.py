@@ -601,7 +601,7 @@ def _build_vca_context(
                     "nombre": f"{participant.nombre} {participant.apellido_paterno} {participant.apellido_materno or ''}".strip(),
                     "genero": participant.genero or "",
                     "edad": _calc_age(participant.fecha_nacimiento) or "",
-                    "values": row_values,
+                    "column_values": row_values,
                 })
             total_people = len(rows)
 
