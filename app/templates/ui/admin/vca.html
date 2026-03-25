@@ -1,0 +1,136 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Configuración VCA{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">🧩 Configuración VCA</h3>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Cargar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal %}
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white"><strong>Crear columna VCA</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/vca/columns/create" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-6">
+        <label class="form-label">Nombre de columna</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Orden</label>
+        <input type="number" class="form-control" name="sort_order" value="0" required>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Crear columna</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-secondary text-white"><strong>Asignar actividades a columnas</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/vca/assign" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-4">
+        <label class="form-label">Columna VCA</label>
+        <select class="form-select" name="vca_column_id" required>
+          <option value="">Selecciona...</option>
+          {% for column in columns if column.is_active %}
+          <option value="{{ column.vca_column_id }}">{{ column.sort_order }} - {{ column.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Actividad</label>
+        <select class="form-select" name="activity_code_id" required>
+          <option value="">Selecciona...</option>
+          {% for activity in activities %}
+          <option value="{{ activity.activity_code_id }}" {% if activity.activity_code_id in assigned_activity_ids %}disabled{% endif %}>{{ activity.code }} - {{ activity.description or '' }}{% if activity.activity_code_id in assigned_activity_ids %} (ya asignada){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-success">Asignar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>Columnas configuradas para {{ selected_proposal.code }} - {{ selected_proposal.name }}</strong></div>
+  <div class="card-body">
+    {% if columns %}
+      {% for column in columns %}
+      <div class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <strong>{{ column.sort_order }}. {{ column.name }}</strong>
+            {% if column.is_active %}<span class="badge bg-success ms-2">Activa</span>{% else %}<span class="badge bg-danger ms-2">Inactiva</span>{% endif %}
+          </div>
+          <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-vca-{{ column.vca_column_id }}">Editar</button>
+        </div>
+
+        <div class="collapse mb-3" id="edit-vca-{{ column.vca_column_id }}">
+          <form method="post" action="/ui/admin/vca/columns/{{ column.vca_column_id }}/edit" class="row g-2 align-items-end">
+            <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+            <div class="col-md-6"><label class="form-label small">Nombre</label><input type="text" class="form-control form-control-sm" name="name" value="{{ column.name }}" required></div>
+            <div class="col-md-2"><label class="form-label small">Orden</label><input type="number" class="form-control form-control-sm" name="sort_order" value="{{ column.sort_order }}" required></div>
+            <div class="col-md-2"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="is_active" id="vca-active-{{ column.vca_column_id }}" {{ 'checked' if column.is_active }}><label class="form-check-label" for="vca-active-{{ column.vca_column_id }}">Activa</label></div></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-sm btn-success">Guardar</button></div>
+          </form>
+        </div>
+
+        <div>
+          <div class="small text-muted mb-1">Actividades asignadas</div>
+          {% if column.assigned_activities %}
+            <ul class="list-group">
+              {% for item in column.assigned_activities %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ item.activity.code }} - {{ item.activity.description or '' }}</span>
+                <form method="post" action="/ui/admin/vca/unassign" class="mb-0">
+                  <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                  <input type="hidden" name="mapping_id" value="{{ item.mapping_id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="text-muted">No hay actividades asignadas.</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-muted">Todavía no hay columnas VCA configuradas para esta propuesta.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

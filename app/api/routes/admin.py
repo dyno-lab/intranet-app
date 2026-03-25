@@ -15,6 +15,8 @@ from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
 from app.models.proposal import Proposal
 from app.models.residential import Residential
+from app.models.vca_column import VCAColumn
+from app.models.vca_column_activity_code import VCAColumnActivityCode
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -255,6 +257,150 @@ def admin_edit_residential(
     db.commit()
 
     return RedirectResponse("/ui/admin/residentials?msg=Residencial actualizado exitosamente.", status_code=303)
+
+
+# ============================================================
+# VCA MANAGEMENT
+# ============================================================
+
+@router.get("/vca", response_class=HTMLResponse)
+def admin_vca(
+    request: Request,
+    proposal_id: int | None = None,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    columns = []
+    assigned_activity_ids: set[int] = set()
+    activities = []
+
+    if selected_proposal:
+        columns = db.execute(
+            select(VCAColumn).where(VCAColumn.proposal_id == selected_proposal.proposal_id).order_by(VCAColumn.sort_order, VCAColumn.name)
+        ).scalars().all()
+        mappings = db.execute(
+            select(VCAColumnActivityCode, ActivityCode)
+            .join(ActivityCode, ActivityCode.activity_code_id == VCAColumnActivityCode.activity_code_id)
+            .join(VCAColumn, VCAColumn.vca_column_id == VCAColumnActivityCode.vca_column_id)
+            .where(VCAColumn.proposal_id == selected_proposal.proposal_id)
+            .order_by(VCAColumn.vca_column_id, ActivityCode.code)
+        ).all()
+        activity_map: dict[int, list[dict]] = {}
+        for mapping, activity in mappings:
+            activity_map.setdefault(mapping.vca_column_id, []).append({"mapping_id": mapping.id, "activity": activity})
+            assigned_activity_ids.add(activity.activity_code_id)
+        for column in columns:
+            setattr(column, "assigned_activities", activity_map.get(column.vca_column_id, []))
+
+        activities = db.execute(
+            select(ActivityCode)
+            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
+            .order_by(ActivityCode.code)
+        ).scalars().all()
+
+    return templates.TemplateResponse(
+        "ui/admin/vca.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "selected_proposal": selected_proposal,
+            "columns": columns,
+            "activities": activities,
+            "assigned_activity_ids": assigned_activity_ids,
+        },
+    )
+
+
+@router.post("/vca/columns/create")
+def admin_create_vca_column(
+    proposal_id: int = Form(...),
+    name: str = Form(...),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse("/ui/admin/vca?msg=Error: Propuesta no encontrada.", status_code=303)
+
+    column = VCAColumn(proposal_id=proposal_id, name=name.strip(), sort_order=sort_order)
+    db.add(column)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Columna VCA creada exitosamente.", status_code=303)
+
+
+@router.post("/vca/columns/{vca_column_id}/edit")
+def admin_edit_vca_column(
+    vca_column_id: int,
+    proposal_id: int = Form(...),
+    name: str = Form(...),
+    sort_order: int = Form(0),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    column = db.get(VCAColumn, vca_column_id)
+    if not column:
+        return RedirectResponse("/ui/admin/vca?msg=Error: Columna VCA no encontrada.", status_code=303)
+
+    column.name = name.strip()
+    column.sort_order = sort_order
+    column.is_active = is_active == "on"
+    db.add(column)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Columna VCA actualizada exitosamente.", status_code=303)
+
+
+@router.post("/vca/assign")
+def admin_assign_activity_to_vca_column(
+    proposal_id: int = Form(...),
+    vca_column_id: int = Form(...),
+    activity_code_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    column = db.get(VCAColumn, vca_column_id)
+    activity = db.get(ActivityCode, activity_code_id)
+    if not column or not activity:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Columna o actividad no encontrada.", status_code=303)
+    if column.proposal_id != proposal_id or activity.proposal_id != proposal_id:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: La actividad y la columna deben pertenecer a la misma propuesta.", status_code=303)
+
+    existing_assignment = db.execute(
+        select(VCAColumnActivityCode)
+        .join(VCAColumn, VCAColumn.vca_column_id == VCAColumnActivityCode.vca_column_id)
+        .where(
+            VCAColumn.proposal_id == proposal_id,
+            VCAColumnActivityCode.activity_code_id == activity_code_id,
+        )
+    ).scalar_one_or_none()
+    if existing_assignment:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Esa actividad ya está asignada a una columna VCA.", status_code=303)
+
+    db.add(VCAColumnActivityCode(vca_column_id=vca_column_id, activity_code_id=activity_code_id))
+    db.commit()
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Actividad asignada exitosamente.", status_code=303)
+
+
+@router.post("/vca/unassign")
+def admin_unassign_activity_from_vca_column(
+    proposal_id: int = Form(...),
+    mapping_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    mapping = db.get(VCAColumnActivityCode, mapping_id)
+    if not mapping:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Asignación no encontrada.", status_code=303)
+    db.delete(mapping)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Asignación removida exitosamente.", status_code=303)
 
 
 # ============================================================

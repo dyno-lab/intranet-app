@@ -1,0 +1,127 @@
+{% extends "ui/_base.html" %}
+{% block title %}Informe VCA{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Informe VCA</h4>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
+      <input type="hidden" name="report_key" value="vca">
+      {% if selected_period_type == 'custom' %}
+      <input type="hidden" name="period_type" value="custom">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+      <div class="col-md-4">
+        <label class="form-label">Periodo</label>
+        <input class="form-control" value="{{ period_label }}" readonly>
+      </div>
+      {% else %}
+      <input type="hidden" name="period_type" value="monthly">
+      <div class="col-md-2">
+        <label class="form-label">Mes *</label>
+        <select class="form-select" name="month" required>
+          <option value="">Selecciona...</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año *</label>
+        <select class="form-select" name="year" required>
+          <option value="">Selecciona...</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <label class="form-label">Propuesta *</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Formato *</label>
+        <select class="form-select" name="output" required>
+          <option value="screen">Pantalla</option>
+          <option value="excel">Excel</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Residencial *</label>
+        {% if current_user.role in ['admin', 'supervisor'] %}
+        <select class="form-select" name="employee_id" required>
+          <option value="">Selecciona...</option>
+          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+          {% for report_user in report_users %}
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input class="form-control" value="{{ residential_name or '' }}" readonly>
+        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+        {% endif %}
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Generar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal_id and period_label and columns %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
+      <div class="col-md-4"><strong>Total de personas con impedimentos:</strong> {{ total_people }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Género</th>
+          <th>Edad</th>
+          {% for column in columns %}
+          <th>{{ column.name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.nombre }}</td>
+          <td>{{ row.genero }}</td>
+          <td>{{ row.edad }}</td>
+          {% for column in columns %}
+          <td>{{ row.values.get(column.vca_column_id, '') }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="{{ 3 + (columns|length) }}" class="text-muted">No hay participantes VCA con asistencias en el periodo seleccionado.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% elif selected_proposal_id and period_label and not columns %}
+<div class="alert alert-warning">La propuesta seleccionada no tiene columnas VCA configuradas todavía.</div>
+{% endif %}
+{% endblock %}

@@ -466,8 +466,63 @@ INNER JOIN dbo.residentials r ON r.code = UPPER(LTRIM(RTRIM(u.username)))
 WHERE u.residential_id IS NULL;
 """
 
+PHASE4_VCA_SQL = """
+IF OBJECT_ID(N'dbo.vca_columns', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.vca_columns (
+        vca_column_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        [name] VARCHAR(150) NOT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_vca_columns_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_vca_columns_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_vca_columns_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_vca_columns_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_vca_columns_proposal_id'
+      AND object_id = OBJECT_ID('dbo.vca_columns')
+)
+BEGIN
+    CREATE INDEX IX_vca_columns_proposal_id ON dbo.vca_columns(proposal_id);
+END;
+
+IF OBJECT_ID(N'dbo.vca_column_activity_codes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.vca_column_activity_codes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        vca_column_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        CONSTRAINT FK_vca_column_activity_codes_vca_columns FOREIGN KEY (vca_column_id) REFERENCES dbo.vca_columns(vca_column_id),
+        CONSTRAINT FK_vca_column_activity_codes_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_vca_column_activity_codes UNIQUE (vca_column_id, activity_code_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_vca_column_activity_codes_vca_column_id'
+      AND object_id = OBJECT_ID('dbo.vca_column_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_vca_column_activity_codes_vca_column_id ON dbo.vca_column_activity_codes(vca_column_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_vca_column_activity_codes_activity_code_id'
+      AND object_id = OBJECT_ID('dbo.vca_column_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_vca_column_activity_codes_activity_code_id ON dbo.vca_column_activity_codes(activity_code_id);
+END;
+"""
+
 
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
+        conn.exec_driver_sql(PHASE4_VCA_SQL)

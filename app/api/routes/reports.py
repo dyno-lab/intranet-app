@@ -18,6 +18,9 @@ from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.user import User
 from app.models.residential import Residential
+from app.models.activity_code import ActivityCode
+from app.models.vca_column import VCAColumn
+from app.models.vca_column_activity_code import VCAColumnActivityCode
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -484,10 +487,141 @@ def reports_run(
             status_code=303,
         )
 
+    if report_key == "vca":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/vca/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
     return RedirectResponse(
         f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
     )
+
+
+def _build_vca_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user)
+    month_lookup = base_context["month_lookup"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    columns = []
+    rows = []
+    residential_name = None
+    total_people = 0
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        proposal = db.get(Proposal, proposal_id)
+        if proposal:
+            columns = db.execute(
+                select(VCAColumn)
+                .where(VCAColumn.proposal_id == proposal_id, VCAColumn.is_active == True)  # noqa: E712
+                .order_by(VCAColumn.sort_order, VCAColumn.name)
+            ).scalars().all()
+
+            mapping_rows = db.execute(
+                select(VCAColumnActivityCode, ActivityCode, VCAColumn)
+                .join(ActivityCode, ActivityCode.activity_code_id == VCAColumnActivityCode.activity_code_id)
+                .join(VCAColumn, VCAColumn.vca_column_id == VCAColumnActivityCode.vca_column_id)
+                .where(VCAColumn.proposal_id == proposal_id, VCAColumn.is_active == True)  # noqa: E712
+            ).all()
+            activity_to_column = {activity.activity_code_id: column.vca_column_id for _, activity, column in mapping_rows}
+
+            participant_stmt = (
+                select(Participant)
+                .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .where(
+                    Attendance.attended == True,  # noqa: E712
+                    ActivitySession.proposal_id == proposal_id,
+                    func.upper(func.ltrim(func.rtrim(func.isnull(Participant.vca, "")))) == "SI",
+                )
+            )
+            participant_stmt = _apply_session_period_filter(participant_stmt, period)
+            if is_global:
+                residential_name = "Global"
+            else:
+                participant_stmt = participant_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                residential_name = _residential_from_user(selected_user)
+            participants = participant_stmt.distinct().order_by(Participant.apellido_paterno, Participant.nombre)
+            participant_rows = db.execute(participants).scalars().all()
+
+            attendance_stmt = (
+                select(Attendance.participant_id, ActivitySession.activity_code_id)
+                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .where(
+                    Attendance.attended == True,  # noqa: E712
+                    ActivitySession.proposal_id == proposal_id,
+                )
+            )
+            attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
+            if not is_global:
+                attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+            attendance_rows = db.execute(attendance_stmt).all()
+
+            counts: dict[int, dict[int, int]] = {}
+            for participant_id, activity_code_id in attendance_rows:
+                column_id = activity_to_column.get(activity_code_id)
+                if not column_id:
+                    continue
+                counts.setdefault(participant_id, {})
+                counts[participant_id][column_id] = counts[participant_id].get(column_id, 0) + 1
+
+            for participant in participant_rows:
+                row_values = {column.vca_column_id: counts.get(participant.participant_id, {}).get(column.vca_column_id, "") for column in columns}
+                if not any(value != "" for value in row_values.values()):
+                    continue
+                rows.append({
+                    "participant_id": participant.participant_id,
+                    "nombre": f"{participant.nombre} {participant.apellido_paterno} {participant.apellido_materno or ''}".strip(),
+                    "genero": participant.genero or "",
+                    "edad": _calc_age(participant.fecha_nacimiento) or "",
+                    "values": row_values,
+                })
+            total_people = len(rows)
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "columns": columns,
+        "rows": rows,
+        "total_people": total_people,
+    }
 
 
 def _build_no_duplicado_context(
@@ -837,6 +971,83 @@ def no_duplicado_report_excel(
     safe_residential = (context["residential_name"] or "no_duplicado").replace(" ", "_")
     filename = f"no_duplicado_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/vca", response_class=HTMLResponse)
+def vca_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/vca.html", context)
+
+
+@router.get("/vca/excel")
+def vca_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"] and context["columns"]):
+        return RedirectResponse("/ui/reports/vca", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "VCA"
+    ws["A1"] = "Informe VCA"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A3"] = "Residencial"
+    ws["B3"] = context["residential_name"] or ""
+    ws["A4"] = "Periodo reportado"
+    ws["B4"] = context["period_label"]
+    ws["A5"] = "Total personas con impedimentos"
+    ws["B5"] = context["total_people"]
+
+    headers = ["Nombre", "Género", "Edad"] + [column.name for column in context["columns"]]
+    header_row = 7
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+
+    for row_index, row in enumerate(context["rows"], start=header_row + 1):
+        ws.cell(row=row_index, column=1, value=row["nombre"])
+        ws.cell(row=row_index, column=2, value=row["genero"])
+        ws.cell(row=row_index, column=3, value=row["edad"])
+        for offset, column in enumerate(context["columns"], start=4):
+            ws.cell(row=row_index, column=offset, value=row["values"].get(column.vca_column_id, ""))
+
+    ws.column_dimensions["A"].width = 35
+    ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 10
+    for index in range(len(context["columns"])):
+        ws.column_dimensions[chr(68 + index)].width = 28
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "vca").replace(" ", "_")
+    filename = f"vca_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
