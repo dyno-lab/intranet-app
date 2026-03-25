@@ -295,6 +295,7 @@ def reports_home(
     employee_id: int | None = None,
     output: str = "screen",
     period_type: str = "monthly",
+    authorized_name: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -312,6 +313,7 @@ def reports_home(
             "selected_employee_id": employee_id,
             "selected_output": output,
             "selected_period_type": period_type,
+            "authorized_name": (authorized_name or "").strip(),
         }
     )
     return templates.TemplateResponse("ui/reports/index.html", context)

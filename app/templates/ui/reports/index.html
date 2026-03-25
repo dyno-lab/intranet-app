@@ -83,6 +83,10 @@
         <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
+      <div class="col-md-3">
+        <label class="form-label">Funcionario autorizado</label>
+        <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
+      </div>
       <div class="col-md-3 d-grid">
         <button class="btn btn-primary">Generar</button>
       </div>
