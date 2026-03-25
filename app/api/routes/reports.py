@@ -79,6 +79,16 @@ FIXED_SIGNATURES = [
 
 ROWS_PER_BONAFIDE_PAGE = 26
 
+AGE_BUCKETS = [
+    ("under_5", "Menos de 5 años"),
+    ("5_7", "5 - 7 años"),
+    ("8_10", "8 - 10 años"),
+    ("11_15", "11 - 15 años"),
+    ("16_21", "16 - 21 años"),
+    ("22_59", "22 - 59 años"),
+    ("60_plus", "60 años en adelante"),
+]
+
 RESIDENTIAL_RQ = {
     "ARISTIDES CHAVIER": "RQ1014",
     "PEDRO J. ROSALY": "RQ1009",
