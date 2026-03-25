@@ -493,6 +493,11 @@ def reports_run(
                 f"/ui/reports/vca/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/vca/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
@@ -997,6 +1002,24 @@ def vca_report(
     return templates.TemplateResponse("ui/reports/vca.html", context)
 
 
+@router.get("/vca/pdf", response_class=HTMLResponse)
+def vca_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/vca_pdf.html", context)
+
+
 @router.get("/vca/excel")
 def vca_report_excel(
     proposal_id: int | None = None,
@@ -1016,17 +1039,23 @@ def vca_report_excel(
     wb = Workbook()
     ws = wb.active
     ws.title = "VCA"
-    ws["A1"] = "Informe VCA"
+    ws.freeze_panes = "A9"
+    ws.sheet_view.showGridLines = False
+    ws["A1"] = "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
     ws["A1"].font = Font(bold=True, size=14)
-    ws["A3"] = "Residencial"
-    ws["B3"] = context["residential_name"] or ""
-    ws["A4"] = "Periodo reportado"
-    ws["B4"] = context["period_label"]
-    ws["A5"] = "Total personas con impedimentos"
-    ws["B5"] = context["total_people"]
+    ws["A2"] = "INFORME VCA"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["A5"] = "Periodo reportado"
+    ws["B5"] = context["period_label"]
+    ws["A6"] = "Total personas con impedimentos"
+    ws["B6"] = context["total_people"]
 
-    headers = ["Nombre", "Género", "Edad"] + [column.name for column in context["columns"]]
-    header_row = 7
+    headers = ["Expediente", "Nombre", "Género", "Edad"] + [column.name for column in context["columns"]]
+    header_row = 8
     for col_index, header in enumerate(headers, start=1):
         cell = ws.cell(row=header_row, column=col_index, value=header)
         cell.font = Font(bold=True)
@@ -1039,11 +1068,12 @@ def vca_report_excel(
         for offset, column in enumerate(context["columns"], start=5):
             ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
 
-    ws.column_dimensions["A"].width = 35
-    ws.column_dimensions["B"].width = 12
-    ws.column_dimensions["C"].width = 10
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["B"].width = 35
+    ws.column_dimensions["C"].width = 12
+    ws.column_dimensions["D"].width = 10
     for index in range(len(context["columns"])):
-        ws.column_dimensions[chr(68 + index)].width = 28
+        ws.column_dimensions[chr(69 + index)].width = 28
 
     output = BytesIO()
     wb.save(output)
