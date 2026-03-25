@@ -326,6 +326,7 @@ def reports_run(
     employee_id: int | None = None,
     output: str = "screen",
     period_type: str = "monthly",
+    authorized_name: str | None = None,
 ):
     if report_key == "bonafide":
         if output == "excel":
@@ -638,4 +639,6 @@ def bonafide_report_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+filename}"'},
     )
