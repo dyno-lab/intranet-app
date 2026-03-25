@@ -556,7 +556,7 @@ def duplicado_report_excel(
     ws = wb.active
     ws.title = "Duplicado"
 
-    ws["A1"] = "Informe mensual de participantes"
+    ws["A1"] = "Informe mensual de participaciones"
     ws["A1"].font = Font(bold=True, size=14)
     ws["A2"] = "Duplicado por edad y sexo en los proyectos impactados"
     ws["A2"].font = Font(bold=True)
@@ -571,7 +571,7 @@ def duplicado_report_excel(
     ws["A8"] = "Funcionario autorizado"
     ws["B8"] = context["authorized_name"] or ""
 
-    headers = ["Clasificación", "F", "M", "Total de participantes"]
+    headers = ["Clasificación", "F", "M", "Total de participaciones"]
     header_row = 10
     for col_index, header in enumerate(headers, start=1):
         cell = ws.cell(row=header_row, column=col_index, value=header)
