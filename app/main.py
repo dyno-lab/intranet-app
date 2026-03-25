@@ -23,6 +23,9 @@ from app.api.routes.employees import router as employees_router
 from app.api.routes.activity_codes import router as activity_codes_router
 from app.db.schema import ensure_schema_updates
 
+# Importa modelos nuevos para registrar mappers/relationships
+import app.models.residential  # noqa: F401
+
 app = FastAPI(title="Intranet App")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

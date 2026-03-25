@@ -18,6 +18,8 @@ from app.models.proposal import Proposal
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+VALID_USER_ROLES = {"admin", "supervisor", "user"}
+
 
 # ============================================================
 # USER MANAGEMENT
@@ -65,7 +67,7 @@ def admin_create_user(
     user = User(
         username=username,
         password_hash=hash_password(password),
-        role=role if role in ("admin", "user") else "user",
+        role=role if role in VALID_USER_ROLES else "user",
     )
     db.add(user)
     db.commit()
@@ -104,7 +106,7 @@ def admin_edit_user(
         )
 
     user.username = username
-    user.role = role if role in ("admin", "user") else "user"
+    user.role = role if role in VALID_USER_ROLES else "user"
     user.is_active = is_active == "on"
 
     if new_password and new_password.strip() and len(new_password.strip()) > 0:

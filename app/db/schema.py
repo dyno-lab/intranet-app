@@ -380,6 +380,94 @@ END;
 """
 
 
+PHASE3_RESIDENTIALS_SQL = """
+IF OBJECT_ID(N'dbo.residentials', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.residentials (
+        residential_id INT IDENTITY(1,1) PRIMARY KEY,
+        code VARCHAR(20) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        municipality VARCHAR(100) NOT NULL,
+        rq_code VARCHAR(50) NOT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_residentials_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_residentials_created_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'UQ_residentials_code'
+      AND object_id = OBJECT_ID('dbo.residentials')
+)
+BEGIN
+    CREATE UNIQUE INDEX UQ_residentials_code ON dbo.residentials(code);
+END;
+
+IF COL_LENGTH('dbo.users', 'residential_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD residential_id INT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = 'FK_users_residentials'
+)
+BEGIN
+    ALTER TABLE dbo.users
+    ADD CONSTRAINT FK_users_residentials
+    FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_users_residential_id'
+      AND object_id = OBJECT_ID('dbo.users')
+)
+BEGIN
+    CREATE INDEX IX_users_residential_id ON dbo.users(residential_id);
+END;
+
+MERGE dbo.residentials AS target
+USING (VALUES
+    ('AC', 'Aristides Chavier', 'Ponce', 'RQ1014'),
+    ('PJR', 'Pedro J. Rosaly', 'Ponce', 'RQ1009'),
+    ('JPDL', 'Juan Ponce de León', 'Ponce', 'RQ1001'),
+    ('ERA', 'Ernesto Ramos Antonini', 'Ponce', 'RQ1017'),
+    ('RLN', 'Rafael Lopez Nussa', 'Ponce', 'RQ1016'),
+    ('LC', 'La Ceiba', 'Ponce', 'RQ5022'),
+    ('LS', 'Leónardo Santiago', 'Juana Díaz', 'RQ5148'),
+    ('VDP', 'Villa del Parque', 'Juana Díaz', 'RQ3089'),
+    ('BDM', 'Brisas del Mar', 'Salinas', 'RQ5045'),
+    ('BV', 'Bella Vista', 'Salinas', 'RQ3090'),
+    ('VDG', 'Valles de Guayama', 'Guayama', 'RQ5266'),
+    ('JDG', 'Jardines de Guamani', 'Guayama', 'RQ5184'),
+    ('FC', 'Fernando Calimano', 'Guayama', 'RQ5314'),
+    ('SAC', 'San Antonio Carioca', 'Guayama', 'RQ5048'),
+    ('EC', 'El Carmen', 'Mayagüez', 'RQ4010'),
+    ('MH', 'Manuel Hernandez Rosa', 'Mayagüez', 'RQ4009'),
+    ('RH', 'Rafael Hernandez', 'Mayagüez', 'RQ4011'),
+    ('CL', 'Columbus Landing', 'Mayagüez', 'RQ4001')
+) AS source(code, name, municipality, rq_code)
+ON target.code = source.code
+WHEN MATCHED THEN
+    UPDATE SET
+        target.name = source.name,
+        target.municipality = source.municipality,
+        target.rq_code = source.rq_code,
+        target.is_active = 1
+WHEN NOT MATCHED THEN
+    INSERT (code, name, municipality, rq_code, is_active)
+    VALUES (source.code, source.name, source.municipality, source.rq_code, 1);
+
+UPDATE u
+SET u.residential_id = r.residential_id
+FROM dbo.users u
+INNER JOIN dbo.residentials r ON r.code = UPPER(LTRIM(RTRIM(u.username)))
+WHERE u.residential_id IS NULL;
+"""
+
+
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
+        conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)

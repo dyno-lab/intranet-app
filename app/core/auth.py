@@ -1,5 +1,4 @@
 from fastapi import Request, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -15,7 +14,6 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user_id = request.session.get("user_id")
 
     if not user_id:
-        # 303 para que el navegador haga GET /login
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
             headers={"Location": "/login"},
@@ -24,7 +22,6 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.get(User, user_id)
 
     if not user or not user.is_active:
-        # sesión inválida → limpiar y redirigir
         request.session.clear()
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
@@ -34,7 +31,25 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def is_admin(user: User) -> bool:
+    return user.role == "admin"
+
+
+def is_supervisor(user: User) -> bool:
+    return user.role == "supervisor"
+
+
+def is_admin_or_supervisor(user: User) -> bool:
+    return user.role in {"admin", "supervisor"}
+
+
 def require_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role != "admin":
+    if not is_admin(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+    return user
+
+
+def require_admin_or_supervisor(user: User = Depends(get_current_user)) -> User:
+    if not is_admin_or_supervisor(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
     return user
