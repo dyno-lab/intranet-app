@@ -346,7 +346,7 @@ def reports_run(
 
     if report_key == "no-duplicado":
         return RedirectResponse(
-            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
@@ -363,6 +363,7 @@ def _build_no_duplicado_context(
     month: int | None,
     year: int | None,
     employee_id: int | None,
+    authorized_name: str | None = None,
 ):
     base_context = _base_reports_context(db, current_user)
     report_users = base_context["report_users"]
@@ -445,6 +446,7 @@ def _build_no_duplicado_context(
         "total_f": total_f,
         "total_m": total_m,
         "total_all": total_all,
+        "authorized_name": (authorized_name or "").strip(),
     }
 
 
