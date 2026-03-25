@@ -83,6 +83,10 @@
       <div class="col-md-3"><strong>Mes reportado:</strong> {{ month_lookup.get(selected_month, selected_month) }} {{ selected_year }}</div>
     </div>
 
+    {% if authorized_name %}
+    <div class="small mb-3"><strong>Funcionario autorizado:</strong> {{ authorized_name }}</div>
+    {% endif %}
+
     <div class="table-responsive">
       <table class="table table-bordered table-sm align-middle">
         <thead class="table-light text-center">
