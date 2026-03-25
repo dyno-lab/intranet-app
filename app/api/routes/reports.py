@@ -390,6 +390,7 @@ def _build_no_duplicado_context(
     year: int | None,
     employee_id: int | None,
     authorized_name: str | None = None,
+    duplicated: bool = False,
 ):
     base_context = _base_reports_context(db, current_user)
     report_users = base_context["report_users"]
@@ -420,33 +421,61 @@ def _build_no_duplicado_context(
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
 
     if proposal_id and month and year and (selected_user or is_global):
-        stmt = (
-            select(Participant)
-            .join(Attendance, Attendance.participant_id == Participant.participant_id)
-            .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
-            .where(
-                Attendance.attended == True,  # noqa: E712
-                ActivitySession.proposal_id == proposal_id,
-                extract("month", ActivitySession.session_date) == month,
-                extract("year", ActivitySession.session_date) == year,
+        if duplicated:
+            stmt = (
+                select(Attendance, Participant)
+                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .join(Participant, Participant.participant_id == Attendance.participant_id)
+                .where(
+                    Attendance.attended == True,  # noqa: E712
+                    ActivitySession.proposal_id == proposal_id,
+                    extract("month", ActivitySession.session_date) == month,
+                    extract("year", ActivitySession.session_date) == year,
+                )
             )
-            .distinct()
-        )
-        if not is_global:
-            stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+            if not is_global:
+                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
 
-        participants = db.execute(stmt).scalars().all()
-        for participant in participants:
-            age = _calc_age(participant.fecha_nacimiento)
-            bucket = _get_age_bucket(age)
-            if not bucket:
-                continue
-            gender = _normalize_text(participant.genero).upper()
-            if gender.startswith("F"):
-                summary[bucket]["f"] += 1
-            elif gender.startswith("M"):
-                summary[bucket]["m"] += 1
-            summary[bucket]["total"] += 1
+            attendance_rows = db.execute(stmt).all()
+            for _, participant in attendance_rows:
+                age = _calc_age(participant.fecha_nacimiento)
+                bucket = _get_age_bucket(age)
+                if not bucket:
+                    continue
+                gender = _normalize_text(participant.genero).upper()
+                if gender.startswith("F"):
+                    summary[bucket]["f"] += 1
+                elif gender.startswith("M"):
+                    summary[bucket]["m"] += 1
+                summary[bucket]["total"] += 1
+        else:
+            stmt = (
+                select(Participant)
+                .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .where(
+                    Attendance.attended == True,  # noqa: E712
+                    ActivitySession.proposal_id == proposal_id,
+                    extract("month", ActivitySession.session_date) == month,
+                    extract("year", ActivitySession.session_date) == year,
+                )
+                .distinct()
+            )
+            if not is_global:
+                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+            participants = db.execute(stmt).scalars().all()
+            for participant in participants:
+                age = _calc_age(participant.fecha_nacimiento)
+                bucket = _get_age_bucket(age)
+                if not bucket:
+                    continue
+                gender = _normalize_text(participant.genero).upper()
+                if gender.startswith("F"):
+                    summary[bucket]["f"] += 1
+                elif gender.startswith("M"):
+                    summary[bucket]["m"] += 1
+                summary[bucket]["total"] += 1
 
     rows = []
     total_f = total_m = total_all = 0
