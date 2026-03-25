@@ -44,6 +44,9 @@
         <div><strong>RQ:</strong> {{ rq_code or '' }}</div>
         <div><strong>Mes reportado:</strong> {{ month_lookup.get(selected_month, selected_month) }} {{ selected_year }}</div>
       </div>
+      {% if authorized_name %}
+      <div style="margin-top:8px;"><strong>Funcionario autorizado:</strong> {{ authorized_name }}</div>
+      {% endif %}
     </div>
 
     <table>
