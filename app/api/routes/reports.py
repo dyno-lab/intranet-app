@@ -263,6 +263,7 @@ def reports_home(
     year: int | None = None,
     employee_id: int | None = None,
     output: str = "screen",
+    period_type: str = "monthly",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
