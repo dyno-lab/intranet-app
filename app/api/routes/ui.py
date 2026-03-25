@@ -16,8 +16,9 @@ from app.models.proposal import Proposal
 from app.models.user import User
 from app.models.catalog_type import CatalogType
 from app.models.catalog_option import CatalogOption
+from app.models.residential import Residential
 
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
 from app.core.config import settings
 from app.api.deps import get_db
 
@@ -45,14 +46,14 @@ def _calc_age(dob: date | None):
 
 
 def _check_participant_access(p: Participant, user: User):
-    if user.role == "admin":
+    if is_admin_or_supervisor(user):
         return
     if p.created_by_user_id != user.user_id:
         raise HTTPException(status_code=403)
 
 
 def _check_session_access(s: ActivitySession, user: User):
-    if user.role == "admin":
+    if is_admin_or_supervisor(user):
         return
     if s.created_by_user_id != user.user_id:
         raise HTTPException(status_code=403)
@@ -142,7 +143,7 @@ def new_list(
         Participant.nombre
     )
 
-    if current_user.role != "admin":
+    if not is_admin_or_supervisor(current_user):
         stmt = stmt.where(
             Participant.created_by_user_id == current_user.user_id
         )
@@ -449,7 +450,7 @@ def listado_selector(
         .order_by(ActivitySession.session_date.desc(), ActivitySession.session_id.desc())
     )
 
-    if current_user.role != "admin":
+    if not is_admin_or_supervisor(current_user):
         stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
 
     if fd:
@@ -583,7 +584,7 @@ def open_session(
         Participant.apellido_paterno,
         Participant.nombre,
     )
-    if current_user.role != "admin":
+    if not is_admin_or_supervisor(current_user):
         stmt = stmt.where(
             Participant.created_by_user_id == current_user.user_id
         )
@@ -638,7 +639,7 @@ async def save_attendance(
 
     if present:
         participant_stmt = select(Participant).where(Participant.participant_id.in_(present))
-        if current_user.role != "admin":
+        if not is_admin_or_supervisor(current_user):
             participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
         selected_participants = db.execute(participant_stmt).scalars().all()
         selected_map = {p.participant_id: p for p in selected_participants}
@@ -717,6 +718,9 @@ def delete_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
     s = db.get(ActivitySession, session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")

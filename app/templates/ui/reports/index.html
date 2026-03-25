@@ -70,7 +70,7 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">Residencial *</label>
-        {% if current_user.role == 'admin' %}
+        {% if current_user.role in ['admin', 'supervisor'] %}
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
           <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>

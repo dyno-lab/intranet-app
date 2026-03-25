@@ -14,6 +14,7 @@ from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
 from app.models.proposal import Proposal
+from app.models.residential import Residential
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -35,6 +36,9 @@ def admin_users(
     users = db.execute(
         select(User).order_by(User.created_at.desc())
     ).scalars().all()
+    residentials = db.execute(
+        select(Residential).where(Residential.is_active == True).order_by(Residential.code)  # noqa: E712
+    ).scalars().all()
 
     return templates.TemplateResponse(
         "ui/admin/users.html",
@@ -42,6 +46,7 @@ def admin_users(
             "request": request,
             "current_user": current_user,
             "users": users,
+            "residentials": residentials,
             "msg": msg,
         },
     )
@@ -52,6 +57,7 @@ def admin_create_user(
     username: str = Form(...),
     password: str = Form(...),
     role: str = Form("user"),
+    residential_id: int | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -64,10 +70,18 @@ def admin_create_user(
             status_code=303,
         )
 
+    normalized_role = role if role in VALID_USER_ROLES else "user"
+    if normalized_role == "user" and not residential_id:
+        return RedirectResponse(
+            "/ui/admin/users?msg=Error: Debe seleccionar un residencial para usuarios con rol user.",
+            status_code=303,
+        )
+
     user = User(
         username=username,
         password_hash=hash_password(password),
-        role=role if role in VALID_USER_ROLES else "user",
+        role=normalized_role,
+        residential_id=residential_id or None,
     )
     db.add(user)
     db.commit()
@@ -84,6 +98,7 @@ def admin_edit_user(
     request: Request,
     username: str = Form(...),
     role: str = Form("user"),
+    residential_id: int | None = Form(default=None),
     is_active: str | None = Form(default=None),
     new_password: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -105,8 +120,16 @@ def admin_edit_user(
             status_code=303,
         )
 
+    normalized_role = role if role in VALID_USER_ROLES else "user"
+    if normalized_role == "user" and not residential_id:
+        return RedirectResponse(
+            "/ui/admin/users?msg=Error: Debe seleccionar un residencial para usuarios con rol user.",
+            status_code=303,
+        )
+
     user.username = username
-    user.role = role if role in VALID_USER_ROLES else "user"
+    user.role = normalized_role
+    user.residential_id = residential_id or None
     user.is_active = is_active == "on"
 
     if new_password and new_password.strip() and len(new_password.strip()) > 0:
@@ -147,6 +170,91 @@ def admin_delete_user(
         "/ui/admin/users?msg=Usuario eliminado exitosamente.",
         status_code=303,
     )
+
+
+# ============================================================
+# RESIDENTIAL MANAGEMENT
+# ============================================================
+
+@router.get("/residentials", response_class=HTMLResponse)
+def admin_residentials(
+    request: Request,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    residentials = db.execute(
+        select(Residential).order_by(Residential.code)
+    ).scalars().all()
+
+    return templates.TemplateResponse(
+        "ui/admin/residentials.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "residentials": residentials,
+            "msg": msg,
+        },
+    )
+
+
+@router.post("/residentials/create")
+def admin_create_residential(
+    code: str = Form(...),
+    name: str = Form(...),
+    municipality: str = Form(...),
+    rq_code: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    code = code.strip().upper()
+    existing = db.execute(select(Residential).where(Residential.code == code)).scalar_one_or_none()
+    if existing:
+        return RedirectResponse("/ui/admin/residentials?msg=Error: El código ya existe.", status_code=303)
+
+    residential = Residential(
+        code=code,
+        name=name.strip(),
+        municipality=municipality.strip(),
+        rq_code=rq_code.strip().upper(),
+    )
+    db.add(residential)
+    db.commit()
+
+    return RedirectResponse("/ui/admin/residentials?msg=Residencial creado exitosamente.", status_code=303)
+
+
+@router.post("/residentials/{residential_id}/edit")
+def admin_edit_residential(
+    residential_id: int,
+    code: str = Form(...),
+    name: str = Form(...),
+    municipality: str = Form(...),
+    rq_code: str = Form(...),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    residential = db.get(Residential, residential_id)
+    if not residential:
+        return RedirectResponse("/ui/admin/residentials?msg=Error: Residencial no encontrado.", status_code=303)
+
+    code = code.strip().upper()
+    existing = db.execute(
+        select(Residential).where(Residential.code == code, Residential.residential_id != residential_id)
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse("/ui/admin/residentials?msg=Error: El código ya está en uso.", status_code=303)
+
+    residential.code = code
+    residential.name = name.strip()
+    residential.municipality = municipality.strip()
+    residential.rq_code = rq_code.strip().upper()
+    residential.is_active = is_active == "on"
+    db.add(residential)
+    db.commit()
+
+    return RedirectResponse("/ui/admin/residentials?msg=Residencial actualizado exitosamente.", status_code=303)
 
 
 # ============================================================

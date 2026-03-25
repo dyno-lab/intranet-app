@@ -150,12 +150,14 @@
           <td class="text-end">
             <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}">Abrir</a>
 
+            {% if current_user.role == 'admin' %}
             <form method="post"
                   action="/ui/listado/{{ s.session_id }}/delete"
                   style="display:inline;"
                   onsubmit="return confirm('¿Eliminar esta sesión?');">
               <button class="btn btn-sm btn-danger">Eliminar</button>
             </form>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

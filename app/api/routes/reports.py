@@ -17,6 +17,7 @@ from app.models.attendance import Attendance
 from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.user import User
+from app.models.residential import Residential
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -125,8 +126,28 @@ def _normalize_text(value: str | None) -> str:
 def _residential_from_user(user: User | None) -> str:
     if not user:
         return ""
+    if getattr(user, "residential", None):
+        return _normalize_text(user.residential.name)
     username = _normalize_text(user.username).upper()
     return USER_RESIDENTIAL.get(username, _normalize_text(user.username))
+
+
+def _municipality_from_user(user: User | None) -> str:
+    if not user:
+        return ""
+    if getattr(user, "residential", None):
+        return _normalize_text(user.residential.municipality)
+    residential_name = _residential_from_user(user)
+    return RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
+
+
+def _rq_from_user(user: User | None) -> str:
+    if not user:
+        return ""
+    if getattr(user, "residential", None):
+        return _normalize_text(user.residential.rq_code)
+    residential_name = _residential_from_user(user)
+    return RESIDENTIAL_RQ.get(residential_name.upper(), "")
 
 
 def _chunk_rows(rows: list[dict], size: int) -> list[list[dict]]:
@@ -157,13 +178,13 @@ def _get_age_bucket(age: int | None) -> str | None:
 def _base_reports_context(db: Session, current_user: User):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
     report_users = db.execute(
-        select(User).where(User.is_active == True, User.role != "admin").order_by(User.username)
+        select(User).where(User.is_active == True, User.role == "user").order_by(User.username)
     ).scalars().all()  # noqa: E712
     current_year = date.today().year
     year_options = list(range(current_year - 2, current_year + 3))
     month_lookup = dict(MONTH_OPTIONS)
     user_residential_map = {user.user_id: f"{user.username} = {_residential_from_user(user)}" for user in report_users}
-    residential_name = _residential_from_user(current_user) if current_user.role != "admin" else None
+    residential_name = _residential_from_user(current_user) if current_user.role == "user" else None
     return {
         "proposals": proposals,
         "report_users": report_users,
@@ -265,7 +286,7 @@ def _build_bonafide_context(
 
     selected_user = None
     is_global = False
-    if current_user.role == "admin":
+    if current_user.role in {"admin", "supervisor"}:
         if employee_id == 0:
             is_global = True
         elif employee_id:
@@ -283,7 +304,7 @@ def _build_bonafide_context(
             municipality = "Todos"
         else:
             residential_name = _residential_from_user(selected_user)
-            municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
+            municipality = _municipality_from_user(selected_user)
 
         stmt = (
             select(Participant)
@@ -489,7 +510,7 @@ def _build_no_duplicado_context(
 
     selected_user = None
     is_global = False
-    if current_user.role == "admin":
+    if current_user.role in {"admin", "supervisor"}:
         if employee_id == 0:
             is_global = True
         elif employee_id:
@@ -507,8 +528,8 @@ def _build_no_duplicado_context(
         rq_code = "Global"
     elif selected_user:
         residential_name = _residential_from_user(selected_user)
-        municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
-        rq_code = RESIDENTIAL_RQ.get(residential_name.upper(), "")
+        municipality = _municipality_from_user(selected_user)
+        rq_code = _rq_from_user(selected_user)
 
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
 

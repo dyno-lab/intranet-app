@@ -35,6 +35,7 @@
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/ui/admin/users">Usuarios</a></li>
+            <li><a class="dropdown-item" href="/ui/admin/residentials">Residenciales</a></li>
             <li><a class="dropdown-item" href="/ui/admin/activity-codes">Actividades</a></li>
             <li><a class="dropdown-item" href="/ui/admin/employees">Empleados</a></li>
             <li><a class="dropdown-item" href="/ui/admin/proposals">Propuestas</a></li>
@@ -51,6 +52,8 @@
           <strong>{{ current_user.username }}</strong>
           {% if current_user.role == "admin" %}
             <span class="badge bg-warning text-dark">admin</span>
+          {% elif current_user.role == "supervisor" %}
+            <span class="badge bg-primary">supervisor</span>
           {% endif %}
         </span>
 
