@@ -477,6 +477,74 @@ def no_duplicado_report_pdf(
     return templates.TemplateResponse("ui/reports/no_duplicado_pdf.html", context)
 
 
+@router.get("/no-duplicado/excel")
+def no_duplicado_report_excel(
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id)
+
+    if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/no-duplicado", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "No Duplicado"
+
+    ws["A1"] = "Informe mensual de participantes"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "No Duplicado por edad y sexo en los proyectos impactados"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["A5"] = "Municipio"
+    ws["B5"] = context["municipality"] or ""
+    ws["A6"] = "RQ"
+    ws["B6"] = context["rq_code"] or ""
+    ws["A7"] = "Mes reportado"
+    ws["B7"] = f"{context['month_lookup'].get(month, month)} {year}"
+
+    headers = ["Clasificación", "F", "M", "Total de participantes"]
+    header_row = 9
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+
+    row_index = header_row + 1
+    for row in context["rows"]:
+        ws.cell(row=row_index, column=1, value=row["label"])
+        ws.cell(row=row_index, column=2, value=row["f"])
+        ws.cell(row=row_index, column=3, value=row["m"])
+        ws.cell(row=row_index, column=4, value=row["total"])
+        row_index += 1
+
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=context["total_f"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=3, value=context["total_m"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=4, value=context["total_all"]).font = Font(bold=True)
+
+    widths = {"A": 35, "B": 10, "C": 10, "D": 20}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    safe_residential = (context["residential_name"] or "no_duplicado").replace(" ", "_")
+    filename = f"no_duplicado_{safe_residential}_{year}_{month}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/bonafide", response_class=HTMLResponse)
 def bonafide_report(
     request: Request,
