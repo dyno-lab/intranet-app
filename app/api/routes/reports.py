@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
@@ -186,6 +186,63 @@ def _parse_optional_int(value: int | str | None) -> int | None:
     return int(value)
 
 
+def _parse_optional_date(value: date | str | None) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    value = value.strip()
+    if not value:
+        return None
+    return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _build_period_filter(period_type: str | None, month, year, start_date, end_date):
+    month = _parse_optional_int(month)
+    year = _parse_optional_int(year)
+    start_date = _parse_optional_date(start_date)
+    end_date = _parse_optional_date(end_date)
+    is_custom = period_type == "custom" and start_date and end_date
+    return {
+        "period_type": period_type or "monthly",
+        "month": month,
+        "year": year,
+        "start_date": start_date,
+        "end_date": end_date,
+        "is_custom": bool(is_custom),
+    }
+
+
+def _apply_session_period_filter(stmt, period: dict):
+    if period["is_custom"]:
+        return stmt.where(
+            ActivitySession.session_date >= period["start_date"],
+            ActivitySession.session_date <= period["end_date"],
+        )
+    if period["month"] and period["year"]:
+        return stmt.where(
+            extract("month", ActivitySession.session_date) == period["month"],
+            extract("year", ActivitySession.session_date) == period["year"],
+        )
+    return stmt
+
+
+def _describe_period(period: dict, month_lookup: dict[int, str]) -> str:
+    if period["is_custom"]:
+        return f"{period['start_date'].strftime('%d/%m/%Y')} al {period['end_date'].strftime('%d/%m/%Y')}"
+    if period["month"] and period["year"]:
+        return f"{month_lookup.get(period['month'], period['month'])} {period['year']}"
+    return ""
+
+
+def _period_filename_suffix(context: dict) -> str:
+    if context.get("selected_period_type") == "custom" and context.get("selected_start_date") and context.get("selected_end_date"):
+        return f"{context['selected_start_date']}_a_{context['selected_end_date']}"
+    month = context.get("selected_month") or ""
+    year = context.get("selected_year") or ""
+    return f"{year}_{month}"
+
+
 def _build_bonafide_context(
     db: Session,
     current_user: User,
@@ -193,9 +250,11 @@ def _build_bonafide_context(
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
 ):
-    month = _parse_optional_int(month)
-    year = _parse_optional_int(year)
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
 
     base_context = _base_reports_context(db, current_user)
     proposals = base_context["proposals"]
@@ -218,7 +277,7 @@ def _build_bonafide_context(
     rows = []
     municipality = None
     residential_name = None
-    if proposal_id and month and year and (selected_user or is_global):
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         if is_global:
             residential_name = "Global"
             municipality = "Todos"
@@ -233,12 +292,10 @@ def _build_bonafide_context(
             .where(
                 Attendance.attended == True,  # noqa: E712
                 ActivitySession.proposal_id == proposal_id,
-                extract("month", ActivitySession.session_date) == month,
-                extract("year", ActivitySession.session_date) == year,
             )
-            .distinct()
-            .order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
         )
+        stmt = _apply_session_period_filter(stmt, period)
+        stmt = stmt.distinct().order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
         if not is_global:
             stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
         participants = db.execute(stmt).scalars().all()
@@ -268,8 +325,12 @@ def _build_bonafide_context(
         "month_lookup": month_lookup,
         "year_options": year_options,
         "selected_proposal_id": proposal_id,
-        "selected_month": month,
-        "selected_year": year,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
         "selected_employee_id": employee_id,
         "selected_user": selected_user,
         "is_global": is_global,
@@ -310,6 +371,8 @@ def reports_home(
     output: str = "screen",
     period_type: str = "monthly",
     authorized_name: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -328,6 +391,8 @@ def reports_home(
             "selected_output": output,
             "selected_period_type": period_type,
             "authorized_name": (authorized_name or "").strip(),
+            "selected_start_date": start_date or "",
+            "selected_end_date": end_date or "",
         }
     )
     return templates.TemplateResponse("ui/reports/index.html", context)
@@ -348,52 +413,53 @@ def reports_run(
 ):
     month_value = int(month) if (month or "").strip() else None
     year_value = int(year) if (year or "").strip() else None
+    period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
 
     if report_key == "bonafide":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
+                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
+                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
+            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "no-duplicado":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "duplicados":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
@@ -412,9 +478,11 @@ def _build_no_duplicado_context(
     employee_id: int | None,
     authorized_name: str | None = None,
     duplicated: bool = False,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
 ):
-    month = _parse_optional_int(month)
-    year = _parse_optional_int(year)
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
 
     base_context = _base_reports_context(db, current_user)
     report_users = base_context["report_users"]
@@ -444,7 +512,7 @@ def _build_no_duplicado_context(
 
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
 
-    if proposal_id and month and year and (selected_user or is_global):
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         if duplicated:
             stmt = (
                 select(Attendance, Participant)
@@ -453,10 +521,9 @@ def _build_no_duplicado_context(
                 .where(
                     Attendance.attended == True,  # noqa: E712
                     ActivitySession.proposal_id == proposal_id,
-                    extract("month", ActivitySession.session_date) == month,
-                    extract("year", ActivitySession.session_date) == year,
                 )
             )
+            stmt = _apply_session_period_filter(stmt, period)
             if not is_global:
                 stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
 
@@ -480,11 +547,10 @@ def _build_no_duplicado_context(
                 .where(
                     Attendance.attended == True,  # noqa: E712
                     ActivitySession.proposal_id == proposal_id,
-                    extract("month", ActivitySession.session_date) == month,
-                    extract("year", ActivitySession.session_date) == year,
                 )
-                .distinct()
             )
+            stmt = _apply_session_period_filter(stmt, period)
+            stmt = stmt.distinct()
             if not is_global:
                 stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
 
@@ -513,8 +579,12 @@ def _build_no_duplicado_context(
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
-        "selected_month": month,
-        "selected_year": year,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, base_context["month_lookup"]),
         "selected_employee_id": employee_id,
         "selected_user": selected_user,
         "is_global": is_global,
@@ -537,10 +607,13 @@ def duplicado_report(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/duplicado.html", context)
 
@@ -553,10 +626,13 @@ def duplicado_report_pdf(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/duplicado_pdf.html", context)
 
@@ -568,12 +644,15 @@ def duplicado_report_excel(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
 
-    if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
+    if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/duplicado", status_code=303)
 
     wb = Workbook()
@@ -590,8 +669,8 @@ def duplicado_report_excel(
     ws["B5"] = context["municipality"] or ""
     ws["A6"] = "RQ"
     ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Mes reportado"
-    ws["B7"] = f"{context['month_lookup'].get(month, month)} {year}"
+    ws["A7"] = "Periodo reportado"
+    ws["B7"] = context["period_label"]
     ws["A8"] = "Funcionario autorizado"
     ws["B8"] = context["authorized_name"] or ""
 
@@ -623,7 +702,7 @@ def duplicado_report_excel(
     output.seek(0)
 
     safe_residential = (context["residential_name"] or "duplicado").replace(" ", "_")
-    filename = f"duplicado_{safe_residential}_{year}_{month}.xlsx"
+    filename = f"duplicado_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
     return StreamingResponse(
         output,
@@ -640,10 +719,13 @@ def no_duplicado_report(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
 
@@ -656,10 +738,13 @@ def no_duplicado_report_pdf(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado_pdf.html", context)
 
@@ -671,12 +756,15 @@ def no_duplicado_report_excel(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
 
-    if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
+    if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/no-duplicado", status_code=303)
 
     wb = Workbook()
@@ -693,8 +781,8 @@ def no_duplicado_report_excel(
     ws["B5"] = context["municipality"] or ""
     ws["A6"] = "RQ"
     ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Mes reportado"
-    ws["B7"] = f"{context['month_lookup'].get(month, month)} {year}"
+    ws["A7"] = "Periodo reportado"
+    ws["B7"] = context["period_label"]
     ws["A8"] = "Funcionario autorizado"
     ws["B8"] = context["authorized_name"] or ""
 
@@ -726,7 +814,7 @@ def no_duplicado_report_excel(
     output.seek(0)
 
     safe_residential = (context["residential_name"] or "no_duplicado").replace(" ", "_")
-    filename = f"no_duplicado_{safe_residential}_{year}_{month}.xlsx"
+    filename = f"no_duplicado_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
     return StreamingResponse(
         output,
@@ -742,10 +830,13 @@ def bonafide_report(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/bonafide.html", context)
 
@@ -757,10 +848,13 @@ def bonafide_report_pdf(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/bonafide_pdf.html", context)
 
@@ -771,12 +865,15 @@ def bonafide_report_excel(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
 
-    if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
+    if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/bonafide", status_code=303)
 
     wb = Workbook()
@@ -787,8 +884,8 @@ def bonafide_report_excel(
     ws["A1"].font = Font(bold=True, size=14)
     ws["A2"] = "Listado Bonafide"
     ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Fecha"
-    ws["B4"] = f"{context['month_lookup'].get(month, month)} {year}"
+    ws["A4"] = "Periodo"
+    ws["B4"] = context["period_label"]
     ws["A5"] = "Residencial"
     ws["B5"] = context["residential_name"] or ""
     ws["A6"] = "Municipio"
@@ -819,7 +916,7 @@ def bonafide_report_excel(
     output.seek(0)
 
     safe_residential = (context["residential_name"] or "bonafide").replace(" ", "_")
-    filename = f"bonafide_{safe_residential}_{year}_{month}.xlsx"
+    filename = f"bonafide_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
     return StreamingResponse(
         output,

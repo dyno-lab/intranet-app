@@ -18,6 +18,16 @@
           {% endfor %}
         </select>
       </div>
+      {% if selected_period_type == 'custom' %}
+      <input type="hidden" name="period_type" value="custom">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+      <div class="col-md-4">
+        <label class="form-label">Periodo</label>
+        <input class="form-control" value="{{ period_label }}" readonly>
+      </div>
+      {% else %}
+      <input type="hidden" name="period_type" value="monthly">
       <div class="col-md-2">
         <label class="form-label">Mes *</label>
         <select class="form-select" name="month" required>
@@ -36,6 +46,7 @@
           {% endfor %}
         </select>
       </div>
+      {% endif %}
       <div class="col-md-2">
         <label class="form-label">Residencial *</label>
         {% if current_user.role == 'admin' %}
@@ -64,7 +75,7 @@
   </div>
 </div>
 
-{% if selected_proposal_id and selected_month and selected_year and (selected_user or is_global) %}
+{% if selected_proposal_id and period_label and (selected_user or is_global) %}
 <div class="card shadow-sm">
   <div class="card-body p-4">
     <div class="text-center mb-4">
@@ -73,7 +84,7 @@
     </div>
 
     <div class="row mb-3 small">
-      <div class="col-md-4"><strong>Fecha:</strong> {{ month_lookup.get(selected_month, selected_month) }} {{ selected_year }}</div>
+      <div class="col-md-4"><strong>Periodo:</strong> {{ period_label }}</div>
       <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
       <div class="col-md-4"><strong>Municipio:</strong> {{ municipality or '' }}</div>
     </div>
@@ -118,7 +129,7 @@
     </div>
 
     <div class="mt-4 small">
-      Certifico que las personas incluidas en este listado participaron al menos una vez durante la propuesta y el mes seleccionado.
+      Certifico que las personas incluidas en este listado participaron al menos una vez durante la propuesta y el periodo seleccionado.
     </div>
 
     <div class="row mt-5 text-center small">

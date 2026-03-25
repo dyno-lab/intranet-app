@@ -54,11 +54,11 @@
       </div>
       <div class="col-md-2 period-block period-custom d-none">
         <label class="form-label">Fecha inicial *</label>
-        <input type="date" class="form-control" name="start_date">
+        <input type="date" class="form-control" name="start_date" value="{{ selected_start_date or '' }}">
       </div>
       <div class="col-md-2 period-block period-custom d-none">
         <label class="form-label">Fecha final *</label>
-        <input type="date" class="form-control" name="end_date">
+        <input type="date" class="form-control" name="end_date" value="{{ selected_end_date or '' }}">
       </div>
       <div class="col-md-2">
         <label class="form-label">Formato *</label>
