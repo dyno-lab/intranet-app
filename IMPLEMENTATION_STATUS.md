@@ -117,6 +117,31 @@ Implementado y validado:
   - reportes
 - `supervisor` **no** puede eliminar sesión
 
+### Fase 8 — Reporte VCA configurable
+Implementado y validado:
+- nuevo modelo `VCAColumn`
+- nueva tabla `vca_columns`
+- nueva tabla `vca_column_activity_codes`
+- admin de configuración VCA por propuesta:
+  - crear columnas
+  - editar nombre, orden y estado
+  - asignar actividades existentes a columnas
+  - remover asignaciones
+- las actividades VCA se toman del mismo catálogo de `activity_codes`
+- una actividad solo puede pertenecer a una columna VCA dentro de la misma propuesta
+- nuevo reporte `VCA` en:
+  - pantalla
+  - Excel
+  - PDF
+- el reporte VCA ya incluye:
+  - expediente
+  - nombre
+  - género
+  - edad
+  - columnas dinámicas según configuración
+- el PDF VCA usa el mismo header institucional `bonafide-header-avp.png`
+- la pantalla del VCA tiene botones directos de exportación a Excel y PDF
+
 ---
 
 ## Reglas de negocio actuales
@@ -146,8 +171,19 @@ Implementado y validado:
 - `Bonafide` lista participantes que participaron al menos una vez en el periodo seleccionado
 - `No Duplicado` cuenta personas únicas por rango de edad y sexo
 - `Duplicado` cuenta participaciones/asistencias por rango de edad y sexo
+- `VCA` es configurable por propuesta y usa columnas administrables
 - en modo personalizado, los reportes filtran por `ActivitySession.session_date` entre `start_date` y `end_date`
 - `Funcionario autorizado` se captura una sola vez en la entrada de reportes y se reutiliza en reportes que lo necesitan
+
+### VCA
+- solo se incluyen participantes con `VCA = SI`
+- además deben tener al menos una asistencia en el periodo seleccionado
+- las columnas del reporte se definen por propuesta en Admin > Configuración VCA
+- las actividades asignadas a columnas VCA salen de `activity_codes`
+- cada actividad solo puede pertenecer a una columna VCA por propuesta
+- cada celda representa el total de asistencias del participante en esa columna
+- si no hay asistencias en una columna, la celda queda en blanco
+- el total de personas con impedimentos en el encabezado corresponde a participantes únicos VCA con al menos una asistencia en el periodo
 
 ### Residenciales
 - la información operativa del residencial debe salir de `residentials`
@@ -184,6 +220,8 @@ Implementado y validado:
 - `catalog_types`
 - `catalog_options`
 - `residentials`
+- `vca_columns`
+- `vca_column_activity_codes`
 
 ### Nuevas columnas
 - `activity_sessions.proposal_id`
@@ -204,6 +242,9 @@ Implementado y validado:
 - `/ui/reports/bonafide`
 - `/ui/reports/no-duplicado`
 - `/ui/reports/duplicado`
+- `/ui/reports/vca`
+- `/ui/reports/vca/pdf`
+- `/ui/reports/vca/excel`
 
 ### Admin
 - `/ui/admin/proposals`
@@ -211,6 +252,7 @@ Implementado y validado:
 - `/ui/admin/catalogs`
 - `/ui/admin/users`
 - `/ui/admin/residentials`
+- `/ui/admin/vca`
 
 ---
 
@@ -262,6 +304,9 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 - no duplicado personalizado
 - duplicado mensual
 - duplicado personalizado
+- VCA pantalla
+- VCA Excel
+- VCA PDF
 - validar `Funcionario autorizado`
 - validar `Global` para admin/supervisor
 
@@ -270,6 +315,12 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 - editar residencial
 - asignar residencial a un usuario
 - confirmar que se vea residencial y RQ en Admin > Usuarios
+
+### 9. Configuración VCA
+- crear columnas VCA por propuesta
+- asignar actividades a columnas
+- validar que una actividad no se repita en dos columnas de la misma propuesta
+- generar VCA y confirmar conteos por columna
 
 ---
 
@@ -321,7 +372,18 @@ Revisar:
   - `ui/_base.html`
   - `ui/reports/*.html`
 
-### Caso G — Error por módulos faltantes en Windows
+### Caso G — VCA no muestra columnas o sale vacío
+Revisar:
+- `app/api/routes/admin.py`
+- `app/api/routes/reports.py`
+- `app/templates/ui/admin/vca.html`
+- `app/templates/ui/reports/vca.html`
+- que la propuesta tenga columnas VCA activas
+- que las actividades estén asignadas a columnas
+- que los participantes tengan `VCA = SI`
+- que exista al menos una asistencia en el periodo
+
+### Caso H — Error por módulos faltantes en Windows
 Revisar venv:
 ```powershell
 cd C:\Users\user\intranet_app
@@ -356,6 +418,9 @@ Dejar claro qué entidades son fuente confiable para reportería y paneles.
 - `activity_sessions.employee_id` → `employees.employee_id`
 - `activity_sessions.created_by_user_id` → `users.user_id`
 - `users.residential_id` → `residentials.residential_id`
+- `vca_columns.proposal_id` → `proposals.proposal_id`
+- `vca_column_activity_codes.vca_column_id` → `vca_columns.vca_column_id`
+- `vca_column_activity_codes.activity_code_id` → `activity_codes.activity_code_id`
 
 ### Métricas de negocio recomendadas
 - Participantes únicos
@@ -366,6 +431,8 @@ Dejar claro qué entidades son fuente confiable para reportería y paneles.
 - Asistencia por municipio
 - Asistencia por rango de edad y sexo
 - Reportes no duplicados vs duplicados
+- Participantes VCA con al menos una asistencia en el periodo
+- Asistencias VCA por columna configurable
 
 ### Recomendaciones de diseño para BI
 - usar `residentials` como dimensión de ubicación operativa
@@ -436,6 +503,16 @@ python -m uvicorn app.main:app --reload
 - `a0bbc5c` — Implement custom date range flow for reports
 - `13730c6` — Add residential model and supervisor role foundation
 - `01d7002` — Add residential admin and supervisor global access
+- `6ec8606` — Implement configurable VCA report foundation
+- `b94a302` — Fix missing SQLAlchemy func import in VCA report
+- `ff8288f` — Fix VCA template dict key collision
+- `64c82df` — Fix VCA template dict access
+- `f97ec36` — Fix VCA row payload key mismatch
+- `61ded90` — Fix malformed VCA template blocks
+- `2253157` — Populate expediente in VCA rows
+- `810924b` — Add VCA PDF and improve Excel export layout
+- `6703633` — Add export buttons to VCA report screen
+- `dcd811b` — Use bonafide header image in VCA PDF
 
 ---
 
