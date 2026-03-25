@@ -345,13 +345,39 @@ def reports_run(
         )
 
     if report_key == "no-duplicado":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
+    if report_key == "duplicados":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+            status_code=303,
+        )
+
     return RedirectResponse(
-        f"/ui/reports?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}",
+        f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}",
         status_code=303,
     )
 
