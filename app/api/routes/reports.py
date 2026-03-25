@@ -5,7 +5,7 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, extract
+from sqlalchemy import select, extract, func
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
 from openpyxl.styles import Font
