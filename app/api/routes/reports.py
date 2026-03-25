@@ -457,10 +457,11 @@ def no_duplicado_report(
     month: int | None = None,
     year: int | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
 
@@ -472,10 +473,11 @@ def no_duplicado_report_pdf(
     month: int | None = None,
     year: int | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado_pdf.html", context)
 
