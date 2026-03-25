@@ -73,8 +73,9 @@
     </table>
 
     <div class="footer">
-      Este informe presenta participantes únicos con al menos una asistencia durante el periodo seleccionado. Cada participante cuenta una sola vez.
-      <div style="margin-top:8px;">Certifico que la información reportada corresponde al periodo seleccionado y refleja participantes no duplicados por edad y sexo.</div>
+      <div>Yo, {{ authorized_name or '______________________________' }}, funcionario autorizado, certifico que la información presentada en este informe corresponde al periodo seleccionado y refleja participantes no duplicados por edad y sexo.</div>
+      <div style="margin-top:12px; width:320px; border-top:1px solid #111;"></div>
+      <div style="margin-top:6px;">{{ authorized_name or '' }}</div>
       <div class="page-number">Página 1 de 1</div>
     </div>
   </div>

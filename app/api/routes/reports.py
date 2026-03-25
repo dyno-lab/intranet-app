@@ -483,10 +483,11 @@ def no_duplicado_report_excel(
     month: int | None = None,
     year: int | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id)
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name)
 
     if not (proposal_id and month and year and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/no-duplicado", status_code=303)
@@ -507,9 +508,11 @@ def no_duplicado_report_excel(
     ws["B6"] = context["rq_code"] or ""
     ws["A7"] = "Mes reportado"
     ws["B7"] = f"{context['month_lookup'].get(month, month)} {year}"
+    ws["A8"] = "Funcionario autorizado"
+    ws["B8"] = context["authorized_name"] or ""
 
     headers = ["Clasificación", "F", "M", "Total de participantes"]
-    header_row = 9
+    header_row = 10
     for col_index, header in enumerate(headers, start=1):
         cell = ws.cell(row=header_row, column=col_index, value=header)
         cell.font = Font(bold=True)
