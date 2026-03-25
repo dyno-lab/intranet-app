@@ -108,7 +108,7 @@
           <td>{{ row.genero }}</td>
           <td>{{ row.edad }}</td>
           {% for column in columns %}
-          <td>{{ row.column_values.get(column.vca_column_id, '') }}</td>
+          <td>{{ row['column_values'].get(column.vca_column_id, '') }}</td>
           {% endfor %}
         </tr>
         {% endfor %}
