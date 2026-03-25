@@ -279,6 +279,7 @@ def reports_home(
             "selected_year": year,
             "selected_employee_id": employee_id,
             "selected_output": output,
+            "selected_period_type": period_type,
         }
     )
     return templates.TemplateResponse("ui/reports/index.html", context)
@@ -307,6 +308,12 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+            status_code=303,
+        )
+
+    if report_key == "no-duplicado":
+        return RedirectResponse(
+            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
             status_code=303,
         )
 
