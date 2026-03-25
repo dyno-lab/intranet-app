@@ -1035,7 +1035,7 @@ def vca_report_excel(
         ws.cell(row=row_index, column=2, value=row["genero"])
         ws.cell(row=row_index, column=3, value=row["edad"])
         for offset, column in enumerate(context["columns"], start=4):
-            ws.cell(row=row_index, column=offset, value=row["values"].get(column.vca_column_id, ""))
+            ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
 
     ws.column_dimensions["A"].width = 35
     ws.column_dimensions["B"].width = 12
