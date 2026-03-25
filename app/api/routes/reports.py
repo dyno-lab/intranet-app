@@ -1031,10 +1031,11 @@ def vca_report_excel(
         cell.font = Font(bold=True)
 
     for row_index, row in enumerate(context["rows"], start=header_row + 1):
-        ws.cell(row=row_index, column=1, value=row["nombre"])
-        ws.cell(row=row_index, column=2, value=row["genero"])
-        ws.cell(row=row_index, column=3, value=row["edad"])
-        for offset, column in enumerate(context["columns"], start=4):
+        ws.cell(row=row_index, column=1, value=row["expediente"])
+        ws.cell(row=row_index, column=2, value=row["nombre"])
+        ws.cell(row=row_index, column=3, value=row["genero"])
+        ws.cell(row=row_index, column=4, value=row["edad"])
+        for offset, column in enumerate(context["columns"], start=5):
             ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
 
     ws.column_dimensions["A"].width = 35

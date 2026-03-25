@@ -114,7 +114,7 @@
         {% endfor %}
         {% if rows|length == 0 %}
         <tr>
-          <td colspan="{{ 3 + (columns|length) }}" class="text-muted">No hay participantes VCA con asistencias en el periodo seleccionado.</td>
+          <td colspan="{{ 4 + (columns|length) }}" class="text-muted">No hay participantes VCA con asistencias en el periodo seleccionado.</td>
         </tr>
         {% endif %}
       </tbody>
@@ -123,5 +123,8 @@
 </div>
 {% elif selected_proposal_id and period_label and not columns %}
 <div class="alert alert-warning">La propuesta seleccionada no tiene columnas VCA configuradas todavía.</div>
+{% endif %}
+{% endblock %}
+avía.</div>
 {% endif %}
 {% endblock %}
