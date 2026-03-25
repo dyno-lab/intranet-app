@@ -8,6 +8,7 @@ Sirve para:
 - recordar reglas de negocio actuales
 - tener una guía rápida de validación
 - facilitar recuperación si algo se rompe tras cambios futuros
+- documentar estructura útil para futuras integraciones, incluyendo Power BI
 
 ---
 
@@ -78,6 +79,44 @@ Implementado y validado:
   - rango de ingreso
   - estatus del participante
 
+### Fase 6 — Reportes estabilizados
+Implementado y validado:
+- campo **Funcionario autorizado** centralizado en entrada principal de reportes
+- reportes `Bonafide`, `No Duplicado` y `Duplicado` reutilizan ese valor
+- flujo de **periodo personalizado** funcional con:
+  - `start_date`
+  - `end_date`
+  - pantalla
+  - PDF
+  - Excel
+- corrección de errores `422` cuando `month` y `year` llegan vacíos en modo personalizado
+- reportes muestran **Periodo** / **Periodo reportado** cuando aplica
+- `Duplicado` conserva los **rangos correctos** y suma **asistencias/participaciones**
+- `No Duplicado` mantiene lógica de **personas únicas**
+
+### Fase 7 — Residenciales y supervisor (base + UI)
+Implementado y validado:
+- nuevo modelo `Residential`
+- tabla `residentials`
+- `users.residential_id`
+- semilla inicial de residenciales históricos
+- rol nuevo `supervisor`
+- admin de residenciales:
+  - crear
+  - editar
+  - activar/inactivar
+- admin de usuarios ahora permite:
+  - asignar rol
+  - asignar residencial
+  - visualizar residencial y RQ
+- `user` requiere residencial asignado
+- `admin` y `supervisor` pueden operar con alcance global en reportes
+- `supervisor` puede ver global en:
+  - participantes
+  - asistencias/sesiones
+  - reportes
+- `supervisor` **no** puede eliminar sesión
+
 ---
 
 ## Reglas de negocio actuales
@@ -103,6 +142,39 @@ Implementado y validado:
 - si una opción está inactiva, no debe aparecer en formularios nuevos
 - los valores existentes en DB no deben perderse aunque una opción luego se inhabilite
 
+### Reportes
+- `Bonafide` lista participantes que participaron al menos una vez en el periodo seleccionado
+- `No Duplicado` cuenta personas únicas por rango de edad y sexo
+- `Duplicado` cuenta participaciones/asistencias por rango de edad y sexo
+- en modo personalizado, los reportes filtran por `ActivitySession.session_date` entre `start_date` y `end_date`
+- `Funcionario autorizado` se captura una sola vez en la entrada de reportes y se reutiliza en reportes que lo necesitan
+
+### Residenciales
+- la información operativa del residencial debe salir de `residentials`
+- cada residencial tiene:
+  - `code`
+  - `name`
+  - `municipality`
+  - `rq_code`
+  - `is_active`
+- `users.residential_id` define el residencial primario del usuario operativo
+- el `RQ` ya no debe duplicarse manualmente en usuarios
+
+### Roles
+- `admin`:
+  - acceso total
+  - configuración administrativa
+  - mantenimiento estructural
+  - eliminación
+  - global en reportes
+- `supervisor`:
+  - acceso global de consulta/operación en participantes, asistencias y reportes
+  - no debe eliminar
+  - no debe acceder a configuración sensible de admin
+- `user`:
+  - acceso limitado a su propio ámbito operativo
+  - debe tener residencial asignado
+
 ---
 
 ## Tablas/columnas añadidas en esta etapa
@@ -111,11 +183,13 @@ Implementado y validado:
 - `proposals`
 - `catalog_types`
 - `catalog_options`
+- `residentials`
 
 ### Nuevas columnas
 - `activity_sessions.proposal_id`
 - `participants.is_active`
 - `activity_codes.proposal_id`
+- `users.residential_id`
 
 ---
 
@@ -126,11 +200,17 @@ Implementado y validado:
 - `/ui/new-list/{participant_id}/edit`
 - `/ui/listado`
 - `/ui/listado/{session_id}`
+- `/ui/reports`
+- `/ui/reports/bonafide`
+- `/ui/reports/no-duplicado`
+- `/ui/reports/duplicado`
 
 ### Admin
 - `/ui/admin/proposals`
 - `/ui/admin/activity-codes`
 - `/ui/admin/catalogs`
+- `/ui/admin/users`
+- `/ui/admin/residentials`
 
 ---
 
@@ -140,18 +220,23 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 ### 1. Login
 - entrar como admin
 - entrar como user
+- entrar como supervisor
 
 ### 2. Participantes
 - crear participante nuevo
 - editar participante
 - verificar catálogos en selects
 - cambiar estatus y confirmar color/estado
+- validar que supervisor vea todos
+- validar que user solo vea lo suyo
 
 ### 3. Asistencia
 - crear sesión
 - abrir sesión
 - guardar asistencia
 - confirmar que inactivos no pueden marcarse
+- validar que supervisor vea todas las sesiones
+- validar que supervisor no pueda eliminar sesión
 
 ### 4. Propuestas
 - crear propuesta
@@ -163,11 +248,28 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 - propuesta + mes + año
 - propuesta vacía + globales
 - opción `Todos`
+- periodo personalizado con `start_date` + `end_date`
 
 ### 6. Catálogos
 - editar una opción existente
 - confirmar que aparece en `New List`
 - inactivar opción y confirmar que deja de salir en formularios nuevos
+
+### 7. Reportes
+- bonafide mensual
+- bonafide personalizado
+- no duplicado mensual
+- no duplicado personalizado
+- duplicado mensual
+- duplicado personalizado
+- validar `Funcionario autorizado`
+- validar `Global` para admin/supervisor
+
+### 8. Residenciales y usuarios
+- crear residencial
+- editar residencial
+- asignar residencial a un usuario
+- confirmar que se vea residencial y RQ en Admin > Usuarios
 
 ---
 
@@ -194,7 +296,32 @@ Revisar:
 - que la ruta esté pasando contexto al template
 - reiniciar uvicorn tras pull
 
-### Caso D — Error por módulos faltantes en Windows
+### Caso D — Reporte personalizado redirige pero no filtra bien
+Revisar:
+- `app/api/routes/reports.py`
+  - `_build_period_filter`
+  - `_apply_session_period_filter`
+  - `_describe_period`
+- templates de reportes con `selected_period_type`, `selected_start_date`, `selected_end_date`
+
+### Caso E — Usuario no puede seleccionar residencial o no aparece RQ
+Revisar:
+- `app/api/routes/admin.py`
+- `app/templates/ui/admin/users.html`
+- `app/templates/ui/admin/residentials.html`
+- que `residentials` tenga registros activos
+
+### Caso F — Supervisor no ve global o ve botones que no debe
+Revisar:
+- `app/core/auth.py`
+- `app/api/routes/ui.py`
+- `app/api/routes/reports.py`
+- templates:
+  - `ui/select_session.html`
+  - `ui/_base.html`
+  - `ui/reports/*.html`
+
+### Caso G — Error por módulos faltantes en Windows
 Revisar venv:
 ```powershell
 cd C:\Users\user\intranet_app
@@ -203,6 +330,64 @@ python -m pip install -r requirements.txt
 python -m pip install itsdangerous
 python -m uvicorn app.main:app --reload
 ```
+
+---
+
+## Consideraciones para futura integración con Power BI
+
+### Objetivo
+Dejar claro qué entidades son fuente confiable para reportería y paneles.
+
+### Tablas principales para Power BI
+- `participants`
+- `attendance`
+- `activity_sessions`
+- `activity_codes`
+- `proposals`
+- `employees`
+- `users`
+- `residentials`
+
+### Relaciones importantes
+- `attendance.session_id` → `activity_sessions.session_id`
+- `attendance.participant_id` → `participants.participant_id`
+- `activity_sessions.activity_code_id` → `activity_codes.activity_code_id`
+- `activity_sessions.proposal_id` → `proposals.proposal_id`
+- `activity_sessions.employee_id` → `employees.employee_id`
+- `activity_sessions.created_by_user_id` → `users.user_id`
+- `users.residential_id` → `residentials.residential_id`
+
+### Métricas de negocio recomendadas
+- Participantes únicos
+- Participaciones totales
+- Participantes activos/inactivos
+- Asistencia por propuesta
+- Asistencia por residencial
+- Asistencia por municipio
+- Asistencia por rango de edad y sexo
+- Reportes no duplicados vs duplicados
+
+### Recomendaciones de diseño para BI
+- usar `residentials` como dimensión de ubicación operativa
+- evitar derivar municipio/RQ desde username en BI
+- usar `activity_sessions.session_date` como fecha principal de hechos
+- distinguir claramente:
+  - persona única
+  - participación
+- documentar en BI que:
+  - `No Duplicado` = personas únicas
+  - `Duplicado` = participaciones
+
+### Siguiente mejora sugerida para BI
+Crear más adelante vistas SQL estables para consumo analítico, por ejemplo:
+- `vw_attendance_fact`
+- `vw_participant_dimension`
+- `vw_session_fact`
+- `vw_reporting_residentials`
+
+Esto ayudaría a separar:
+- lógica operativa de la app
+- lógica analítica para Power BI
 
 ---
 
@@ -245,12 +430,21 @@ python -m uvicorn app.main:app --reload
 - `307f042` — Actually pass catalog options to participant forms
 - `8871005` — Load all activity options for session form filtering
 - `1a86448` — Restrict session activities to selected proposal
+- `fb71b29` — Centralize authorized official in reports entry form
+- `25af9e3` — Avoid 422 when custom report period leaves month and year empty
+- `c72e6f7` — Allow empty month and year on report destinations
+- `a0bbc5c` — Implement custom date range flow for reports
+- `13730c6` — Add residential model and supervisor role foundation
+- `01d7002` — Add residential admin and supervisor global access
 
 ---
 
 ## Próximos pasos recomendados
-1. Exportación a Excel/CSV
-2. Flash messages amigables en UI
-3. Paginación en listados
-4. Evaluar si `género`, `VCA` y `primera_vez` pasan a catálogo
-5. Limpieza de archivos sueltos del repo
+1. Endurecer permisos sensibles de supervisor en todo Admin
+2. Migrar el resto del hardcode operativo a `residentials`
+3. Crear vistas SQL para futura integración con Power BI
+4. Exportación a Excel/CSV más amplia
+5. Flash messages amigables en UI
+6. Paginación en listados
+7. Evaluar si `género`, `VCA` y `primera_vez` pasan a catálogo
+8. Limpieza de archivos sueltos del repo
