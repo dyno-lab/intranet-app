@@ -105,6 +105,24 @@ def _chunk_rows(rows: list[dict], size: int) -> list[list[dict]]:
     return chunks or [[]]
 
 
+def _get_age_bucket(age: int | None) -> str | None:
+    if age is None or age < 0:
+        return None
+    if age < 5:
+        return "under_5"
+    if age <= 7:
+        return "5_7"
+    if age <= 10:
+        return "8_10"
+    if age <= 15:
+        return "11_15"
+    if age <= 21:
+        return "16_21"
+    if age <= 59:
+        return "22_59"
+    return "60_plus"
+
+
 def _base_reports_context(db: Session, current_user: User):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
     report_users = db.execute(
@@ -274,6 +292,7 @@ def reports_run(
     year: int | None = None,
     employee_id: int | None = None,
     output: str = "screen",
+    period_type: str = "monthly",
 ):
     if report_key == "bonafide":
         if output == "excel":
@@ -295,6 +314,113 @@ def reports_run(
         f"/ui/reports?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}",
         status_code=303,
     )
+
+
+def _build_no_duplicado_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | None,
+    year: int | None,
+    employee_id: int | None,
+):
+    base_context = _base_reports_context(db, current_user)
+    report_users = base_context["report_users"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role == "admin":
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    residential_name = None
+    municipality = None
+    rq_code = None
+    if is_global:
+        residential_name = "Global"
+        municipality = "Todos"
+        rq_code = "Global"
+    elif selected_user:
+        residential_name = _residential_from_user(selected_user)
+        municipality = RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
+        rq_code = RESIDENTIAL_RQ.get(residential_name.upper(), "")
+
+    summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
+
+    if proposal_id and month and year and (selected_user or is_global):
+        stmt = (
+            select(Participant)
+            .join(Attendance, Attendance.participant_id == Participant.participant_id)
+            .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+            .where(
+                Attendance.attended == True,  # noqa: E712
+                ActivitySession.proposal_id == proposal_id,
+                extract("month", ActivitySession.session_date) == month,
+                extract("year", ActivitySession.session_date) == year,
+            )
+            .distinct()
+        )
+        if not is_global:
+            stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+        participants = db.execute(stmt).scalars().all()
+        for participant in participants:
+            age = _calc_age(participant.fecha_nacimiento)
+            bucket = _get_age_bucket(age)
+            if not bucket:
+                continue
+            gender = _normalize_text(participant.genero).upper()
+            if gender.startswith("F"):
+                summary[bucket]["f"] += 1
+            elif gender.startswith("M"):
+                summary[bucket]["m"] += 1
+            summary[bucket]["total"] += 1
+
+    rows = []
+    total_f = total_m = total_all = 0
+    for key, label in AGE_BUCKETS:
+        row = summary[key]
+        rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
+        total_f += row["f"]
+        total_m += row["m"]
+        total_all += row["total"]
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": month,
+        "selected_year": year,
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "municipality": municipality,
+        "rq_code": rq_code,
+        "rows": rows,
+        "total_f": total_f,
+        "total_m": total_m,
+        "total_all": total_all,
+    }
+
+
+@router.get("/no-duplicado", response_class=HTMLResponse)
+def no_duplicado_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
 
 
 @router.get("/bonafide", response_class=HTMLResponse)
@@ -384,6 +510,24 @@ def bonafide_report_excel(
     filename = f"bonafide_{safe_residential}_{year}_{month}.xlsx"
 
     return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+ponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+ame"] or "bonafide").replace(" ", "_")
+    filename = f"bonafide_{safe_residential}_{year}_{month}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+ponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
