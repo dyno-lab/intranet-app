@@ -93,6 +93,7 @@
     <table class="table table-sm table-hover align-middle">
       <thead>
         <tr>
+          <th>Expediente</th>
           <th>Nombre</th>
           <th>Género</th>
           <th>Edad</th>
@@ -104,6 +105,7 @@
       <tbody>
         {% for row in rows %}
         <tr>
+          <td>{{ row.expediente }}</td>
           <td>{{ row.nombre }}</td>
           <td>{{ row.genero }}</td>
           <td>{{ row.edad }}</td>
@@ -123,8 +125,5 @@
 </div>
 {% elif selected_proposal_id and period_label and not columns %}
 <div class="alert alert-warning">La propuesta seleccionada no tiene columnas VCA configuradas todavía.</div>
-{% endif %}
-{% endblock %}
-avía.</div>
 {% endif %}
 {% endblock %}
