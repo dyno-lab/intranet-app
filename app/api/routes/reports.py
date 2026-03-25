@@ -323,63 +323,68 @@ def reports_home(
 def reports_run(
     report_key: str,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     output: str = "screen",
     period_type: str = "monthly",
     authorized_name: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ):
+    month_value = int(month) if (month or "").strip() else None
+    year_value = int(year) if (year or "").strip() else None
+
     if report_key == "bonafide":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}",
+            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}",
             status_code=303,
         )
 
     if report_key == "no-duplicado":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     if report_key == "duplicados":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     return RedirectResponse(
-        f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month or ''}&year={year or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}",
+        f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
     )
 
