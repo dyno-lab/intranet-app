@@ -382,10 +382,6 @@ def reports_run(
     )
 
 
-def _format_exact_age_label(age: int) -> str:
-    return f"{age} año" if age == 1 else f"{age} años"
-
-
 def _build_no_duplicado_context(
     db: Session,
     current_user: User,
@@ -423,7 +419,6 @@ def _build_no_duplicado_context(
         rq_code = RESIDENTIAL_RQ.get(residential_name.upper(), "")
 
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
-    exact_age_summary: dict[int, dict[str, int]] = {}
 
     if proposal_id and month and year and (selected_user or is_global):
         if duplicated:
@@ -444,15 +439,15 @@ def _build_no_duplicado_context(
             attendance_rows = db.execute(stmt).all()
             for _, participant in attendance_rows:
                 age = _calc_age(participant.fecha_nacimiento)
-                if age is None or age < 0:
+                bucket = _get_age_bucket(age)
+                if not bucket:
                     continue
-                row = exact_age_summary.setdefault(age, {"label": _format_exact_age_label(age), "f": 0, "m": 0, "total": 0})
                 gender = _normalize_text(participant.genero).upper()
                 if gender.startswith("F"):
-                    row["f"] += 1
+                    summary[bucket]["f"] += 1
                 elif gender.startswith("M"):
-                    row["m"] += 1
-                row["total"] += 1
+                    summary[bucket]["m"] += 1
+                summary[bucket]["total"] += 1
         else:
             stmt = (
                 select(Participant)
@@ -484,20 +479,12 @@ def _build_no_duplicado_context(
 
     rows = []
     total_f = total_m = total_all = 0
-    if duplicated:
-        for age in sorted(exact_age_summary.keys()):
-            row = exact_age_summary[age]
-            rows.append({"label": row["label"], "f": row["f"], "m": row["m"], "total": row["total"]})
-            total_f += row["f"]
-            total_m += row["m"]
-            total_all += row["total"]
-    else:
-        for key, label in AGE_BUCKETS:
-            row = summary[key]
-            rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
-            total_f += row["f"]
-            total_m += row["m"]
-            total_all += row["total"]
+    for key, label in AGE_BUCKETS:
+        row = summary[key]
+        rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
+        total_f += row["f"]
+        total_m += row["m"]
+        total_all += row["total"]
 
     return {
         **base_context,
