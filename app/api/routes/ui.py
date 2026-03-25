@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import csv
+import io
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete, func, or_
 from sqlalchemy.orm import Session
@@ -106,6 +108,59 @@ def _participant_form_catalogs(db: Session):
         "rango_ingreso_options": _load_catalog_options(db, "rango_ingreso"),
         "estatus_options": _load_catalog_options(db, "estatus_participante"),
     }
+
+
+def _csv_response(filename: str, headers: list[str], rows: list[list[object]]):
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    content = "\ufeff" + buffer.getvalue()
+
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _build_sessions_stmt(current_user: User):
+    stmt = (
+        select(
+            ActivitySession.session_id,
+            ActivitySession.session_date,
+            ActivityCode.code,
+            ActivityCode.description,
+            Employee.employee_code,
+            Employee.full_name,
+            ActivitySession.hours,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+        )
+        .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
+        .join(Employee, ActivitySession.employee_id == Employee.employee_id)
+        .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
+        .order_by(ActivitySession.session_date.desc(), ActivitySession.session_id.desc())
+    )
+
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+
+    return stmt
+
+
+def _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int):
+    if fd:
+        stmt = stmt.where(ActivitySession.session_date >= fd)
+    if td:
+        stmt = stmt.where(ActivitySession.session_date <= td)
+    if proposal_id_int:
+        stmt = stmt.where(ActivitySession.proposal_id == proposal_id_int)
+    if month_int:
+        stmt = stmt.where(func.month(ActivitySession.session_date) == month_int)
+    if year_int:
+        stmt = stmt.where(func.year(ActivitySession.session_date) == year_int)
+    return stmt
 
 
 # ============================================================
@@ -275,6 +330,73 @@ def delete_participant(
     return RedirectResponse("/ui/new-list", status_code=303)
 
 
+@router.get("/new-list/export.csv")
+def export_participants_csv(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stmt = select(Participant).order_by(
+        Participant.apellido_paterno,
+        Participant.apellido_materno,
+        Participant.nombre,
+    )
+
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(Participant.created_by_user_id == current_user.user_id)
+
+    participants = db.execute(stmt).scalars().all()
+
+    rows = []
+    for p in participants:
+        rows.append([
+            p.participant_id,
+            p.expediente_num or "",
+            p.nombre or "",
+            p.inicial or "",
+            p.apellido_paterno or "",
+            p.apellido_materno or "",
+            p.fecha_nacimiento.isoformat() if p.fecha_nacimiento else "",
+            _calc_age(p.fecha_nacimiento) if p.fecha_nacimiento else "",
+            p.genero or "",
+            p.estatus or "",
+            "Activo" if _is_participant_active(p) else "Inactivo",
+            p.vca or "",
+            p.primera_vez or "",
+            p.composicion_familiar or "",
+            p.grupo_familiar or "",
+            p.fuente_ingreso_principal or "",
+            p.rango_ingreso or "",
+            p.edificio or "",
+            p.apart or "",
+        ])
+
+    return _csv_response(
+        filename=f"participantes_{date.today().isoformat()}.csv",
+        headers=[
+            "participant_id",
+            "expediente_num",
+            "nombre",
+            "inicial",
+            "apellido_paterno",
+            "apellido_materno",
+            "fecha_nacimiento",
+            "edad",
+            "genero",
+            "estatus",
+            "estado",
+            "vca",
+            "primera_vez",
+            "composicion_familiar",
+            "grupo_familiar",
+            "fuente_ingreso_principal",
+            "rango_ingreso",
+            "edificio",
+            "apart",
+        ],
+        rows=rows,
+    )
+
+
 # ============================================================
 # EDIT PARTICIPANT (FASE 1 + FASE 2)
 # ============================================================
@@ -432,37 +554,8 @@ def listado_selector(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
 
-    stmt = (
-        select(
-            ActivitySession.session_id,
-            ActivitySession.session_date,
-            ActivityCode.code,
-            ActivityCode.description,
-            Employee.employee_code,
-            Employee.full_name,
-            ActivitySession.hours,
-            Proposal.code.label("proposal_code"),
-            Proposal.name.label("proposal_name"),
-        )
-        .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
-        .join(Employee, ActivitySession.employee_id == Employee.employee_id)
-        .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
-        .order_by(ActivitySession.session_date.desc(), ActivitySession.session_id.desc())
-    )
-
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
-
-    if fd:
-        stmt = stmt.where(ActivitySession.session_date >= fd)
-    if td:
-        stmt = stmt.where(ActivitySession.session_date <= td)
-    if proposal_id_int:
-        stmt = stmt.where(ActivitySession.proposal_id == proposal_id_int)
-    if month_int:
-        stmt = stmt.where(func.month(ActivitySession.session_date) == month_int)
-    if year_int:
-        stmt = stmt.where(func.year(ActivitySession.session_date) == year_int)
+    stmt = _build_sessions_stmt(current_user)
+    stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
 
     sessions = db.execute(stmt).all()
 
@@ -512,6 +605,157 @@ def listado_selector(
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
         },
+    )
+
+
+@router.get("/listado/export.csv")
+def export_sessions_csv(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    fd = _parse_date(from_date) if from_date else None
+    td = _parse_date(to_date) if to_date else None
+    proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
+    month_int = int(month) if month and month.strip() else None
+    year_int = int(year) if year and year.strip() else None
+
+    stmt = _build_sessions_stmt(current_user)
+    stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    sessions = db.execute(stmt).all()
+
+    rows = []
+    for s in sessions:
+        rows.append([
+            s.session_id,
+            s.session_date.isoformat() if s.session_date else "",
+            s.proposal_code or "",
+            s.proposal_name or "",
+            s.code or "",
+            s.description or "",
+            s.employee_code or "",
+            s.full_name or "",
+            s.hours or "",
+        ])
+
+    return _csv_response(
+        filename=f"sesiones_{date.today().isoformat()}.csv",
+        headers=[
+            "session_id",
+            "fecha",
+            "propuesta_codigo",
+            "propuesta_nombre",
+            "actividad_codigo",
+            "actividad_descripcion",
+            "empleado_codigo",
+            "empleado_nombre",
+            "horas",
+        ],
+        rows=rows,
+    )
+
+
+@router.get("/listado/export-attendance.csv")
+def export_attendance_csv(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    fd = _parse_date(from_date) if from_date else None
+    td = _parse_date(to_date) if to_date else None
+    proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
+    month_int = int(month) if month and month.strip() else None
+    year_int = int(year) if year and year.strip() else None
+
+    stmt = (
+        select(
+            ActivitySession.session_id,
+            ActivitySession.session_date,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+            ActivityCode.code.label("activity_code"),
+            ActivityCode.description.label("activity_description"),
+            Employee.employee_code,
+            Employee.full_name.label("employee_name"),
+            Participant.participant_id,
+            Participant.expediente_num,
+            Participant.nombre,
+            Participant.apellido_paterno,
+            Participant.apellido_materno,
+            Participant.genero,
+            Participant.estatus,
+            Attendance.attended,
+        )
+        .join(Attendance, Attendance.session_id == ActivitySession.session_id)
+        .join(Participant, Participant.participant_id == Attendance.participant_id)
+        .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
+        .join(Employee, ActivitySession.employee_id == Employee.employee_id)
+        .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
+        .where(Attendance.attended == True)  # noqa: E712
+        .order_by(
+            ActivitySession.session_date.desc(),
+            ActivitySession.session_id.desc(),
+            Participant.apellido_paterno,
+            Participant.nombre,
+        )
+    )
+
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+
+    stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    attendance_rows = db.execute(stmt).all()
+
+    rows = []
+    for row in attendance_rows:
+        rows.append([
+            row.session_id,
+            row.session_date.isoformat() if row.session_date else "",
+            row.proposal_code or "",
+            row.proposal_name or "",
+            row.activity_code or "",
+            row.activity_description or "",
+            row.employee_code or "",
+            row.employee_name or "",
+            row.participant_id,
+            row.expediente_num or "",
+            row.nombre or "",
+            row.apellido_paterno or "",
+            row.apellido_materno or "",
+            row.genero or "",
+            row.estatus or "",
+            "Sí" if row.attended else "No",
+        ])
+
+    return _csv_response(
+        filename=f"asistencias_{date.today().isoformat()}.csv",
+        headers=[
+            "session_id",
+            "fecha",
+            "propuesta_codigo",
+            "propuesta_nombre",
+            "actividad_codigo",
+            "actividad_descripcion",
+            "empleado_codigo",
+            "empleado_nombre",
+            "participant_id",
+            "expediente_num",
+            "nombre",
+            "apellido_paterno",
+            "apellido_materno",
+            "genero",
+            "estatus",
+            "asistio",
+        ],
+        rows=rows,
     )
 
 
