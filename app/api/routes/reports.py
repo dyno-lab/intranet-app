@@ -175,14 +175,28 @@ def _base_reports_context(db: Session, current_user: User):
     }
 
 
+def _parse_optional_int(value: int | str | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    value = value.strip()
+    if not value:
+        return None
+    return int(value)
+
+
 def _build_bonafide_context(
     db: Session,
     current_user: User,
     proposal_id: int | None,
-    month: int | None,
-    year: int | None,
+    month: int | str | None,
+    year: int | str | None,
     employee_id: int | None,
 ):
+    month = _parse_optional_int(month)
+    year = _parse_optional_int(year)
+
     base_context = _base_reports_context(db, current_user)
     proposals = base_context["proposals"]
     report_users = base_context["report_users"]
@@ -393,12 +407,15 @@ def _build_no_duplicado_context(
     db: Session,
     current_user: User,
     proposal_id: int | None,
-    month: int | None,
-    year: int | None,
+    month: int | str | None,
+    year: int | str | None,
     employee_id: int | None,
     authorized_name: str | None = None,
     duplicated: bool = False,
 ):
+    month = _parse_optional_int(month)
+    year = _parse_optional_int(year)
+
     base_context = _base_reports_context(db, current_user)
     report_users = base_context["report_users"]
 
@@ -516,8 +533,8 @@ def _build_no_duplicado_context(
 def duplicado_report(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -532,8 +549,8 @@ def duplicado_report(
 def duplicado_report_pdf(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -547,8 +564,8 @@ def duplicado_report_pdf(
 @router.get("/duplicado/excel")
 def duplicado_report_excel(
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -619,8 +636,8 @@ def duplicado_report_excel(
 def no_duplicado_report(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -635,8 +652,8 @@ def no_duplicado_report(
 def no_duplicado_report_pdf(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -650,8 +667,8 @@ def no_duplicado_report_pdf(
 @router.get("/no-duplicado/excel")
 def no_duplicado_report_excel(
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
     db: Session = Depends(get_db),
@@ -722,8 +739,8 @@ def no_duplicado_report_excel(
 def bonafide_report(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -737,8 +754,8 @@ def bonafide_report(
 def bonafide_report_pdf(
     request: Request,
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -751,8 +768,8 @@ def bonafide_report_pdf(
 @router.get("/bonafide/excel")
 def bonafide_report_excel(
     proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
     employee_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
