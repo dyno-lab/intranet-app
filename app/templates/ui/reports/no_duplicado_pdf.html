@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>No Duplicado PDF</title>
+  <style>
+    @page { size: letter; margin: 0.45in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 12px; }
+    .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 12px; margin: 10px 0 12px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 16px; }
+    .meta-row div { width: 25%; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #333; padding: 5px 6px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    .footer { margin-top: 16px; font-size: 10px; }
+    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Reporte">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">INFORME MENSUAL DE PARTICIPANTES</div>
+      <div class="subtitle">POR EDAD Y SEXO EN LOS PROYECTOS IMPACTADOS</div>
+      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+        <div><strong>Municipio:</strong> {{ municipality or '' }}</div>
+        <div><strong>RQ:</strong> {{ rq_code or '' }}</div>
+        <div><strong>Mes reportado:</strong> {{ month_lookup.get(selected_month, selected_month) }} {{ selected_year }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:40%;">Clasificación</th>
+          <th colspan="2" style="width:30%;">Número de participantes por edad y sexo</th>
+          <th rowspan="2" style="width:30%;">Total de participantes</th>
+        </tr>
+        <tr>
+          <th>F</th>
+          <th>M</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td class="center">{{ row.f }}</td>
+          <td class="center">{{ row.m }}</td>
+          <td class="center">{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td><strong>TOTAL</strong></td>
+          <td class="center"><strong>{{ total_f }}</strong></td>
+          <td class="center"><strong>{{ total_m }}</strong></td>
+          <td class="center"><strong>{{ total_all }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Este informe presenta participantes únicos con al menos una asistencia durante el periodo seleccionado. Cada participante cuenta una sola vez.
+      <div class="page-number">Página 1 de 1</div>
+    </div>
+  </div>
+</body>
+</html>
