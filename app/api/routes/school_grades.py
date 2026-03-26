@@ -89,6 +89,9 @@ def school_grade_reports_index(
         .order_by(SchoolGradeReport.report_year.desc(), SchoolGradeReport.report_month.desc(), SchoolGradeReport.report_id.desc())
     )
 
+    if current_user.role not in {"admin", "supervisor"}:
+        stmt = stmt.where(SchoolGradeReport.created_by_user_id == current_user.user_id)
+
     if proposal_id:
         stmt = stmt.where(SchoolGradeReport.proposal_id == proposal_id)
     if month:
@@ -175,6 +178,8 @@ def school_grade_report_detail(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
+    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este informe.")
 
     proposal = db.get(Proposal, report.proposal_id)
 
@@ -236,6 +241,8 @@ def add_participant_to_school_grade_report(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
+    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
 
     participant = db.get(Participant, participant_id)
     if not participant:
@@ -290,6 +297,12 @@ def edit_school_grade_report_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    report = db.get(SchoolGradeReport, report_id)
+    if not report:
+        return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
+    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+
     item = db.get(SchoolGradeReportItem, report_item_id)
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
@@ -331,6 +344,8 @@ def delete_school_grade_report(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
+    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
 
     report_items = db.execute(
         select(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
@@ -351,6 +366,12 @@ def delete_school_grade_report_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    report = db.get(SchoolGradeReport, report_id)
+    if not report:
+        return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
+    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+
     item = db.get(SchoolGradeReportItem, report_item_id)
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
