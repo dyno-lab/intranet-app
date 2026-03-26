@@ -992,6 +992,24 @@ def school_dropout_summary_report(
     return templates.TemplateResponse("ui/reports/desercion_escolar.html", context)
 
 
+@router.get("/desercion-escolar/pdf", response_class=HTMLResponse)
+def school_dropout_summary_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/desercion_escolar_pdf.html", context)
+
+
 @router.get("/desercion-escolar/excel")
 def school_dropout_summary_report_excel(
     proposal_id: int | None = None,

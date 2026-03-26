@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Deserción Escolar PDF</title>
+  <style>
+    @page { size: letter landscape; margin: 0.35in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .header img { max-width: 200px; max-height: 80px; width: auto; display: block; margin: 0 auto 8px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 11px; margin: 8px 0 10px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 10px; }
+    .meta-row div { width: 33%; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.4px; }
+    th, td { border: 1px solid #333; padding: 3px 4px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    td.left { text-align: left; }
+    tfoot td { font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/logo-centros-isolina.png" alt="Logo Centros Sor Isolina Ferré">
+      <div class="title">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">INFORME DE DESERCIÓN ESCOLAR</div>
+      <div class="subtitle">Resumen por residencial</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:14%;">Residencial</th>
+          <th colspan="3">Participantes reclutados</th>
+          <th colspan="15">Participantes por grado</th>
+          <th colspan="2">Asistieron tutorías</th>
+          <th colspan="2">Asistieron escuela</th>
+          <th colspan="4">Entregaron reporte de notas</th>
+        </tr>
+        <tr>
+          <th>Total</th>
+          <th>F</th>
+          <th>M</th>
+          {% for grade in grade_columns %}
+          <th>{{ grade }}</th>
+          {% endfor %}
+          <th>Cant.</th>
+          <th>%</th>
+          <th>Cant.</th>
+          <th>%</th>
+          <th>10</th>
+          <th>20</th>
+          <th>30</th>
+          <th>40</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="left">{{ row.residential_name }}</td>
+          <td class="center">{{ row.recruited }}</td>
+          <td class="center">{{ row.f }}</td>
+          <td class="center">{{ row.m }}</td>
+          {% for grade in grade_columns %}
+          <td class="center">{{ row.grades.get(grade, 0) }}</td>
+          {% endfor %}
+          <td class="center">{{ row.tutoring }}</td>
+          <td class="center">{{ '%.2f'|format(row.tutoring_pct) }}%</td>
+          <td class="center">{{ row.school }}</td>
+          <td class="center">{{ '%.2f'|format(row.school_pct) }}%</td>
+          <td class="center">{{ row.report_10 }}</td>
+          <td class="center">{{ row.report_20 }}</td>
+          <td class="center">{{ row.report_30 }}</td>
+          <td class="center">{{ row.report_40 }}</td>
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="27" class="center">No hay registros de school-dropout para los criterios seleccionados.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+      {% if rows|length > 0 %}
+      <tfoot>
+        <tr>
+          <td class="left">TOTAL</td>
+          <td class="center">{{ total.recruited }}</td>
+          <td class="center">{{ total.f }}</td>
+          <td class="center">{{ total.m }}</td>
+          {% for grade in grade_columns %}
+          <td class="center">{{ total.grades.get(grade, 0) }}</td>
+          {% endfor %}
+          <td class="center">{{ total.tutoring }}</td>
+          <td class="center">{{ '%.2f'|format(total.tutoring_pct) }}%</td>
+          <td class="center">{{ total.school }}</td>
+          <td class="center">{{ '%.2f'|format(total.school_pct) }}%</td>
+          <td class="center">{{ total.report_10 }}</td>
+          <td class="center">{{ total.report_20 }}</td>
+          <td class="center">{{ total.report_30 }}</td>
+          <td class="center">{{ total.report_40 }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</body>
+</html>
