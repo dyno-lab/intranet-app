@@ -526,6 +526,16 @@ def reports_run(
         )
 
     if report_key == "embarazo":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/embarazo/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/embarazo/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/embarazo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
@@ -1175,6 +1185,113 @@ def pregnancy_summary_report(
     context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/embarazo.html", context)
+
+
+@router.get("/embarazo/excel")
+def pregnancy_summary_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/embarazo", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Embarazo"
+    ws.freeze_panes = "A6"
+
+    proposal_label = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Embarazo"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = proposal_label
+    ws["D3"] = "Periodo"
+    ws["E3"] = context["period_label"]
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["D4"] = "Participación total"
+    ws["E4"] = context["total"]["participation"]
+
+    headers = [
+        "Residencial",
+        "Total reclutados",
+        "F",
+        "M",
+        "Participantes femeninas embarazadas",
+        "Participantes masculinos que han embarazado",
+        "% Prevención",
+        "Embarazos",
+        "No embarazos",
+    ]
+    header_row = 6
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    row_index = header_row + 1
+    for row in context["rows"]:
+        values = [
+            row["residential_name"],
+            row["recruited"],
+            row["f"],
+            row["m"],
+            row["pregnant_f"],
+            row["pregnant_m"],
+            row["prevention_pct"] / 100,
+            row["pregnancy_cases"],
+            row["non_pregnant"],
+        ]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+            if col_index == 7:
+                cell.number_format = "0.00%"
+        row_index += 1
+
+    total_values = [
+        "TOTAL",
+        context["total"]["recruited"],
+        context["total"]["f"],
+        context["total"]["m"],
+        context["total"]["pregnant_f"],
+        context["total"]["pregnant_m"],
+        context["total"]["prevention_pct"] / 100,
+        context["total"]["pregnancy_cases"],
+        context["total"]["non_pregnant"],
+    ]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        if col_index == 7:
+            cell.number_format = "0.00%"
+
+    widths = {"A": 28, "B": 15, "C": 8, "D": 8, "E": 22, "F": 24, "G": 14, "H": 12, "I": 14}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "embarazo").replace(" ", "_")
+    filename = f"embarazo_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/desercion-escolar", response_class=HTMLResponse)
