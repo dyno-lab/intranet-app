@@ -710,9 +710,11 @@ def _build_school_dropout_summary_context(
             residential_name = _residential_from_user(selected_user)
 
         grouped: dict[str, dict] = {}
-        for item, _, participant, report_user, residential in db.execute(stmt).all():
+        participant_snapshots: dict[tuple[str, int], dict] = {}
+
+        for item, report, participant, report_user, residential in db.execute(stmt).all():
             residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
-            bucket = grouped.setdefault(
+            grouped.setdefault(
                 residential_label,
                 {
                     "residential_name": residential_label,
@@ -729,10 +731,46 @@ def _build_school_dropout_summary_context(
                 },
             )
 
+            key = (residential_label, participant.participant_id)
+            snapshot = participant_snapshots.get(key)
+            report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
+
+            if not snapshot:
+                snapshot = {
+                    "residential_name": residential_label,
+                    "participant_id": participant.participant_id,
+                    "gender": _normalize_text(participant.genero).upper(),
+                    "current_grade": _normalize_text(item.current_grade).upper(),
+                    "attended_tutoring": bool(item.attended_tutoring),
+                    "attended_school": bool(item.attended_school),
+                    "report_10": bool(item.report_10_weeks),
+                    "report_20": bool(item.report_20_weeks),
+                    "report_30": bool(item.report_30_weeks),
+                    "report_40": bool(item.report_40_weeks),
+                    "latest_sort": report_sort,
+                }
+                participant_snapshots[key] = snapshot
+                continue
+
+            snapshot["attended_tutoring"] = snapshot["attended_tutoring"] or bool(item.attended_tutoring)
+            snapshot["attended_school"] = snapshot["attended_school"] or bool(item.attended_school)
+            snapshot["report_10"] = snapshot["report_10"] or bool(item.report_10_weeks)
+            snapshot["report_20"] = snapshot["report_20"] or bool(item.report_20_weeks)
+            snapshot["report_30"] = snapshot["report_30"] or bool(item.report_30_weeks)
+            snapshot["report_40"] = snapshot["report_40"] or bool(item.report_40_weeks)
+
+            if report_sort >= snapshot["latest_sort"]:
+                latest_grade = _normalize_text(item.current_grade).upper()
+                if latest_grade:
+                    snapshot["current_grade"] = latest_grade
+                snapshot["latest_sort"] = report_sort
+
+        for snapshot in participant_snapshots.values():
+            bucket = grouped[snapshot["residential_name"]]
             bucket["recruited"] += 1
             total["recruited"] += 1
 
-            gender = _normalize_text(participant.genero).upper()
+            gender = snapshot["gender"]
             if gender.startswith("F"):
                 bucket["f"] += 1
                 total["f"] += 1
@@ -740,27 +778,27 @@ def _build_school_dropout_summary_context(
                 bucket["m"] += 1
                 total["m"] += 1
 
-            grade_value = _normalize_text(item.current_grade).upper()
+            grade_value = snapshot["current_grade"]
             if grade_value in bucket["grades"]:
                 bucket["grades"][grade_value] += 1
                 total["grades"][grade_value] += 1
 
-            if item.attended_tutoring:
+            if snapshot["attended_tutoring"]:
                 bucket["tutoring"] += 1
                 total["tutoring"] += 1
-            if item.attended_school:
+            if snapshot["attended_school"]:
                 bucket["school"] += 1
                 total["school"] += 1
-            if item.report_10_weeks:
+            if snapshot["report_10"]:
                 bucket["report_10"] += 1
                 total["report_10"] += 1
-            if item.report_20_weeks:
+            if snapshot["report_20"]:
                 bucket["report_20"] += 1
                 total["report_20"] += 1
-            if item.report_30_weeks:
+            if snapshot["report_30"]:
                 bucket["report_30"] += 1
                 total["report_30"] += 1
-            if item.report_40_weeks:
+            if snapshot["report_40"]:
                 bucket["report_40"] += 1
                 total["report_40"] += 1
 
