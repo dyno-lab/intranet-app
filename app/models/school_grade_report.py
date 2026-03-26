@@ -8,7 +8,7 @@ class SchoolGradeReport(Base):
     __tablename__ = "school_grade_reports"
 
     __table_args__ = (
-        UniqueConstraint("proposal_id", "report_month", "report_year", name="uq_school_grade_reports_period"),
+        UniqueConstraint("proposal_id", "report_month", "report_year", "created_by_user_id", name="uq_school_grade_reports_period_user"),
     )
 
     report_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

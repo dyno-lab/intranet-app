@@ -143,6 +143,7 @@ def create_school_grade_report(
             SchoolGradeReport.proposal_id == proposal_id,
             SchoolGradeReport.report_month == report_month,
             SchoolGradeReport.report_year == report_year,
+            SchoolGradeReport.created_by_user_id == current_user.user_id,
         )
     ).scalar_one_or_none()
     if existing:
