@@ -21,6 +21,8 @@ from app.models.residential import Residential
 from app.models.activity_code import ActivityCode
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
+from app.models.school_dropout_report import SchoolDropoutReport
+from app.models.school_dropout_report_item import SchoolDropoutReportItem
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -371,6 +373,7 @@ REPORT_OPTIONS = [
     {"value": "bonafide", "label": "Bonafide"},
     {"value": "no-duplicado", "label": "No Duplicado"},
     {"value": "duplicados", "label": "Duplicados"},
+    {"value": "desercion-escolar", "label": "Deserción Escolar"},
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "vca", "label": "Informe VCA"},
     {"value": "todos", "label": "Todos"},
@@ -503,6 +506,12 @@ def reports_run(
             status_code=303,
         )
 
+    if report_key == "desercion-escolar":
+        return RedirectResponse(
+            f"/ui/reports/desercion-escolar?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
     return RedirectResponse(
         f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
@@ -627,6 +636,163 @@ def _build_vca_context(
         "columns": columns,
         "rows": rows,
         "total_people": total_people,
+    }
+
+
+def _build_school_dropout_summary_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+
+    base_context = _base_reports_context(db, current_user)
+    month_lookup = base_context["month_lookup"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    grade_columns = ["SC", "EE", "K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+    rows = []
+    total = {
+        "recruited": 0,
+        "f": 0,
+        "m": 0,
+        "tutoring": 0,
+        "school": 0,
+        "report_10": 0,
+        "report_20": 0,
+        "report_30": 0,
+        "report_40": 0,
+        "grades": {grade: 0 for grade in grade_columns},
+    }
+    residential_name = None
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        stmt = (
+            select(SchoolDropoutReportItem, SchoolDropoutReport, Participant, User, Residential)
+            .join(SchoolDropoutReport, SchoolDropoutReport.report_id == SchoolDropoutReportItem.report_id)
+            .join(Participant, Participant.participant_id == SchoolDropoutReportItem.participant_id)
+            .join(User, User.user_id == SchoolDropoutReport.created_by_user_id)
+            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .where(SchoolDropoutReport.proposal_id == proposal_id)
+        )
+
+        if period["is_custom"]:
+            stmt = stmt.where(
+                func.datefromparts(SchoolDropoutReport.report_year, SchoolDropoutReport.report_month, 1) >= period["start_date"],
+                func.datefromparts(SchoolDropoutReport.report_year, SchoolDropoutReport.report_month, 1) <= period["end_date"],
+            )
+        elif period["month"] and period["year"]:
+            stmt = stmt.where(
+                SchoolDropoutReport.report_month == period["month"],
+                SchoolDropoutReport.report_year == period["year"],
+            )
+
+        if is_global:
+            residential_name = "Global"
+        else:
+            stmt = stmt.where(SchoolDropoutReport.created_by_user_id == selected_user.user_id)
+            residential_name = _residential_from_user(selected_user)
+
+        grouped: dict[str, dict] = {}
+        for item, _, participant, report_user, residential in db.execute(stmt).all():
+            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
+            bucket = grouped.setdefault(
+                residential_label,
+                {
+                    "residential_name": residential_label,
+                    "recruited": 0,
+                    "f": 0,
+                    "m": 0,
+                    "tutoring": 0,
+                    "school": 0,
+                    "report_10": 0,
+                    "report_20": 0,
+                    "report_30": 0,
+                    "report_40": 0,
+                    "grades": {grade: 0 for grade in grade_columns},
+                },
+            )
+
+            bucket["recruited"] += 1
+            total["recruited"] += 1
+
+            gender = _normalize_text(participant.genero).upper()
+            if gender.startswith("F"):
+                bucket["f"] += 1
+                total["f"] += 1
+            elif gender.startswith("M"):
+                bucket["m"] += 1
+                total["m"] += 1
+
+            grade_value = _normalize_text(item.current_grade).upper()
+            if grade_value in bucket["grades"]:
+                bucket["grades"][grade_value] += 1
+                total["grades"][grade_value] += 1
+
+            if item.attended_tutoring:
+                bucket["tutoring"] += 1
+                total["tutoring"] += 1
+            if item.attended_school:
+                bucket["school"] += 1
+                total["school"] += 1
+            if item.report_10_weeks:
+                bucket["report_10"] += 1
+                total["report_10"] += 1
+            if item.report_20_weeks:
+                bucket["report_20"] += 1
+                total["report_20"] += 1
+            if item.report_30_weeks:
+                bucket["report_30"] += 1
+                total["report_30"] += 1
+            if item.report_40_weeks:
+                bucket["report_40"] += 1
+                total["report_40"] += 1
+
+        def with_percentages(row: dict) -> dict:
+            recruited = row["recruited"]
+            tutoring_pct = round((row["tutoring"] / recruited) * 100, 2) if recruited else 0
+            school_pct = round((row["school"] / recruited) * 100, 2) if recruited else 0
+            return {
+                **row,
+                "tutoring_pct": tutoring_pct,
+                "school_pct": school_pct,
+            }
+
+        rows = [with_percentages(grouped[name]) for name in sorted(grouped.keys())]
+        total = with_percentages(total)
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "grade_columns": grade_columns,
+        "rows": rows,
+        "total": total,
     }
 
 
@@ -758,6 +924,24 @@ def _build_no_duplicado_context(
         "total_all": total_all,
         "authorized_name": (authorized_name or "").strip(),
     }
+
+
+@router.get("/desercion-escolar", response_class=HTMLResponse)
+def school_dropout_summary_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/desercion_escolar.html", context)
 
 
 @router.get("/duplicado", response_class=HTMLResponse)

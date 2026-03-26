@@ -1,0 +1,179 @@
+{% extends "ui/_base.html" %}
+{% block title %}Deserción Escolar{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Informe de Deserción Escolar</h4>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
+      <input type="hidden" name="report_key" value="desercion-escolar">
+      {% if selected_period_type == 'custom' %}
+      <input type="hidden" name="period_type" value="custom">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+      <div class="col-md-4">
+        <label class="form-label">Periodo</label>
+        <input class="form-control" value="{{ period_label }}" readonly>
+      </div>
+      {% else %}
+      <input type="hidden" name="period_type" value="monthly">
+      <div class="col-md-2">
+        <label class="form-label">Mes *</label>
+        <select class="form-select" name="month" required>
+          <option value="">Selecciona...</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año *</label>
+        <select class="form-select" name="year" required>
+          <option value="">Selecciona...</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <label class="form-label">Propuesta *</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Formato *</label>
+        <select class="form-select" name="output" required>
+          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
+          <option value="excel">Excel</option>
+          <option value="pdf">PDF</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Residencial *</label>
+        {% if current_user.role in ['admin', 'supervisor'] %}
+        <select class="form-select" name="employee_id" required>
+          <option value="">Selecciona...</option>
+          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+          {% for report_user in report_users %}
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input class="form-control" value="{{ residential_name or '' }}" readonly>
+        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Funcionario autorizado</label>
+        <input class="form-control" type="text" name="authorized_name" value="" disabled>
+      </div>
+      <div class="col-md-3 d-grid">
+        <button class="btn btn-primary">Generar</button>
+      </div>
+      <div class="col-12 small text-muted">
+        Este informe usa la misma entrada central de reportes. Por ahora la salida operativa inicial está en pantalla; Excel y PDF se ajustan luego.
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal_id and period_label and (selected_user or is_global) %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
+      <div class="col-md-4"><strong>Reclutados totales:</strong> {{ total.recruited }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table class="table table-sm table-bordered align-middle text-center">
+      <thead>
+        <tr>
+          <th rowspan="2">Residencial</th>
+          <th colspan="3">Participantes reclutados</th>
+          <th colspan="15">Participantes por grado</th>
+          <th colspan="2">Asistieron tutorías</th>
+          <th colspan="2">Asistieron escuela</th>
+          <th colspan="4">Entregaron reporte de notas</th>
+        </tr>
+        <tr>
+          <th>Total</th>
+          <th>F</th>
+          <th>M</th>
+          {% for grade in grade_columns %}
+          <th>{{ grade }}</th>
+          {% endfor %}
+          <th>Cant.</th>
+          <th>%</th>
+          <th>Cant.</th>
+          <th>%</th>
+          <th>10</th>
+          <th>20</th>
+          <th>30</th>
+          <th>40</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-start">{{ row.residential_name }}</td>
+          <td>{{ row.recruited }}</td>
+          <td>{{ row.f }}</td>
+          <td>{{ row.m }}</td>
+          {% for grade in grade_columns %}
+          <td>{{ row.grades.get(grade, 0) }}</td>
+          {% endfor %}
+          <td>{{ row.tutoring }}</td>
+          <td>{{ '%.2f'|format(row.tutoring_pct) }}%</td>
+          <td>{{ row.school }}</td>
+          <td>{{ '%.2f'|format(row.school_pct) }}%</td>
+          <td>{{ row.report_10 }}</td>
+          <td>{{ row.report_20 }}</td>
+          <td>{{ row.report_30 }}</td>
+          <td>{{ row.report_40 }}</td>
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="27" class="text-muted">No hay registros de school-dropout para los criterios seleccionados.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+      {% if rows|length > 0 %}
+      <tfoot>
+        <tr class="fw-bold">
+          <td class="text-start">TOTAL</td>
+          <td>{{ total.recruited }}</td>
+          <td>{{ total.f }}</td>
+          <td>{{ total.m }}</td>
+          {% for grade in grade_columns %}
+          <td>{{ total.grades.get(grade, 0) }}</td>
+          {% endfor %}
+          <td>{{ total.tutoring }}</td>
+          <td>{{ '%.2f'|format(total.tutoring_pct) }}%</td>
+          <td>{{ total.school }}</td>
+          <td>{{ '%.2f'|format(total.school_pct) }}%</td>
+          <td>{{ total.report_10 }}</td>
+          <td>{{ total.report_20 }}</td>
+          <td>{{ total.report_30 }}</td>
+          <td>{{ total.report_40 }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
