@@ -23,6 +23,8 @@ from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.school_dropout_report import SchoolDropoutReport
 from app.models.school_dropout_report_item import SchoolDropoutReportItem
+from app.models.pregnancy_report import PregnancyReport
+from app.models.pregnancy_report_item import PregnancyReportItem
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -374,6 +376,7 @@ REPORT_OPTIONS = [
     {"value": "no-duplicado", "label": "No Duplicado"},
     {"value": "duplicados", "label": "Duplicados"},
     {"value": "desercion-escolar", "label": "Deserción Escolar"},
+    {"value": "embarazo", "label": "Embarazo"},
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "vca", "label": "Informe VCA"},
     {"value": "todos", "label": "Todos"},
@@ -519,6 +522,12 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/desercion-escolar?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "embarazo":
+        return RedirectResponse(
+            f"/ui/reports/embarazo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
@@ -844,6 +853,182 @@ def _build_school_dropout_summary_context(
     }
 
 
+def _build_pregnancy_summary_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+
+    base_context = _base_reports_context(db, current_user)
+    month_lookup = base_context["month_lookup"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    rows = []
+    residential_name = None
+    total = {
+        "recruited": 0,
+        "f": 0,
+        "m": 0,
+        "pregnant_f": 0,
+        "pregnant_m": 0,
+        "participation": 0,
+        "non_pregnant": 0,
+        "prevention_pct": 0,
+        "pregnancy_cases": 0,
+    }
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        stmt = (
+            select(PregnancyReportItem, PregnancyReport, Participant, User, Residential)
+            .join(PregnancyReport, PregnancyReport.report_id == PregnancyReportItem.report_id)
+            .join(Participant, Participant.participant_id == PregnancyReportItem.participant_id)
+            .join(User, User.user_id == PregnancyReport.created_by_user_id)
+            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .where(PregnancyReport.proposal_id == proposal_id)
+        )
+
+        if period["is_custom"]:
+            stmt = stmt.where(
+                func.datefromparts(PregnancyReport.report_year, PregnancyReport.report_month, 1) >= period["start_date"],
+                func.datefromparts(PregnancyReport.report_year, PregnancyReport.report_month, 1) <= period["end_date"],
+            )
+        elif period["month"] and period["year"]:
+            stmt = stmt.where(
+                PregnancyReport.report_month == period["month"],
+                PregnancyReport.report_year == period["year"],
+            )
+
+        if is_global:
+            residential_name = "Global"
+        else:
+            stmt = stmt.where(PregnancyReport.created_by_user_id == selected_user.user_id)
+            residential_name = _residential_from_user(selected_user)
+
+        grouped: dict[str, dict] = {}
+        participant_snapshots: dict[tuple[str, int], dict] = {}
+
+        for item, report, participant, report_user, residential in db.execute(stmt).all():
+            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
+            grouped.setdefault(
+                residential_label,
+                {
+                    "residential_name": residential_label,
+                    "recruited": 0,
+                    "f": 0,
+                    "m": 0,
+                    "pregnant_f": 0,
+                    "pregnant_m": 0,
+                    "participation": 0,
+                    "non_pregnant": 0,
+                    "prevention_pct": 0,
+                    "pregnancy_cases": 0,
+                },
+            )
+
+            key = (residential_label, participant.participant_id)
+            snapshot = participant_snapshots.get(key)
+            report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
+            gender = _normalize_text(participant.genero).upper()
+            is_female = gender.startswith("F")
+            is_male = gender.startswith("M")
+            participated = bool(item.participated_workshops)
+            pregnant_f = bool(item.is_pregnant and is_female)
+            pregnant_m = bool(item.is_pregnant and is_male)
+
+            if not snapshot:
+                participant_snapshots[key] = {
+                    "residential_name": residential_label,
+                    "participant_id": participant.participant_id,
+                    "gender": gender,
+                    "participated": participated,
+                    "pregnant_f": pregnant_f,
+                    "pregnant_m": pregnant_m,
+                    "latest_sort": report_sort,
+                }
+                continue
+
+            snapshot["participated"] = snapshot["participated"] or participated
+            snapshot["pregnant_f"] = snapshot["pregnant_f"] or pregnant_f
+            snapshot["pregnant_m"] = snapshot["pregnant_m"] or pregnant_m
+            if report_sort >= snapshot["latest_sort"]:
+                snapshot["latest_sort"] = report_sort
+                snapshot["gender"] = gender or snapshot["gender"]
+
+        for snapshot in participant_snapshots.values():
+            bucket = grouped[snapshot["residential_name"]]
+            bucket["recruited"] += 1
+            total["recruited"] += 1
+
+            gender = snapshot["gender"]
+            if gender.startswith("F"):
+                bucket["f"] += 1
+                total["f"] += 1
+            elif gender.startswith("M"):
+                bucket["m"] += 1
+                total["m"] += 1
+
+            if snapshot["participated"]:
+                bucket["participation"] += 1
+                total["participation"] += 1
+            if snapshot["pregnant_f"]:
+                bucket["pregnant_f"] += 1
+                total["pregnant_f"] += 1
+            if snapshot["pregnant_m"]:
+                bucket["pregnant_m"] += 1
+                total["pregnant_m"] += 1
+
+        def finalize(row: dict) -> dict:
+            pregnancy_cases = row["pregnant_f"] + row["pregnant_m"]
+            participation = row["participation"]
+            non_pregnant = max(participation - pregnancy_cases, 0)
+            prevention_pct = round((non_pregnant / participation) * 100, 2) if participation else 0
+            return {
+                **row,
+                "pregnancy_cases": pregnancy_cases,
+                "non_pregnant": non_pregnant,
+                "prevention_pct": prevention_pct,
+            }
+
+        rows = [finalize(grouped[name]) for name in sorted(grouped.keys())]
+        total = finalize(total)
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "rows": rows,
+        "total": total,
+        "chart_labels": ["Embarazos", "No embarazos"],
+        "chart_values": [total["pregnancy_cases"], total["non_pregnant"]],
+    }
+
+
 def _build_no_duplicado_context(
     db: Session,
     current_user: User,
@@ -972,6 +1157,24 @@ def _build_no_duplicado_context(
         "total_all": total_all,
         "authorized_name": (authorized_name or "").strip(),
     }
+
+
+@router.get("/embarazo", response_class=HTMLResponse)
+def pregnancy_summary_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/embarazo.html", context)
 
 
 @router.get("/desercion-escolar", response_class=HTMLResponse)
