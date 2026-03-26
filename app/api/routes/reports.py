@@ -1175,16 +1175,19 @@ def _build_notes_context(
             age_label = _notes_age_bucket(snapshot["age"])
             if age_label:
                 letter = _grade_letter_from_average(snapshot["average_grade"])
-                if snapshot["is_content_room"]:
-                    table_rows[age_label]["Especial"] += 1
-                    total_row["Especial"] += 1
-                elif snapshot["grade_level"] == "K":
-                    table_rows[age_label]["K"] += 1
-                    total_row["K"] += 1
-                elif letter in note_letters:
+                if letter in note_letters:
                     table_rows[age_label][letter] += 1
                     total_row[letter] += 1
                     pie_values[note_letters.index(letter)] += 1
+
+                if snapshot["is_content_room"]:
+                    table_rows[age_label]["Especial"] += 1
+                    total_row["Especial"] += 1
+
+                if snapshot["grade_level"] == "K":
+                    table_rows[age_label]["K"] += 1
+                    total_row["K"] += 1
+
                 table_rows[age_label]["TOTAL"] += 1
                 total_row["TOTAL"] += 1
 
