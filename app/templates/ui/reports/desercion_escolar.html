@@ -75,11 +75,17 @@
         <label class="form-label">Funcionario autorizado</label>
         <input class="form-control" type="text" name="authorized_name" value="" disabled>
       </div>
-      <div class="col-md-3 d-grid">
+      <div class="col-md-2 d-grid">
         <button class="btn btn-primary">Generar</button>
       </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/desercion-escolar/excel">Excel</button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/desercion-escolar/pdf" formtarget="_blank">PDF</button>
+      </div>
       <div class="col-12 small text-muted">
-        Este informe usa la misma entrada central de reportes. Por ahora la salida operativa inicial está en pantalla; Excel y PDF se ajustan luego.
+        Este informe usa la misma entrada central de reportes. Pantalla y Excel quedan activos; PDF lo ajustamos a continuación.
       </div>
     </form>
   </div>

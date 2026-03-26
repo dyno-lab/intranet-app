@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Alignment
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user
@@ -507,6 +507,16 @@ def reports_run(
         )
 
     if report_key == "desercion-escolar":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/desercion-escolar/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/desercion-escolar/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/desercion-escolar?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
@@ -980,6 +990,118 @@ def school_dropout_summary_report(
     context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/desercion_escolar.html", context)
+
+
+@router.get("/desercion-escolar/excel")
+def school_dropout_summary_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/desercion-escolar", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Desercion"
+    ws.freeze_panes = "B6"
+
+    proposal_label = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Deserción Escolar"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = proposal_label
+    ws["D3"] = "Periodo"
+    ws["E3"] = context["period_label"]
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["D4"] = "Reclutados totales"
+    ws["E4"] = context["total"]["recruited"]
+
+    headers = ["Residencial", "Total", "F", "M"] + context["grade_columns"] + ["Tutorías", "% Tutorías", "Escuela", "% Escuela", "10", "20", "30", "40"]
+    header_row = 6
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    row_index = header_row + 1
+    for row in context["rows"]:
+        values = [
+            row["residential_name"],
+            row["recruited"],
+            row["f"],
+            row["m"],
+            *[row["grades"].get(grade, 0) for grade in context["grade_columns"]],
+            row["tutoring"],
+            row["tutoring_pct"] / 100,
+            row["school"],
+            row["school_pct"] / 100,
+            row["report_10"],
+            row["report_20"],
+            row["report_30"],
+            row["report_40"],
+        ]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            if col_index in {1}:
+                cell.alignment = Alignment(horizontal="left")
+            else:
+                cell.alignment = Alignment(horizontal="center")
+            if col_index in {20, 22}:
+                cell.number_format = "0.00%"
+        row_index += 1
+
+    total_values = [
+        "TOTAL",
+        context["total"]["recruited"],
+        context["total"]["f"],
+        context["total"]["m"],
+        *[context["total"]["grades"].get(grade, 0) for grade in context["grade_columns"]],
+        context["total"]["tutoring"],
+        context["total"]["tutoring_pct"] / 100,
+        context["total"]["school"],
+        context["total"]["school_pct"] / 100,
+        context["total"]["report_10"],
+        context["total"]["report_20"],
+        context["total"]["report_30"],
+        context["total"]["report_40"],
+    ]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        if col_index in {20, 22}:
+            cell.number_format = "0.00%"
+
+    widths = {
+        "A": 26, "B": 10, "C": 8, "D": 8, "E": 6, "F": 6, "G": 6, "H": 6, "I": 6,
+        "J": 6, "K": 6, "L": 6, "M": 6, "N": 6, "O": 6, "P": 6, "Q": 6, "R": 6,
+        "S": 10, "T": 12, "U": 10, "V": 12, "W": 8, "X": 8, "Y": 8, "Z": 8,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "desercion_escolar").replace(" ", "_")
+    filename = f"desercion_escolar_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/duplicado", response_class=HTMLResponse)
