@@ -25,6 +25,8 @@ from app.models.school_dropout_report import SchoolDropoutReport
 from app.models.school_dropout_report_item import SchoolDropoutReportItem
 from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
+from app.models.school_grade_report import SchoolGradeReport
+from app.models.school_grade_report_item import SchoolGradeReportItem
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -377,6 +379,7 @@ REPORT_OPTIONS = [
     {"value": "duplicados", "label": "Duplicados"},
     {"value": "desercion-escolar", "label": "Deserción Escolar"},
     {"value": "embarazo", "label": "Embarazo"},
+    {"value": "notas", "label": "Notas"},
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "vca", "label": "Informe VCA"},
     {"value": "todos", "label": "Todos"},
@@ -538,6 +541,12 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/embarazo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "notas":
+        return RedirectResponse(
+            f"/ui/reports/notas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
@@ -1039,6 +1048,184 @@ def _build_pregnancy_summary_context(
     }
 
 
+def _grade_letter_from_average(average: float | int | None) -> str:
+    if average is None:
+        return ""
+    avg = float(average)
+    if avg >= 90:
+        return "A"
+    if avg >= 80:
+        return "B"
+    if avg >= 70:
+        return "C"
+    if avg >= 60:
+        return "D"
+    return "F"
+
+
+def _notes_age_bucket(age: int | None) -> str | None:
+    if age is None or age < 0:
+        return None
+    if age <= 4:
+        return "Menos de 5 años"
+    if age <= 7:
+        return "5 - 7 años"
+    if age <= 10:
+        return "8 - 10 años"
+    if age <= 15:
+        return "11 - 15 años"
+    if age <= 21:
+        return "16 - 21 años"
+    return None
+
+
+def _build_notes_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user)
+    month_lookup = base_context["month_lookup"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    rows = []
+    age_labels = ["Menos de 5 años", "5 - 7 años", "8 - 10 años", "11 - 15 años", "16 - 21 años"]
+    note_letters = ["A", "B", "C", "D", "F"]
+    table_rows = {label: {letter: 0 for letter in note_letters} | {"Especial": 0, "K": 0, "TOTAL": 0} for label in age_labels}
+    residential_chart_rows = []
+    pie_labels = ["A", "B", "C", "D", "F"]
+    pie_values = [0, 0, 0, 0, 0]
+    subject_chart = {
+        "Español": {letter: 0 for letter in note_letters},
+        "Inglés": {letter: 0 for letter in note_letters},
+        "Matemáticas": {letter: 0 for letter in note_letters},
+        "Ciencias": {letter: 0 for letter in note_letters},
+    }
+    residential_name = None
+    total_row = {letter: 0 for letter in note_letters} | {"Especial": 0, "K": 0, "TOTAL": 0}
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        stmt = (
+            select(SchoolGradeReportItem, SchoolGradeReport, Participant, User, Residential)
+            .join(SchoolGradeReport, SchoolGradeReport.report_id == SchoolGradeReportItem.report_id)
+            .join(Participant, Participant.participant_id == SchoolGradeReportItem.participant_id)
+            .join(User, User.user_id == SchoolGradeReport.created_by_user_id)
+            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .where(SchoolGradeReport.proposal_id == proposal_id)
+        )
+
+        if period["is_custom"]:
+            stmt = stmt.where(
+                func.datefromparts(SchoolGradeReport.report_year, SchoolGradeReport.report_month, 1) >= period["start_date"],
+                func.datefromparts(SchoolGradeReport.report_year, SchoolGradeReport.report_month, 1) <= period["end_date"],
+            )
+        elif period["month"] and period["year"]:
+            stmt = stmt.where(
+                SchoolGradeReport.report_month == period["month"],
+                SchoolGradeReport.report_year == period["year"],
+            )
+
+        if is_global:
+            residential_name = "Global"
+        else:
+            stmt = stmt.where(SchoolGradeReport.created_by_user_id == selected_user.user_id)
+            residential_name = _residential_from_user(selected_user)
+
+        participant_snapshots: dict[tuple[str, int], dict] = {}
+        for item, report, participant, report_user, residential in db.execute(stmt).all():
+            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
+            key = (residential_label, participant.participant_id)
+            report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
+            snapshot = participant_snapshots.get(key)
+            current_snapshot = {
+                "residential_name": residential_label,
+                "participant_id": participant.participant_id,
+                "age": _calc_age(participant.fecha_nacimiento),
+                "grade_level": _normalize_text(item.grade_level).upper(),
+                "is_content_room": bool(item.is_content_room),
+                "average_grade": float(item.average_grade) if item.average_grade is not None else None,
+                "spanish_grade": float(item.spanish_grade) if item.spanish_grade is not None else None,
+                "english_grade": float(item.english_grade) if item.english_grade is not None else None,
+                "math_grade": float(item.math_grade) if item.math_grade is not None else None,
+                "science_grade": float(item.science_grade) if item.science_grade is not None else None,
+                "latest_sort": report_sort,
+            }
+            if not snapshot or report_sort >= snapshot["latest_sort"]:
+                participant_snapshots[key] = current_snapshot
+
+        residential_summary: dict[str, dict] = {}
+        for snapshot in participant_snapshots.values():
+            age_label = _notes_age_bucket(snapshot["age"])
+            if age_label:
+                letter = _grade_letter_from_average(snapshot["average_grade"])
+                if snapshot["is_content_room"]:
+                    table_rows[age_label]["Especial"] += 1
+                    total_row["Especial"] += 1
+                elif snapshot["grade_level"] == "K":
+                    table_rows[age_label]["K"] += 1
+                    total_row["K"] += 1
+                elif letter in note_letters:
+                    table_rows[age_label][letter] += 1
+                    total_row[letter] += 1
+                    pie_values[note_letters.index(letter)] += 1
+                table_rows[age_label]["TOTAL"] += 1
+                total_row["TOTAL"] += 1
+
+            residential_bucket = residential_summary.setdefault(snapshot["residential_name"], {letter: 0 for letter in note_letters})
+            avg_letter = _grade_letter_from_average(snapshot["average_grade"])
+            if avg_letter in note_letters:
+                residential_bucket[avg_letter] += 1
+
+            for subject_name, field_name in [("Español", "spanish_grade"), ("Inglés", "english_grade"), ("Matemáticas", "math_grade"), ("Ciencias", "science_grade")]:
+                subject_letter = _grade_letter_from_average(snapshot[field_name])
+                if subject_letter in note_letters:
+                    subject_chart[subject_name][subject_letter] += 1
+
+        residential_chart_rows = [
+            {"residential_name": name, **counts, "total": sum(counts.values())}
+            for name, counts in sorted(residential_summary.items())
+        ]
+        rows = [{"age_label": label, **table_rows[label]} for label in age_labels]
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "rows": rows,
+        "total_row": total_row,
+        "pie_labels": pie_labels,
+        "pie_values": pie_values,
+        "residential_chart_rows": residential_chart_rows,
+        "subject_chart": subject_chart,
+    }
+
+
 def _build_no_duplicado_context(
     db: Session,
     current_user: User,
@@ -1167,6 +1354,24 @@ def _build_no_duplicado_context(
         "total_all": total_all,
         "authorized_name": (authorized_name or "").strip(),
     }
+
+
+@router.get("/notas", response_class=HTMLResponse)
+def notes_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/notas.html", context)
 
 
 @router.get("/embarazo", response_class=HTMLResponse)

@@ -1,0 +1,199 @@
+{% extends "ui/_base.html" %}
+{% block title %}Notas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Informe de Notas</h4>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
+      <input type="hidden" name="report_key" value="notas">
+      {% if selected_period_type == 'custom' %}
+      <input type="hidden" name="period_type" value="custom">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+      <div class="col-md-4">
+        <label class="form-label">Periodo</label>
+        <input class="form-control" value="{{ period_label }}" readonly>
+      </div>
+      {% else %}
+      <input type="hidden" name="period_type" value="monthly">
+      <div class="col-md-2">
+        <label class="form-label">Mes *</label>
+        <select class="form-select" name="month" required>
+          <option value="">Selecciona...</option>
+          {% for month_value, month_label in month_options %}
+          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año *</label>
+        <select class="form-select" name="year" required>
+          <option value="">Selecciona...</option>
+          {% for option_year in year_options %}
+          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <label class="form-label">Propuesta *</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Formato *</label>
+        <select class="form-select" name="output" required>
+          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
+          <option value="excel">Excel</option>
+          <option value="pdf">PDF</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Residencial *</label>
+        {% if current_user.role in ['admin', 'supervisor'] %}
+        <select class="form-select" name="employee_id" required>
+          <option value="">Selecciona...</option>
+          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+          {% for report_user in report_users %}
+          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input class="form-control" value="{{ residential_name or '' }}" readonly>
+        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Funcionario autorizado</label>
+        <input class="form-control" type="text" name="authorized_name" value="" disabled>
+      </div>
+      <div class="col-md-3 d-grid">
+        <button class="btn btn-primary">Generar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal_id and period_label and (selected_user or is_global) %}
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
+      <div class="col-md-4"><strong>Total evaluados:</strong> {{ total_row.TOTAL }}</div>
+    </div>
+    <div style="max-width: 420px; margin: 0 auto;">
+      <canvas id="notesGeneralPie"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body table-responsive">
+    <h5 class="mb-3">Promedio obtenido por edad</h5>
+    <table class="table table-sm table-bordered align-middle text-center">
+      <thead>
+        <tr>
+          <th>Edad</th>
+          <th>A</th><th>B</th><th>C</th><th>D</th><th>F</th><th>Especial</th><th>K</th><th>TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-start">{{ row.age_label }}</td>
+          <td>{{ row.A }}</td><td>{{ row.B }}</td><td>{{ row.C }}</td><td>{{ row.D }}</td><td>{{ row.F }}</td><td>{{ row.Especial }}</td><td>{{ row.K }}</td><td>{{ row.TOTAL }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td class="text-start">TOTALES</td>
+          <td>{{ total_row.A }}</td><td>{{ total_row.B }}</td><td>{{ total_row.C }}</td><td>{{ total_row.D }}</td><td>{{ total_row.F }}</td><td>{{ total_row.Especial }}</td><td>{{ total_row.K }}</td><td>{{ total_row.TOTAL }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Notas Académicas por Residencial</h5>
+    <canvas id="notesResidentialBar" height="110"></canvas>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for subject_name, subject_counts in subject_chart.items() %}
+  <div class="col-md-6 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-center">{{ subject_name }}</h6>
+        <canvas id="subjectChart{{ loop.index }}"></canvas>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+  const gradeColors = { A: '#198754', B: '#0dcaf0', C: '#ffc107', D: '#6c757d', F: '#dc3545' };
+
+  new Chart(document.getElementById('notesGeneralPie'), {
+    type: 'pie',
+    data: {
+      labels: {{ pie_labels | tojson }},
+      datasets: [{
+        data: {{ pie_values | tojson }},
+        backgroundColor: {{ pie_labels | map('string') | list | tojson }}.map(label => gradeColors[label])
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  const residentialRows = {{ residential_chart_rows | tojson }};
+  new Chart(document.getElementById('notesResidentialBar'), {
+    type: 'bar',
+    data: {
+      labels: residentialRows.map(r => r.residential_name),
+      datasets: ['A','B','C','D','F'].map(letter => ({
+        label: letter,
+        data: residentialRows.map(r => r[letter] || 0),
+        backgroundColor: gradeColors[letter]
+      }))
+    },
+    options: {
+      responsive: true,
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  const subjectCharts = {{ subject_chart | tojson }};
+  Object.entries(subjectCharts).forEach(([name, counts], idx) => {
+    new Chart(document.getElementById(`subjectChart${idx + 1}`), {
+      type: 'pie',
+      data: {
+        labels: ['A','B','C','D','F'],
+        datasets: [{
+          data: ['A','B','C','D','F'].map(letter => counts[letter] || 0),
+          backgroundColor: ['A','B','C','D','F'].map(letter => gradeColors[letter])
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
