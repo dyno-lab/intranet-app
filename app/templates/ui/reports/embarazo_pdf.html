@@ -94,16 +94,28 @@
     {% set total_non = total.non_pregnant %}
     {% set pie_total = total_cases + total_non %}
     {% if pie_total > 0 %}
-    {% set angle_cases = (total_cases / pie_total) * 360 %}
+    {% set cases_pct = ((total_cases / pie_total) * 100)|round(2) %}
+    {% set non_pct = ((total_non / pie_total) * 100)|round(2) %}
     <div class="chart-wrap">
-      <svg width="320" height="320" viewBox="0 0 42 42" role="img" aria-label="Gráfica pie de embarazo" style="transform: rotate(-90deg);">
-        <circle cx="21" cy="21" r="15.9155" fill="transparent" stroke="#198754" stroke-width="10"></circle>
-        <circle cx="21" cy="21" r="15.9155" fill="transparent" stroke="#dc3545" stroke-width="10"
-          stroke-dasharray="{{ ((total_cases / pie_total) * 100)|round(2) }} {{ (100 - ((total_cases / pie_total) * 100))|round(2) }}" stroke-dashoffset="25"></circle>
-      </svg>
+      <div style="position: relative; width: 320px; height: 320px; margin: 0 auto;">
+        <svg width="320" height="320" viewBox="0 0 42 42" role="img" aria-label="Gráfica pie de embarazo" style="transform: rotate(-90deg); position: absolute; inset: 0;">
+          <circle cx="21" cy="21" r="15.9155" fill="transparent" stroke="#198754" stroke-width="10"></circle>
+          <circle cx="21" cy="21" r="15.9155" fill="transparent" stroke="#dc3545" stroke-width="10"
+            stroke-dasharray="{{ cases_pct }} {{ (100 - cases_pct)|round(2) }}" stroke-dashoffset="25"></circle>
+        </svg>
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; pointer-events:none; font-size:14px; font-weight:700; color:#111; line-height:1.2;">
+          <div>{{ non_pct }}%</div>
+          <div style="font-size:11px; font-weight:400; color:#666;">No embarazos</div>
+        </div>
+        {% if total_cases > 0 %}
+        <div style="position:absolute; top:28%; right:18%; background:#fff; border:1px solid #ddd; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:700; color:#dc3545;">
+          {{ cases_pct }}%
+        </div>
+        {% endif %}
+      </div>
       <div class="legend">
-        <div class="legend-item"><span class="swatch" style="background:#dc3545;"></span> Embarazos: {{ total_cases }}</div>
-        <div class="legend-item"><span class="swatch" style="background:#198754;"></span> No embarazos: {{ total_non }}</div>
+        <div class="legend-item"><span class="swatch" style="background:#dc3545;"></span> Embarazos: {{ total_cases }} ({{ cases_pct }}%)</div>
+        <div class="legend-item"><span class="swatch" style="background:#198754;"></span> No embarazos: {{ total_non }} ({{ non_pct }}%)</div>
       </div>
     </div>
     {% endif %}
