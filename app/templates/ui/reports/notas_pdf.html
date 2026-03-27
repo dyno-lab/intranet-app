@@ -39,6 +39,13 @@
       </div>
     </div>
 
+    {% if general_chart_image %}
+    <h3>Gráfica general</h3>
+    <div style="text-align:center; margin-bottom: 12px;">
+      <img src="{{ general_chart_image }}" alt="Gráfica general de notas" style="max-width: 320px; width: 100%; height: auto;">
+    </div>
+    {% endif %}
+
     <h3>Resumen general</h3>
     <table>
       <thead>
@@ -109,6 +116,13 @@
       </tfoot>
     </table>
 
+    {% if residential_chart_image %}
+    <h3>Gráfica por residencial</h3>
+    <div style="text-align:center; margin-bottom: 12px;">
+      <img src="{{ residential_chart_image }}" alt="Gráfica por residencial" style="max-width: 720px; width: 100%; height: auto;">
+    </div>
+    {% endif %}
+
     <h3>Notas académicas por residencial</h3>
     <table>
       <thead>
@@ -141,6 +155,17 @@
         {% endif %}
       </tbody>
     </table>
+
+    {% if subject_chart_images %}
+    <h3>Gráficas por materia</h3>
+    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
+      {% for chart_image in subject_chart_images %}
+      <div style="text-align:center; border: 1px solid #ddd; padding: 8px;">
+        <img src="{{ chart_image }}" alt="Gráfica por materia {{ loop.index }}" style="max-width: 240px; width: 100%; height: auto;">
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <h3>Notas por materia</h3>
     <table>

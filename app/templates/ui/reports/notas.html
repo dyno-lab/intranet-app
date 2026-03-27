@@ -78,11 +78,30 @@
       <div class="col-md-3 d-grid">
         <button class="btn btn-primary">Generar</button>
       </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/notas/excel">Excel</button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-danger" type="button" id="notesPdfButton">PDF</button>
+      </div>
     </form>
   </div>
 </div>
 
 {% if selected_proposal_id and period_label and (selected_user or is_global) %}
+<form id="notesPdfExportForm" method="post" action="/ui/reports/notas/pdf" target="_blank" class="d-none">
+  <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
+  <input type="hidden" name="month" value="{{ selected_month or '' }}">
+  <input type="hidden" name="year" value="{{ selected_year or '' }}">
+  <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
+  <input type="hidden" name="period_type" value="{{ selected_period_type }}">
+  <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+  <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+  <input type="hidden" name="general_chart_image" id="generalChartImageInput">
+  <input type="hidden" name="residential_chart_image" id="residentialChartImageInput">
+  <input type="hidden" name="subject_chart_images" id="subjectChartImagesInput">
+</form>
+
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <div class="row g-2 mb-3">
@@ -171,6 +190,9 @@
 
   const gradeColors = { A: '#198754', B: '#0dcaf0', C: '#ffc107', D: '#6c757d', F: '#dc3545' };
   const noteLetters = ['A','B','C','D','F'];
+  let notesGeneralPieChart = null;
+  let notesResidentialBarChart = null;
+  const subjectPieCharts = [];
 
   function formatTooltip(context, totalResolver) {
     const label = context.label || '';
@@ -197,7 +219,7 @@
     return `${percentage.toFixed(1)}%`;
   }
 
-  new Chart(document.getElementById('notesGeneralPie'), {
+  notesGeneralPieChart = new Chart(document.getElementById('notesGeneralPie'), {
     type: 'pie',
     data: {
       labels: {{ pie_labels | tojson }},
@@ -230,7 +252,7 @@
   });
 
   const residentialRows = {{ residential_chart_rows | tojson }};
-  new Chart(document.getElementById('notesResidentialBar'), {
+  notesResidentialBarChart = new Chart(document.getElementById('notesResidentialBar'), {
     type: 'bar',
     data: {
       labels: residentialRows.map(r => r.residential_name),
@@ -256,7 +278,7 @@
 
   const subjectCards = {{ subject_chart_cards | tojson }};
   subjectCards.forEach((subjectCard, idx) => {
-    new Chart(document.getElementById(`subjectChart${idx + 1}`), {
+    const subjectChart = new Chart(document.getElementById(`subjectChart${idx + 1}`), {
       type: 'pie',
       data: {
         labels: noteLetters,
@@ -287,7 +309,31 @@
         }
       }
     });
+    subjectPieCharts.push(subjectChart);
   });
+
+  const pdfButton = document.getElementById('notesPdfButton');
+  const pdfForm = document.getElementById('notesPdfExportForm');
+  const generalChartImageInput = document.getElementById('generalChartImageInput');
+  const residentialChartImageInput = document.getElementById('residentialChartImageInput');
+  const subjectChartImagesInput = document.getElementById('subjectChartImagesInput');
+
+  if (pdfButton && pdfForm) {
+    pdfButton.addEventListener('click', function () {
+      if (generalChartImageInput && notesGeneralPieChart) {
+        generalChartImageInput.value = notesGeneralPieChart.toBase64Image('image/png', 1);
+      }
+      if (residentialChartImageInput && notesResidentialBarChart) {
+        residentialChartImageInput.value = notesResidentialBarChart.toBase64Image('image/png', 1);
+      }
+      if (subjectChartImagesInput) {
+        subjectChartImagesInput.value = subjectPieCharts
+          .map(chart => chart.toBase64Image('image/png', 1))
+          .join('||');
+      }
+      pdfForm.submit();
+    });
+  }
 })();
 </script>
 {% endif %}

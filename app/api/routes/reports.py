@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from io import BytesIO
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func
@@ -1429,7 +1429,7 @@ def notes_report(
     return templates.TemplateResponse("ui/reports/notas.html", context)
 
 
-@router.get("/notas/pdf", response_class=HTMLResponse)
+@router.api_route("/notas/pdf", methods=["GET", "POST"], response_class=HTMLResponse)
 def notes_report_pdf(
     request: Request,
     proposal_id: int | None = None,
@@ -1439,11 +1439,20 @@ def notes_report_pdf(
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
+    general_chart_image: str | None = Form(default=None),
+    residential_chart_image: str | None = Form(default=None),
+    subject_chart_images: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"request": request, "current_user": current_user})
+    context.update({
+        "request": request,
+        "current_user": current_user,
+        "general_chart_image": general_chart_image or "",
+        "residential_chart_image": residential_chart_image or "",
+        "subject_chart_images": [img for img in (subject_chart_images or "").split("||") if img],
+    })
     return templates.TemplateResponse("ui/reports/notas_pdf.html", context)
 
 
