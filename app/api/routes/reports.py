@@ -1434,13 +1434,22 @@ def _build_visits_context(
                 for session_id, attendance_count in db.execute(attendance_stmt).all()
             }
 
-            employee_summary: dict[int, dict] = {}
+            employee_summary: dict[tuple, dict] = {}
             for session_id, employee_id_value, employee_name, hours in db.execute(session_stmt).all():
+                residential_label = "Global"
+                if is_global:
+                    session_owner_user_id = db.execute(
+                        select(ActivitySession.created_by_user_id).where(ActivitySession.session_id == session_id)
+                    ).scalar_one_or_none()
+                    residential_label = user_residential_map.get(session_owner_user_id, "Sin residencial")
+
+                summary_key = (employee_id_value, residential_label if is_global else "")
                 bucket = employee_summary.setdefault(
-                    employee_id_value,
+                    summary_key,
                     {
                         "employee_id": employee_id_value,
                         "employee_name": employee_name,
+                        "residential_name": residential_label if is_global else "",
                         "visits": 0,
                         "attendances": 0,
                         "hours": 0.0,

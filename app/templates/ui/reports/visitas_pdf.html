@@ -62,6 +62,7 @@
       <table>
         <thead>
           <tr>
+            {% if is_global %}<th>Residencial</th>{% endif %}
             <th>Tipo referido</th>
             <th>Agencia</th>
             <th>Número de referido o propósito</th>
@@ -70,6 +71,7 @@
         <tbody>
           {% for referral in referral_rows %}
           <tr>
+            {% if is_global %}<td class="left">{{ referral.residential_name }}</td>{% endif %}
             <td class="center">{{ referral.referral_type }}</td>
             <td class="left">{{ referral.agency }}</td>
             <td class="left">{{ referral.reference_or_purpose }}</td>
@@ -84,6 +86,7 @@
       <table>
         <thead>
           <tr>
+            {% if is_global %}<th>Residencial</th>{% endif %}
             <th>Empleado</th>
             <th>Visitas registradas</th>
             <th>Asistencias acumuladas</th>
@@ -93,6 +96,7 @@
         <tbody>
           {% for row in rows %}
           <tr>
+            {% if is_global %}<td class="left">{{ row.residential_name }}</td>{% endif %}
             <td class="left">{{ row.employee_name }}</td>
             <td class="center">{{ row.visits }}</td>
             <td class="center">{{ row.attendances }}</td>
@@ -101,13 +105,14 @@
           {% endfor %}
           {% if rows|length == 0 %}
           <tr>
-            <td colspan="4" class="center">No hay visitas registradas para los criterios seleccionados.</td>
+            <td colspan="{{ 5 if is_global else 4 }}" class="center">No hay visitas registradas para los criterios seleccionados.</td>
           </tr>
           {% endif %}
         </tbody>
         {% if rows|length > 0 %}
         <tfoot>
           <tr>
+            {% if is_global %}<td></td>{% endif %}
             <td class="left">TOTALES</td>
             <td class="center">{{ summary.visits }}</td>
             <td class="center">{{ summary.attendances }}</td>
