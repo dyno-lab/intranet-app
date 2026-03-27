@@ -24,8 +24,10 @@
     td.left { text-align: left; }
     .chart-block { text-align:center; margin-bottom: 12px; }
     .chart-block img { width: 100%; height: auto; }
-    .subject-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
-    .subject-card { border: 1px solid #ddd; padding: 8px; }
+    .subject-grid-wrapper { page-break-inside: avoid; break-inside: avoid; }
+    .subject-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
+    .subject-card { border: 1px solid #ddd; padding: 6px; page-break-inside: avoid; break-inside: avoid; }
+    .subject-card img { max-width: 210px !important; }
   </style>
 </head>
 <body>
@@ -175,20 +177,26 @@
     {{ page_header() }}
 
     {% if subject_chart_sections %}
-    <h3>Gráficas por materia</h3>
-    <div class="subject-grid">
-      {% for subject in subject_chart_sections %}
-      <div class="subject-card">
-        <h4>{{ subject.subject_name }}</h4>
-        {% if subject.image %}
-        <div class="chart-block" style="margin-bottom: 8px;">
-          <img src="{{ subject.image }}" alt="Gráfica {{ subject.subject_name }}" style="max-width: 240px;">
+    <div class="subject-grid-wrapper">
+      <h3>Gráficas por materia</h3>
+      <div class="subject-grid">
+        {% for subject in subject_chart_sections %}
+        <div class="subject-card">
+          <h4>{{ subject.subject_name }}</h4>
+          {% if subject.image %}
+          <div class="chart-block" style="margin-bottom: 6px;">
+            <img src="{{ subject.image }}" alt="Gráfica {{ subject.subject_name }}" style="max-width: 210px;">
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
     {% endif %}
+  </div>
+
+  <div class="page">
+    {{ page_header() }}
 
     <h3>Notas por materia</h3>
     <table>
