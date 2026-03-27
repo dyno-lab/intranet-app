@@ -381,6 +381,7 @@ REPORT_OPTIONS = [
     {"value": "desercion-escolar", "label": "Deserción Escolar"},
     {"value": "embarazo", "label": "Embarazo"},
     {"value": "notas", "label": "Notas"},
+    {"value": "visitas", "label": "Visitas"},
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "vca", "label": "Informe VCA"},
     {"value": "todos", "label": "Todos"},
