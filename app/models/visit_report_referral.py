@@ -10,6 +10,7 @@ class VisitReportReferral(Base):
     referral_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     report_id: Mapped[int] = mapped_column(ForeignKey("visit_reports.report_id"), nullable=False, index=True)
     referral_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     agency: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reference_or_purpose: Mapped[str | None] = mapped_column(String(500), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

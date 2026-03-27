@@ -1545,9 +1545,11 @@ async def visits_report_save_referrals(
         if not referral_type and not agency and not reference_or_purpose:
             continue
 
+        description = " | ".join(part for part in [agency, reference_or_purpose] if part).strip() or referral_type or "Referido"
         referral = VisitReportReferral(
             report_id=visit_report.report_id,
             referral_type=referral_type or "Externo",
+            description=description,
             agency=agency or None,
             reference_or_purpose=reference_or_purpose or None,
             sort_order=idx,

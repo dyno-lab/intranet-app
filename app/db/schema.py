@@ -547,6 +547,11 @@ IF COL_LENGTH('dbo.visit_report_referrals', 'reference_or_purpose') IS NULL
 BEGIN
     ALTER TABLE dbo.visit_report_referrals ADD reference_or_purpose VARCHAR(500) NULL;
 END;
+
+IF COL_LENGTH('dbo.visit_report_referrals', 'description') IS NULL
+BEGIN
+    ALTER TABLE dbo.visit_report_referrals ADD description VARCHAR(500) NULL;
+END;
 """
 
 
