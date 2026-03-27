@@ -27,6 +27,7 @@ from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
+from app.models.visit_activity_mapping import VisitActivityMapping
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -557,6 +558,12 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/notas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "visitas":
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
@@ -1279,6 +1286,147 @@ def _build_notes_context(
         "subject_chart": subject_chart,
         "subject_chart_cards": subject_chart_cards,
     }
+
+
+def _build_visits_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user)
+    month_lookup = base_context["month_lookup"]
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    residential_name = None
+    rows = []
+    summary = {"visits": 0, "attendances": 0, "hours": 0.0}
+    mapped_activity_ids: list[int] = []
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        mapped_activity_ids = db.execute(
+            select(VisitActivityMapping.activity_code_id)
+            .where(
+                VisitActivityMapping.proposal_id == proposal_id,
+                VisitActivityMapping.is_active == True,
+            )
+        ).scalars().all()  # noqa: E712
+
+        if is_global:
+            residential_name = "Global"
+        else:
+            residential_name = _residential_from_user(selected_user)
+
+        if mapped_activity_ids:
+            session_stmt = (
+                select(
+                    ActivitySession.session_id,
+                    ActivitySession.employee_id,
+                    Employee.full_name,
+                    func.coalesce(ActivitySession.hours, 0).label("hours"),
+                )
+                .join(Employee, Employee.employee_id == ActivitySession.employee_id)
+                .where(
+                    ActivitySession.proposal_id == proposal_id,
+                    ActivitySession.activity_code_id.in_(mapped_activity_ids),
+                )
+                .order_by(Employee.full_name)
+            )
+            session_stmt = _apply_session_period_filter(session_stmt, period)
+
+            if not is_global:
+                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+            attendance_stmt = (
+                select(
+                    Attendance.session_id,
+                    func.count(Attendance.attendance_id).label("attendances"),
+                )
+                .where(Attendance.attended == True)
+                .group_by(Attendance.session_id)
+            )  # noqa: E712
+            attendance_map = {
+                session_id: int(attendance_count or 0)
+                for session_id, attendance_count in db.execute(attendance_stmt).all()
+            }
+
+            employee_summary: dict[int, dict] = {}
+            for session_id, employee_id_value, employee_name, hours in db.execute(session_stmt).all():
+                bucket = employee_summary.setdefault(
+                    employee_id_value,
+                    {
+                        "employee_id": employee_id_value,
+                        "employee_name": employee_name,
+                        "visits": 0,
+                        "attendances": 0,
+                        "hours": 0.0,
+                    },
+                )
+                bucket["visits"] += 1
+                bucket["attendances"] += attendance_map.get(session_id, 0)
+                bucket["hours"] += float(hours or 0)
+
+            rows = sorted(employee_summary.values(), key=lambda row: row["employee_name"])
+            for row in rows:
+                row["hours"] = round(row["hours"], 2)
+
+            summary = {
+                "visits": sum(row["visits"] for row in rows),
+                "attendances": sum(row["attendances"] for row in rows),
+                "hours": round(sum(row["hours"] for row in rows), 2),
+            }
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "rows": rows,
+        "summary": summary,
+        "mapped_activity_ids": mapped_activity_ids,
+    }
+
+
+@router.get("/visitas", response_class=HTMLResponse)
+def visits_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/visitas.html", context)
 
 
 def _build_no_duplicado_context(
