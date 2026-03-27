@@ -491,6 +491,54 @@ INNER JOIN dbo.residentials r ON r.code = UPPER(LTRIM(RTRIM(u.username)))
 WHERE u.residential_id IS NULL;
 """
 
+PHASE5_VISITS_SQL = """
+IF OBJECT_ID(N'dbo.visit_activity_mappings', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.visit_activity_mappings (
+        mapping_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_visit_activity_mappings_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_activity_mappings_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_activity_mappings_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_visit_activity_mappings_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT FK_visit_activity_mappings_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_visit_activity_mappings_proposal_activity UNIQUE (proposal_id, activity_code_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.visit_reports (
+        report_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        report_month INT NOT NULL,
+        report_year INT NOT NULL,
+        notes VARCHAR(500) NULL,
+        created_by_user_id INT NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_reports_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_reports_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_visit_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_visit_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.visit_report_referrals', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.visit_report_referrals (
+        referral_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_id INT NOT NULL,
+        referral_type VARCHAR(20) NOT NULL,
+        description VARCHAR(500) NOT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_visit_report_referrals_sort_order DEFAULT 0,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_report_referrals_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_report_referrals_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_visit_report_referrals_reports FOREIGN KEY (report_id) REFERENCES dbo.visit_reports(report_id)
+    );
+END;
+"""
+
+
 PHASE4_VCA_SQL = """
 IF OBJECT_ID(N'dbo.vca_columns', N'U') IS NULL
 BEGIN
@@ -551,3 +599,4 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)
+        conn.exec_driver_sql(PHASE5_VISITS_SQL)
