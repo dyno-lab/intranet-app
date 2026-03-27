@@ -275,8 +275,33 @@ BEGIN
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_updated_at DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_school_grade_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT UQ_school_grade_reports_period UNIQUE (proposal_id, report_month, report_year)
+        CONSTRAINT UQ_school_grade_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
     );
+END;
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE [type] = 'UQ'
+      AND [name] = 'UQ_school_grade_reports_period'
+      AND [parent_object_id] = OBJECT_ID(N'dbo.school_grade_reports')
+)
+BEGIN
+    ALTER TABLE dbo.school_grade_reports
+    DROP CONSTRAINT UQ_school_grade_reports_period;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE [type] = 'UQ'
+      AND [name] = 'UQ_school_grade_reports_period_user'
+      AND [parent_object_id] = OBJECT_ID(N'dbo.school_grade_reports')
+)
+BEGIN
+    ALTER TABLE dbo.school_grade_reports
+    ADD CONSTRAINT UQ_school_grade_reports_period_user
+    UNIQUE (proposal_id, report_month, report_year, created_by_user_id);
 END;
 
 IF OBJECT_ID(N'dbo.school_grade_report_items', N'U') IS NULL

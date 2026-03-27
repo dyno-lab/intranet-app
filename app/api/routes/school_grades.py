@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -148,7 +149,7 @@ def create_school_grade_report(
     ).scalar_one_or_none()
     if existing:
         return RedirectResponse(
-            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe para esa propuesta, mes y año.",
+            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe tuyo para esa propuesta, mes y año.",
             status_code=303,
         )
 
@@ -160,7 +161,15 @@ def create_school_grade_report(
         created_by_user_id=current_user.user_id,
     )
     db.add(report)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return RedirectResponse(
+            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe tuyo para esa propuesta, mes y año.",
+            status_code=303,
+        )
 
     return RedirectResponse(
         f"/ui/school-grades/{report.report_id}?msg=Informe de notas creado exitosamente.",
