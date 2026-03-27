@@ -19,6 +19,7 @@ from app.models.proposal import Proposal
 from app.models.user import User
 from app.models.residential import Residential
 from app.models.activity_code import ActivityCode
+from app.models.employee import Employee
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.school_dropout_report import SchoolDropoutReport
