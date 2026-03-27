@@ -93,6 +93,17 @@
     <div style="max-width: 420px; margin: 0 auto;">
       <canvas id="notesGeneralPie"></canvas>
     </div>
+    <div class="row row-cols-2 row-cols-md-5 g-2 mt-3">
+      {% for segment in general_chart_segments %}
+      <div class="col">
+        <div class="border rounded p-2 text-center h-100">
+          <div class="fw-bold">{{ segment.label }}</div>
+          <div>{{ segment.value }}</div>
+          <div class="text-muted small">{{ '%.2f'|format(segment.percentage) }}%</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
@@ -132,12 +143,20 @@
 </div>
 
 <div class="row g-3">
-  {% for subject_name, subject_counts in subject_chart.items() %}
+  {% for subject_card in subject_chart_cards %}
   <div class="col-md-6 col-lg-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
-        <h6 class="text-center">{{ subject_name }}</h6>
+        <h6 class="text-center">{{ subject_card.subject_name }}</h6>
         <canvas id="subjectChart{{ loop.index }}"></canvas>
+        <div class="mt-3 small">
+          {% for segment in subject_card.segments %}
+          <div class="d-flex justify-content-between">
+            <span>{{ segment.label }}</span>
+            <span>{{ segment.value }} ({{ '%.2f'|format(segment.percentage) }}%)</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -148,6 +167,15 @@
 <script>
 (function () {
   const gradeColors = { A: '#198754', B: '#0dcaf0', C: '#ffc107', D: '#6c757d', F: '#dc3545' };
+  const noteLetters = ['A','B','C','D','F'];
+
+  function formatTooltip(context, totalResolver) {
+    const label = context.label || '';
+    const value = Number(context.raw || 0);
+    const total = Number(totalResolver(context) || 0);
+    const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+    return `${label}: ${value} (${percentage}%)`;
+  }
 
   new Chart(document.getElementById('notesGeneralPie'), {
     type: 'pie',
@@ -158,7 +186,17 @@
         backgroundColor: {{ pie_labels | map('string') | list | tojson }}.map(label => gradeColors[label])
       }]
     },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: (context) => formatTooltip(context, () => context.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0))
+          }
+        }
+      }
+    }
   });
 
   const residentialRows = {{ residential_chart_rows | tojson }};
@@ -166,7 +204,7 @@
     type: 'bar',
     data: {
       labels: residentialRows.map(r => r.residential_name),
-      datasets: ['A','B','C','D','F'].map(letter => ({
+      datasets: noteLetters.map(letter => ({
         label: letter,
         data: residentialRows.map(r => r[letter] || 0),
         backgroundColor: gradeColors[letter]
@@ -175,22 +213,39 @@
     options: {
       responsive: true,
       scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-      plugins: { legend: { position: 'bottom' } }
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: (context) => formatTooltip(context, () => residentialRows[context.dataIndex]?.total || 0)
+          }
+        }
+      }
     }
   });
 
-  const subjectCharts = {{ subject_chart | tojson }};
-  Object.entries(subjectCharts).forEach(([name, counts], idx) => {
+  const subjectCards = {{ subject_chart_cards | tojson }};
+  subjectCards.forEach((subjectCard, idx) => {
     new Chart(document.getElementById(`subjectChart${idx + 1}`), {
       type: 'pie',
       data: {
-        labels: ['A','B','C','D','F'],
+        labels: noteLetters,
         datasets: [{
-          data: ['A','B','C','D','F'].map(letter => counts[letter] || 0),
-          backgroundColor: ['A','B','C','D','F'].map(letter => gradeColors[letter])
+          data: noteLetters.map(letter => subjectCard.counts[letter] || 0),
+          backgroundColor: noteLetters.map(letter => gradeColors[letter])
         }]
       },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (context) => formatTooltip(context, () => context.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0))
+            }
+          }
+        }
+      }
     });
   });
 })();

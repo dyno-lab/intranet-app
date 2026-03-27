@@ -1079,6 +1079,20 @@ def _notes_age_bucket(age: int | None) -> str | None:
     return None
 
 
+def _build_percentage_breakdown(counts: dict[str, int], labels: list[str]) -> list[dict[str, float | int | str]]:
+    total = sum(int(counts.get(label, 0) or 0) for label in labels)
+    breakdown = []
+    for label in labels:
+        value = int(counts.get(label, 0) or 0)
+        percentage = round((value / total) * 100, 2) if total else 0.0
+        breakdown.append({
+            "label": label,
+            "value": value,
+            "percentage": percentage,
+        })
+    return breakdown
+
+
 def _build_notes_context(
     db: Session,
     current_user: User,
@@ -1120,6 +1134,8 @@ def _build_notes_context(
     }
     residential_name = None
     total_row = {letter: 0 for letter in note_letters} | {"Especial": 0, "K": 0, "TOTAL": 0}
+    general_chart_segments = []
+    subject_chart_cards = []
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
@@ -1202,10 +1218,28 @@ def _build_notes_context(
                     subject_chart[subject_name][subject_letter] += 1
 
         residential_chart_rows = [
-            {"residential_name": name, **counts, "total": sum(counts.values())}
+            {
+                "residential_name": name,
+                **counts,
+                "total": sum(counts.values()),
+                "breakdown": _build_percentage_breakdown(counts, note_letters),
+            }
             for name, counts in sorted(residential_summary.items())
         ]
         rows = [{"age_label": label, **table_rows[label]} for label in age_labels]
+
+    general_chart_segments = _build_percentage_breakdown(
+        {label: value for label, value in zip(pie_labels, pie_values)},
+        pie_labels,
+    )
+    subject_chart_cards = [
+        {
+            "subject_name": subject_name,
+            "counts": counts,
+            "segments": _build_percentage_breakdown(counts, note_letters),
+        }
+        for subject_name, counts in subject_chart.items()
+    ]
 
     return {
         **base_context,
@@ -1224,8 +1258,10 @@ def _build_notes_context(
         "total_row": total_row,
         "pie_labels": pie_labels,
         "pie_values": pie_values,
+        "general_chart_segments": general_chart_segments,
         "residential_chart_rows": residential_chart_rows,
         "subject_chart": subject_chart,
+        "subject_chart_cards": subject_chart_cards,
     }
 
 
