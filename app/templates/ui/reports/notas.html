@@ -164,8 +164,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
 (function () {
+  Chart.register(ChartDataLabels);
+
   const gradeColors = { A: '#198754', B: '#0dcaf0', C: '#ffc107', D: '#6c757d', F: '#dc3545' };
   const noteLetters = ['A','B','C','D','F'];
 
@@ -175,6 +178,23 @@
     const total = Number(totalResolver(context) || 0);
     const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
     return `${label}: ${value} (${percentage}%)`;
+  }
+
+  function percentageDataLabelFormatter(value, context) {
+    const numericValue = Number(value || 0);
+    if (!numericValue) {
+      return '';
+    }
+    const data = context.dataset.data || [];
+    const total = data.reduce((sum, item) => sum + Number(item || 0), 0);
+    if (!total) {
+      return '';
+    }
+    const percentage = (numericValue / total) * 100;
+    if (percentage < 4) {
+      return '';
+    }
+    return `${percentage.toFixed(1)}%`;
   }
 
   new Chart(document.getElementById('notesGeneralPie'), {
@@ -194,6 +214,16 @@
           callbacks: {
             label: (context) => formatTooltip(context, () => context.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0))
           }
+        },
+        datalabels: {
+          formatter: percentageDataLabelFormatter,
+          color: '#ffffff',
+          font: {
+            weight: 'bold',
+            size: 12
+          },
+          textStrokeColor: 'rgba(0, 0, 0, 0.35)',
+          textStrokeWidth: 2
         }
       }
     }
@@ -243,6 +273,16 @@
             callbacks: {
               label: (context) => formatTooltip(context, () => context.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0))
             }
+          },
+          datalabels: {
+            formatter: percentageDataLabelFormatter,
+            color: '#ffffff',
+            font: {
+              weight: 'bold',
+              size: 11
+            },
+            textStrokeColor: 'rgba(0, 0, 0, 0.35)',
+            textStrokeWidth: 2
           }
         }
       }
