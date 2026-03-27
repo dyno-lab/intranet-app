@@ -17,6 +17,7 @@ from app.models.proposal import Proposal
 from app.models.residential import Residential
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
+from app.models.visit_activity_mapping import VisitActivityMapping
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -257,6 +258,126 @@ def admin_edit_residential(
     db.commit()
 
     return RedirectResponse("/ui/admin/residentials?msg=Residencial actualizado exitosamente.", status_code=303)
+
+
+# ============================================================
+# VISITS MANAGEMENT
+# ============================================================
+
+@router.get("/visits", response_class=HTMLResponse)
+def admin_visits(
+    request: Request,
+    proposal_id: int | None = None,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    activities = []
+    mappings = []
+    assigned_activity_ids: set[int] = set()
+
+    if selected_proposal:
+        activities = db.execute(
+            select(ActivityCode)
+            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
+            .order_by(ActivityCode.code)
+        ).scalars().all()
+
+        mappings = db.execute(
+            select(VisitActivityMapping, ActivityCode)
+            .join(ActivityCode, ActivityCode.activity_code_id == VisitActivityMapping.activity_code_id)
+            .where(VisitActivityMapping.proposal_id == selected_proposal.proposal_id)
+            .order_by(ActivityCode.code)
+        ).all()
+        assigned_activity_ids = {activity.activity_code_id for _, activity in mappings}
+
+    return templates.TemplateResponse(
+        "ui/admin/visits.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "selected_proposal": selected_proposal,
+            "activities": activities,
+            "mappings": mappings,
+            "assigned_activity_ids": assigned_activity_ids,
+        },
+    )
+
+
+@router.post("/visits/mappings/create")
+def admin_create_visit_mapping(
+    proposal_id: int = Form(...),
+    activity_code_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    activity = db.get(ActivityCode, activity_code_id)
+
+    if not proposal or not activity:
+        return RedirectResponse(
+            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Propuesta o actividad no encontrada.",
+            status_code=303,
+        )
+
+    if activity.proposal_id != proposal_id:
+        return RedirectResponse(
+            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: La actividad no pertenece a la propuesta seleccionada.",
+            status_code=303,
+        )
+
+    existing = db.execute(
+        select(VisitActivityMapping).where(
+            VisitActivityMapping.proposal_id == proposal_id,
+            VisitActivityMapping.activity_code_id == activity_code_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse(
+            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Esa actividad ya está marcada como visita.",
+            status_code=303,
+        )
+
+    mapping = VisitActivityMapping(
+        proposal_id=proposal_id,
+        activity_code_id=activity_code_id,
+        is_active=True,
+    )
+    db.add(mapping)
+    db.commit()
+
+    return RedirectResponse(
+        f"/ui/admin/visits?proposal_id={proposal_id}&msg=Actividad de visita agregada exitosamente.",
+        status_code=303,
+    )
+
+
+@router.post("/visits/mappings/{mapping_id}/delete")
+def admin_delete_visit_mapping(
+    mapping_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    mapping = db.get(VisitActivityMapping, mapping_id)
+    if not mapping:
+        return RedirectResponse(
+            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Configuración no encontrada.",
+            status_code=303,
+        )
+
+    db.delete(mapping)
+    db.commit()
+
+    return RedirectResponse(
+        f"/ui/admin/visits?proposal_id={proposal_id}&msg=Actividad de visita eliminada exitosamente.",
+        status_code=303,
+    )
 
 
 # ============================================================
