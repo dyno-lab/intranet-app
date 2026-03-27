@@ -1446,12 +1446,24 @@ def notes_report_pdf(
     current_user: User = Depends(get_current_user),
 ):
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    subject_chart_image_list = [img for img in (subject_chart_images or "").split("||") if img]
+    subject_chart_sections = [
+        {
+            "subject_name": subject_card["subject_name"],
+            "image": subject_chart_image_list[index] if index < len(subject_chart_image_list) else "",
+            "counts": subject_card["counts"],
+            "segments": subject_card["segments"],
+        }
+        for index, subject_card in enumerate(context["subject_chart_cards"])
+    ]
+
     context.update({
         "request": request,
         "current_user": current_user,
         "general_chart_image": general_chart_image or "",
         "residential_chart_image": residential_chart_image or "",
-        "subject_chart_images": [img for img in (subject_chart_images or "").split("||") if img],
+        "subject_chart_images": subject_chart_image_list,
+        "subject_chart_sections": subject_chart_sections,
     })
     return templates.TemplateResponse("ui/reports/notas_pdf.html", context)
 
