@@ -529,12 +529,23 @@ BEGIN
         referral_id INT IDENTITY(1,1) PRIMARY KEY,
         report_id INT NOT NULL,
         referral_type VARCHAR(20) NOT NULL,
-        description VARCHAR(500) NOT NULL,
+        agency VARCHAR(255) NULL,
+        reference_or_purpose VARCHAR(500) NULL,
         sort_order INT NOT NULL CONSTRAINT DF_visit_report_referrals_sort_order DEFAULT 0,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_report_referrals_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_report_referrals_updated_at DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_visit_report_referrals_reports FOREIGN KEY (report_id) REFERENCES dbo.visit_reports(report_id)
     );
+END;
+
+IF COL_LENGTH('dbo.visit_report_referrals', 'agency') IS NULL
+BEGIN
+    ALTER TABLE dbo.visit_report_referrals ADD agency VARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.visit_report_referrals', 'reference_or_purpose') IS NULL
+BEGIN
+    ALTER TABLE dbo.visit_report_referrals ADD reference_or_purpose VARCHAR(500) NULL;
 END;
 """
 

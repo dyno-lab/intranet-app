@@ -29,6 +29,8 @@ from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.visit_activity_mapping import VisitActivityMapping
+from app.models.visit_report import VisitReport
+from app.models.visit_report_referral import VisitReportReferral
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -1331,6 +1333,9 @@ def _build_visits_context(
     rows = []
     summary = {"visits": 0, "attendances": 0, "hours": 0.0}
     mapped_activity_ids: list[int] = []
+    visit_report = None
+    referral_rows = []
+    referral_count = 0
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         mapped_activity_ids = db.execute(
@@ -1345,6 +1350,31 @@ def _build_visits_context(
             residential_name = "Global"
         else:
             residential_name = _residential_from_user(selected_user)
+
+        report_owner_user_id = None if is_global else selected_user.user_id
+        visit_report = db.execute(
+            select(VisitReport).where(
+                VisitReport.proposal_id == proposal_id,
+                VisitReport.report_month == period["month"],
+                VisitReport.report_year == period["year"],
+                VisitReport.created_by_user_id == report_owner_user_id,
+            )
+        ).scalar_one_or_none()
+        if visit_report:
+            referrals = db.execute(
+                select(VisitReportReferral)
+                .where(VisitReportReferral.report_id == visit_report.report_id)
+                .order_by(VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+            ).scalars().all()
+            referral_rows = [
+                {
+                    "referral_type": referral.referral_type,
+                    "agency": referral.agency or "",
+                    "reference_or_purpose": referral.reference_or_purpose or "",
+                }
+                for referral in referrals
+            ]
+            referral_count = len(referral_rows)
 
         if mapped_activity_ids:
             session_stmt = (
@@ -1422,6 +1452,10 @@ def _build_visits_context(
         "summary": summary,
         "mapped_activity_ids": mapped_activity_ids,
         "authorized_name": authorized_name or "",
+        "visit_report": visit_report,
+        "referral_rows": referral_rows,
+        "referral_count": referral_count,
+        "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
     }
 
 
@@ -1433,6 +1467,7 @@ def visits_report(
     year: str | None = None,
     employee_id: int | None = None,
     authorized_name: str | None = None,
+    msg: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -1440,8 +1475,91 @@ def visits_report(
     current_user: User = Depends(get_current_user),
 ):
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"request": request, "current_user": current_user})
+    context.update({"request": request, "current_user": current_user, "msg": msg})
     return templates.TemplateResponse("ui/reports/visitas.html", context)
+
+
+@router.post("/visitas/referrals/save")
+async def visits_report_save_referrals(
+    request: Request,
+    proposal_id: int = Form(...),
+    month: int = Form(...),
+    year: int = Form(...),
+    employee_id: int | None = Form(default=None),
+    authorized_name: str | None = Form(default=None),
+    referral_count: int = Form(default=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    period_month = month
+    period_year = year
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    if not proposal_id or not period_month or not period_year or not (selected_user or is_global):
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar propuesta, periodo y residencial.", status_code=303)
+
+    report_owner_user_id = None if is_global else selected_user.user_id
+    visit_report = db.execute(
+        select(VisitReport).where(
+            VisitReport.proposal_id == proposal_id,
+            VisitReport.report_month == period_month,
+            VisitReport.report_year == period_year,
+            VisitReport.created_by_user_id == report_owner_user_id,
+        )
+    ).scalar_one_or_none()
+
+    if not visit_report:
+        visit_report = VisitReport(
+            proposal_id=proposal_id,
+            report_month=period_month,
+            report_year=period_year,
+            created_by_user_id=report_owner_user_id,
+        )
+        db.add(visit_report)
+        db.flush()
+
+    existing_referrals = db.execute(
+        select(VisitReportReferral).where(VisitReportReferral.report_id == visit_report.report_id)
+    ).scalars().all()
+    for referral in existing_referrals:
+        db.delete(referral)
+    db.flush()
+
+    form_data = await request.form()
+    referral_total = max(0, referral_count)
+    for idx in range(referral_total):
+        referral_type = (form_data.get(f"referral_type_{idx}") or "").strip()
+        agency = (form_data.get(f"agency_{idx}") or "").strip()
+        reference_or_purpose = (form_data.get(f"reference_or_purpose_{idx}") or "").strip()
+
+        if not referral_type and not agency and not reference_or_purpose:
+            continue
+
+        referral = VisitReportReferral(
+            report_id=visit_report.report_id,
+            referral_type=referral_type or "Externo",
+            agency=agency or None,
+            reference_or_purpose=reference_or_purpose or None,
+            sort_order=idx,
+        )
+        db.add(referral)
+
+    db.commit()
+
+    return RedirectResponse(
+        f"/ui/reports/visitas?proposal_id={proposal_id}&month={period_month}&year={period_year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Referidos guardados exitosamente.",
+        status_code=303,
+    )
 
 
 @router.get("/visitas/pdf", response_class=HTMLResponse)
