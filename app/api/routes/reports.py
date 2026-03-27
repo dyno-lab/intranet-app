@@ -545,6 +545,16 @@ def reports_run(
         )
 
     if report_key == "notas":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/notas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/notas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/notas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
@@ -1241,6 +1251,11 @@ def _build_notes_context(
         for subject_name, counts in subject_chart.items()
     ]
 
+    proposal_label = next(
+        (f"{proposal.code} - {proposal.name}" for proposal in base_context["proposals"] if proposal.proposal_id == proposal_id),
+        "",
+    )
+
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
@@ -1250,6 +1265,7 @@ def _build_notes_context(
         "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
         "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
         "period_label": _describe_period(period, month_lookup),
+        "proposal_label": proposal_label,
         "selected_employee_id": employee_id,
         "selected_user": selected_user,
         "is_global": is_global,
@@ -1411,6 +1427,159 @@ def notes_report(
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/notas.html", context)
+
+
+@router.get("/notas/pdf", response_class=HTMLResponse)
+def notes_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/notas_pdf.html", context)
+
+
+@router.get("/notas/excel")
+def notes_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/notas", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Notas"
+    ws.freeze_panes = "A6"
+
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Notas"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = context["proposal_label"]
+    ws["D3"] = "Periodo"
+    ws["E3"] = context["period_label"]
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["D4"] = "Total evaluados"
+    ws["E4"] = context["total_row"]["TOTAL"]
+
+    summary_headers = ["Nota", "Cantidad", "%"]
+    summary_row = 6
+    for col_index, header in enumerate(summary_headers, start=1):
+        cell = ws.cell(row=summary_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index = summary_row + 1
+    for segment in context["general_chart_segments"]:
+        ws.cell(row=row_index, column=1, value=segment["label"])
+        ws.cell(row=row_index, column=2, value=segment["value"])
+        pct_cell = ws.cell(row=row_index, column=3, value=segment["percentage"] / 100)
+        pct_cell.number_format = "0.00%"
+        row_index += 1
+
+    row_index += 1
+    table_header_row = row_index
+    headers = ["Edad", "A", "B", "C", "D", "F", "Especial", "K", "TOTAL"]
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=table_header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index = table_header_row + 1
+    for row in context["rows"]:
+        values = [row["age_label"], row["A"], row["B"], row["C"], row["D"], row["F"], row["Especial"], row["K"], row["TOTAL"]]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+
+    total_values = ["TOTALES", context["total_row"]["A"], context["total_row"]["B"], context["total_row"]["C"], context["total_row"]["D"], context["total_row"]["F"], context["total_row"]["Especial"], context["total_row"]["K"], context["total_row"]["TOTAL"]]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index += 2
+    residential_header_row = row_index
+    residential_headers = ["Residencial", "A", "B", "C", "D", "F", "TOTAL"]
+    for col_index, header in enumerate(residential_headers, start=1):
+        cell = ws.cell(row=residential_header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index = residential_header_row + 1
+    for residential_row in context["residential_chart_rows"]:
+        values = [
+            residential_row["residential_name"],
+            residential_row["A"],
+            residential_row["B"],
+            residential_row["C"],
+            residential_row["D"],
+            residential_row["F"],
+            residential_row["total"],
+        ]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+
+    row_index += 2
+    subject_header_row = row_index
+    subject_headers = ["Materia", "A", "B", "C", "D", "F"]
+    for col_index, header in enumerate(subject_headers, start=1):
+        cell = ws.cell(row=subject_header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index = subject_header_row + 1
+    for subject_card in context["subject_chart_cards"]:
+        values = [
+            subject_card["subject_name"],
+            subject_card["counts"]["A"],
+            subject_card["counts"]["B"],
+            subject_card["counts"]["C"],
+            subject_card["counts"]["D"],
+            subject_card["counts"]["F"],
+        ]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+
+    widths = {"A": 24, "B": 16, "C": 12, "D": 16, "E": 16, "F": 12, "G": 12, "H": 12, "I": 12}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "notas").replace(" ", "_")
+    filename = f"notas_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/embarazo", response_class=HTMLResponse)

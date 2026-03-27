@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Notas PDF</title>
+  <style>
+    @page { size: letter landscape; margin: 0.35in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .header img { max-width: 200px; max-height: 80px; width: auto; display: block; margin: 0 auto 8px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 11px; margin: 8px 0 10px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 10px; }
+    .meta-row div { width: 33%; }
+    h3 { margin: 12px 0 6px 0; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.8px; margin-bottom: 10px; }
+    th, td { border: 1px solid #333; padding: 3px 4px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    td.left { text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/logo-centros-isolina.png" alt="Logo Centros Sor Isolina Ferré">
+      <div class="title">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">INFORME DE NOTAS</div>
+      <div class="subtitle">Resumen por residencial y materia</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Propuesta:</strong> {{ proposal_label }}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      </div>
+    </div>
+
+    <h3>Resumen general</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Nota</th>
+          <th>Cantidad</th>
+          <th>%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for segment in general_chart_segments %}
+        <tr>
+          <td class="center">{{ segment.label }}</td>
+          <td class="center">{{ segment.value }}</td>
+          <td class="center">{{ '%.2f'|format(segment.percentage) }}%</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td class="left"><strong>Total evaluados</strong></td>
+          <td class="center"><strong>{{ total_row.TOTAL }}</strong></td>
+          <td class="center"><strong>100.00%</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Promedio obtenido por edad</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Edad</th>
+          <th>A</th>
+          <th>B</th>
+          <th>C</th>
+          <th>D</th>
+          <th>F</th>
+          <th>Especial</th>
+          <th>K</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="left">{{ row.age_label }}</td>
+          <td class="center">{{ row.A }}</td>
+          <td class="center">{{ row.B }}</td>
+          <td class="center">{{ row.C }}</td>
+          <td class="center">{{ row.D }}</td>
+          <td class="center">{{ row.F }}</td>
+          <td class="center">{{ row.Especial }}</td>
+          <td class="center">{{ row.K }}</td>
+          <td class="center">{{ row.TOTAL }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="left"><strong>TOTALES</strong></td>
+          <td class="center"><strong>{{ total_row.A }}</strong></td>
+          <td class="center"><strong>{{ total_row.B }}</strong></td>
+          <td class="center"><strong>{{ total_row.C }}</strong></td>
+          <td class="center"><strong>{{ total_row.D }}</strong></td>
+          <td class="center"><strong>{{ total_row.F }}</strong></td>
+          <td class="center"><strong>{{ total_row.Especial }}</strong></td>
+          <td class="center"><strong>{{ total_row.K }}</strong></td>
+          <td class="center"><strong>{{ total_row.TOTAL }}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <h3>Notas académicas por residencial</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Residencial</th>
+          <th>A</th>
+          <th>B</th>
+          <th>C</th>
+          <th>D</th>
+          <th>F</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in residential_chart_rows %}
+        <tr>
+          <td class="left">{{ row.residential_name }}</td>
+          <td class="center">{{ row.A }}</td>
+          <td class="center">{{ row.B }}</td>
+          <td class="center">{{ row.C }}</td>
+          <td class="center">{{ row.D }}</td>
+          <td class="center">{{ row.F }}</td>
+          <td class="center">{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+        {% if residential_chart_rows|length == 0 %}
+        <tr>
+          <td colspan="7" class="center">No hay datos por residencial para los criterios seleccionados.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    <h3>Notas por materia</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Materia</th>
+          <th>A</th>
+          <th>B</th>
+          <th>C</th>
+          <th>D</th>
+          <th>F</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for subject_card in subject_chart_cards %}
+        <tr>
+          <td class="left">{{ subject_card.subject_name }}</td>
+          <td class="center">{{ subject_card.counts.A }}</td>
+          <td class="center">{{ subject_card.counts.B }}</td>
+          <td class="center">{{ subject_card.counts.C }}</td>
+          <td class="center">{{ subject_card.counts.D }}</td>
+          <td class="center">{{ subject_card.counts.F }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
