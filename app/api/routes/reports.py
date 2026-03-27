@@ -1317,6 +1317,7 @@ def _build_visits_context(
     period = _build_period_filter(period_type, month, year, start_date, end_date)
     base_context = _base_reports_context(db, current_user)
     month_lookup = base_context["month_lookup"]
+    user_residential_map = base_context["user_residential_map"]
 
     selected_user = None
     is_global = False
