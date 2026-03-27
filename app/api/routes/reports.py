@@ -1351,30 +1351,55 @@ def _build_visits_context(
         else:
             residential_name = _residential_from_user(selected_user)
 
-        report_owner_user_id = None if is_global else selected_user.user_id
-        visit_report = db.execute(
-            select(VisitReport).where(
-                VisitReport.proposal_id == proposal_id,
-                VisitReport.report_month == period["month"],
-                VisitReport.report_year == period["year"],
-                VisitReport.created_by_user_id == report_owner_user_id,
-            )
-        ).scalar_one_or_none()
-        if visit_report:
-            referrals = db.execute(
-                select(VisitReportReferral)
-                .where(VisitReportReferral.report_id == visit_report.report_id)
-                .order_by(VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+        if is_global:
+            visit_reports = db.execute(
+                select(VisitReport).where(
+                    VisitReport.proposal_id == proposal_id,
+                    VisitReport.report_month == period["month"],
+                    VisitReport.report_year == period["year"],
+                )
             ).scalars().all()
-            referral_rows = [
-                {
-                    "referral_type": referral.referral_type,
-                    "agency": referral.agency or "",
-                    "reference_or_purpose": referral.reference_or_purpose or "",
-                }
-                for referral in referrals
-            ]
-            referral_count = len(referral_rows)
+            report_ids = [report.report_id for report in visit_reports]
+            if report_ids:
+                referrals = db.execute(
+                    select(VisitReportReferral)
+                    .where(VisitReportReferral.report_id.in_(report_ids))
+                    .order_by(VisitReportReferral.report_id, VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+                ).scalars().all()
+                referral_rows = [
+                    {
+                        "referral_type": referral.referral_type,
+                        "agency": referral.agency or "",
+                        "reference_or_purpose": referral.reference_or_purpose or "",
+                    }
+                    for referral in referrals
+                ]
+                referral_count = len(referral_rows)
+        else:
+            report_owner_user_id = selected_user.user_id
+            visit_report = db.execute(
+                select(VisitReport).where(
+                    VisitReport.proposal_id == proposal_id,
+                    VisitReport.report_month == period["month"],
+                    VisitReport.report_year == period["year"],
+                    VisitReport.created_by_user_id == report_owner_user_id,
+                )
+            ).scalar_one_or_none()
+            if visit_report:
+                referrals = db.execute(
+                    select(VisitReportReferral)
+                    .where(VisitReportReferral.report_id == visit_report.report_id)
+                    .order_by(VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+                ).scalars().all()
+                referral_rows = [
+                    {
+                        "referral_type": referral.referral_type,
+                        "agency": referral.agency or "",
+                        "reference_or_purpose": referral.reference_or_purpose or "",
+                    }
+                    for referral in referrals
+                ]
+                referral_count = len(referral_rows)
 
         if mapped_activity_ids:
             session_stmt = (
@@ -1435,9 +1460,6 @@ def _build_visits_context(
                 "hours": round(sum(row["hours"] for row in rows), 2),
             }
 
-    referral_pages = [referral_rows[i:i + 8] for i in range(0, len(referral_rows), 8)] if referral_rows else []
-    employee_pages = [rows[i:i + 18] for i in range(0, len(rows), 18)] if rows else [[]]
-
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
@@ -1457,8 +1479,6 @@ def _build_visits_context(
         "authorized_name": authorized_name or "",
         "visit_report": visit_report,
         "referral_rows": referral_rows,
-        "referral_pages": referral_pages,
-        "employee_pages": employee_pages,
         "referral_count": referral_count,
         "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
     }
@@ -1565,6 +1585,70 @@ async def visits_report_save_referrals(
 
     return RedirectResponse(
         f"/ui/reports/visitas?proposal_id={proposal_id}&month={period_month}&year={period_year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Referidos guardados exitosamente.",
+        status_code=303,
+    )
+
+
+@router.post("/visitas/delete")
+def visits_report_delete(
+    proposal_id: int = Form(...),
+    month: int = Form(...),
+    year: int = Form(...),
+    employee_id: int | None = Form(default=None),
+    authorized_name: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    if not proposal_id or not month or not year or not (selected_user or is_global):
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Contexto inválido para eliminar informe.", status_code=303)
+
+    if is_global:
+        reports = db.execute(
+            select(VisitReport).where(
+                VisitReport.proposal_id == proposal_id,
+                VisitReport.report_month == month,
+                VisitReport.report_year == year,
+            )
+        ).scalars().all()
+    else:
+        reports = db.execute(
+            select(VisitReport).where(
+                VisitReport.proposal_id == proposal_id,
+                VisitReport.report_month == month,
+                VisitReport.report_year == year,
+                VisitReport.created_by_user_id == selected_user.user_id,
+            )
+        ).scalars().all()
+
+    if not reports:
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Error: No se encontró el informe para eliminar.",
+            status_code=303,
+        )
+
+    report_ids = [report.report_id for report in reports]
+    referrals = db.execute(
+        select(VisitReportReferral).where(VisitReportReferral.report_id.in_(report_ids))
+    ).scalars().all()
+    for referral in referrals:
+        db.delete(referral)
+    for report in reports:
+        db.delete(report)
+    db.commit()
+
+    return RedirectResponse(
+        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Informe de visitas eliminado exitosamente.",
         status_code=303,
     )
 

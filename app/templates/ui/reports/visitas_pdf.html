@@ -4,180 +4,129 @@
   <meta charset="utf-8">
   <title>Visitas PDF</title>
   <style>
-    @page { size: letter portrait; margin: 0.35in; }
-    body { font-family: Arial, sans-serif; color: #111; }
-    .page { page-break-after: always; min-height: 10in; position: relative; display: flex; flex-direction: column; }
-    .page:last-child { page-break-after: auto; }
-    .header { text-align: center; margin-bottom: 8px; }
-    .header img.top-logo { max-width: 700px; max-height: 95px; width: 100%; display: block; margin: 0 auto 8px auto; object-fit: contain; }
-    .title { font-weight: 700; font-size: 14px; text-align: center; margin-bottom: 3px; }
-    .subtitle { font-size: 10px; color: #444; line-height: 1.2; text-align: center; }
-    .meta { font-size: 10px; margin: 8px 0 8px 0; }
-    .meta-row { display: flex; justify-content: space-between; gap: 10px; }
+    @page { size: letter portrait; margin: 0.3in; }
+    body { font-family: Arial, sans-serif; color: #111; margin: 0; }
+    .page { min-height: 10in; display: flex; flex-direction: column; }
+    .header { text-align: center; margin-bottom: 6px; }
+    .header img.top-logo { max-width: 620px; max-height: 78px; width: 100%; display: block; margin: 0 auto 6px auto; object-fit: contain; }
+    .title { font-weight: 700; font-size: 13px; text-align: center; margin-bottom: 2px; }
+    .subtitle { font-size: 9px; color: #444; line-height: 1.15; text-align: center; }
+    .meta { font-size: 9px; margin: 6px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 8px; }
     .meta-row div { width: 33%; }
-    .summary { font-size: 10px; margin-bottom: 8px; }
-    .summary-row { display: flex; gap: 10px; }
+    .summary { font-size: 9px; margin-bottom: 6px; }
+    .summary-row { display: flex; gap: 8px; }
     .summary-row div { width: 25%; }
-    .authorized { margin: 8px 0 10px 0; font-size: 10px; }
-    .signature-line { margin-top: 18px; width: 230px; border-top: 1px solid #111; padding-top: 4px; }
-    .content-block { page-break-inside: avoid; break-inside: avoid; }
-    .referrals { margin: 8px 0 10px 0; font-size: 9.5px; }
-    .referrals h4 { font-size: 10px; margin: 0 0 5px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 8px; }
-    th, td { border: 1px solid #333; padding: 3px 4px; }
+    .section { margin: 6px 0; page-break-inside: avoid; break-inside: avoid; }
+    .section h4 { font-size: 9px; margin: 0 0 4px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 7.4px; }
+    th, td { border: 1px solid #333; padding: 2px 3px; }
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
     td.left { text-align: left; }
     tfoot td { font-weight: 700; }
-    .page-footer { margin-top: auto; padding-top: 12px; }
-    .footer-logo { text-align: left; margin-top: 16px; }
-    .footer-logo img { max-width: 210px; max-height: 60px; width: auto; object-fit: contain; }
-    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 6px; }
+    .page-footer { margin-top: auto; padding-top: 10px; page-break-inside: avoid; break-inside: avoid; }
+    .authorized { font-size: 9px; margin-bottom: 8px; }
+    .signature-line { margin-top: 14px; width: 210px; border-top: 1px solid #111; padding-top: 3px; }
+    .footer-logo { text-align: left; margin-top: 10px; }
+    .footer-logo img { max-width: 185px; max-height: 50px; width: auto; object-fit: contain; }
   </style>
 </head>
 <body>
-  {% set ns = namespace(page_no=0) %}
+  <div class="page">
+    <div class="header">
+      <img class="top-logo" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
+      <div class="title">REPORTE DE VISITAS</div>
+      <div class="subtitle">Resumen por empleado</div>
+    </div>
 
-  {% if referral_pages %}
-    {% for referral_page in referral_pages %}
-      {% set ns.page_no = ns.page_no + 1 %}
-      <div class="page">
-        <div>
-          <div class="header">
-            <img class="top-logo" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
-            <div class="title">REPORTE DE VISITAS</div>
-            <div class="subtitle">Resumen por empleado</div>
-          </div>
-
-          <div class="meta">
-            <div class="meta-row">
-              <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
-              <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
-              <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-            </div>
-          </div>
-
-          <div class="summary">
-            <div class="summary-row">
-              <div><strong>Visitas:</strong> {{ summary.visits }}</div>
-              <div><strong>Asistencias:</strong> {{ summary.attendances }}</div>
-              <div><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
-            </div>
-          </div>
-
-          <div class="content-block referrals">
-            <h4>Referidos y visitas agencias</h4>
-            <table>
-              <thead>
-                <tr>
-                  <th>Tipo referido</th>
-                  <th>Agencia</th>
-                  <th>Número de referido o propósito</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for referral in referral_page %}
-                <tr>
-                  <td class="center">{{ referral.referral_type }}</td>
-                  <td class="left">{{ referral.agency }}</td>
-                  <td class="left">{{ referral.reference_or_purpose }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="page-footer">
-          <div class="authorized">
-            <strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}
-            <div class="signature-line">Firma</div>
-          </div>
-          <div class="footer-logo">
-            <img src="/static/img/logo-faro-esperanza.png" alt="Logo Faro de Esperanza">
-          </div>
-          <div class="page-number">Página {{ ns.page_no }}</div>
-        </div>
-      </div>
-    {% endfor %}
-  {% endif %}
-
-  {% for employee_page in employee_pages %}
-    {% set ns.page_no = ns.page_no + 1 %}
-    <div class="page">
-      <div>
-        <div class="header">
-          <img class="top-logo" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
-          <div class="title">REPORTE DE VISITAS</div>
-          <div class="subtitle">Resumen por empleado</div>
-        </div>
-
-        <div class="meta">
-          <div class="meta-row">
-            <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
-            <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
-            <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-          </div>
-        </div>
-
-        <div class="summary">
-          <div class="summary-row">
-            <div><strong>Visitas:</strong> {{ summary.visits }}</div>
-            <div><strong>Asistencias:</strong> {{ summary.attendances }}</div>
-            <div><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
-          </div>
-        </div>
-
-        <div class="content-block">
-          <table>
-            <thead>
-              <tr>
-                <th>Empleado</th>
-                <th>Visitas registradas</th>
-                <th>Asistencias acumuladas</th>
-                <th>Horas acumuladas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in employee_page %}
-              <tr>
-                <td class="left">{{ row.employee_name }}</td>
-                <td class="center">{{ row.visits }}</td>
-                <td class="center">{{ row.attendances }}</td>
-                <td class="center">{{ '%.2f'|format(row.hours) }}</td>
-              </tr>
-              {% endfor %}
-              {% if employee_page|length == 0 %}
-              <tr>
-                <td colspan="4" class="center">No hay visitas registradas para los criterios seleccionados.</td>
-              </tr>
-              {% endif %}
-            </tbody>
-            {% if loop.last and rows|length > 0 %}
-            <tfoot>
-              <tr>
-                <td class="left">TOTALES</td>
-                <td class="center">{{ summary.visits }}</td>
-                <td class="center">{{ summary.attendances }}</td>
-                <td class="center">{{ '%.2f'|format(summary.hours) }}</td>
-              </tr>
-            </tfoot>
-            {% endif %}
-          </table>
-        </div>
-      </div>
-
-      <div class="page-footer">
-        <div class="authorized">
-          <strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}
-          <div class="signature-line">Firma</div>
-        </div>
-        <div class="footer-logo">
-          <img src="/static/img/logo-faro-esperanza.png" alt="Logo Faro de Esperanza">
-        </div>
-        <div class="page-number">Página {{ ns.page_no }}</div>
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
       </div>
     </div>
-  {% endfor %}
+
+    <div class="summary">
+      <div class="summary-row">
+        <div><strong>Visitas:</strong> {{ summary.visits }}</div>
+        <div><strong>Asistencias:</strong> {{ summary.attendances }}</div>
+        <div><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
+      </div>
+    </div>
+
+    {% if referral_rows %}
+    <div class="section referrals">
+      <h4>Referidos y visitas agencias</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo referido</th>
+            <th>Agencia</th>
+            <th>Número de referido o propósito</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for referral in referral_rows %}
+          <tr>
+            <td class="center">{{ referral.referral_type }}</td>
+            <td class="left">{{ referral.agency }}</td>
+            <td class="left">{{ referral.reference_or_purpose }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th>Empleado</th>
+            <th>Visitas registradas</th>
+            <th>Asistencias acumuladas</th>
+            <th>Horas acumuladas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="left">{{ row.employee_name }}</td>
+            <td class="center">{{ row.visits }}</td>
+            <td class="center">{{ row.attendances }}</td>
+            <td class="center">{{ '%.2f'|format(row.hours) }}</td>
+          </tr>
+          {% endfor %}
+          {% if rows|length == 0 %}
+          <tr>
+            <td colspan="4" class="center">No hay visitas registradas para los criterios seleccionados.</td>
+          </tr>
+          {% endif %}
+        </tbody>
+        {% if rows|length > 0 %}
+        <tfoot>
+          <tr>
+            <td class="left">TOTALES</td>
+            <td class="center">{{ summary.visits }}</td>
+            <td class="center">{{ summary.attendances }}</td>
+            <td class="center">{{ '%.2f'|format(summary.hours) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+
+    <div class="page-footer">
+      <div class="authorized">
+        <strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}
+        <div class="signature-line">Firma</div>
+      </div>
+      <div class="footer-logo">
+        <img src="/static/img/logo-faro-esperanza.png" alt="Logo Faro de Esperanza">
+      </div>
+    </div>
+  </div>
 </body>
 </html>
