@@ -566,16 +566,16 @@ def reports_run(
     if report_key == "visitas":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/visitas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/visitas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/visitas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/visitas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
@@ -1307,6 +1307,7 @@ def _build_visits_context(
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
+    authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: date | str | None = None,
     end_date: date | str | None = None,
@@ -1420,6 +1421,7 @@ def _build_visits_context(
         "rows": rows,
         "summary": summary,
         "mapped_activity_ids": mapped_activity_ids,
+        "authorized_name": authorized_name or "",
     }
 
 
@@ -1430,13 +1432,14 @@ def visits_report(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/visitas.html", context)
 
@@ -1448,13 +1451,14 @@ def visits_report_pdf(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/visitas_pdf.html", context)
 
@@ -1465,13 +1469,14 @@ def visits_report_excel(
     month: str | None = None,
     year: str | None = None,
     employee_id: int | None = None,
+    authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/visitas", status_code=303)
 

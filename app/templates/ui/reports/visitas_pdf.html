@@ -8,15 +8,18 @@
     body { font-family: Arial, sans-serif; color: #111; }
     .page { page-break-after: auto; }
     .header { text-align: center; margin-bottom: 10px; }
-    .header img { max-width: 200px; max-height: 80px; width: auto; display: block; margin: 0 auto 8px auto; object-fit: contain; }
-    .header .title { font-weight: 700; font-size: 15px; }
-    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
-    .meta { font-size: 11px; margin: 8px 0 10px 0; }
+    .header img.top-logo { max-width: 720px; max-height: 110px; width: 100%; display: block; margin: 0 auto 10px auto; object-fit: contain; }
+    .footer-logo { text-align: center; margin-top: 18px; }
+    .footer-logo img { max-width: 220px; max-height: 70px; width: auto; object-fit: contain; }
+    .title { font-weight: 700; font-size: 15px; text-align: center; margin-bottom: 4px; }
+    .subtitle { font-size: 11px; color: #444; line-height: 1.2; text-align: center; }
+    .meta { font-size: 11px; margin: 12px 0 10px 0; }
     .meta-row { display: flex; justify-content: space-between; gap: 10px; }
     .meta-row div { width: 33%; }
     .summary { font-size: 11px; margin-bottom: 10px; }
     .summary-row { display: flex; gap: 10px; }
     .summary-row div { width: 25%; }
+    .authorized { margin: 14px 0 12px 0; font-size: 11px; }
     table { width: 100%; border-collapse: collapse; font-size: 8.8px; }
     th, td { border: 1px solid #333; padding: 4px 5px; }
     th { background: #f2f2f2; text-align: center; }
@@ -28,9 +31,8 @@
 <body>
   <div class="page">
     <div class="header">
-      <img src="/static/img/logo-centros-isolina.png" alt="Logo Centros Sor Isolina Ferré">
-      <div class="title">CENTROS SOR ISOLINA FERRÉ</div>
-      <div class="subtitle" style="font-weight:700; color:#111;">REPORTE DE VISITAS</div>
+      <img class="top-logo" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
+      <div class="title">REPORTE DE VISITAS</div>
       <div class="subtitle">Resumen por empleado</div>
     </div>
 
@@ -48,6 +50,10 @@
         <div><strong>Asistencias:</strong> {{ summary.attendances }}</div>
         <div><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
       </div>
+    </div>
+
+    <div class="authorized">
+      <strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}
     </div>
 
     <table>
@@ -85,6 +91,10 @@
       </tfoot>
       {% endif %}
     </table>
+
+    <div class="footer-logo">
+      <img src="/static/img/logo-faro-esperanza.png" alt="Logo Faro de Esperanza">
+    </div>
   </div>
 </body>
 </html>
