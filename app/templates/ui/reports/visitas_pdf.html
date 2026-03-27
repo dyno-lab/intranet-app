@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Visitas PDF</title>
+  <style>
+    @page { size: letter landscape; margin: 0.35in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .header img { max-width: 200px; max-height: 80px; width: auto; display: block; margin: 0 auto 8px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 11px; margin: 8px 0 10px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 10px; }
+    .meta-row div { width: 33%; }
+    .summary { font-size: 11px; margin-bottom: 10px; }
+    .summary-row { display: flex; gap: 10px; }
+    .summary-row div { width: 25%; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.8px; }
+    th, td { border: 1px solid #333; padding: 4px 5px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    td.left { text-align: left; }
+    tfoot td { font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/logo-centros-isolina.png" alt="Logo Centros Sor Isolina Ferré">
+      <div class="title">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">REPORTE DE VISITAS</div>
+      <div class="subtitle">Resumen por empleado</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-row">
+        <div><strong>Visitas:</strong> {{ summary.visits }}</div>
+        <div><strong>Asistencias:</strong> {{ summary.attendances }}</div>
+        <div><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Visitas registradas</th>
+          <th>Asistencias acumuladas</th>
+          <th>Horas acumuladas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="left">{{ row.employee_name }}</td>
+          <td class="center">{{ row.visits }}</td>
+          <td class="center">{{ row.attendances }}</td>
+          <td class="center">{{ '%.2f'|format(row.hours) }}</td>
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="4" class="center">No hay visitas registradas para los criterios seleccionados.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+      {% if rows|length > 0 %}
+      <tfoot>
+        <tr>
+          <td class="left">TOTALES</td>
+          <td class="center">{{ summary.visits }}</td>
+          <td class="center">{{ summary.attendances }}</td>
+          <td class="center">{{ '%.2f'|format(summary.hours) }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</body>
+</html>

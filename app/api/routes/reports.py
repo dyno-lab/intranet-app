@@ -564,6 +564,16 @@ def reports_run(
         )
 
     if report_key == "visitas":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/visitas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/visitas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
         return RedirectResponse(
             f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
@@ -1429,6 +1439,111 @@ def visits_report(
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/visitas.html", context)
+
+
+@router.get("/visitas/pdf", response_class=HTMLResponse)
+def visits_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/visitas_pdf.html", context)
+
+
+@router.get("/visitas/excel")
+def visits_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/visitas", status_code=303)
+
+    proposal_label = next(
+        (f"{proposal.code} - {proposal.name}" for proposal in context["proposals"] if proposal.proposal_id == context["selected_proposal_id"]),
+        "",
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Visitas"
+    ws.freeze_panes = "A6"
+
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Reporte de Visitas"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = proposal_label
+    ws["D3"] = "Periodo"
+    ws["E3"] = context["period_label"]
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["D4"] = "Visitas"
+    ws["E4"] = context["summary"]["visits"]
+    ws["G4"] = "Asistencias"
+    ws["H4"] = context["summary"]["attendances"]
+    ws["J4"] = "Horas"
+    ws["K4"] = context["summary"]["hours"]
+
+    headers = ["Empleado", "Visitas registradas", "Asistencias acumuladas", "Horas acumuladas"]
+    header_row = 6
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    row_index = header_row + 1
+    for row in context["rows"]:
+        values = [row["employee_name"], row["visits"], row["attendances"], row["hours"]]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            if col_index == 4:
+                cell.number_format = "0.00"
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+
+    if context["rows"]:
+        totals = ["TOTALES", context["summary"]["visits"], context["summary"]["attendances"], context["summary"]["hours"]]
+        for col_index, value in enumerate(totals, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.font = Font(bold=True)
+            if col_index == 4:
+                cell.number_format = "0.00"
+            cell.alignment = Alignment(horizontal="center")
+
+    ws.column_dimensions["A"].width = 34
+    ws.column_dimensions["B"].width = 18
+    ws.column_dimensions["C"].width = 20
+    ws.column_dimensions["D"].width = 18
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "visitas").replace(" ", "_")
+    filename = f"visitas_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 def _build_no_duplicado_context(
