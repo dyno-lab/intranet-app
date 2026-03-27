@@ -1432,19 +1432,28 @@ def notes_report(
 @router.api_route("/notas/pdf", methods=["GET", "POST"], response_class=HTMLResponse)
 def notes_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
-    month: str | None = None,
-    year: str | None = None,
-    employee_id: int | None = None,
-    period_type: str = "monthly",
-    start_date: str | None = None,
-    end_date: str | None = None,
+    proposal_id: int | None = Form(default=None),
+    month: str | None = Form(default=None),
+    year: str | None = Form(default=None),
+    employee_id: int | None = Form(default=None),
+    period_type: str = Form(default="monthly"),
+    start_date: str | None = Form(default=None),
+    end_date: str | None = Form(default=None),
     general_chart_image: str | None = Form(default=None),
     residential_chart_image: str | None = Form(default=None),
     subject_chart_images: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if request.method == "GET":
+        proposal_id = proposal_id or _parse_optional_int(request.query_params.get("proposal_id"))
+        month = month or request.query_params.get("month")
+        year = year or request.query_params.get("year")
+        employee_id = employee_id or _parse_optional_int(request.query_params.get("employee_id"))
+        period_type = period_type if period_type != "monthly" else (request.query_params.get("period_type") or "monthly")
+        start_date = start_date or request.query_params.get("start_date")
+        end_date = end_date or request.query_params.get("end_date")
+
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     subject_chart_image_list = [img for img in (subject_chart_images or "").split("||") if img]
     subject_chart_sections = [
