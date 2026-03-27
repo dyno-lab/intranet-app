@@ -1435,6 +1435,9 @@ def _build_visits_context(
                 "hours": round(sum(row["hours"] for row in rows), 2),
             }
 
+    referral_pages = [referral_rows[i:i + 8] for i in range(0, len(referral_rows), 8)] if referral_rows else []
+    employee_pages = [rows[i:i + 18] for i in range(0, len(rows), 18)] if rows else [[]]
+
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
@@ -1454,6 +1457,8 @@ def _build_visits_context(
         "authorized_name": authorized_name or "",
         "visit_report": visit_report,
         "referral_rows": referral_rows,
+        "referral_pages": referral_pages,
+        "employee_pages": employee_pages,
         "referral_count": referral_count,
         "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
     }
