@@ -262,6 +262,8 @@ def admin_edit_residential(
 
 # ============================================================
 # VISITS MANAGEMENT
+# Configura qué actividades por propuesta cuentan como visitas.
+# Esta pantalla alimenta el futuro reporte de visitas en ui/reports.
 # ============================================================
 
 @router.get("/visits", response_class=HTMLResponse)
