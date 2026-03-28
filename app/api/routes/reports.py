@@ -36,6 +36,7 @@ from app.services.visits import (
     get_or_create_visit_report,
     replace_visit_report_referrals,
     delete_visit_reports_and_referrals,
+    delete_visit_referrals_only,
     get_visit_report,
     get_visit_reports,
     build_visits_report_payload,
@@ -1480,11 +1481,11 @@ def visits_report_delete(
             status_code=303,
         )
 
-    delete_visit_reports_and_referrals(db, reports)
+    delete_visit_referrals_only(db, reports)
     db.commit()
 
     return RedirectResponse(
-        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Informe de visitas eliminado exitosamente.",
+        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Referidos eliminados exitosamente.",
         status_code=303,
     )
 

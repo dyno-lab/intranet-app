@@ -269,8 +269,20 @@ def delete_visit_reports_and_referrals(db: Session, reports: list[VisitReport]):
     referrals = get_visit_referrals_for_reports(db, report_ids)
     for referral in referrals:
         db.delete(referral)
+    db.flush()
     for report in reports:
         db.delete(report)
+
+
+def delete_visit_referrals_only(db: Session, reports: list[VisitReport]):
+    if not reports:
+        return
+
+    report_ids = [report.report_id for report in reports]
+    referrals = get_visit_referrals_for_reports(db, report_ids)
+    for referral in referrals:
+        db.delete(referral)
+    db.flush()
 
 
 def build_visits_report_payload(

@@ -137,13 +137,16 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 ### Commit pendiente actual — fix de referidos de visitas
 - **Tipo:** `fix`, `ui`, `persistence`
 - **Qué se está corrigiendo:**
-  - Se detectó que los referidos creados desde `ui/reports/visitas` desaparecían al guardar y que el botón de borrar mostraba un comportamiento inconsistente.
+  - Se detectó que los referidos creados desde `ui/reports/visitas` desaparecían al guardar y que la acción de borrado no era adecuada para el modelo real del reporte.
 - **Causa identificada:**
   1. El template `visitas.html` tenía un `<form>` anidado dentro de otro formulario, lo cual rompe el comportamiento HTML estándar.
   2. Para reportes globales, `VisitReport.created_by_user_id` se guarda como `NULL`, y la búsqueda exacta con `== None` necesita manejarse explícitamente con `IS NULL` para evitar inconsistencias al recargar.
+  3. Conceptualmente no conviene eliminar el `VisitReport` base si el informe se reconstruye desde actividades; lo correcto es eliminar solo los referidos manuales asociados.
+  4. El borrado de `visit_reports` sin asegurar primero el flush de `visit_report_referrals` producía `IntegrityError` por la FK `FK_visit_report_referrals_reports`.
 - **Impacto esperado del fix:**
   - Que guardar referidos no haga que desaparezcan visualmente.
-  - Que eliminar informe use un submit correcto y consistente.
+  - Que la acción visible borre solo referidos manuales.
+  - Que no vuelva a aparecer el conflicto de integridad al limpiar referidos.
 
 ---
 
