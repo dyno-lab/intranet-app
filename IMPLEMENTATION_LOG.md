@@ -198,19 +198,96 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 - **Conclusión:**
   - El pendiente de exportación no está en cero; lo correcto ahora es consolidar/mejorar, no reimplementar desde cero.
 
+### Commit `dd80efc` — `feat: add pagination to participants list`
+- **Tipo:** `feature`, `ui`
+- **Qué se hizo:**
+  - Se agregó paginación a `/ui/new-list`.
+  - La vista ahora acepta `page` y `per_page`, calcula total de registros y muestra navegación entre páginas.
+- **Por qué se hizo:**
+  - Porque la lista de participantes es una de las primeras vistas que crecerá significativamente y necesitaba mejor manejo de volumen.
+- **Impacto esperado:**
+  - Mejor rendimiento percibido y navegación más cómoda en listas largas.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+  - `app/templates/ui/new_list.html`
+
+### Commit `d0349bb` — `feat: paginate sessions list and show creator context`
+- **Tipo:** `feature`, `ui`
+- **Qué se hizo:**
+  - Se agregó paginación a `/ui/listado`.
+  - Se reordenó el listado para priorizar propuesta y luego sesiones más recientes.
+  - Se añadió columna `Creado por` para admin/supervisor mostrando `username` y residencial asociado.
+- **Por qué se hizo:**
+  - Para hacer el listado más útil para revisión operativa y supervisión.
+- **Impacto esperado:**
+  - Mejor lectura del trabajo por propuesta y mejor identificación de quién creó cada sesión.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+  - `app/templates/ui/select_session.html`
+
+### Commit `e3df371` — `fix: make sessions ordering compatible with sql server`
+- **Tipo:** `fix`, `db-compatibility`
+- **Qué se hizo:**
+  - Se reemplazó `NULLS LAST` por un ordenamiento compatible con SQL Server usando `CASE`.
+- **Por qué se hizo:**
+  - Porque el orden nuevo del listado generó error de sintaxis en SQL Server.
+- **Impacto esperado:**
+  - Mantener el orden funcional deseado sin romper compatibilidad con el motor actual.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+
+### Commit `95f5247` — `feat: allow supervisors to delete participants and sessions`
+- **Tipo:** `feature`, `permissions`
+- **Qué se hizo:**
+  - Se habilitó a `supervisor` para eliminar participantes.
+  - Se habilitó a `supervisor` para eliminar sesiones y su asistencia asociada.
+  - Se ajustaron los botones visibles en la UI para que el permiso también aparezca visualmente.
+- **Por qué se hizo:**
+  - Porque operativamente el supervisor necesita corregir y depurar registros sin depender siempre del admin.
+- **Impacto esperado:**
+  - Menos fricción operativa y mejor autonomía del rol supervisor.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+  - `app/templates/ui/new_list.html`
+  - `app/templates/ui/select_session.html`
+  - `app/templates/ui/listado.html`
+
+### Commit `81141a9` — `feat: show friendly validation messages in ui flows`
+- **Tipo:** `feature`, `ux`, `ui`
+- **Qué se hizo:**
+  - Se introdujo un patrón de mensajes amigables basado en `msg=` + alertas Bootstrap.
+  - Se aplicó en flujos frecuentes de UI: crear/editar participantes, crear/editar sesiones, guardar asistencia.
+- **Por qué se hizo:**
+  - Para evitar errores secos/JSON crudo/excepciones poco amigables en flujos de validación esperables.
+- **Impacto esperado:**
+  - Mejor experiencia de usuario al corregir errores comunes.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+  - `app/templates/ui/new_list.html`
+  - `app/templates/ui/select_session.html`
+  - `app/templates/ui/edit_participant.html`
+  - `app/templates/ui/listado.html`
+
+### Validación funcional adicional reportada por usuario
+- **Confirmado:**
+  - la paginación de participantes funcionó
+  - `/ui/listado` quedó estable tras el ajuste para SQL Server
+  - la columna de creador/resultados para supervisión funciona bien
+  - supervisores ya pueden eliminar participantes y sesiones
+  - los mensajes amigables en UI están funcionando
+
 ---
 
 ## Próximo paso activo
 
 ### Pendiente inmediato recomendado
-Abordar **paginación** en las vistas que más pueden crecer, empezando por:
-1. `ui/new-list` (participantes)
-2. `ui/listado` / selector de sesiones
+Extender el patrón de **mensajes amigables en UI** a más flujos y luego evaluar el siguiente bloque funcional prioritario.
 
-### Motivo
-- La exportación básica ya existe.
-- `visitas` quedó estabilizado por ahora.
-- La paginación sí sigue siendo una necesidad funcional pendiente y de alto valor cuando aumente el volumen de datos.
+### Candidatos inmediatos
+1. más vistas/reportes con validación y mensajes
+2. limpieza de archivos sueltos en el repo
+3. activar/probar Fase 2 de expedientes si todavía no quedó validada de punta a punta
+4. evaluar nuevos catálogos (`género`, `VCA`, `primera_vez`) si sigue siendo prioridad funcional
 
 ---
 
