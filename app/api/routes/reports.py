@@ -1362,6 +1362,10 @@ def _build_visits_context(
             ).scalars().all()
             report_ids = [report.report_id for report in visit_reports]
             if report_ids:
+                report_residential_map = {
+                    report.report_id: user_residential_map.get(report.created_by_user_id, "Global")
+                    for report in visit_reports
+                }
                 referrals = db.execute(
                     select(VisitReportReferral)
                     .where(VisitReportReferral.report_id.in_(report_ids))
@@ -1369,6 +1373,7 @@ def _build_visits_context(
                 ).scalars().all()
                 referral_rows = [
                     {
+                        "residential_name": report_residential_map.get(referral.report_id, "Global"),
                         "referral_type": referral.referral_type,
                         "agency": referral.agency or "",
                         "reference_or_purpose": referral.reference_or_purpose or "",
