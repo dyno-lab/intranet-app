@@ -31,6 +31,12 @@ from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
+from app.services.visits import (
+    resolve_visit_activity_ids,
+    query_visit_sessions,
+    build_visit_attendance_map,
+    calculate_visits_rows_and_summary,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -1339,13 +1345,7 @@ def _build_visits_context(
     referral_count = 0
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
-        mapped_activity_ids = db.execute(
-            select(VisitActivityMapping.activity_code_id)
-            .where(
-                VisitActivityMapping.proposal_id == proposal_id,
-                VisitActivityMapping.is_active == True,
-            )
-        ).scalars().all()  # noqa: E712
+        mapped_activity_ids = resolve_visit_activity_ids(db, proposal_id)
 
         if is_global:
             residential_name = "Global"
@@ -1408,72 +1408,23 @@ def _build_visits_context(
                 referral_count = len(referral_rows)
 
         if mapped_activity_ids:
-            session_stmt = (
-                select(
-                    ActivitySession.session_id,
-                    ActivitySession.employee_id,
-                    Employee.full_name,
-                    func.coalesce(ActivitySession.hours, 0).label("hours"),
-                )
-                .join(Employee, Employee.employee_id == ActivitySession.employee_id)
-                .where(
-                    ActivitySession.proposal_id == proposal_id,
-                    ActivitySession.activity_code_id.in_(mapped_activity_ids),
-                )
-                .order_by(Employee.full_name)
+            session_rows = query_visit_sessions(
+                db,
+                proposal_id,
+                mapped_activity_ids,
+                period,
+                _apply_session_period_filter,
+                is_global=is_global,
+                selected_user_id=selected_user.user_id if selected_user else None,
             )
-            session_stmt = _apply_session_period_filter(session_stmt, period)
-
-            if not is_global:
-                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
-
-            attendance_stmt = (
-                select(
-                    Attendance.session_id,
-                    func.count(Attendance.attendance_id).label("attendances"),
-                )
-                .where(Attendance.attended == True)
-                .group_by(Attendance.session_id)
-            )  # noqa: E712
-            attendance_map = {
-                session_id: int(attendance_count or 0)
-                for session_id, attendance_count in db.execute(attendance_stmt).all()
-            }
-
-            employee_summary: dict[tuple, dict] = {}
-            for session_id, employee_id_value, employee_name, hours in db.execute(session_stmt).all():
-                residential_label = "Global"
-                if is_global:
-                    session_owner_user_id = db.execute(
-                        select(ActivitySession.created_by_user_id).where(ActivitySession.session_id == session_id)
-                    ).scalar_one_or_none()
-                    residential_label = user_residential_map.get(session_owner_user_id, "Sin residencial")
-
-                summary_key = (employee_id_value, residential_label if is_global else "")
-                bucket = employee_summary.setdefault(
-                    summary_key,
-                    {
-                        "employee_id": employee_id_value,
-                        "employee_name": employee_name,
-                        "residential_name": residential_label if is_global else "",
-                        "visits": 0,
-                        "attendances": 0,
-                        "hours": 0.0,
-                    },
-                )
-                bucket["visits"] += 1
-                bucket["attendances"] += attendance_map.get(session_id, 0)
-                bucket["hours"] += float(hours or 0)
-
-            rows = sorted(employee_summary.values(), key=lambda row: row["employee_name"])
-            for row in rows:
-                row["hours"] = round(row["hours"], 2)
-
-            summary = {
-                "visits": sum(row["visits"] for row in rows),
-                "attendances": sum(row["attendances"] for row in rows),
-                "hours": round(sum(row["hours"] for row in rows), 2),
-            }
+            session_ids = [row[0] for row in session_rows]
+            attendance_map = build_visit_attendance_map(db, session_ids)
+            rows, summary = calculate_visits_rows_and_summary(
+                session_rows,
+                attendance_map,
+                is_global=is_global,
+                user_residential_map=user_residential_map,
+            )
 
     return {
         **base_context,
