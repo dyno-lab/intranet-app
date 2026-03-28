@@ -203,6 +203,7 @@ def _paginate(total_items: int, page: int, per_page: int):
 @router.get("/", response_class=HTMLResponse)
 def ui_home(
     request: Request,
+    msg: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
@@ -212,6 +213,7 @@ def ui_home(
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "msg": msg,
         },
     )
 
@@ -359,7 +361,7 @@ def create_participant(
     db.add(p)
     db.commit()
 
-    return RedirectResponse("/ui/new-list", status_code=303)
+    return _redirect_with_msg("/ui/new-list", "Participante creado exitosamente.")
 
 
 @router.post("/new-list/{participant_id}/delete")
@@ -375,7 +377,7 @@ def delete_participant(
     db.execute(delete(Participant).where(Participant.participant_id == participant_id))
     db.commit()
 
-    return RedirectResponse("/ui/new-list", status_code=303)
+    return _redirect_with_msg("/ui/new-list", "Participante eliminado exitosamente.")
 
 
 @router.get("/new-list/export.csv")
@@ -580,7 +582,7 @@ def edit_participant_save(
     db.add(p)
     db.commit()
 
-    return RedirectResponse("/ui/new-list", status_code=303)
+    return _redirect_with_msg("/ui/new-list", "Participante actualizado exitosamente.")
 
 
 # ============================================================
@@ -856,7 +858,7 @@ def create_session_ui(
     db.commit()
     db.refresh(s)
 
-    return RedirectResponse(f"/ui/listado/{s.session_id}", status_code=303)
+    return _redirect_with_msg(f"/ui/listado/{s.session_id}", "Sesión creada exitosamente.")
 
 
 # ============================================================
@@ -979,7 +981,7 @@ async def save_attendance(
 
     db.commit()
 
-    return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)
+    return _redirect_with_msg(f"/ui/listado/{session_id}", "Asistencia guardada exitosamente.")
 
 
 @router.post("/listado/{session_id}/edit")
@@ -1021,7 +1023,7 @@ def edit_session(
     db.add(s)
     db.commit()
 
-    return RedirectResponse(f"/ui/listado/{session_id}", status_code=303)
+    return _redirect_with_msg(f"/ui/listado/{session_id}", "Sesión actualizada exitosamente.")
 
 
 @router.post("/listado/{session_id}/delete")
@@ -1048,4 +1050,4 @@ def delete_session(
 
     db.commit()
 
-    return RedirectResponse("/ui/listado", status_code=303)
+    return _redirect_with_msg("/ui/listado", "Sesión eliminada exitosamente.")

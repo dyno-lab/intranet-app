@@ -2,6 +2,12 @@
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 <div class="row justify-content-center">
   <div class="col-12 col-xl-10">
     <div class="text-center mb-4">
