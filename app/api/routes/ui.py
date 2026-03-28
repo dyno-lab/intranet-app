@@ -137,11 +137,19 @@ def _build_sessions_stmt(current_user: User):
             ActivitySession.hours,
             Proposal.code.label("proposal_code"),
             Proposal.name.label("proposal_name"),
+            User.username.label("created_by_username"),
+            Residential.name.label("created_by_residential"),
         )
         .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
         .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
-        .order_by(ActivitySession.session_date.desc(), ActivitySession.session_id.desc())
+        .outerjoin(User, ActivitySession.created_by_user_id == User.user_id)
+        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .order_by(
+            Proposal.code.asc().nullslast(),
+            ActivitySession.session_date.desc(),
+            ActivitySession.session_id.desc(),
+        )
     )
 
     if not is_admin_or_supervisor(current_user):
@@ -574,6 +582,8 @@ def listado_selector(
     proposal_id: str | None = None,
     month: str | None = None,
     year: str | None = None,
+    page: int = 1,
+    per_page: int = 25,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -583,9 +593,15 @@ def listado_selector(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
 
-    stmt = _build_sessions_stmt(current_user)
-    stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    base_stmt = _build_sessions_stmt(current_user)
+    base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
 
+    total_items = db.execute(
+        select(func.count()).select_from(base_stmt.order_by(None).subquery())
+    ).scalar_one()
+    pagination = _paginate(total_items=total_items, page=page, per_page=per_page)
+
+    stmt = base_stmt.offset(pagination["offset"]).limit(pagination["per_page"])
     sessions = db.execute(stmt).all()
 
     activity_codes = db.execute(
@@ -633,6 +649,8 @@ def listado_selector(
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "pagination": pagination,
+            "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
         },
     )
 
