@@ -19,11 +19,18 @@ from app.models.residential import Residential
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.visit_activity_mapping import VisitActivityMapping
+from app.models.proposal_report_program import ProposalReportProgram
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 VALID_USER_ROLES = {"admin", "supervisor", "user"}
+POPULATION_GROUP_OPTIONS = [
+    ("ninos", "Niños"),
+    ("jovenes", "Jóvenes"),
+    ("adultos", "Adultos"),
+    ("adulto_mayor", "Adulto Mayor"),
+]
 
 
 def _redirect_with_msg(url: str, msg: str):
@@ -854,4 +861,149 @@ def admin_edit_proposal(
     return RedirectResponse(
         "/ui/admin/proposals?msg=Propuesta actualizada exitosamente.",
         status_code=303,
+    )
+
+
+# ============================================================
+# PROGRAM REPORT CONFIGURATION
+# ============================================================
+
+@router.get("/report-programs", response_class=HTMLResponse)
+def admin_report_programs(
+    request: Request,
+    proposal_id: int | None = None,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    programs = []
+
+    if selected_proposal:
+        programs = db.execute(
+            select(ProposalReportProgram)
+            .where(ProposalReportProgram.proposal_id == selected_proposal.proposal_id)
+            .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
+        ).scalars().all()
+
+    return templates.TemplateResponse(
+        "ui/admin/report_programs.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "selected_proposal": selected_proposal,
+            "programs": programs,
+            "population_group_options": POPULATION_GROUP_OPTIONS,
+        },
+    )
+
+
+@router.post("/report-programs/create")
+def admin_create_report_program(
+    proposal_id: int = Form(...),
+    code: str = Form(...),
+    name: str = Form(...),
+    population_group: str = Form(...),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/report-programs", "Error: La propuesta seleccionada no existe.")
+
+    normalized_population_group = population_group.strip().lower()
+    valid_population_groups = {value for value, _ in POPULATION_GROUP_OPTIONS}
+    if normalized_population_group not in valid_population_groups:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Debe seleccionar un grupo poblacional válido.",
+        )
+
+    normalized_code = code.strip().upper()
+    existing = db.execute(
+        select(ProposalReportProgram).where(
+            ProposalReportProgram.proposal_id == proposal_id,
+            ProposalReportProgram.code == normalized_code,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Ya existe un programa con ese código en la propuesta seleccionada.",
+        )
+
+    program = ProposalReportProgram(
+        proposal_id=proposal_id,
+        code=normalized_code,
+        name=name.strip(),
+        population_group=normalized_population_group,
+        sort_order=sort_order,
+        is_active=True,
+    )
+    db.add(program)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Programa creado exitosamente.",
+    )
+
+
+@router.post("/report-programs/{program_id}/edit")
+def admin_edit_report_program(
+    program_id: int,
+    proposal_id: int = Form(...),
+    code: str = Form(...),
+    name: str = Form(...),
+    population_group: str = Form(...),
+    sort_order: int = Form(0),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    program = db.get(ProposalReportProgram, program_id)
+    if not program:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Programa no encontrado.",
+        )
+
+    normalized_population_group = population_group.strip().lower()
+    valid_population_groups = {value for value, _ in POPULATION_GROUP_OPTIONS}
+    if normalized_population_group not in valid_population_groups:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Debe seleccionar un grupo poblacional válido.",
+        )
+
+    normalized_code = code.strip().upper()
+    existing = db.execute(
+        select(ProposalReportProgram).where(
+            ProposalReportProgram.proposal_id == proposal_id,
+            ProposalReportProgram.code == normalized_code,
+            ProposalReportProgram.program_id != program_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Ya existe otro programa con ese código en la propuesta seleccionada.",
+        )
+
+    program.code = normalized_code
+    program.name = name.strip()
+    program.population_group = normalized_population_group
+    program.sort_order = sort_order
+    program.is_active = is_active == "on"
+    db.add(program)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Programa actualizado exitosamente.",
     )

@@ -1,0 +1,152 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Configuración de Programas de Reporte{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">🧭 Configuración de Programas por Propuesta</h3>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Cargar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal %}
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white"><strong>Crear programa para {{ selected_proposal.code }} - {{ selected_proposal.name }}</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/report-programs/create" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-2">
+        <label class="form-label">Código</label>
+        <input type="text" class="form-control" name="code" required placeholder="Ej. 1A">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-control" name="name" required placeholder="Ej. Programa 1A">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Grupo poblacional</label>
+        <select class="form-select" name="population_group" required>
+          <option value="">Selecciona...</option>
+          {% for value, label in population_group_options %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label">Orden</label>
+        <input type="number" class="form-control" name="sort_order" value="0" required>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>Programas configurados</strong></div>
+  <div class="card-body">
+    {% if programs %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Orden</th>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Grupo poblacional</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for program in programs %}
+          <tr class="{{ 'text-muted text-decoration-line-through' if not program.is_active }}">
+            <td>{{ program.sort_order }}</td>
+            <td><strong>{{ program.code }}</strong></td>
+            <td>{{ program.name }}</td>
+            <td>
+              {% for value, label in population_group_options %}
+                {% if value == program.population_group %}{{ label }}{% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              {% if program.is_active %}
+                <span class="badge bg-success">Activo</span>
+              {% else %}
+                <span class="badge bg-danger">Inactivo</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar</button>
+            </td>
+          </tr>
+          <tr class="collapse" id="edit-program-{{ program.program_id }}">
+            <td colspan="6" class="bg-light">
+              <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/edit" class="row g-2 align-items-end p-2">
+                <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                <div class="col-md-2">
+                  <label class="form-label small">Código</label>
+                  <input type="text" class="form-control form-control-sm" name="code" value="{{ program.code }}" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small">Nombre</label>
+                  <input type="text" class="form-control form-control-sm" name="name" value="{{ program.name }}" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">Grupo poblacional</label>
+                  <select class="form-select form-select-sm" name="population_group" required>
+                    {% for value, label in population_group_options %}
+                    <option value="{{ value }}" {% if value == program.population_group %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-1">
+                  <label class="form-label small">Orden</label>
+                  <input type="number" class="form-control form-control-sm" name="sort_order" value="{{ program.sort_order }}" required>
+                </div>
+                <div class="col-md-1">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="active-program-{{ program.program_id }}" {{ 'checked' if program.is_active }}>
+                    <label class="form-check-label" for="active-program-{{ program.program_id }}">Activo</label>
+                  </div>
+                </div>
+                <div class="col-md-1">
+                  <button type="submit" class="btn btn-sm btn-success">Guardar</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-muted">Todavía no hay programas configurados para esta propuesta.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
