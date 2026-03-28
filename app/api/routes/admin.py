@@ -298,16 +298,10 @@ def admin_create_visit_mapping(
     activity = db.get(ActivityCode, activity_code_id)
 
     if not proposal or not activity:
-        return RedirectResponse(
-            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Propuesta o actividad no encontrada.",
-            status_code=303,
-        )
+        return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: Propuesta o actividad no encontrada.")
 
     if activity.proposal_id != proposal_id:
-        return RedirectResponse(
-            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: La actividad no pertenece a la propuesta seleccionada.",
-            status_code=303,
-        )
+        return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     existing = db.execute(
         select(VisitActivityMapping).where(
@@ -344,18 +338,12 @@ def admin_delete_visit_mapping(
 ):
     mapping = db.get(VisitActivityMapping, mapping_id)
     if not mapping:
-        return RedirectResponse(
-            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Configuración no encontrada.",
-            status_code=303,
-        )
+        return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: Configuración no encontrada.")
 
     db.delete(mapping)
     db.commit()
 
-    return RedirectResponse(
-        f"/ui/admin/visits?proposal_id={proposal_id}&msg=Actividad de visita eliminada exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Actividad de visita eliminada exitosamente.")
 
 
 # ============================================================
@@ -426,12 +414,12 @@ def admin_create_vca_column(
 ):
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
-        return RedirectResponse("/ui/admin/vca?msg=Error: Propuesta no encontrada.", status_code=303)
+        return _redirect_with_msg("/ui/admin/vca", "Error: Propuesta no encontrada.")
 
     column = VCAColumn(proposal_id=proposal_id, name=name.strip(), sort_order=sort_order)
     db.add(column)
     db.commit()
-    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Columna VCA creada exitosamente.", status_code=303)
+    return _redirect_with_msg(f"/ui/admin/vca?proposal_id={proposal_id}", "Columna VCA creada exitosamente.")
 
 
 @router.post("/vca/columns/{vca_column_id}/edit")
@@ -544,18 +532,12 @@ def admin_create_activity_code(
         select(ActivityCode).where(ActivityCode.code == code)
     ).scalar_one_or_none()
     if existing:
-        return RedirectResponse(
-            "/ui/admin/activity-codes?msg=Error: El código ya existe.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/activity-codes", "Error: El código ya existe.")
 
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
         if not proposal:
-            return RedirectResponse(
-                "/ui/admin/activity-codes?msg=Error: La propuesta seleccionada no existe.",
-                status_code=303,
-            )
+            return _redirect_with_msg("/ui/admin/activity-codes", "Error: La propuesta seleccionada no existe.")
 
     ac = ActivityCode(
         code=code.strip(),
@@ -565,10 +547,7 @@ def admin_create_activity_code(
     db.add(ac)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/activity-codes?msg=Código de actividad creado exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/activity-codes", "Código de actividad creado exitosamente.")
 
 
 @router.post("/activity-codes/{activity_code_id}/edit")
@@ -694,10 +673,7 @@ def admin_create_employee(
             select(Employee).where(Employee.employee_code == employee_code)
         ).scalar_one_or_none()
         if existing:
-            return RedirectResponse(
-                "/ui/admin/employees?msg=Error: El código de empleado ya existe.",
-                status_code=303,
-            )
+            return _redirect_with_msg("/ui/admin/employees", "Error: El código de empleado ya existe.")
 
     emp = Employee(
         full_name=full_name,
@@ -706,10 +682,7 @@ def admin_create_employee(
     db.add(emp)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/employees?msg=Empleado creado exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/employees", "Empleado creado exitosamente.")
 
 
 @router.post("/employees/{employee_id}/edit")
@@ -829,19 +802,13 @@ def admin_create_proposal(
         select(Proposal).where(Proposal.code == code)
     ).scalar_one_or_none()
     if existing:
-        return RedirectResponse(
-            "/ui/admin/proposals?msg=Error: El código de propuesta ya existe.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/proposals", "Error: El código de propuesta ya existe.")
 
     proposal = Proposal(code=code, name=name, description=description)
     db.add(proposal)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/proposals?msg=Propuesta creada exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/proposals", "Propuesta creada exitosamente.")
 
 
 @router.post("/proposals/{proposal_id}/edit")
