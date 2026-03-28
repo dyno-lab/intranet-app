@@ -6,7 +6,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete, func, or_
+from sqlalchemy import select, delete, func, or_, case
 from math import ceil
 from sqlalchemy.orm import Session
 
@@ -146,7 +146,8 @@ def _build_sessions_stmt(current_user: User):
         .outerjoin(User, ActivitySession.created_by_user_id == User.user_id)
         .outerjoin(Residential, User.residential_id == Residential.residential_id)
         .order_by(
-            Proposal.code.asc().nullslast(),
+            case((Proposal.code.is_(None), 1), else_=0),
+            Proposal.code.asc(),
             ActivitySession.session_date.desc(),
             ActivitySession.session_id.desc(),
         )
