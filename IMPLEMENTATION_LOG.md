@@ -134,19 +134,48 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - `app/services/visits.py`
   - `app/api/routes/reports.py`
 
-### Commit pendiente actual — fix de referidos de visitas
+### Commit `64353d5` — `fix: preserve visits referrals save and delete flow`
 - **Tipo:** `fix`, `ui`, `persistence`
-- **Qué se está corrigiendo:**
-  - Se detectó que los referidos creados desde `ui/reports/visitas` desaparecían al guardar y que la acción de borrado no era adecuada para el modelo real del reporte.
-- **Causa identificada:**
-  1. El template `visitas.html` tenía un `<form>` anidado dentro de otro formulario, lo cual rompe el comportamiento HTML estándar.
-  2. Para reportes globales, `VisitReport.created_by_user_id` se guarda como `NULL`, y la búsqueda exacta con `== None` necesita manejarse explícitamente con `IS NULL` para evitar inconsistencias al recargar.
-  3. Conceptualmente no conviene eliminar el `VisitReport` base si el informe se reconstruye desde actividades; lo correcto es eliminar solo los referidos manuales asociados.
-  4. El borrado de `visit_reports` sin asegurar primero el flush de `visit_report_referrals` producía `IntegrityError` por la FK `FK_visit_report_referrals_reports`.
-- **Impacto esperado del fix:**
-  - Que guardar referidos no haga que desaparezcan visualmente.
-  - Que la acción visible borre solo referidos manuales.
-  - Que no vuelva a aparecer el conflicto de integridad al limpiar referidos.
+- **Qué se hizo:**
+  - Se corrigió el template `visitas.html` para eliminar un `<form>` anidado dentro de otro formulario.
+  - Se ajustó la búsqueda de `VisitReport` para manejar correctamente `created_by_user_id IS NULL` en reportes globales.
+- **Por qué se hizo:**
+  - Porque los referidos guardados desaparecían visualmente y el botón de borrar tenía comportamiento inconsistente.
+- **Impacto esperado:**
+  - Guardado y recarga estables de referidos.
+  - Submit correcto para acciones del formulario.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/templates/ui/reports/visitas.html`
+  - `IMPLEMENTATION_LOG.md`
+
+### Commit `6950433` — `fix: delete only visits referrals instead of report`
+- **Tipo:** `fix`, `ui`, `persistence`
+- **Qué se hizo:**
+  - Se cambió la acción visible de borrado para eliminar solo `VisitReportReferral` y no el `VisitReport` base.
+  - Se añadió `flush()` en el helper de borrado completo para evitar conflictos de FK cuando sí se requiera borrar reportes completos en otro contexto.
+  - Se ajustó el texto visible del botón y del mensaje de éxito para reflejar que se eliminan referidos, no el informe.
+- **Por qué se hizo:**
+  - Porque conceptualmente el informe de visitas se deriva de sesiones/asistencias y no conviene destruirlo por borrar datos manuales.
+  - Porque el borrado previo provocó `IntegrityError` por la FK `FK_visit_report_referrals_reports`.
+- **Impacto esperado:**
+  - Eliminación coherente de solo los referidos manuales.
+  - Sin errores de integridad en el flujo normal de UI.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/api/routes/reports.py`
+  - `app/templates/ui/reports/visitas.html`
+  - `IMPLEMENTATION_LOG.md`
+
+### Validación manual del bloque `visitas`
+- **Estado:** validado funcionalmente en UI.
+- **Pruebas confirmadas por usuario:**
+  - guardar referidos desde `ui/reports/visitas`
+  - visualizar referidos guardados correctamente
+  - eliminar referidos sin romper el reporte
+  - borrar asistencia de visitas y ver reflejado el cambio en el reporte
+- **Conclusión:**
+  - El reporte quedó coherente con el modelo deseado: cálculo derivado de actividades/asistencias + capa manual persistente solo para referidos.
 
 ---
 
