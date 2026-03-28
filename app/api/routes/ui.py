@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete, func, or_
+from math import ceil
 from sqlalchemy.orm import Session
 
 from app.models.participant import Participant
@@ -163,6 +164,24 @@ def _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int):
     return stmt
 
 
+def _paginate(total_items: int, page: int, per_page: int):
+    safe_per_page = max(1, per_page)
+    total_pages = max(1, ceil(total_items / safe_per_page)) if total_items else 1
+    safe_page = min(max(1, page), total_pages)
+    offset = (safe_page - 1) * safe_per_page
+    return {
+        "page": safe_page,
+        "per_page": safe_per_page,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "offset": offset,
+        "has_prev": safe_page > 1,
+        "has_next": safe_page < total_pages,
+        "prev_page": safe_page - 1 if safe_page > 1 else None,
+        "next_page": safe_page + 1 if safe_page < total_pages else None,
+    }
+
+
 # ============================================================
 # HOME
 # ============================================================
@@ -190,18 +209,27 @@ def ui_home(
 @router.get("/new-list", response_class=HTMLResponse)
 def new_list(
     request: Request,
+    page: int = 1,
+    per_page: int = 25,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stmt = select(Participant).order_by(
-        Participant.apellido_paterno,
-        Participant.nombre
-    )
+    base_stmt = select(Participant)
 
     if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(
+        base_stmt = base_stmt.where(
             Participant.created_by_user_id == current_user.user_id
         )
+
+    total_items = db.execute(
+        select(func.count()).select_from(base_stmt.subquery())
+    ).scalar_one()
+    pagination = _paginate(total_items=total_items, page=page, per_page=per_page)
+
+    stmt = base_stmt.order_by(
+        Participant.apellido_paterno,
+        Participant.nombre
+    ).offset(pagination["offset"]).limit(pagination["per_page"])
 
     participants = db.execute(stmt).scalars().all()
 
@@ -216,6 +244,7 @@ def new_list(
         "current_user": current_user,
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
+        "pagination": pagination,
     }
     context.update(_participant_form_catalogs(db))
 
