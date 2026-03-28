@@ -869,6 +869,7 @@ def create_session_ui(
 def open_session(
     session_id: int,
     request: Request,
+    msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -925,6 +926,7 @@ def open_session(
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "msg": msg,
         },
     )
 
