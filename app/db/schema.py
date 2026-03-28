@@ -609,6 +609,98 @@ BEGIN
 END;
 """
 
+PHASE6_PROGRAM_REPORTS_SQL = """
+IF OBJECT_ID(N'dbo.proposal_report_programs', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_programs (
+        program_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        population_group VARCHAR(50) NOT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_proposal_report_programs_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_report_programs_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_report_programs_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_report_programs_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_proposal_report_programs_proposal_code UNIQUE (proposal_id, code)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_programs_proposal_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_programs')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_programs_proposal_id ON dbo.proposal_report_programs(proposal_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_programs_population_group'
+      AND object_id = OBJECT_ID('dbo.proposal_report_programs')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_programs_population_group ON dbo.proposal_report_programs(population_group);
+END;
+
+IF OBJECT_ID(N'dbo.proposal_report_program_activities', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_program_activities (
+        program_activity_id INT IDENTITY(1,1) PRIMARY KEY,
+        program_id INT NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        label VARCHAR(255) NOT NULL,
+        age_min INT NULL,
+        age_max INT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_proposal_report_program_activities_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_report_program_activities_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_report_program_activities_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_report_program_activities_programs FOREIGN KEY (program_id) REFERENCES dbo.proposal_report_programs(program_id),
+        CONSTRAINT UQ_proposal_report_program_activities_program_code UNIQUE (program_id, code)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_activities_program_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_activities')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_activities_program_id ON dbo.proposal_report_program_activities(program_id);
+END;
+
+IF OBJECT_ID(N'dbo.proposal_report_program_activity_codes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_program_activity_codes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        program_activity_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        CONSTRAINT FK_proposal_report_program_activity_codes_program_activities FOREIGN KEY (program_activity_id) REFERENCES dbo.proposal_report_program_activities(program_activity_id),
+        CONSTRAINT FK_proposal_report_program_activity_codes_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_proposal_report_program_activity_codes UNIQUE (program_activity_id, activity_code_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_activity_codes_program_activity_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_activity_codes_program_activity_id ON dbo.proposal_report_program_activity_codes(program_activity_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_activity_codes_activity_code_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_activity_codes_activity_code_id ON dbo.proposal_report_program_activity_codes(activity_code_id);
+END;
+"""
+
 
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
@@ -616,3 +708,4 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
+        conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
