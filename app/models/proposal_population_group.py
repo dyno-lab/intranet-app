@@ -8,17 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
 
-class ProposalReportProgram(Base):
-    __tablename__ = "proposal_report_programs"
+class ProposalPopulationGroup(Base):
+    __tablename__ = "proposal_population_groups"
     __table_args__ = (
-        UniqueConstraint("proposal_id", "code", name="uq_proposal_report_programs_proposal_code"),
+        UniqueConstraint("proposal_id", "code", name="uq_proposal_population_groups_proposal_code"),
     )
 
-    program_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    population_group_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     proposal_id: Mapped[int] = mapped_column(ForeignKey("proposals.proposal_id"), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(50), nullable=False)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
-    population_group_id: Mapped[int] = mapped_column(ForeignKey("proposal_population_groups.population_group_id"), nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    age_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    age_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(

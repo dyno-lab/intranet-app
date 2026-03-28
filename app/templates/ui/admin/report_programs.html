@@ -33,6 +33,94 @@
 
 {% if selected_proposal %}
 <div class="card mb-4">
+  <div class="card-header bg-secondary text-white"><strong>Definir categorías poblacionales para {{ selected_proposal.code }} - {{ selected_proposal.name }}</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/population-groups/create" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-2">
+        <label class="form-label">Código</label>
+        <input type="text" class="form-control" name="code" required placeholder="Ej. ninos">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Etiqueta</label>
+        <input type="text" class="form-control" name="label" required placeholder="Ej. Niños">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad mínima</label>
+        <input type="number" class="form-control" name="age_min" min="0">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad máxima</label>
+        <input type="number" class="form-control" name="age_max" min="0">
+      </div>
+      <div class="col-md-1">
+        <label class="form-label">Orden</label>
+        <input type="number" class="form-control" name="sort_order" value="0" required>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-secondary">Crear categoría</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><strong>Categorías poblacionales configuradas</strong></div>
+  <div class="card-body">
+    {% if population_groups %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Orden</th>
+            <th>Código</th>
+            <th>Etiqueta</th>
+            <th>Rango de edad</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group in population_groups %}
+          <tr class="{{ 'text-muted text-decoration-line-through' if not group.is_active }}">
+            <td>{{ group.sort_order }}</td>
+            <td><strong>{{ group.code }}</strong></td>
+            <td>{{ group.label }}</td>
+            <td>
+              {% if group.age_min is not none or group.age_max is not none %}
+                {{ group.age_min if group.age_min is not none else 0 }} - {{ group.age_max if group.age_max is not none else '∞' }}
+              {% else %}
+                <span class="text-muted">Sin definir</span>
+              {% endif %}
+            </td>
+            <td>{% if group.is_active %}<span class="badge bg-success">Activa</span>{% else %}<span class="badge bg-danger">Inactiva</span>{% endif %}</td>
+            <td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-group-{{ group.population_group_id }}">Editar</button></td>
+          </tr>
+          <tr class="collapse" id="edit-group-{{ group.population_group_id }}">
+            <td colspan="6" class="bg-light">
+              <form method="post" action="/ui/admin/population-groups/{{ group.population_group_id }}/edit" class="row g-2 align-items-end p-2">
+                <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                <div class="col-md-2"><label class="form-label small">Código</label><input type="text" class="form-control form-control-sm" name="code" value="{{ group.code }}" required></div>
+                <div class="col-md-3"><label class="form-label small">Etiqueta</label><input type="text" class="form-control form-control-sm" name="label" value="{{ group.label }}" required></div>
+                <div class="col-md-2"><label class="form-label small">Edad mínima</label><input type="number" class="form-control form-control-sm" name="age_min" value="{{ group.age_min if group.age_min is not none else '' }}"></div>
+                <div class="col-md-2"><label class="form-label small">Edad máxima</label><input type="number" class="form-control form-control-sm" name="age_max" value="{{ group.age_max if group.age_max is not none else '' }}"></div>
+                <div class="col-md-1"><label class="form-label small">Orden</label><input type="number" class="form-control form-control-sm" name="sort_order" value="{{ group.sort_order }}" required></div>
+                <div class="col-md-1"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="is_active" id="active-group-{{ group.population_group_id }}" {{ 'checked' if group.is_active }}><label class="form-check-label" for="active-group-{{ group.population_group_id }}">Activa</label></div></div>
+                <div class="col-md-1"><button type="submit" class="btn btn-sm btn-success">Guardar</button></div>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-muted">Todavía no hay categorías poblacionales configuradas para esta propuesta.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
   <div class="card-header bg-primary text-white"><strong>Crear programa para {{ selected_proposal.code }} - {{ selected_proposal.name }}</strong></div>
   <div class="card-body">
     <form method="post" action="/ui/admin/report-programs/create" class="row g-3 align-items-end">
@@ -46,11 +134,11 @@
         <input type="text" class="form-control" name="name" required placeholder="Ej. Programa 1A">
       </div>
       <div class="col-md-3">
-        <label class="form-label">Grupo poblacional</label>
-        <select class="form-select" name="population_group" required>
+        <label class="form-label">Categoría poblacional</label>
+        <select class="form-select" name="population_group_id" required>
           <option value="">Selecciona...</option>
-          {% for value, label in population_group_options %}
-          <option value="{{ value }}">{{ label }}</option>
+          {% for group in population_groups if group.is_active %}
+          <option value="{{ group.population_group_id }}">{{ group.label }} ({{ group.age_min if group.age_min is not none else 0 }} - {{ group.age_max if group.age_max is not none else '∞' }})</option>
           {% endfor %}
         </select>
       </div>
@@ -88,9 +176,14 @@
             <td><strong>{{ program.code }}</strong></td>
             <td>{{ program.name }}</td>
             <td>
-              {% for value, label in population_group_options %}
-                {% if value == program.population_group %}{{ label }}{% endif %}
-              {% endfor %}
+              {% if program.population_group_obj %}
+                {{ program.population_group_obj.label }}
+                <div class="small text-muted">
+                  {{ program.population_group_obj.age_min if program.population_group_obj.age_min is not none else 0 }} - {{ program.population_group_obj.age_max if program.population_group_obj.age_max is not none else '∞' }}
+                </div>
+              {% else %}
+                <span class="text-muted">Sin categoría</span>
+              {% endif %}
             </td>
             <td>
               {% if program.is_active %}
@@ -116,10 +209,10 @@
                   <input type="text" class="form-control form-control-sm" name="name" value="{{ program.name }}" required>
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label small">Grupo poblacional</label>
-                  <select class="form-select form-select-sm" name="population_group" required>
-                    {% for value, label in population_group_options %}
-                    <option value="{{ value }}" {% if value == program.population_group %}selected{% endif %}>{{ label }}</option>
+                  <label class="form-label small">Categoría poblacional</label>
+                  <select class="form-select form-select-sm" name="population_group_id" required>
+                    {% for group in population_groups if group.is_active or group.population_group_id == program.population_group_id %}
+                    <option value="{{ group.population_group_id }}" {% if group.population_group_id == program.population_group_id %}selected{% endif %}>{{ group.label }}</option>
                     {% endfor %}
                   </select>
                 </div>

@@ -610,6 +610,32 @@ END;
 """
 
 PHASE6_PROGRAM_REPORTS_SQL = """
+IF OBJECT_ID(N'dbo.proposal_population_groups', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_population_groups (
+        population_group_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        label VARCHAR(100) NOT NULL,
+        age_min INT NULL,
+        age_max INT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_proposal_population_groups_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_population_groups_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_population_groups_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_population_groups_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT UQ_proposal_population_groups_proposal_code UNIQUE (proposal_id, code)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_population_groups_proposal_id'
+      AND object_id = OBJECT_ID('dbo.proposal_population_groups')
+)
+BEGIN
+    CREATE INDEX IX_proposal_population_groups_proposal_id ON dbo.proposal_population_groups(proposal_id);
+END;
+
 IF OBJECT_ID(N'dbo.proposal_report_programs', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.proposal_report_programs (
@@ -617,13 +643,40 @@ BEGIN
         proposal_id INT NOT NULL,
         code VARCHAR(50) NOT NULL,
         name VARCHAR(150) NOT NULL,
-        population_group VARCHAR(50) NOT NULL,
+        population_group_id INT NOT NULL,
         sort_order INT NOT NULL CONSTRAINT DF_proposal_report_programs_sort_order DEFAULT 0,
         is_active BIT NOT NULL CONSTRAINT DF_proposal_report_programs_is_active DEFAULT 1,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_report_programs_created_at DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_proposal_report_programs_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT FK_proposal_report_programs_population_groups FOREIGN KEY (population_group_id) REFERENCES dbo.proposal_population_groups(population_group_id),
         CONSTRAINT UQ_proposal_report_programs_proposal_code UNIQUE (proposal_id, code)
     );
+END;
+
+IF COL_LENGTH('dbo.proposal_report_programs', 'population_group_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposal_report_programs ADD population_group_id INT NULL;
+END;
+
+IF COL_LENGTH('dbo.proposal_report_programs', 'population_group') IS NOT NULL
+BEGIN
+    UPDATE prp
+    SET population_group_id = ppg.population_group_id
+    FROM dbo.proposal_report_programs prp
+    INNER JOIN dbo.proposal_population_groups ppg
+        ON ppg.proposal_id = prp.proposal_id
+       AND LOWER(LTRIM(RTRIM(ppg.code))) = LOWER(LTRIM(RTRIM(prp.population_group)))
+    WHERE prp.population_group_id IS NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = 'FK_proposal_report_programs_population_groups'
+)
+BEGIN
+    ALTER TABLE dbo.proposal_report_programs
+    ADD CONSTRAINT FK_proposal_report_programs_population_groups
+    FOREIGN KEY (population_group_id) REFERENCES dbo.proposal_population_groups(population_group_id);
 END;
 
 IF NOT EXISTS (
@@ -637,11 +690,11 @@ END;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_proposal_report_programs_population_group'
+    WHERE name = 'IX_proposal_report_programs_population_group_id'
       AND object_id = OBJECT_ID('dbo.proposal_report_programs')
 )
 BEGIN
-    CREATE INDEX IX_proposal_report_programs_population_group ON dbo.proposal_report_programs(population_group);
+    CREATE INDEX IX_proposal_report_programs_population_group_id ON dbo.proposal_report_programs(population_group_id);
 END;
 
 IF OBJECT_ID(N'dbo.proposal_report_program_activities', N'U') IS NULL
