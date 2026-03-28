@@ -225,7 +225,7 @@
             <td class="text-end">
               <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
 
-              {% if current_user and current_user.role == "admin" %}
+              {% if current_user and current_user.role in ["admin", "supervisor"] %}
               <form method="post"
                     action="/ui/new-list/{{ p.participant_id }}/delete"
                     style="display:inline;"

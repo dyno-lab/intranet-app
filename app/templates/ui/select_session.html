@@ -170,7 +170,7 @@
           <td class="text-end">
             <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}">Abrir</a>
 
-            {% if current_user.role == 'admin' %}
+            {% if current_user.role in ['admin', 'supervisor'] %}
             <form method="post"
                   action="/ui/listado/{{ s.session_id }}/delete"
                   style="display:inline;"

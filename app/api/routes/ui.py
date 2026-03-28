@@ -359,8 +359,11 @@ def create_participant(
 def delete_participant(
     participant_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
+    if not is_admin_or_supervisor(current_user):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
     db.execute(delete(Attendance).where(Attendance.participant_id == participant_id))
     db.execute(delete(Participant).where(Participant.participant_id == participant_id))
     db.commit()
@@ -1010,7 +1013,7 @@ def delete_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role != "admin":
+    if not is_admin_or_supervisor(current_user):
         raise HTTPException(status_code=403, detail="Acceso denegado.")
 
     s = db.get(ActivitySession, session_id)
