@@ -32,6 +32,7 @@ from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
 from app.services.visits import (
+    resolve_report_scope,
     resolve_visit_activity_ids,
     query_visit_sessions,
     build_visit_attendance_map,
@@ -1332,16 +1333,10 @@ def _build_visits_context(
     month_lookup = base_context["month_lookup"]
     user_residential_map = base_context["user_residential_map"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
+    scope = resolve_report_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
 
     residential_name = None
     rows = []
@@ -1482,16 +1477,10 @@ async def visits_report_save_referrals(
     period_month = month
     period_year = year
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
+    scope = resolve_report_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
 
     if not proposal_id or not period_month or not period_year or not (selected_user or is_global):
         return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar propuesta, periodo y residencial.", status_code=303)
@@ -1534,16 +1523,10 @@ def visits_report_delete(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
+    scope = resolve_report_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
 
     if not proposal_id or not month or not year or not (selected_user or is_global):
         return RedirectResponse("/ui/reports/visitas?msg=Error: Contexto inválido para eliminar informe.", status_code=303)

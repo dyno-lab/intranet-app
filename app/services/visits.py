@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Callable, Any
 
+from app.models.user import User
+
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,27 @@ from app.models.visit_report_referral import VisitReportReferral
 
 
 ScopeResolver = Callable[[Any | None], str]
+
+
+def resolve_report_scope(current_user: User, employee_id: int | None, db: Session):
+    selected_user = None
+    is_global = False
+    resolved_employee_id = employee_id
+
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        resolved_employee_id = current_user.user_id
+
+    return {
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "employee_id": resolved_employee_id,
+    }
 
 
 def resolve_visit_activity_ids(db: Session, proposal_id: int | None) -> list[int]:
