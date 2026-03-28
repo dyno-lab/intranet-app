@@ -268,6 +268,30 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - `app/templates/ui/edit_participant.html`
   - `app/templates/ui/listado.html`
 
+### Commit `c53bd60` — `feat: add friendly success messages for common ui actions`
+- **Tipo:** `feature`, `ux`, `ui`
+- **Qué se hizo:**
+  - Se añadieron mensajes visibles de éxito para acciones frecuentes: crear/editar/eliminar participante, crear/editar/eliminar sesión, guardar asistencia.
+  - Se agregó soporte de `msg` también en `ui/home.html` para dejar el patrón consistente en vistas principales.
+- **Por qué se hizo:**
+  - Porque una UX amigable no solo necesita errores entendibles, sino también confirmación explícita cuando una acción sale bien.
+- **Impacto esperado:**
+  - Mejor feedback para el usuario durante el trabajo diario.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+  - `app/templates/ui/home.html`
+
+### Commit `85ccb5e` — `fix: pass ui messages through session attendance view`
+- **Tipo:** `fix`, `ux`, `ui`
+- **Qué se hizo:**
+  - Se corrigió la ruta `open_session()` para que reciba y propague `msg` al template `ui/listado.html`.
+- **Por qué se hizo:**
+  - Porque la vista ya estaba preparada para mostrar alertas, pero los mensajes se perdían al no llegar en el contexto.
+- **Impacto esperado:**
+  - Confirmaciones visibles al crear sesión, guardar asistencia y actualizar la sesión desde la vista de asistencia.
+- **Archivos creados/tocados:**
+  - `app/api/routes/ui.py`
+
 ### Validación funcional adicional reportada por usuario
 - **Confirmado:**
   - la paginación de participantes funcionó
@@ -275,13 +299,16 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - la columna de creador/resultados para supervisión funciona bien
   - supervisores ya pueden eliminar participantes y sesiones
   - los mensajes amigables en UI están funcionando
+  - los mensajes de éxito ya se reflejan correctamente en la vista de asistencia (`/ui/listado/{session_id}`)
 
 ---
 
 ## Próximo paso activo
 
 ### Pendiente inmediato recomendado
-Extender el patrón de **mensajes amigables en UI** a más flujos y luego evaluar el siguiente bloque funcional prioritario.
+Decidir si el siguiente bloque será:
+1. seguir puliendo UX/UI en más módulos (admin/reportes)
+2. volver a otra prioridad funcional del producto
 
 ### Candidatos inmediatos
 1. más vistas/reportes con validación y mensajes
