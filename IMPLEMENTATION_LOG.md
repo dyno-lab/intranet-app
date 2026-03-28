@@ -167,7 +167,20 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - `app/templates/ui/reports/visitas.html`
   - `IMPLEMENTATION_LOG.md`
 
-### Validación manual del bloque `visitas`
+### Commit `88f11ad` — `docs: log validated visits refactor and fixes`
+- **Tipo:** `docs`
+- **Qué se hizo:**
+  - Se actualizó la bitácora para dejar trazada la secuencia completa de refactor y fixes del dominio `visitas`.
+  - Se registró la validación manual exitosa reportada por el usuario.
+- **Por qué se hizo:**
+  - Para cerrar correctamente el bloque de `visitas` y dejar continuidad clara a futuros agentes.
+- **Impacto esperado:**
+  - Menor pérdida de contexto histórico.
+  - Más claridad sobre qué parte ya fue validada y no está solo “en teoría”.
+- **Archivos creados/tocados:**
+  - `IMPLEMENTATION_LOG.md`
+
+### Estado funcional del bloque `visitas`
 - **Estado:** validado funcionalmente en UI.
 - **Pruebas confirmadas por usuario:**
   - guardar referidos desde `ui/reports/visitas`
@@ -177,18 +190,27 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 - **Conclusión:**
   - El reporte quedó coherente con el modelo deseado: cálculo derivado de actividades/asistencias + capa manual persistente solo para referidos.
 
+### Estado actual del bloque exportación
+- **Observación:** la exportación CSV básica ya existe y está visible en la UI.
+- **Ubicaciones confirmadas:**
+  - `new_list.html` → botón `Exportar CSV` para participantes (`/ui/new-list/export.csv`)
+  - `select_session.html` → botones `Exportar sesiones CSV` y `Exportar asistencias CSV`
+- **Conclusión:**
+  - El pendiente de exportación no está en cero; lo correcto ahora es consolidar/mejorar, no reimplementar desde cero.
+
 ---
 
 ## Próximo paso activo
 
-### Pendiente inmediato
-Crear `VISITS_DOMAIN_BLUEPRINT.md` para aterrizar el dominio `visitas` en una propuesta técnica concreta:
-- configuración
-- cálculo
-- persistencia
-- exporte
-- histórico
-- manejo global vs residencial
+### Pendiente inmediato recomendado
+Abordar **paginación** en las vistas que más pueden crecer, empezando por:
+1. `ui/new-list` (participantes)
+2. `ui/listado` / selector de sesiones
+
+### Motivo
+- La exportación básica ya existe.
+- `visitas` quedó estabilizado por ahora.
+- La paginación sí sigue siendo una necesidad funcional pendiente y de alto valor cuando aumente el volumen de datos.
 
 ---
 
