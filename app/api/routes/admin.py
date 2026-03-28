@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Form
+from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
@@ -23,6 +24,11 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 VALID_USER_ROLES = {"admin", "supervisor", "user"}
+
+
+def _redirect_with_msg(url: str, msg: str):
+    separator = "&" if "?" in url else "?"
+    return RedirectResponse(f"{url}{separator}msg={quote_plus(msg)}", status_code=303)
 
 
 # ============================================================
@@ -68,17 +74,11 @@ def admin_create_user(
         select(User).where(User.username == username)
     ).scalar_one_or_none()
     if existing:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: El usuario ya existe.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: El usuario ya existe.")
 
     normalized_role = role if role in VALID_USER_ROLES else "user"
     if normalized_role == "user" and not residential_id:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: Debe seleccionar un residencial para usuarios con rol user.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: Debe seleccionar un residencial para usuarios con rol user.")
 
     user = User(
         username=username,
@@ -89,10 +89,7 @@ def admin_create_user(
     db.add(user)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/users?msg=Usuario creado exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/users", "Usuario creado exitosamente.")
 
 
 @router.post("/users/{user_id}/edit")
@@ -109,26 +106,17 @@ def admin_edit_user(
 ):
     user = db.get(User, user_id)
     if not user:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: Usuario no encontrado.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: Usuario no encontrado.")
 
     existing = db.execute(
         select(User).where(User.username == username, User.user_id != user_id)
     ).scalar_one_or_none()
     if existing:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: El nombre de usuario ya está en uso.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario ya está en uso.")
 
     normalized_role = role if role in VALID_USER_ROLES else "user"
     if normalized_role == "user" and not residential_id:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: Debe seleccionar un residencial para usuarios con rol user.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: Debe seleccionar un residencial para usuarios con rol user.")
 
     user.username = username
     user.role = normalized_role
@@ -141,10 +129,7 @@ def admin_edit_user(
     db.add(user)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/users?msg=Usuario actualizado exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/users", "Usuario actualizado exitosamente.")
 
 
 @router.post("/users/{user_id}/delete")
@@ -154,25 +139,16 @@ def admin_delete_user(
     current_user: User = Depends(require_admin),
 ):
     if user_id == current_user.user_id:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: No puedes eliminar tu propio usuario.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: No puedes eliminar tu propio usuario.")
 
     user = db.get(User, user_id)
     if not user:
-        return RedirectResponse(
-            "/ui/admin/users?msg=Error: Usuario no encontrado.",
-            status_code=303,
-        )
+        return _redirect_with_msg("/ui/admin/users", "Error: Usuario no encontrado.")
 
     db.delete(user)
     db.commit()
 
-    return RedirectResponse(
-        "/ui/admin/users?msg=Usuario eliminado exitosamente.",
-        status_code=303,
-    )
+    return _redirect_with_msg("/ui/admin/users", "Usuario eliminado exitosamente.")
 
 
 # ============================================================
@@ -213,7 +189,7 @@ def admin_create_residential(
     code = code.strip().upper()
     existing = db.execute(select(Residential).where(Residential.code == code)).scalar_one_or_none()
     if existing:
-        return RedirectResponse("/ui/admin/residentials?msg=Error: El código ya existe.", status_code=303)
+        return _redirect_with_msg("/ui/admin/residentials", "Error: El código ya existe.")
 
     residential = Residential(
         code=code,
@@ -224,7 +200,7 @@ def admin_create_residential(
     db.add(residential)
     db.commit()
 
-    return RedirectResponse("/ui/admin/residentials?msg=Residencial creado exitosamente.", status_code=303)
+    return _redirect_with_msg("/ui/admin/residentials", "Residencial creado exitosamente.")
 
 
 @router.post("/residentials/{residential_id}/edit")
@@ -240,14 +216,14 @@ def admin_edit_residential(
 ):
     residential = db.get(Residential, residential_id)
     if not residential:
-        return RedirectResponse("/ui/admin/residentials?msg=Error: Residencial no encontrado.", status_code=303)
+        return _redirect_with_msg("/ui/admin/residentials", "Error: Residencial no encontrado.")
 
     code = code.strip().upper()
     existing = db.execute(
         select(Residential).where(Residential.code == code, Residential.residential_id != residential_id)
     ).scalar_one_or_none()
     if existing:
-        return RedirectResponse("/ui/admin/residentials?msg=Error: El código ya está en uso.", status_code=303)
+        return _redirect_with_msg("/ui/admin/residentials", "Error: El código ya está en uso.")
 
     residential.code = code
     residential.name = name.strip()
@@ -257,7 +233,7 @@ def admin_edit_residential(
     db.add(residential)
     db.commit()
 
-    return RedirectResponse("/ui/admin/residentials?msg=Residencial actualizado exitosamente.", status_code=303)
+    return _redirect_with_msg("/ui/admin/residentials", "Residencial actualizado exitosamente.")
 
 
 # ============================================================
