@@ -33,17 +33,12 @@ from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
 from app.services.visits import (
     resolve_report_scope,
-    resolve_visit_activity_ids,
-    query_visit_sessions,
-    build_visit_attendance_map,
-    calculate_visits_rows_and_summary,
-    get_visit_report,
-    get_visit_reports,
-    get_visit_referrals,
-    get_visit_referrals_for_reports,
     get_or_create_visit_report,
     replace_visit_report_referrals,
     delete_visit_reports_and_referrals,
+    get_visit_report,
+    get_visit_reports,
+    build_visits_report_payload,
 )
 
 router = APIRouter()
@@ -1338,85 +1333,16 @@ def _build_visits_context(
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
 
-    residential_name = None
-    rows = []
-    summary = {"visits": 0, "attendances": 0, "hours": 0.0}
-    mapped_activity_ids: list[int] = []
-    visit_report = None
-    referral_rows = []
-    referral_count = 0
-
-    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
-        mapped_activity_ids = resolve_visit_activity_ids(db, proposal_id)
-
-        if is_global:
-            residential_name = "Global"
-        else:
-            residential_name = _residential_from_user(selected_user)
-
-        if is_global:
-            visit_reports = get_visit_reports(
-                db,
-                proposal_id=proposal_id,
-                report_month=period["month"],
-                report_year=period["year"],
-            )
-            report_ids = [report.report_id for report in visit_reports]
-            if report_ids:
-                report_residential_map = {
-                    report.report_id: user_residential_map.get(report.created_by_user_id, "Global")
-                    for report in visit_reports
-                }
-                referrals = get_visit_referrals_for_reports(db, report_ids)
-                referral_rows = [
-                    {
-                        "residential_name": report_residential_map.get(referral.report_id, "Global"),
-                        "referral_type": referral.referral_type,
-                        "agency": referral.agency or "",
-                        "reference_or_purpose": referral.reference_or_purpose or "",
-                    }
-                    for referral in referrals
-                ]
-                referral_count = len(referral_rows)
-        else:
-            report_owner_user_id = selected_user.user_id
-            visit_report = get_visit_report(
-                db,
-                proposal_id=proposal_id,
-                report_month=period["month"],
-                report_year=period["year"],
-                created_by_user_id=report_owner_user_id,
-            )
-            if visit_report:
-                referrals = get_visit_referrals(db, visit_report.report_id)
-                referral_rows = [
-                    {
-                        "referral_type": referral.referral_type,
-                        "agency": referral.agency or "",
-                        "reference_or_purpose": referral.reference_or_purpose or "",
-                    }
-                    for referral in referrals
-                ]
-                referral_count = len(referral_rows)
-
-        if mapped_activity_ids:
-            session_rows = query_visit_sessions(
-                db,
-                proposal_id,
-                mapped_activity_ids,
-                period,
-                _apply_session_period_filter,
-                is_global=is_global,
-                selected_user_id=selected_user.user_id if selected_user else None,
-            )
-            session_ids = [row[0] for row in session_rows]
-            attendance_map = build_visit_attendance_map(db, session_ids)
-            rows, summary = calculate_visits_rows_and_summary(
-                session_rows,
-                attendance_map,
-                is_global=is_global,
-                user_residential_map=user_residential_map,
-            )
+    payload = build_visits_report_payload(
+        db,
+        proposal_id=proposal_id,
+        period=period,
+        selected_user=selected_user,
+        is_global=is_global,
+        user_residential_map=user_residential_map,
+        residential_name_resolver=_residential_from_user,
+        apply_period_filter=_apply_session_period_filter,
+    )
 
     return {
         **base_context,
@@ -1430,14 +1356,14 @@ def _build_visits_context(
         "selected_employee_id": employee_id,
         "selected_user": selected_user,
         "is_global": is_global,
-        "residential_name": residential_name,
-        "rows": rows,
-        "summary": summary,
-        "mapped_activity_ids": mapped_activity_ids,
+        "residential_name": payload["residential_name"],
+        "rows": payload["rows"],
+        "summary": payload["summary"],
+        "mapped_activity_ids": payload["mapped_activity_ids"],
         "authorized_name": authorized_name or "",
-        "visit_report": visit_report,
-        "referral_rows": referral_rows,
-        "referral_count": referral_count,
+        "visit_report": payload["visit_report"],
+        "referral_rows": payload["referral_rows"],
+        "referral_count": payload["referral_count"],
         "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
     }
 

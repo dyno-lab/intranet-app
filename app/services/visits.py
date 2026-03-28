@@ -269,3 +269,113 @@ def delete_visit_reports_and_referrals(db: Session, reports: list[VisitReport]):
         db.delete(referral)
     for report in reports:
         db.delete(report)
+
+
+def build_visits_report_payload(
+    db: Session,
+    *,
+    proposal_id: int | None,
+    period: dict,
+    selected_user,
+    is_global: bool,
+    user_residential_map: dict[int, str],
+    residential_name_resolver: Callable,
+    apply_period_filter: Callable,
+):
+    residential_name = None
+    rows = []
+    summary = {"visits": 0, "attendances": 0, "hours": 0.0}
+    mapped_activity_ids: list[int] = []
+    visit_report = None
+    referral_rows = []
+    referral_count = 0
+
+    if not (proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global)):
+        return {
+            "residential_name": residential_name,
+            "rows": rows,
+            "summary": summary,
+            "mapped_activity_ids": mapped_activity_ids,
+            "visit_report": visit_report,
+            "referral_rows": referral_rows,
+            "referral_count": referral_count,
+        }
+
+    mapped_activity_ids = resolve_visit_activity_ids(db, proposal_id)
+
+    if is_global:
+        residential_name = "Global"
+        visit_reports = get_visit_reports(
+            db,
+            proposal_id=proposal_id,
+            report_month=period["month"],
+            report_year=period["year"],
+        )
+        report_ids = [report.report_id for report in visit_reports]
+        if report_ids:
+            report_residential_map = {
+                report.report_id: user_residential_map.get(report.created_by_user_id, "Global")
+                for report in visit_reports
+            }
+            referrals = get_visit_referrals_for_reports(db, report_ids)
+            referral_rows = [
+                {
+                    "residential_name": report_residential_map.get(referral.report_id, "Global"),
+                    "referral_type": referral.referral_type,
+                    "agency": referral.agency or "",
+                    "reference_or_purpose": referral.reference_or_purpose or "",
+                }
+                for referral in referrals
+            ]
+            referral_count = len(referral_rows)
+    else:
+        residential_name = residential_name_resolver(selected_user)
+        report_owner_user_id = selected_user.user_id
+        visit_report = get_visit_report(
+            db,
+            proposal_id=proposal_id,
+            report_month=period["month"],
+            report_year=period["year"],
+            created_by_user_id=report_owner_user_id,
+        )
+        if visit_report:
+            referrals = get_visit_referrals(db, visit_report.report_id)
+            referral_rows = [
+                {
+                    "referral_type": referral.referral_type,
+                    "agency": referral.agency or "",
+                    "reference_or_purpose": referral.reference_or_purpose or "",
+                }
+                for referral in referrals
+            ]
+            referral_count = len(referral_rows)
+
+    if mapped_activity_ids:
+        session_rows = query_visit_sessions(
+            db,
+            proposal_id,
+            mapped_activity_ids,
+            period,
+            apply_period_filter,
+            is_global=is_global,
+            selected_user_id=selected_user.user_id if selected_user else None,
+        )
+
+        session_ids = [row[0] for row in session_rows]
+        attendance_map = build_visit_attendance_map(db, session_ids)
+        rows, summary = calculate_visits_rows_and_summary(
+            session_rows,
+            attendance_map,
+            is_global=is_global,
+            user_residential_map=user_residential_map,
+        )
+
+    return {
+        "residential_name": residential_name,
+        "rows": rows,
+        "summary": summary,
+        "mapped_activity_ids": mapped_activity_ids,
+        "visit_report": visit_report,
+        "referral_rows": referral_rows,
+        "referral_count": referral_count,
+    }
