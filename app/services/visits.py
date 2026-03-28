@@ -10,6 +10,8 @@ from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.employee import Employee
 from app.models.visit_activity_mapping import VisitActivityMapping
+from app.models.visit_report import VisitReport
+from app.models.visit_report_referral import VisitReportReferral
 
 
 ScopeResolver = Callable[[Any | None], str]
@@ -123,3 +125,124 @@ def calculate_visits_rows_and_summary(
     }
 
     return rows, summary
+
+
+def get_visit_report(
+    db: Session,
+    *,
+    proposal_id: int,
+    report_month: int,
+    report_year: int,
+    created_by_user_id: int | None,
+):
+    return db.execute(
+        select(VisitReport).where(
+            VisitReport.proposal_id == proposal_id,
+            VisitReport.report_month == report_month,
+            VisitReport.report_year == report_year,
+            VisitReport.created_by_user_id == created_by_user_id,
+        )
+    ).scalar_one_or_none()
+
+
+def get_visit_reports(
+    db: Session,
+    *,
+    proposal_id: int,
+    report_month: int,
+    report_year: int,
+):
+    return db.execute(
+        select(VisitReport).where(
+            VisitReport.proposal_id == proposal_id,
+            VisitReport.report_month == report_month,
+            VisitReport.report_year == report_year,
+        )
+    ).scalars().all()
+
+
+def get_visit_referrals(db: Session, report_id: int):
+    return db.execute(
+        select(VisitReportReferral)
+        .where(VisitReportReferral.report_id == report_id)
+        .order_by(VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+    ).scalars().all()
+
+
+def get_visit_referrals_for_reports(db: Session, report_ids: list[int]):
+    if not report_ids:
+        return []
+    return db.execute(
+        select(VisitReportReferral)
+        .where(VisitReportReferral.report_id.in_(report_ids))
+        .order_by(VisitReportReferral.report_id, VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+    ).scalars().all()
+
+
+def get_or_create_visit_report(
+    db: Session,
+    *,
+    proposal_id: int,
+    report_month: int,
+    report_year: int,
+    created_by_user_id: int | None,
+):
+    visit_report = get_visit_report(
+        db,
+        proposal_id=proposal_id,
+        report_month=report_month,
+        report_year=report_year,
+        created_by_user_id=created_by_user_id,
+    )
+    if visit_report:
+        return visit_report
+
+    visit_report = VisitReport(
+        proposal_id=proposal_id,
+        report_month=report_month,
+        report_year=report_year,
+        created_by_user_id=created_by_user_id,
+    )
+    db.add(visit_report)
+    db.flush()
+    return visit_report
+
+
+def replace_visit_report_referrals(db: Session, report_id: int, referral_payloads: list[dict]):
+    existing_referrals = db.execute(
+        select(VisitReportReferral).where(VisitReportReferral.report_id == report_id)
+    ).scalars().all()
+    for referral in existing_referrals:
+        db.delete(referral)
+    db.flush()
+
+    for idx, payload in enumerate(referral_payloads):
+        referral_type = (payload.get("referral_type") or "").strip()
+        agency = (payload.get("agency") or "").strip()
+        reference_or_purpose = (payload.get("reference_or_purpose") or "").strip()
+
+        if not referral_type and not agency and not reference_or_purpose:
+            continue
+
+        description = " | ".join(part for part in [agency, reference_or_purpose] if part).strip() or referral_type or "Referido"
+        referral = VisitReportReferral(
+            report_id=report_id,
+            referral_type=referral_type or "Externo",
+            description=description,
+            agency=agency or None,
+            reference_or_purpose=reference_or_purpose or None,
+            sort_order=idx,
+        )
+        db.add(referral)
+
+
+def delete_visit_reports_and_referrals(db: Session, reports: list[VisitReport]):
+    if not reports:
+        return
+
+    report_ids = [report.report_id for report in reports]
+    referrals = get_visit_referrals_for_reports(db, report_ids)
+    for referral in referrals:
+        db.delete(referral)
+    for report in reports:
+        db.delete(report)
