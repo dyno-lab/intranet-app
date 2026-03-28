@@ -75,6 +75,76 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 - **Siguiente paso recomendado en ese momento:**
   - Crear `VISITS_DOMAIN_BLUEPRINT.md` como dominio piloto.
 
+### Commit `f004d7a` — `refactor: extract visits report service`
+- **Tipo:** `refactor`, `architecture`
+- **Qué se hizo:**
+  - Se creó `app/services/visits.py`.
+  - Se extrajo la primera capa de lógica operativa del reporte de visitas: resolución de actividades de visita, consulta de sesiones, mapa de asistencias y agregación de filas/resumen.
+  - `_build_visits_context(...)` pasó a consumir estas funciones en vez de calcular todo inline.
+- **Por qué se hizo:**
+  - Para comenzar a adelgazar `app/api/routes/reports.py` sin romper el contrato de salida actual.
+  - Para separar cálculo operativo del dominio respecto al router.
+- **Impacto esperado:**
+  - Menor acoplamiento dentro de `reports.py`.
+  - Mejor base para futuras pruebas y refactors del dominio `visitas`.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/api/routes/reports.py`
+- **Observación técnica:**
+  - También se restringió el cálculo de asistencias a los `session_id` elegibles y se eliminó un lookup extra por sesión en modo global.
+
+### Commit `78ff14f` — `refactor: extract visits report persistence helpers`
+- **Tipo:** `refactor`, `architecture`
+- **Qué se hizo:**
+  - Se movieron al servicio de visitas los helpers documentales/persistentes: carga de `VisitReport`, carga de `VisitReportReferral`, creación/búsqueda de informe, reemplazo de referidos y borrado de informe + referidos.
+  - Las rutas `/visitas/referrals/save` y `/visitas/delete` dejaron de manejar esa lógica inline.
+- **Por qué se hizo:**
+  - Para separar mejor cálculo operativo y persistencia documental dentro del dominio `visitas`.
+- **Impacto esperado:**
+  - `reports.py` más limpio.
+  - Menor duplicación de lógica de persistencia.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/api/routes/reports.py`
+
+### Commit `7d0b552` — `refactor: centralize visits report scope resolution`
+- **Tipo:** `refactor`
+- **Qué se hizo:**
+  - Se centralizó en `resolve_report_scope(...)` la resolución de `selected_user`, `is_global` y `employee_id` efectivo.
+  - Esa lógica dejó de repetirse en `_build_visits_context(...)`, `/visitas/referrals/save` y `/visitas/delete`.
+- **Por qué se hizo:**
+  - Para eliminar repetición y dejar el concepto de “scope del reporte de visitas” en un solo punto.
+- **Impacto esperado:**
+  - Menor riesgo de inconsistencias entre vista, guardado y borrado.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/api/routes/reports.py`
+
+### Commit `a5d898e` — `refactor: extract visits report payload builder`
+- **Tipo:** `refactor`, `architecture`
+- **Qué se hizo:**
+  - Se creó `build_visits_report_payload(...)` dentro del servicio de visitas.
+  - `_build_visits_context(...)` pasó a actuar más como fachada/orquestador, limitándose a preparar período/contexto base/scope y mezclar el payload del dominio con el contexto de template.
+- **Por qué se hizo:**
+  - Para mover fuera del router la mayor parte del armado del dominio `visitas`.
+- **Impacto esperado:**
+  - Menor ancho lógico de `_build_visits_context(...)`.
+  - Más claridad entre capa de dominio y capa de presentación.
+- **Archivos creados/tocados:**
+  - `app/services/visits.py`
+  - `app/api/routes/reports.py`
+
+### Commit pendiente actual — fix de referidos de visitas
+- **Tipo:** `fix`, `ui`, `persistence`
+- **Qué se está corrigiendo:**
+  - Se detectó que los referidos creados desde `ui/reports/visitas` desaparecían al guardar y que el botón de borrar mostraba un comportamiento inconsistente.
+- **Causa identificada:**
+  1. El template `visitas.html` tenía un `<form>` anidado dentro de otro formulario, lo cual rompe el comportamiento HTML estándar.
+  2. Para reportes globales, `VisitReport.created_by_user_id` se guarda como `NULL`, y la búsqueda exacta con `== None` necesita manejarse explícitamente con `IS NULL` para evitar inconsistencias al recargar.
+- **Impacto esperado del fix:**
+  - Que guardar referidos no haga que desaparezcan visualmente.
+  - Que eliminar informe use un submit correcto y consistente.
+
 ---
 
 ## Próximo paso activo

@@ -158,14 +158,16 @@ def get_visit_report(
     report_year: int,
     created_by_user_id: int | None,
 ):
-    return db.execute(
-        select(VisitReport).where(
-            VisitReport.proposal_id == proposal_id,
-            VisitReport.report_month == report_month,
-            VisitReport.report_year == report_year,
-            VisitReport.created_by_user_id == created_by_user_id,
-        )
-    ).scalar_one_or_none()
+    stmt = select(VisitReport).where(
+        VisitReport.proposal_id == proposal_id,
+        VisitReport.report_month == report_month,
+        VisitReport.report_year == report_year,
+    )
+    if created_by_user_id is None:
+        stmt = stmt.where(VisitReport.created_by_user_id.is_(None))
+    else:
+        stmt = stmt.where(VisitReport.created_by_user_id == created_by_user_id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def get_visit_reports(

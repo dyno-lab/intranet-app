@@ -122,14 +122,15 @@
         </div>
         {% if visit_report or (is_global and referral_rows|length > 0) %}
         <div class="col-md-3 d-grid">
-          <form method="post" action="/ui/reports/visitas/delete" onsubmit="return confirm('¿Eliminar este informe de visitas y sus referidos?');">
-            <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
-            <input type="hidden" name="month" value="{{ selected_month or 0 }}">
-            <input type="hidden" name="year" value="{{ selected_year or 0 }}">
-            <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
-            <input type="hidden" name="authorized_name" value="{{ authorized_name or '' }}">
-            <button class="btn btn-outline-danger w-100" type="submit">Eliminar informe</button>
-          </form>
+          <button
+            class="btn btn-outline-danger w-100"
+            type="submit"
+            formaction="/ui/reports/visitas/delete"
+            formmethod="post"
+            onclick="return confirm('¿Eliminar este informe de visitas y sus referidos?');"
+          >
+            Eliminar informe
+          </button>
         </div>
         {% endif %}
       </div>
