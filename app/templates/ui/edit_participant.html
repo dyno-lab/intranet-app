@@ -3,6 +3,13 @@
 
 {% block content %}
 
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <h4 class="mb-3">Editar Participante</h4>
 
 <div class="card shadow-sm">

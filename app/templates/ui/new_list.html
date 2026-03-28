@@ -2,6 +2,12 @@
 {% block title %}New List{% endblock %}
 
 {% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 <h4 class="mb-3">New List - Registro de Participantes</h4>
 
 <div class="card shadow-sm mb-4">

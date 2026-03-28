@@ -125,6 +125,11 @@ def _csv_response(filename: str, headers: list[str], rows: list[list[object]]):
     )
 
 
+def _redirect_with_msg(url: str, msg: str):
+    separator = "&" if "?" in url else "?"
+    return RedirectResponse(f"{url}{separator}msg={msg}", status_code=303)
+
+
 def _build_sessions_stmt(current_user: User):
     stmt = (
         select(
@@ -220,6 +225,7 @@ def new_list(
     request: Request,
     page: int = 1,
     per_page: int = 25,
+    msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -254,6 +260,7 @@ def new_list(
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
         "pagination": pagination,
+        "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
 
@@ -286,15 +293,15 @@ def create_participant(
 ):
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
-            raise HTTPException(status_code=400, detail="Selecciona el año del expediente.")
+            return _redirect_with_msg("/ui/new-list", "Error: Selecciona el año del expediente.")
 
         initials = (exp_employee_initials or "").strip().upper()
         if not initials or len(initials) < 2 or len(initials) > 10:
-            raise HTTPException(status_code=400, detail="Las siglas del empleado son requeridas (2-10 caracteres).")
+            return _redirect_with_msg("/ui/new-list", "Error: Las siglas del empleado son requeridas (2-10 caracteres).")
 
         seq4 = (exp_seq4 or "").strip()
         if not (len(seq4) == 4 and seq4.isdigit()):
-            raise HTTPException(status_code=400, detail="Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
+            return _redirect_with_msg("/ui/new-list", "Error: Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
 
         used_seq = db.execute(
             select(Participant).where(
@@ -303,22 +310,22 @@ def create_participant(
             )
         ).scalar_one_or_none()
         if used_seq:
-            raise HTTPException(
-                status_code=400,
-                detail=f"El número {seq4} ya fue utilizado por usted anteriormente. Debe escoger otro.",
+            return _redirect_with_msg(
+                "/ui/new-list",
+                f"Error: El número {seq4} ya fue utilizado por usted anteriormente. Debe escoger otro.",
             )
 
         expediente_num = f"FE-{exp_year}-{initials}-{seq4}"
     else:
         expediente_num = (expediente_num or "").strip()
         if not expediente_num:
-            raise HTTPException(status_code=400, detail="Número de expediente es requerido.")
+            return _redirect_with_msg("/ui/new-list", "Error: Número de expediente es requerido.")
 
     exists = db.execute(
         select(Participant).where(Participant.expediente_num == expediente_num)
     ).scalar_one_or_none()
     if exists:
-        raise HTTPException(status_code=400, detail="Expediente ya existe.")
+        return _redirect_with_msg("/ui/new-list", "Error: El expediente ya existe.")
 
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
@@ -446,6 +453,7 @@ def export_participants_csv(
 def edit_participant_form(
     participant_id: int,
     request: Request,
+    msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -463,6 +471,7 @@ def edit_participant_form(
         "current_user": current_user,
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
+        "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
 
@@ -504,15 +513,15 @@ def edit_participant_save(
 
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
-            raise HTTPException(status_code=400, detail="Selecciona el año del expediente.")
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Selecciona el año del expediente.")
 
         initials = (exp_employee_initials or "").strip().upper()
         if not initials or len(initials) < 2 or len(initials) > 10:
-            raise HTTPException(status_code=400, detail="Las siglas del empleado son requeridas (2-10 caracteres).")
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Las siglas del empleado son requeridas (2-10 caracteres).")
 
         seq4 = (exp_seq4 or "").strip()
         if not (len(seq4) == 4 and seq4.isdigit()):
-            raise HTTPException(status_code=400, detail="Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Los 4 dígitos deben ser exactamente 4 números (ej. 0001).")
 
         used_seq = db.execute(
             select(Participant).where(
@@ -522,16 +531,16 @@ def edit_participant_save(
             )
         ).scalar_one_or_none()
         if used_seq:
-            raise HTTPException(
-                status_code=400,
-                detail=f"El número {seq4} ya fue utilizado por este empleado anteriormente. Debe escoger otro.",
+            return _redirect_with_msg(
+                f"/ui/new-list/{participant_id}/edit",
+                f"Error: El número {seq4} ya fue utilizado por este empleado anteriormente. Debe escoger otro.",
             )
 
         expediente_num_final = f"FE-{exp_year}-{initials}-{seq4}"
     else:
         expediente_num_final = (expediente_num or "").strip()
         if not expediente_num_final:
-            raise HTTPException(status_code=400, detail="Número de expediente es requerido.")
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Número de expediente es requerido.")
 
     exists = db.execute(
         select(Participant).where(
@@ -540,7 +549,7 @@ def edit_participant_save(
         )
     ).scalar_one_or_none()
     if exists:
-        raise HTTPException(status_code=400, detail="Expediente ya existe.")
+        return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El expediente ya existe.")
 
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
@@ -588,6 +597,7 @@ def listado_selector(
     year: str | None = None,
     page: int = 1,
     per_page: int = 25,
+    msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -655,6 +665,7 @@ def listado_selector(
             "years": list(range(date.today().year - 2, date.today().year + 3)),
             "pagination": pagination,
             "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
+            "msg": msg,
         },
     )
 
@@ -824,13 +835,13 @@ def create_session_ui(
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
         if not proposal:
-            raise HTTPException(status_code=400, detail="La propuesta seleccionada no existe.")
+            return _redirect_with_msg("/ui/listado", "Error: La propuesta seleccionada no existe.")
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
-        raise HTTPException(status_code=400, detail="El código de actividad seleccionado no existe.")
+        return _redirect_with_msg("/ui/listado", "Error: El código de actividad seleccionado no existe.")
     if not _activity_code_allowed_for_proposal(activity_code, proposal_id):
-        raise HTTPException(status_code=400, detail="La actividad no pertenece a la propuesta seleccionada.")
+        return _redirect_with_msg("/ui/listado", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s = ActivitySession(
         session_date=_parse_date(session_date),
@@ -941,11 +952,17 @@ async def save_attendance(
 
         missing_ids = [pid for pid in present if pid not in selected_map]
         if missing_ids:
-            raise HTTPException(status_code=403, detail="No tienes permiso para registrar asistencia para uno o más participantes.")
+            return _redirect_with_msg(
+                f"/ui/listado/{session_id}",
+                "Error: No tienes permiso para registrar asistencia para uno o más participantes.",
+            )
 
         inactive_ids = [pid for pid, participant in selected_map.items() if not _is_participant_active(participant)]
         if inactive_ids:
-            raise HTTPException(status_code=400, detail="No se puede registrar asistencia para participantes inactivos.")
+            return _redirect_with_msg(
+                f"/ui/listado/{session_id}",
+                "Error: No se puede registrar asistencia para participantes inactivos.",
+            )
 
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
@@ -985,16 +1002,16 @@ def edit_session(
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
         if not proposal:
-            raise HTTPException(status_code=400, detail="La propuesta seleccionada no existe.")
+            return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La propuesta seleccionada no existe.")
         s.proposal_id = proposal.proposal_id
     else:
         s.proposal_id = None
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
-        raise HTTPException(status_code=400, detail="El código de actividad seleccionado no existe.")
+        return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
     if not _activity_code_allowed_for_proposal(activity_code, s.proposal_id):
-        raise HTTPException(status_code=400, detail="La actividad no pertenece a la propuesta seleccionada.")
+        return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s.session_date = _parse_date(session_date)
     s.activity_code_id = activity_code_id

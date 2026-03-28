@@ -2,6 +2,12 @@
 {% block title %}Asistencia{% endblock %}
 
 {% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0">Marcar Asistencia</h4>
   <div>
