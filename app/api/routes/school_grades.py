@@ -12,6 +12,7 @@ from app.api.deps import get_db
 from app.core.auth import get_current_user
 from app.models.participant import Participant
 from app.models.proposal import Proposal
+from app.models.residential import Residential
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.user import User
@@ -90,9 +91,11 @@ def school_grade_reports_index(
             Proposal.code.label("proposal_code"),
             Proposal.name.label("proposal_name"),
             User.username.label("created_by_username"),
+            Residential.name.label("created_by_residential"),
         )
         .join(Proposal, SchoolGradeReport.proposal_id == Proposal.proposal_id)
         .join(User, SchoolGradeReport.created_by_user_id == User.user_id)
+        .outerjoin(Residential, User.residential_id == Residential.residential_id)
         .order_by(SchoolGradeReport.report_year.desc(), SchoolGradeReport.report_month.desc(), SchoolGradeReport.report_id.desc())
     )
 

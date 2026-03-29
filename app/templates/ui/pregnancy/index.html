@@ -117,12 +117,16 @@
         {% set proposal_code = row[1] %}
         {% set proposal_name = row[2] %}
         {% set created_by_username = row[3] %}
+        {% set created_by_residential = row[4] %}
         <tr>
           <td><span class="badge bg-info text-dark">{{ proposal_code }}</span> {{ proposal_name }}</td>
           <td>{{ month_lookup.get(report.report_month, report.report_month) }}</td>
           <td>{{ report.report_year }}</td>
           {% if current_user and current_user.role in ["admin", "supervisor"] %}
-          <td>{{ created_by_username or '-' }}</td>
+          <td>
+            <span class="badge bg-secondary">{{ created_by_username or '-' }}</span>
+            <div class="small text-muted">{{ created_by_residential or '-' }}</div>
+          </td>
           {% endif %}
           <td>{{ report.notes or '-' }}</td>
           <td class="text-end">

@@ -13,6 +13,7 @@ from app.models.participant import Participant
 from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.proposal import Proposal
+from app.models.residential import Residential
 from app.models.user import User
 
 router = APIRouter()
@@ -42,9 +43,11 @@ def pregnancy_reports_index(
             Proposal.code.label("proposal_code"),
             Proposal.name.label("proposal_name"),
             User.username.label("created_by_username"),
+            Residential.name.label("created_by_residential"),
         )
         .join(Proposal, PregnancyReport.proposal_id == Proposal.proposal_id)
         .join(User, PregnancyReport.created_by_user_id == User.user_id)
+        .outerjoin(Residential, User.residential_id == Residential.residential_id)
         .order_by(PregnancyReport.report_year.desc(), PregnancyReport.report_month.desc(), PregnancyReport.report_id.desc())
     )
 
