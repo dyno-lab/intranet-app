@@ -21,6 +21,7 @@ from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.proposal_population_group import ProposalPopulationGroup
+from app.models.proposal_report_program_activity import ProposalReportProgramActivity
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -1110,4 +1111,39 @@ def admin_edit_report_program(
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
         "Programa actualizado exitosamente.",
+    )
+
+
+@router.post("/report-programs/{program_id}/delete")
+def admin_delete_report_program(
+    program_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    program = db.get(ProposalReportProgram, program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Programa no encontrado.",
+        )
+
+    related_activities_count = db.execute(
+        select(func.count()).select_from(ProposalReportProgramActivity).where(
+            ProposalReportProgramActivity.program_id == program_id
+        )
+    ).scalar()
+
+    if related_activities_count and related_activities_count > 0:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: No se puede eliminar el programa porque ya tiene actividades o registros asociados. Puede inactivarlo en su lugar.",
+        )
+
+    db.delete(program)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Programa eliminado exitosamente.",
     )

@@ -193,7 +193,13 @@
               {% endif %}
             </td>
             <td>
-              <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar</button>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar</button>
+                <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/delete" onsubmit="return confirm('¿Seguro que desea borrar este programa? Esta acción no se puede deshacer.');" class="d-inline">
+                  <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                </form>
+              </div>
             </td>
           </tr>
           <tr class="collapse" id="edit-program-{{ program.program_id }}">
