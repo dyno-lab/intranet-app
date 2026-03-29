@@ -37,8 +37,14 @@ def pregnancy_reports_index(
     current_user: User = Depends(get_current_user),
 ):
     stmt = (
-        select(PregnancyReport, Proposal.code.label("proposal_code"), Proposal.name.label("proposal_name"))
+        select(
+            PregnancyReport,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+            User.username.label("created_by_username"),
+        )
         .join(Proposal, PregnancyReport.proposal_id == Proposal.proposal_id)
+        .join(User, PregnancyReport.created_by_user_id == User.user_id)
         .order_by(PregnancyReport.report_year.desc(), PregnancyReport.report_month.desc(), PregnancyReport.report_id.desc())
     )
 

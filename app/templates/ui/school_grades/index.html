@@ -104,6 +104,9 @@
           <th>Propuesta</th>
           <th>Mes</th>
           <th>Año</th>
+          {% if current_user and current_user.role in ["admin", "supervisor"] %}
+          <th>Creado por</th>
+          {% endif %}
           <th>Observaciones</th>
           <th class="text-end">Acciones</th>
         </tr>
@@ -113,10 +116,14 @@
         {% set report = row[0] %}
         {% set proposal_code = row[1] %}
         {% set proposal_name = row[2] %}
+        {% set created_by_username = row[3] %}
         <tr>
           <td><span class="badge bg-info text-dark">{{ proposal_code }}</span> {{ proposal_name }}</td>
           <td>{{ month_lookup.get(report.report_month, report.report_month) }}</td>
           <td>{{ report.report_year }}</td>
+          {% if current_user and current_user.role in ["admin", "supervisor"] %}
+          <td>{{ created_by_username or '-' }}</td>
+          {% endif %}
           <td>{{ report.notes or '-' }}</td>
           <td class="text-end">
             <div class="d-inline-flex gap-1">
@@ -129,7 +136,7 @@
         </tr>
         {% endfor %}
         {% if reports|length == 0 %}
-        <tr><td colspan="5" class="text-muted">No hay informes de notas creados.</td></tr>
+        <tr><td colspan="{{ 6 if current_user and current_user.role in ["admin", "supervisor"] else 5 }}" class="text-muted">No hay informes de notas creados.</td></tr>
         {% endif %}
       </tbody>
     </table>

@@ -85,8 +85,14 @@ def school_grade_reports_index(
     current_user: User = Depends(get_current_user),
 ):
     stmt = (
-        select(SchoolGradeReport, Proposal.code.label("proposal_code"), Proposal.name.label("proposal_name"))
+        select(
+            SchoolGradeReport,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+            User.username.label("created_by_username"),
+        )
         .join(Proposal, SchoolGradeReport.proposal_id == Proposal.proposal_id)
+        .join(User, SchoolGradeReport.created_by_user_id == User.user_id)
         .order_by(SchoolGradeReport.report_year.desc(), SchoolGradeReport.report_month.desc(), SchoolGradeReport.report_id.desc())
     )
 

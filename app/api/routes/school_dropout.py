@@ -39,8 +39,14 @@ def school_dropout_reports_index(
     current_user: User = Depends(get_current_user),
 ):
     stmt = (
-        select(SchoolDropoutReport, Proposal.code.label("proposal_code"), Proposal.name.label("proposal_name"))
+        select(
+            SchoolDropoutReport,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+            User.username.label("created_by_username"),
+        )
         .join(Proposal, SchoolDropoutReport.proposal_id == Proposal.proposal_id)
+        .join(User, SchoolDropoutReport.created_by_user_id == User.user_id)
         .order_by(SchoolDropoutReport.report_year.desc(), SchoolDropoutReport.report_month.desc(), SchoolDropoutReport.report_id.desc())
     )
 
