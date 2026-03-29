@@ -94,7 +94,15 @@
               {% endif %}
             </td>
             <td>{% if group.is_active %}<span class="badge bg-success">Activa</span>{% else %}<span class="badge bg-danger">Inactiva</span>{% endif %}</td>
-            <td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-group-{{ group.population_group_id }}">Editar</button></td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-group-{{ group.population_group_id }}">Editar</button>
+                <form method="post" action="/ui/admin/population-groups/{{ group.population_group_id }}/delete" onsubmit="return confirm('¿Seguro que desea borrar esta categoría poblacional? Esta acción no se puede deshacer.');" class="d-inline">
+                  <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                </form>
+              </div>
+            </td>
           </tr>
           <tr class="collapse" id="edit-group-{{ group.population_group_id }}">
             <td colspan="6" class="bg-light">

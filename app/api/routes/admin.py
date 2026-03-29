@@ -965,6 +965,41 @@ def admin_edit_population_group(
     )
 
 
+@router.post("/population-groups/{population_group_id}/delete")
+def admin_delete_population_group(
+    population_group_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    group = db.get(ProposalPopulationGroup, population_group_id)
+    if not group or group.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Categoría poblacional no encontrada.",
+        )
+
+    related_programs_count = db.execute(
+        select(func.count()).select_from(ProposalReportProgram).where(
+            ProposalReportProgram.population_group_id == population_group_id
+        )
+    ).scalar()
+
+    if related_programs_count and related_programs_count > 0:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: No se puede eliminar la categoría poblacional porque ya tiene programas asociados. Puede inactivarla en su lugar.",
+        )
+
+    db.delete(group)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Categoría poblacional eliminada exitosamente.",
+    )
+
+
 @router.get("/report-programs", response_class=HTMLResponse)
 def admin_report_programs(
     request: Request,
