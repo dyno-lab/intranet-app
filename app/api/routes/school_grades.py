@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -366,12 +366,9 @@ def delete_school_grade_report(
     if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
 
-    report_items = db.execute(
-        select(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
-    ).scalars().all()
-    for item in report_items:
-        db.delete(item)
-
+    db.execute(
+        delete(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
+    )
     db.delete(report)
     db.commit()
 
