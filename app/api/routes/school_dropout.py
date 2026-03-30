@@ -286,7 +286,10 @@ def delete_school_dropout_report(
     db.execute(
         delete(SchoolDropoutReportItem).where(SchoolDropoutReportItem.report_id == report_id)
     )
-    db.delete(report)
+    db.flush()
+    db.execute(
+        delete(SchoolDropoutReport).where(SchoolDropoutReport.report_id == report_id)
+    )
     db.commit()
 
     return RedirectResponse("/ui/school-dropout?msg=Informe de deserción escolar eliminado exitosamente.", status_code=303)

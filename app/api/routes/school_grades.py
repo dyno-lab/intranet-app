@@ -369,7 +369,10 @@ def delete_school_grade_report(
     db.execute(
         delete(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
     )
-    db.delete(report)
+    db.flush()
+    db.execute(
+        delete(SchoolGradeReport).where(SchoolGradeReport.report_id == report_id)
+    )
     db.commit()
 
     return RedirectResponse("/ui/school-grades?msg=Informe de notas eliminado exitosamente.", status_code=303)

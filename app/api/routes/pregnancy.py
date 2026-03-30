@@ -281,7 +281,10 @@ def delete_pregnancy_report(
     db.execute(
         delete(PregnancyReportItem).where(PregnancyReportItem.report_id == report_id)
     )
-    db.delete(report)
+    db.flush()
+    db.execute(
+        delete(PregnancyReport).where(PregnancyReport.report_id == report_id)
+    )
     db.commit()
 
     return RedirectResponse("/ui/pregnancy?msg=Informe de embarazo eliminado exitosamente.", status_code=303)
