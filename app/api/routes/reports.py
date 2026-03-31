@@ -31,6 +31,9 @@ from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
+from app.models.proposal_report_program import ProposalReportProgram
+from app.models.proposal_report_program_activity import ProposalReportProgramActivity
+from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.services.visits import (
     resolve_report_scope,
     get_or_create_visit_report,
@@ -524,6 +527,22 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "por-programa":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/por-programa/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/por-programa/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/por-programa?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
@@ -1597,6 +1616,38 @@ def visits_report_excel(
     )
 
 
+def _summarize_participants_by_age_and_gender(participants: list[Participant]):
+    summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
+
+    for participant in participants:
+        age = _calc_age(participant.fecha_nacimiento)
+        bucket = _get_age_bucket(age)
+        if not bucket:
+            continue
+        gender = _normalize_text(participant.genero).upper()
+        if gender.startswith("F"):
+            summary[bucket]["f"] += 1
+        elif gender.startswith("M"):
+            summary[bucket]["m"] += 1
+        summary[bucket]["total"] += 1
+
+    rows = []
+    total_f = total_m = total_all = 0
+    for key, label in AGE_BUCKETS:
+        row = summary[key]
+        rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
+        total_f += row["f"]
+        total_m += row["m"]
+        total_all += row["total"]
+
+    return {
+        "rows": rows,
+        "total_f": total_f,
+        "total_m": total_m,
+        "total_all": total_all,
+    }
+
+
 def _build_no_duplicado_context(
     db: Session,
     current_user: User,
@@ -1695,14 +1746,21 @@ def _build_no_duplicado_context(
                     summary[bucket]["m"] += 1
                 summary[bucket]["total"] += 1
 
-    rows = []
-    total_f = total_m = total_all = 0
-    for key, label in AGE_BUCKETS:
-        row = summary[key]
-        rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
-        total_f += row["f"]
-        total_m += row["m"]
-        total_all += row["total"]
+    if duplicated:
+        rows = []
+        total_f = total_m = total_all = 0
+        for key, label in AGE_BUCKETS:
+            row = summary[key]
+            rows.append({"label": label, "f": row["f"], "m": row["m"], "total": row["total"]})
+            total_f += row["f"]
+            total_m += row["m"]
+            total_all += row["total"]
+    else:
+        participant_summary = _summarize_participants_by_age_and_gender(participants if 'participants' in locals() else [])
+        rows = participant_summary["rows"]
+        total_f = participant_summary["total_f"]
+        total_m = participant_summary["total_m"]
+        total_all = participant_summary["total_all"]
 
     return {
         **base_context,
@@ -2350,6 +2408,125 @@ def no_duplicado_report(
     return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
 
 
+@router.get("/por-programa", response_class=HTMLResponse)
+def por_programa_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/por_programa.html", context)
+
+
+@router.get("/por-programa/pdf", response_class=HTMLResponse)
+def por_programa_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/por_programa_pdf.html", context)
+
+
+@router.get("/por-programa/excel")
+def por_programa_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+
+    if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/por-programa", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Por Programa"
+
+    ws["A1"] = "Informe mensual de participantes"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Participación por programa (No Duplicado)"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["A5"] = "Municipio"
+    ws["B5"] = context["municipality"] or ""
+    ws["A6"] = "RQ"
+    ws["B6"] = context["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"
+    ws["B7"] = context["period_label"]
+    ws["A8"] = "Funcionario autorizado"
+    ws["B8"] = context["authorized_name"] or ""
+
+    row_index = 10
+    for section in context["program_sections"]:
+        ws.cell(row=row_index, column=1, value=f"Programa: {section['program'].code} - {section['program'].name}").font = Font(bold=True)
+        ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
+        ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
+
+        header_row = row_index + 3
+        headers = ["Clasificación", "F", "M", "Total de participantes"]
+        for col_index, header in enumerate(headers, start=1):
+            cell = ws.cell(row=header_row, column=col_index, value=header)
+            cell.font = Font(bold=True)
+
+        current_row = header_row + 1
+        for row in section["rows"]:
+            ws.cell(row=current_row, column=1, value=row["label"])
+            ws.cell(row=current_row, column=2, value=row["f"])
+            ws.cell(row=current_row, column=3, value=row["m"])
+            ws.cell(row=current_row, column=4, value=row["total"])
+            current_row += 1
+
+        ws.cell(row=current_row, column=1, value="TOTAL").font = Font(bold=True)
+        ws.cell(row=current_row, column=2, value=section["total_f"]).font = Font(bold=True)
+        ws.cell(row=current_row, column=3, value=section["total_m"]).font = Font(bold=True)
+        ws.cell(row=current_row, column=4, value=section["total_all"]).font = Font(bold=True)
+
+        row_index = current_row + 3
+
+    widths = {"A": 40, "B": 12, "C": 12, "D": 22}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "por_programa").replace(" ", "_")
+    filename = f"por_programa_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/no-duplicado/pdf", response_class=HTMLResponse)
 def no_duplicado_report_pdf(
     request: Request,
@@ -2441,6 +2618,145 @@ def no_duplicado_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _build_por_programa_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user)
+
+    selected_user = None
+    is_global = False
+    if current_user.role in {"admin", "supervisor"}:
+        if employee_id == 0:
+            is_global = True
+        elif employee_id:
+            selected_user = db.get(User, employee_id)
+    else:
+        selected_user = current_user
+        employee_id = current_user.user_id
+
+    residential_name = None
+    municipality = None
+    rq_code = None
+    if is_global:
+        residential_name = "Global"
+        municipality = "Todos"
+        rq_code = "Global"
+    elif selected_user:
+        residential_name = _residential_from_user(selected_user)
+        municipality = _municipality_from_user(selected_user)
+        rq_code = _rq_from_user(selected_user)
+
+    program_sections = []
+    overall_total_f = overall_total_m = overall_total_all = 0
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        programs = db.execute(
+            select(ProposalReportProgram)
+            .where(
+                ProposalReportProgram.proposal_id == proposal_id,
+                ProposalReportProgram.is_active == True,  # noqa: E712
+            )
+            .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
+        ).scalars().all()
+
+        synthetic_activities = db.execute(
+            select(ProposalReportProgramActivity)
+            .where(ProposalReportProgramActivity.program_id.in_([program.program_id for program in programs]))
+        ).scalars().all() if programs else []
+        activity_by_program_id = {activity.program_id: activity for activity in synthetic_activities}
+
+        mapping_rows = db.execute(
+            select(ProposalReportProgramActivityCode.program_activity_id, ProposalReportProgramActivityCode.activity_code_id)
+            .where(ProposalReportProgramActivityCode.program_activity_id.in_([activity.program_activity_id for activity in synthetic_activities]))
+        ).all() if synthetic_activities else []
+
+        program_activity_code_ids: dict[int, set[int]] = {}
+        for program in programs:
+            synthetic_activity = activity_by_program_id.get(program.program_id)
+            if not synthetic_activity:
+                continue
+            program_activity_code_ids[program.program_id] = {
+                activity_code_id
+                for program_activity_id, activity_code_id in mapping_rows
+                if program_activity_id == synthetic_activity.program_activity_id
+            }
+
+        for program in programs:
+            activity_code_ids = program_activity_code_ids.get(program.program_id, set())
+            if not activity_code_ids:
+                program_sections.append({
+                    "program": program,
+                    "rows": [{"label": label, "f": 0, "m": 0, "total": 0} for _, label in AGE_BUCKETS],
+                    "total_f": 0,
+                    "total_m": 0,
+                    "total_all": 0,
+                    "assigned_activity_count": 0,
+                })
+                continue
+
+            stmt = (
+                select(Participant)
+                .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .where(
+                    Attendance.attended == True,  # noqa: E712
+                    ActivitySession.proposal_id == proposal_id,
+                    ActivitySession.activity_code_id.in_(activity_code_ids),
+                )
+            )
+            stmt = _apply_session_period_filter(stmt, period)
+            stmt = stmt.distinct()
+            if not is_global:
+                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+            participants = db.execute(stmt).scalars().all()
+            participant_summary = _summarize_participants_by_age_and_gender(participants)
+            overall_total_f += participant_summary["total_f"]
+            overall_total_m += participant_summary["total_m"]
+            overall_total_all += participant_summary["total_all"]
+
+            program_sections.append({
+                "program": program,
+                "rows": participant_summary["rows"],
+                "total_f": participant_summary["total_f"],
+                "total_m": participant_summary["total_m"],
+                "total_all": participant_summary["total_all"],
+                "assigned_activity_count": len(activity_code_ids),
+            })
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, base_context["month_lookup"]),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "municipality": municipality,
+        "rq_code": rq_code,
+        "authorized_name": (authorized_name or "").strip(),
+        "program_sections": program_sections,
+        "overall_total_f": overall_total_f,
+        "overall_total_m": overall_total_m,
+        "overall_total_all": overall_total_all,
+    }
 
 
 @router.get("/vca", response_class=HTMLResponse)

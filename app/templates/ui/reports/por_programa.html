@@ -1,0 +1,70 @@
+{% extends "ui/_base.html" %}
+{% block title %}Participación por programa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Participación por programa</h4>
+    <div class="text-muted small">Reporte no duplicado por programa, edad y género</div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3"><strong>Residencial</strong><div>{{ residential_name or '' }}</div></div>
+      <div class="col-md-3"><strong>Municipio</strong><div>{{ municipality or '' }}</div></div>
+      <div class="col-md-2"><strong>RQ</strong><div>{{ rq_code or '' }}</div></div>
+      <div class="col-md-4"><strong>Periodo</strong><div>{{ period_label }}</div></div>
+      <div class="col-md-4"><strong>Funcionario autorizado</strong><div>{{ authorized_name or '' }}</div></div>
+      <div class="col-md-4"><strong>Total F</strong><div>{{ overall_total_f }}</div></div>
+      <div class="col-md-4"><strong>Total M</strong><div>{{ overall_total_m }}</div></div>
+    </div>
+  </div>
+</div>
+
+{% if program_sections %}
+  <div class="d-flex flex-column gap-4">
+    {% for section in program_sections %}
+    <div class="card shadow-sm">
+      <div class="card-header bg-light">
+        <strong>{{ section.program.code }} - {{ section.program.name }}</strong>
+        <div class="small text-muted">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Clasificación</th>
+                <th>F</th>
+                <th>M</th>
+                <th>Total de participantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in section.rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td>{{ row.f }}</td>
+                <td>{{ row.m }}</td>
+                <td>{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="table-secondary fw-bold">
+                <td>TOTAL</td>
+                <td>{{ section.total_f }}</td>
+                <td>{{ section.total_m }}</td>
+                <td>{{ section.total_all }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-warning">No hay programas configurados o no existen participaciones para los filtros seleccionados.</div>
+{% endif %}
+{% endblock %}

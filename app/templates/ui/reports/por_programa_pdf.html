@@ -1,0 +1,50 @@
+{% extends "ui/_base.html" %}
+{% block title %}Participación por programa{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h4 class="mb-1">Informe mensual de participantes</h4>
+  <div class="fw-semibold">Participación por programa (No Duplicado)</div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><strong>Residencial</strong><div>{{ residential_name or '' }}</div></div>
+  <div class="col-md-3"><strong>Municipio</strong><div>{{ municipality or '' }}</div></div>
+  <div class="col-md-2"><strong>RQ</strong><div>{{ rq_code or '' }}</div></div>
+  <div class="col-md-4"><strong>Periodo reportado</strong><div>{{ period_label }}</div></div>
+  <div class="col-md-4"><strong>Funcionario autorizado</strong><div>{{ authorized_name or '' }}</div></div>
+</div>
+
+{% for section in program_sections %}
+<div class="mb-4">
+  <h5 class="mb-1">{{ section.program.code }} - {{ section.program.name }}</h5>
+  <div class="small text-muted mb-2">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
+  <table class="table table-bordered align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Clasificación</th>
+        <th>F</th>
+        <th>M</th>
+        <th>Total de participantes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in section.rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td>{{ row.f }}</td>
+        <td>{{ row.m }}</td>
+        <td>{{ row.total }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="table-secondary fw-bold">
+        <td>TOTAL</td>
+        <td>{{ section.total_f }}</td>
+        <td>{{ section.total_m }}</td>
+        <td>{{ section.total_all }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endblock %}
