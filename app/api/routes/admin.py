@@ -1084,6 +1084,7 @@ def admin_report_programs(
         assigned_code_ids_by_program_id: dict[int, set[int]] = {}
         activity_to_program_id = {activity.program_activity_id: activity.program_id for activity in synthetic_activity_by_program_id.values()}
 
+        globally_assigned_activity_code_ids: set[int] = set()
         seen_program_activity_pairs: set[tuple[int, int]] = set()
         for assigned in assigned_rows:
             program_id_for_mapping = activity_to_program_id.get(assigned.program_activity_id)
@@ -1094,6 +1095,7 @@ def admin_report_programs(
             if pair_key in seen_program_activity_pairs:
                 continue
             seen_program_activity_pairs.add(pair_key)
+            globally_assigned_activity_code_ids.add(activity_code.activity_code_id)
             assigned_codes_by_program_id.setdefault(program_id_for_mapping, []).append(activity_code)
             assigned_code_ids_by_program_id.setdefault(program_id_for_mapping, set()).add(activity_code.activity_code_id)
 
@@ -1102,7 +1104,10 @@ def admin_report_programs(
             assigned_codes = assigned_codes_by_program_id.get(program.program_id, [])
             assigned_codes = sorted(assigned_codes, key=lambda item: (item.code or "", item.description or ""))
             assigned_ids = assigned_code_ids_by_program_id.get(program.program_id, set())
-            available_codes = [code for code in proposal_activity_codes if code.activity_code_id not in assigned_ids]
+            available_codes = [
+                code for code in proposal_activity_codes
+                if code.activity_code_id not in globally_assigned_activity_code_ids or code.activity_code_id in assigned_ids
+            ]
             setattr(program, "assignment_activity", synthetic_activity_by_program_id.get(program.program_id))
             setattr(program, "assigned_activity_codes", assigned_codes)
             setattr(program, "available_activity_codes", available_codes)
@@ -1478,24 +1483,32 @@ def admin_add_activity_code_to_report_program_activity(
             "Error: Debe seleccionar un código de actividad válido de la propuesta.",
         )
 
-    program_activity_ids = db.execute(
-        select(ProposalReportProgramActivity.program_activity_id).where(
-            ProposalReportProgramActivity.program_id == program.program_id
+    proposal_program_ids = db.execute(
+        select(ProposalReportProgram.program_id).where(
+            ProposalReportProgram.proposal_id == proposal_id
         )
     ).scalars().all()
 
+    proposal_program_activity_ids = []
+    if proposal_program_ids:
+        proposal_program_activity_ids = db.execute(
+            select(ProposalReportProgramActivity.program_activity_id).where(
+                ProposalReportProgramActivity.program_id.in_(proposal_program_ids)
+            )
+        ).scalars().all()
+
     existing = None
-    if program_activity_ids:
+    if proposal_program_activity_ids:
         existing = db.execute(
             select(ProposalReportProgramActivityCode).where(
-                ProposalReportProgramActivityCode.program_activity_id.in_(program_activity_ids),
+                ProposalReportProgramActivityCode.program_activity_id.in_(proposal_program_activity_ids),
                 ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
             )
         ).scalar_one_or_none()
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Esa actividad ya está adjudicada a este programa y no puede repetirse.",
+            "Error: Esa actividad ya está adjudicada a otro programa dentro de esta propuesta y no puede repetirse.",
         )
 
     db.add(
