@@ -1262,10 +1262,21 @@ def admin_delete_report_program(
             "Error: No se puede eliminar el programa porque todavía tiene actividades adjudicadas asociadas. Remuévalas primero o inactívelo.",
         )
 
-    for activity in related_activities:
-        db.delete(activity)
+    if activity_ids:
+        db.execute(
+            delete(ProposalReportProgramActivityCode).where(
+                ProposalReportProgramActivityCode.program_activity_id.in_(activity_ids)
+            )
+        )
+        db.execute(
+            delete(ProposalReportProgramActivity).where(
+                ProposalReportProgramActivity.program_id == program_id
+            )
+        )
 
-    db.delete(program)
+    db.execute(
+        delete(ProposalReportProgram).where(ProposalReportProgram.program_id == program_id)
+    )
     db.commit()
 
     return _redirect_with_msg(
