@@ -235,8 +235,11 @@
           </div>
 
           <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-light"><strong>Crear actividad programática</strong></div>
+            <div class="card-header bg-light"><strong>Paso 1: Añadir actividad al programa</strong></div>
             <div class="card-body">
+              <div class="alert alert-info small mb-3" role="alert">
+                Este programa puede tener <strong>múltiples actividades</strong>. Primero crea una actividad del programa y luego, más abajo, podrás asociarle uno o más códigos de actividad de esta propuesta.
+              </div>
               <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/activities/create" class="row g-3 align-items-end">
                 <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                 <div class="col-md-2">
@@ -267,8 +270,11 @@
           </div>
 
           <div class="card border-0 shadow-sm">
-            <div class="card-header bg-light"><strong>Actividades configuradas del programa</strong></div>
+            <div class="card-header bg-light"><strong>Paso 2: Configurar actividades y asociar códigos</strong></div>
             <div class="card-body">
+              <p class="text-muted small mb-3">
+                Cada actividad del programa puede agrupar varios <code>activity_codes</code>. Si acabas de crear el programa y todavía no ves selectores de asociación, primero añade al menos una actividad en el Paso 1.
+              </p>
               {% if program.program_activities %}
                 <div class="d-flex flex-column gap-3">
                   {% for activity in program.program_activities %}
@@ -321,7 +327,7 @@
                     <div class="row g-3">
                       <div class="col-lg-5">
                         <div class="border rounded p-3 h-100">
-                          <h6 class="mb-3">Asociar códigos de actividad</h6>
+                          <h6 class="mb-3">Paso 2A: Asociar códigos de actividad</h6>
                           {% if activity.available_activity_codes %}
                           <form method="post" action="/ui/admin/report-programs/activities/{{ activity.program_activity_id }}/activity-codes/add" class="row g-2 align-items-end">
                             <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
@@ -345,7 +351,7 @@
                       </div>
                       <div class="col-lg-7">
                         <div class="border rounded p-3 h-100">
-                          <h6 class="mb-3">Códigos actualmente asociados</h6>
+                          <h6 class="mb-3">Paso 2B: Códigos actualmente asociados</h6>
                           {% if activity.assigned_activity_codes %}
                           <div class="d-flex flex-column gap-2">
                             {% for assigned_code in activity.assigned_activity_codes %}
@@ -371,7 +377,9 @@
                   {% endfor %}
                 </div>
               {% else %}
-                <div class="text-muted">Todavía no hay actividades programáticas configuradas para este programa.</div>
+                <div class="alert alert-warning mb-0" role="alert">
+                  Todavía no hay actividades configuradas para este programa. Para poder asignarle actividades reales, primero usa el <strong>Paso 1</strong> y crea una o más actividades del programa.
+                </div>
               {% endif %}
             </div>
           </div>
