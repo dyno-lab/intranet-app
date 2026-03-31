@@ -18,6 +18,7 @@ class ProposalReportProgram(Base):
     proposal_id: Mapped[int] = mapped_column(ForeignKey("proposals.proposal_id"), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+    formal_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     population_group_id: Mapped[int] = mapped_column(ForeignKey("proposal_population_groups.population_group_id"), nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

@@ -1123,6 +1123,7 @@ def admin_create_report_program(
     proposal_id: int = Form(...),
     code: str = Form(...),
     name: str = Form(...),
+    formal_name: str | None = Form(default=None),
     population_group_id: int = Form(...),
     sort_order: int = Form(0),
     db: Session = Depends(get_db),
@@ -1156,6 +1157,7 @@ def admin_create_report_program(
         proposal_id=proposal_id,
         code=normalized_code,
         name=name.strip(),
+        formal_name=(formal_name or "").strip() or None,
         population_group_id=population_group_id,
         sort_order=sort_order,
         is_active=True,
@@ -1175,6 +1177,7 @@ def admin_edit_report_program(
     proposal_id: int = Form(...),
     code: str = Form(...),
     name: str = Form(...),
+    formal_name: str | None = Form(default=None),
     population_group_id: int = Form(...),
     sort_order: int = Form(0),
     is_active: str | None = Form(default=None),
@@ -1211,6 +1214,7 @@ def admin_edit_report_program(
 
     program.code = normalized_code
     program.name = name.strip()
+    program.formal_name = (formal_name or "").strip() or None
     program.population_group_id = population_group_id
     program.sort_order = sort_order
     program.is_active = is_active == "on"

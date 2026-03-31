@@ -51,7 +51,7 @@
 
     {% for section in program_sections %}
     <div class="section">
-      <div class="section-title">Programa: {{ section.program.code }} - {{ section.program.name }}</div>
+      <div class="section-title">Programa: {{ section.program_display_name }}</div>
       <div class="section-subtitle">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
       <table>
         <thead>

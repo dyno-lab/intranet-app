@@ -2485,7 +2485,7 @@ def por_programa_report_excel(
 
     row_index = 10
     for section in context["program_sections"]:
-        ws.cell(row=row_index, column=1, value=f"Programa: {section['program'].code} - {section['program'].name}").font = Font(bold=True)
+        ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}").font = Font(bold=True)
         ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
         ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
 
@@ -2628,6 +2628,10 @@ def no_duplicado_report_excel(
     )
 
 
+def _program_report_display_name(program: ProposalReportProgram) -> str:
+    return (getattr(program, "formal_name", None) or getattr(program, "name", None) or getattr(program, "code", "")).strip()
+
+
 def _build_por_programa_context(
     db: Session,
     current_user: User,
@@ -2706,6 +2710,7 @@ def _build_por_programa_context(
             if not activity_code_ids:
                 program_sections.append({
                     "program": program,
+                    "program_display_name": _program_report_display_name(program),
                     "rows": [{"label": label, "f": 0, "m": 0, "total": 0} for _, label in AGE_BUCKETS],
                     "total_f": 0,
                     "total_m": 0,
@@ -2737,6 +2742,7 @@ def _build_por_programa_context(
 
             program_sections.append({
                 "program": program,
+                "program_display_name": _program_report_display_name(program),
                 "rows": participant_summary["rows"],
                 "total_f": participant_summary["total_f"],
                 "total_m": participant_summary["total_m"],

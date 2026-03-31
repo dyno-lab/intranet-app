@@ -137,9 +137,13 @@
         <label class="form-label">Código</label>
         <input type="text" class="form-control" name="code" required placeholder="Ej. 1A">
       </div>
+      <div class="col-md-3">
+        <label class="form-label">Nombre corto</label>
+        <input type="text" class="form-control" name="name" required placeholder="Ej. Programa 3 C">
+      </div>
       <div class="col-md-4">
-        <label class="form-label">Nombre</label>
-        <input type="text" class="form-control" name="name" required placeholder="Ej. Programa 1A">
+        <label class="form-label">Nombre formal para reportes</label>
+        <input type="text" class="form-control" name="formal_name" placeholder="Ej. SERVICIOS DE SALUD Y BIENESTAR BIO-PSICO-SOCIAL PARA NIÑOS, JÓVENES Y ADULTOS">
       </div>
       <div class="col-md-3">
         <label class="form-label">Categoría poblacional</label>
@@ -187,6 +191,10 @@
                   Sin categoría poblacional asociada
                 {% endif %}
               </div>
+              <div class="small mt-1">
+                <strong>Nombre formal:</strong>
+                {{ program.formal_name or 'Usará el nombre corto actual como fallback en reportes.' }}
+              </div>
             </div>
             <div class="d-flex gap-2 flex-wrap">
               <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar programa</button>
@@ -205,9 +213,13 @@
                   <label class="form-label small">Código</label>
                   <input type="text" class="form-control form-control-sm" name="code" value="{{ program.code }}" required>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label small">Nombre</label>
+                <div class="col-md-3">
+                  <label class="form-label small">Nombre corto</label>
                   <input type="text" class="form-control form-control-sm" name="name" value="{{ program.name }}" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small">Nombre formal para reportes</label>
+                  <input type="text" class="form-control form-control-sm" name="formal_name" value="{{ program.formal_name or '' }}">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label small">Categoría poblacional</label>

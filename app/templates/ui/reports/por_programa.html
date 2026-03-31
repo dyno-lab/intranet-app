@@ -103,7 +103,7 @@
         {% for section in program_sections %}
         <div>
           <div class="mb-2">
-            <div class="fw-bold">Programa: {{ section.program.code }} - {{ section.program.name }}</div>
+            <div class="fw-bold">Programa: {{ section.program_display_name }}</div>
             <div class="small text-muted">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
           </div>
           <div class="table-responsive">

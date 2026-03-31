@@ -658,6 +658,11 @@ BEGIN
     ALTER TABLE dbo.proposal_report_programs ADD population_group_id INT NULL;
 END;
 
+IF COL_LENGTH('dbo.proposal_report_programs', 'formal_name') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposal_report_programs ADD formal_name VARCHAR(255) NULL;
+END;
+
 IF COL_LENGTH('dbo.proposal_report_programs', 'population_group') IS NOT NULL
 BEGIN
     UPDATE prp
