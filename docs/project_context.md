@@ -192,6 +192,15 @@ No conviene mezclar estas capas más de lo necesario.
 - revisar impacto en propuesta, reportes, permisos e histórico
 - preferir cambios pequeños, trazables y coherentes con la arquitectura objetivo
 
+### Reglas de eliminación de datos
+- nunca eliminar registros padre sin validar primero relaciones hijas
+- siempre considerar foreign keys, especialmente en SQL Server
+- el orden correcto de eliminación es: tablas hijas primero, luego tablas padre
+- no asumir `cascade delete` si no está explícitamente definido y validado
+- cuando se use `delete(...)`, verificar también imports y comportamiento real del ORM
+- pensar siempre en lo que puede fallar en `commit()`, no solo en la validación previa
+- si existen relaciones técnicas residuales, distinguirlas de asociaciones reales antes de permitir borrado
+
 ---
 
 ## 8. Flujo de trabajo (IMPORTANTE)
