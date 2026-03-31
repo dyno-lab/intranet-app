@@ -212,7 +212,8 @@
       <tbody>
         {% for r in rows %}
           {% set p = r.p %}
-          <tr class="{{ '' if r.is_active else 'table-danger' }}">
+          {% set primera_vez_si = (p.primera_vez or '')|lower in ['si', 'sí'] %}
+          <tr class="{{ 'table-danger' if not r.is_active else ('table-warning' if primera_vez_si else '') }}">
             <td>{{ p.expediente_num }}</td>
             <td>{{ p.nombre }}</td>
             <td>{{ p.inicial or '' }}</td>
