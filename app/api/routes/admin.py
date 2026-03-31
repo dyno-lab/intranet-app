@@ -1039,24 +1039,40 @@ def admin_report_programs(
             .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
         ).scalars().all()
 
-        activities = db.execute(
-            select(ProposalReportProgramActivity, ProposalReportProgram)
-            .join(ProposalReportProgram, ProposalReportProgram.program_id == ProposalReportProgramActivity.program_id)
-            .where(ProposalReportProgram.proposal_id == selected_proposal.proposal_id)
-            .order_by(
-                ProposalReportProgram.sort_order,
-                ProposalReportProgram.code,
-                ProposalReportProgramActivity.sort_order,
-                ProposalReportProgramActivity.code,
-            )
-        ).all()
+        program_ids = [program.program_id for program in programs]
+        synthetic_activity_by_program_id: dict[int, ProposalReportProgramActivity] = {}
 
-        activity_by_program_id: dict[int, list[ProposalReportProgramActivity]] = {}
-        all_program_activity_ids: list[int] = []
-        for activity, program in activities:
-            activity_by_program_id.setdefault(program.program_id, []).append(activity)
-            all_program_activity_ids.append(activity.program_activity_id)
+        existing_activities = []
+        if program_ids:
+            existing_activities = db.execute(
+                select(ProposalReportProgramActivity)
+                .where(ProposalReportProgramActivity.program_id.in_(program_ids))
+                .order_by(ProposalReportProgramActivity.program_id, ProposalReportProgramActivity.program_activity_id)
+            ).scalars().all()
 
+        for activity in existing_activities:
+            synthetic_activity_by_program_id.setdefault(activity.program_id, activity)
+
+        pending_create = False
+        for program in programs:
+            if program.program_id not in synthetic_activity_by_program_id:
+                synthetic_activity = ProposalReportProgramActivity(
+                    program_id=program.program_id,
+                    code=f"AUTO-{program.code}",
+                    label=f"Actividades de {program.name}",
+                    sort_order=0,
+                    is_active=True,
+                )
+                db.add(synthetic_activity)
+                synthetic_activity_by_program_id[program.program_id] = synthetic_activity
+                pending_create = True
+
+        if pending_create:
+            db.commit()
+            for synthetic_activity in synthetic_activity_by_program_id.values():
+                db.refresh(synthetic_activity)
+
+        all_program_activity_ids = [activity.program_activity_id for activity in synthetic_activity_by_program_id.values()]
         assigned_rows = []
         if all_program_activity_ids:
             assigned_rows = db.execute(
@@ -1064,26 +1080,27 @@ def admin_report_programs(
                 .where(ProposalReportProgramActivityCode.program_activity_id.in_(all_program_activity_ids))
             ).scalars().all()
 
-        assigned_codes_by_activity_id: dict[int, list[ActivityCode]] = {}
-        assigned_code_ids_by_activity_id: dict[int, set[int]] = {}
+        assigned_codes_by_program_id: dict[int, list[ActivityCode]] = {}
+        assigned_code_ids_by_program_id: dict[int, set[int]] = {}
+        activity_to_program_id = {activity.program_activity_id: activity.program_id for activity in synthetic_activity_by_program_id.values()}
+
         for assigned in assigned_rows:
+            program_id_for_mapping = activity_to_program_id.get(assigned.program_activity_id)
             activity_code = proposal_activity_code_map.get(assigned.activity_code_id)
-            if not activity_code:
+            if not program_id_for_mapping or not activity_code:
                 continue
-            assigned_codes_by_activity_id.setdefault(assigned.program_activity_id, []).append(activity_code)
-            assigned_code_ids_by_activity_id.setdefault(assigned.program_activity_id, set()).add(activity_code.activity_code_id)
+            assigned_codes_by_program_id.setdefault(program_id_for_mapping, []).append(activity_code)
+            assigned_code_ids_by_program_id.setdefault(program_id_for_mapping, set()).add(activity_code.activity_code_id)
 
         for program in programs:
             setattr(program, "population_group_obj", group_map.get(program.population_group_id))
-            program_activities = activity_by_program_id.get(program.program_id, [])
-            for activity in program_activities:
-                assigned_codes = assigned_codes_by_activity_id.get(activity.program_activity_id, [])
-                assigned_codes = sorted(assigned_codes, key=lambda item: (item.code or "", item.description or ""))
-                assigned_ids = assigned_code_ids_by_activity_id.get(activity.program_activity_id, set())
-                available_codes = [code for code in proposal_activity_codes if code.activity_code_id not in assigned_ids]
-                setattr(activity, "assigned_activity_codes", assigned_codes)
-                setattr(activity, "available_activity_codes", available_codes)
-            setattr(program, "program_activities", program_activities)
+            assigned_codes = assigned_codes_by_program_id.get(program.program_id, [])
+            assigned_codes = sorted(assigned_codes, key=lambda item: (item.code or "", item.description or ""))
+            assigned_ids = assigned_code_ids_by_program_id.get(program.program_id, set())
+            available_codes = [code for code in proposal_activity_codes if code.activity_code_id not in assigned_ids]
+            setattr(program, "assignment_activity", synthetic_activity_by_program_id.get(program.program_id))
+            setattr(program, "assigned_activity_codes", assigned_codes)
+            setattr(program, "available_activity_codes", available_codes)
 
     return templates.TemplateResponse(
         "ui/admin/report_programs.html",
