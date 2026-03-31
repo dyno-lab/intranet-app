@@ -165,54 +165,41 @@
   <div class="card-header"><strong>Programas configurados</strong></div>
   <div class="card-body">
     {% if programs %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Orden</th>
-            <th>Código</th>
-            <th>Nombre</th>
-            <th>Grupo poblacional</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for program in programs %}
-          <tr class="{{ 'text-muted text-decoration-line-through' if not program.is_active }}">
-            <td>{{ program.sort_order }}</td>
-            <td><strong>{{ program.code }}</strong></td>
-            <td>{{ program.name }}</td>
-            <td>
-              {% if program.population_group_obj %}
-                {{ program.population_group_obj.label }}
-                <div class="small text-muted">
-                  {{ program.population_group_obj.age_min if program.population_group_obj.age_min is not none else 0 }} - {{ program.population_group_obj.age_max if program.population_group_obj.age_max is not none else '∞' }}
-                </div>
-              {% else %}
-                <span class="text-muted">Sin categoría</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if program.is_active %}
-                <span class="badge bg-success">Activo</span>
-              {% else %}
-                <span class="badge bg-danger">Inactivo</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar</button>
-                <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/delete" onsubmit="return confirm('¿Seguro que desea borrar este programa? Esta acción no se puede deshacer.');" class="d-inline">
-                  <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
-                </form>
+      <div class="d-flex flex-column gap-4">
+        {% for program in programs %}
+        <div class="border rounded p-3 {{ 'bg-light-subtle' if not program.is_active else '' }}">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h5 class="mb-0">{{ program.code }} — {{ program.name }}</h5>
+                {% if program.is_active %}
+                  <span class="badge bg-success">Activo</span>
+                {% else %}
+                  <span class="badge bg-danger">Inactivo</span>
+                {% endif %}
+                <span class="badge text-bg-secondary">Orden {{ program.sort_order }}</span>
               </div>
-            </td>
-          </tr>
-          <tr class="collapse" id="edit-program-{{ program.program_id }}">
-            <td colspan="6" class="bg-light">
-              <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/edit" class="row g-2 align-items-end p-2">
+              <div class="small text-muted mt-1">
+                {% if program.population_group_obj %}
+                  Grupo poblacional: {{ program.population_group_obj.label }}
+                  ({{ program.population_group_obj.age_min if program.population_group_obj.age_min is not none else 0 }} - {{ program.population_group_obj.age_max if program.population_group_obj.age_max is not none else '∞' }})
+                {% else %}
+                  Sin categoría poblacional asociada
+                {% endif %}
+              </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Editar programa</button>
+              <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/delete" onsubmit="return confirm('¿Seguro que desea borrar este programa? Esta acción no se puede deshacer.');" class="d-inline">
+                <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Borrar programa</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="collapse mb-3" id="edit-program-{{ program.program_id }}">
+            <div class="bg-light rounded p-3 border">
+              <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/edit" class="row g-2 align-items-end">
                 <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                 <div class="col-md-2">
                   <label class="form-label small">Código</label>
@@ -244,12 +231,153 @@
                   <button type="submit" class="btn btn-sm btn-success">Guardar</button>
                 </div>
               </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-light"><strong>Crear actividad programática</strong></div>
+            <div class="card-body">
+              <form method="post" action="/ui/admin/report-programs/{{ program.program_id }}/activities/create" class="row g-3 align-items-end">
+                <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                <div class="col-md-2">
+                  <label class="form-label">Código</label>
+                  <input type="text" class="form-control" name="code" required placeholder="Ej. ORI-1">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Etiqueta</label>
+                  <input type="text" class="form-control" name="label" required placeholder="Ej. Orientación inicial">
+                </div>
+                <div class="col-md-1">
+                  <label class="form-label">Edad mín.</label>
+                  <input type="number" class="form-control" name="age_min" min="0">
+                </div>
+                <div class="col-md-1">
+                  <label class="form-label">Edad máx.</label>
+                  <input type="number" class="form-control" name="age_max" min="0">
+                </div>
+                <div class="col-md-1">
+                  <label class="form-label">Orden</label>
+                  <input type="number" class="form-control" name="sort_order" value="0" required>
+                </div>
+                <div class="col-md-3 d-grid">
+                  <button type="submit" class="btn btn-primary">Crear actividad</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light"><strong>Actividades configuradas del programa</strong></div>
+            <div class="card-body">
+              {% if program.program_activities %}
+                <div class="d-flex flex-column gap-3">
+                  {% for activity in program.program_activities %}
+                  <div class="border rounded p-3 {{ 'bg-light-subtle' if not activity.is_active else '' }}">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
+                      <div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                          <strong>{{ activity.code }}</strong>
+                          <span>{{ activity.label }}</span>
+                          {% if activity.is_active %}
+                            <span class="badge bg-success">Activa</span>
+                          {% else %}
+                            <span class="badge bg-danger">Inactiva</span>
+                          {% endif %}
+                          <span class="badge text-bg-secondary">Orden {{ activity.sort_order }}</span>
+                        </div>
+                        <div class="small text-muted mt-1">
+                          Rango de edad:
+                          {% if activity.age_min is not none or activity.age_max is not none %}
+                            {{ activity.age_min if activity.age_min is not none else 0 }} - {{ activity.age_max if activity.age_max is not none else '∞' }}
+                          {% else %}
+                            Sin definir
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-activity-{{ activity.program_activity_id }}">Editar</button>
+                        <form method="post" action="/ui/admin/report-programs/activities/{{ activity.program_activity_id }}/delete" onsubmit="return confirm('¿Seguro que desea borrar esta actividad programática?');" class="d-inline">
+                          <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="collapse mb-3" id="edit-activity-{{ activity.program_activity_id }}">
+                      <div class="bg-light rounded p-3 border">
+                        <form method="post" action="/ui/admin/report-programs/activities/{{ activity.program_activity_id }}/edit" class="row g-2 align-items-end">
+                          <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                          <div class="col-md-2"><label class="form-label small">Código</label><input type="text" class="form-control form-control-sm" name="code" value="{{ activity.code }}" required></div>
+                          <div class="col-md-4"><label class="form-label small">Etiqueta</label><input type="text" class="form-control form-control-sm" name="label" value="{{ activity.label }}" required></div>
+                          <div class="col-md-1"><label class="form-label small">Edad mín.</label><input type="number" class="form-control form-control-sm" name="age_min" value="{{ activity.age_min if activity.age_min is not none else '' }}" min="0"></div>
+                          <div class="col-md-1"><label class="form-label small">Edad máx.</label><input type="number" class="form-control form-control-sm" name="age_max" value="{{ activity.age_max if activity.age_max is not none else '' }}" min="0"></div>
+                          <div class="col-md-1"><label class="form-label small">Orden</label><input type="number" class="form-control form-control-sm" name="sort_order" value="{{ activity.sort_order }}" required></div>
+                          <div class="col-md-2"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="is_active" id="active-activity-{{ activity.program_activity_id }}" {{ 'checked' if activity.is_active }}><label class="form-check-label" for="active-activity-{{ activity.program_activity_id }}">Activa</label></div></div>
+                          <div class="col-md-1"><button type="submit" class="btn btn-sm btn-success">Guardar</button></div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row g-3">
+                      <div class="col-lg-5">
+                        <div class="border rounded p-3 h-100">
+                          <h6 class="mb-3">Asociar códigos de actividad</h6>
+                          {% if activity.available_activity_codes %}
+                          <form method="post" action="/ui/admin/report-programs/activities/{{ activity.program_activity_id }}/activity-codes/add" class="row g-2 align-items-end">
+                            <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                            <div class="col-12">
+                              <label class="form-label small">Código de actividad de la propuesta</label>
+                              <select class="form-select form-select-sm" name="activity_code_id" required>
+                                <option value="">Selecciona...</option>
+                                {% for activity_code in activity.available_activity_codes %}
+                                <option value="{{ activity_code.activity_code_id }}">{{ activity_code.code }} - {{ activity_code.description }}</option>
+                                {% endfor %}
+                              </select>
+                            </div>
+                            <div class="col-12 d-grid">
+                              <button type="submit" class="btn btn-sm btn-outline-primary">Asociar código</button>
+                            </div>
+                          </form>
+                          {% else %}
+                          <div class="small text-muted">No hay más códigos disponibles de esta propuesta para asociar.</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="col-lg-7">
+                        <div class="border rounded p-3 h-100">
+                          <h6 class="mb-3">Códigos actualmente asociados</h6>
+                          {% if activity.assigned_activity_codes %}
+                          <div class="d-flex flex-column gap-2">
+                            {% for assigned_code in activity.assigned_activity_codes %}
+                            <div class="d-flex justify-content-between align-items-center border rounded px-2 py-2">
+                              <div>
+                                <strong>{{ assigned_code.code }}</strong>
+                                <div class="small text-muted">{{ assigned_code.description }}</div>
+                              </div>
+                              <form method="post" action="/ui/admin/report-programs/activities/{{ activity.program_activity_id }}/activity-codes/{{ assigned_code.activity_code_id }}/remove" class="mb-0">
+                                <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+                              </form>
+                            </div>
+                            {% endfor %}
+                          </div>
+                          {% else %}
+                          <div class="small text-muted">Todavía no hay códigos de actividad asociados a esta actividad programática.</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-muted">Todavía no hay actividades programáticas configuradas para este programa.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
     {% else %}
     <div class="text-muted">Todavía no hay programas configurados para esta propuesta.</div>
     {% endif %}

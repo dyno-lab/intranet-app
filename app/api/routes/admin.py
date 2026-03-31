@@ -22,6 +22,7 @@ from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.proposal_report_program_activity import ProposalReportProgramActivity
+from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -1012,6 +1013,7 @@ def admin_report_programs(
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
     programs = []
     population_groups = []
+    proposal_activity_codes = []
 
     if selected_proposal:
         population_groups = db.execute(
@@ -1021,13 +1023,67 @@ def admin_report_programs(
         ).scalars().all()
         group_map = {group.population_group_id: group for group in population_groups}
 
+        proposal_activity_codes = db.execute(
+            select(ActivityCode)
+            .where(
+                ActivityCode.proposal_id == selected_proposal.proposal_id,
+                ActivityCode.is_active == True,  # noqa: E712
+            )
+            .order_by(ActivityCode.code)
+        ).scalars().all()
+        proposal_activity_code_map = {activity.activity_code_id: activity for activity in proposal_activity_codes}
+
         programs = db.execute(
             select(ProposalReportProgram)
             .where(ProposalReportProgram.proposal_id == selected_proposal.proposal_id)
             .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
         ).scalars().all()
+
+        activities = db.execute(
+            select(ProposalReportProgramActivity, ProposalReportProgram)
+            .join(ProposalReportProgram, ProposalReportProgram.program_id == ProposalReportProgramActivity.program_id)
+            .where(ProposalReportProgram.proposal_id == selected_proposal.proposal_id)
+            .order_by(
+                ProposalReportProgram.sort_order,
+                ProposalReportProgram.code,
+                ProposalReportProgramActivity.sort_order,
+                ProposalReportProgramActivity.code,
+            )
+        ).all()
+
+        activity_by_program_id: dict[int, list[ProposalReportProgramActivity]] = {}
+        all_program_activity_ids: list[int] = []
+        for activity, program in activities:
+            activity_by_program_id.setdefault(program.program_id, []).append(activity)
+            all_program_activity_ids.append(activity.program_activity_id)
+
+        assigned_rows = []
+        if all_program_activity_ids:
+            assigned_rows = db.execute(
+                select(ProposalReportProgramActivityCode)
+                .where(ProposalReportProgramActivityCode.program_activity_id.in_(all_program_activity_ids))
+            ).scalars().all()
+
+        assigned_codes_by_activity_id: dict[int, list[ActivityCode]] = {}
+        assigned_code_ids_by_activity_id: dict[int, set[int]] = {}
+        for assigned in assigned_rows:
+            activity_code = proposal_activity_code_map.get(assigned.activity_code_id)
+            if not activity_code:
+                continue
+            assigned_codes_by_activity_id.setdefault(assigned.program_activity_id, []).append(activity_code)
+            assigned_code_ids_by_activity_id.setdefault(assigned.program_activity_id, set()).add(activity_code.activity_code_id)
+
         for program in programs:
             setattr(program, "population_group_obj", group_map.get(program.population_group_id))
+            program_activities = activity_by_program_id.get(program.program_id, [])
+            for activity in program_activities:
+                assigned_codes = assigned_codes_by_activity_id.get(activity.program_activity_id, [])
+                assigned_codes = sorted(assigned_codes, key=lambda item: (item.code or "", item.description or ""))
+                assigned_ids = assigned_code_ids_by_activity_id.get(activity.program_activity_id, set())
+                available_codes = [code for code in proposal_activity_codes if code.activity_code_id not in assigned_ids]
+                setattr(activity, "assigned_activity_codes", assigned_codes)
+                setattr(activity, "available_activity_codes", available_codes)
+            setattr(program, "program_activities", program_activities)
 
     return templates.TemplateResponse(
         "ui/admin/report_programs.html",
@@ -1040,6 +1096,7 @@ def admin_report_programs(
             "selected_proposal": selected_proposal,
             "programs": programs,
             "population_groups": population_groups,
+            "proposal_activity_codes": proposal_activity_codes,
         },
     )
 
@@ -1181,4 +1238,261 @@ def admin_delete_report_program(
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
         "Programa eliminado exitosamente.",
+    )
+
+
+@router.post("/report-programs/{program_id}/activities/create")
+def admin_create_report_program_activity(
+    program_id: int,
+    proposal_id: int = Form(...),
+    code: str = Form(...),
+    label: str = Form(...),
+    age_min: int | None = Form(default=None),
+    age_max: int | None = Form(default=None),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    program = db.get(ProposalReportProgram, program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Programa no encontrado para crear actividad.",
+        )
+
+    normalized_code = code.strip().upper()
+    if not normalized_code:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El código de la actividad programática es requerido.",
+        )
+
+    existing = db.execute(
+        select(ProposalReportProgramActivity).where(
+            ProposalReportProgramActivity.program_id == program_id,
+            ProposalReportProgramActivity.code == normalized_code,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Ya existe una actividad con ese código dentro del programa seleccionado.",
+        )
+
+    activity = ProposalReportProgramActivity(
+        program_id=program_id,
+        code=normalized_code,
+        label=label.strip(),
+        age_min=age_min,
+        age_max=age_max,
+        sort_order=sort_order,
+        is_active=True,
+    )
+    db.add(activity)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Actividad programática creada exitosamente.",
+    )
+
+
+@router.post("/report-programs/activities/{program_activity_id}/edit")
+def admin_edit_report_program_activity(
+    program_activity_id: int,
+    proposal_id: int = Form(...),
+    code: str = Form(...),
+    label: str = Form(...),
+    age_min: int | None = Form(default=None),
+    age_max: int | None = Form(default=None),
+    sort_order: int = Form(0),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ProposalReportProgramActivity, program_activity_id)
+    if not activity:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Actividad programática no encontrada.",
+        )
+
+    program = db.get(ProposalReportProgram, activity.program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+        )
+
+    normalized_code = code.strip().upper()
+    if not normalized_code:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El código de la actividad programática es requerido.",
+        )
+
+    existing = db.execute(
+        select(ProposalReportProgramActivity).where(
+            ProposalReportProgramActivity.program_id == activity.program_id,
+            ProposalReportProgramActivity.code == normalized_code,
+            ProposalReportProgramActivity.program_activity_id != program_activity_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Ya existe otra actividad con ese código dentro del programa seleccionado.",
+        )
+
+    activity.code = normalized_code
+    activity.label = label.strip()
+    activity.age_min = age_min
+    activity.age_max = age_max
+    activity.sort_order = sort_order
+    activity.is_active = is_active == "on"
+    db.add(activity)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Actividad programática actualizada exitosamente.",
+    )
+
+
+@router.post("/report-programs/activities/{program_activity_id}/delete")
+def admin_delete_report_program_activity(
+    program_activity_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ProposalReportProgramActivity, program_activity_id)
+    if not activity:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Actividad programática no encontrada.",
+        )
+
+    program = db.get(ProposalReportProgram, activity.program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+        )
+
+    linked_codes_count = db.execute(
+        select(func.count()).select_from(ProposalReportProgramActivityCode).where(
+            ProposalReportProgramActivityCode.program_activity_id == program_activity_id
+        )
+    ).scalar()
+    if linked_codes_count and linked_codes_count > 0:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: No se puede eliminar la actividad programática porque tiene códigos de actividad asociados. Remuévalos primero o inactívela.",
+        )
+
+    db.delete(activity)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Actividad programática eliminada exitosamente.",
+    )
+
+
+@router.post("/report-programs/activities/{program_activity_id}/activity-codes/add")
+def admin_add_activity_code_to_report_program_activity(
+    program_activity_id: int,
+    proposal_id: int = Form(...),
+    activity_code_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ProposalReportProgramActivity, program_activity_id)
+    if not activity:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Actividad programática no encontrada.",
+        )
+
+    program = db.get(ProposalReportProgram, activity.program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+        )
+
+    activity_code = db.get(ActivityCode, activity_code_id)
+    if not activity_code or activity_code.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Debe seleccionar un código de actividad válido de la propuesta.",
+        )
+
+    existing = db.execute(
+        select(ProposalReportProgramActivityCode).where(
+            ProposalReportProgramActivityCode.program_activity_id == program_activity_id,
+            ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Ese código de actividad ya está asociado a la actividad programática seleccionada.",
+        )
+
+    db.add(
+        ProposalReportProgramActivityCode(
+            program_activity_id=program_activity_id,
+            activity_code_id=activity_code_id,
+        )
+    )
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Código de actividad asociado exitosamente.",
+    )
+
+
+@router.post("/report-programs/activities/{program_activity_id}/activity-codes/{activity_code_id}/remove")
+def admin_remove_activity_code_from_report_program_activity(
+    program_activity_id: int,
+    activity_code_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ProposalReportProgramActivity, program_activity_id)
+    if not activity:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: Actividad programática no encontrada.",
+        )
+
+    program = db.get(ProposalReportProgram, activity.program_id)
+    if not program or program.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+        )
+
+    mapping = db.execute(
+        select(ProposalReportProgramActivityCode).where(
+            ProposalReportProgramActivityCode.program_activity_id == program_activity_id,
+            ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
+        )
+    ).scalar_one_or_none()
+    if not mapping:
+        return _redirect_with_msg(
+            f"/ui/admin/report-programs?proposal_id={proposal_id}",
+            "Error: La asociación solicitada no existe.",
+        )
+
+    db.delete(mapping)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Código de actividad removido exitosamente.",
     )
