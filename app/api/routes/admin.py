@@ -1241,17 +1241,29 @@ def admin_delete_report_program(
             "Error: Programa no encontrado.",
         )
 
-    related_activities_count = db.execute(
-        select(func.count()).select_from(ProposalReportProgramActivity).where(
+    related_activities = db.execute(
+        select(ProposalReportProgramActivity).where(
             ProposalReportProgramActivity.program_id == program_id
         )
-    ).scalar()
+    ).scalars().all()
 
-    if related_activities_count and related_activities_count > 0:
+    activity_ids = [activity.program_activity_id for activity in related_activities]
+    linked_codes_count = 0
+    if activity_ids:
+        linked_codes_count = db.execute(
+            select(func.count()).select_from(ProposalReportProgramActivityCode).where(
+                ProposalReportProgramActivityCode.program_activity_id.in_(activity_ids)
+            )
+        ).scalar() or 0
+
+    if linked_codes_count > 0:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar el programa porque ya tiene actividades o registros asociados. Puede inactivarlo en su lugar.",
+            "Error: No se puede eliminar el programa porque todavía tiene actividades adjudicadas asociadas. Remuévalas primero o inactívelo.",
         )
+
+    for activity in related_activities:
+        db.delete(activity)
 
     db.delete(program)
     db.commit()
