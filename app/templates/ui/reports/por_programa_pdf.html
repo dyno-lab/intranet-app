@@ -1,50 +1,101 @@
-{% extends "ui/_base.html" %}
-{% block title %}Participación por programa{% endblock %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Participación por programa PDF</title>
+  <style>
+    @page { size: letter; margin: 0.45in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 12px; }
+    .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 12px; margin: 10px 0 12px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 16px; }
+    .meta-row div { width: 25%; }
+    .section { margin-top: 18px; }
+    .section-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .section-subtitle { font-size: 10px; color: #555; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #333; padding: 5px 6px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+    .footer { margin-top: 16px; font-size: 10px; }
+    .signature-block { margin-top: 26px; }
+    .signature-line { margin-top: 16px; width: 320px; border-top: 1px solid #111; }
+    .footer-logo { margin-top: 30px; text-align: left; }
+    .footer-logo img { max-width: 320px; max-height: 90px; object-fit: contain; }
+    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Reporte">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">INFORME MENSUAL DE PARTICIPANTES</div>
+      <div class="subtitle">PARTICIPACIÓN NO DUPLICADA POR PROGRAMA, EDAD Y SEXO EN LOS PROYECTOS IMPACTADOS</div>
+      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
+    </div>
 
-{% block content %}
-<div class="mb-4">
-  <h4 class="mb-1">Informe mensual de participantes</h4>
-  <div class="fw-semibold">Participación por programa (No Duplicado)</div>
-</div>
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+        <div><strong>Municipio:</strong> {{ municipality or '' }}</div>
+        <div><strong>RQ:</strong> {{ rq_code or '' }}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+      </div>
+    </div>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-3"><strong>Residencial</strong><div>{{ residential_name or '' }}</div></div>
-  <div class="col-md-3"><strong>Municipio</strong><div>{{ municipality or '' }}</div></div>
-  <div class="col-md-2"><strong>RQ</strong><div>{{ rq_code or '' }}</div></div>
-  <div class="col-md-4"><strong>Periodo reportado</strong><div>{{ period_label }}</div></div>
-  <div class="col-md-4"><strong>Funcionario autorizado</strong><div>{{ authorized_name or '' }}</div></div>
-</div>
+    {% for section in program_sections %}
+    <div class="section">
+      <div class="section-title">Programa: {{ section.program.code }} - {{ section.program.name }}</div>
+      <div class="section-subtitle">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2" style="width:40%;">Clasificación</th>
+            <th colspan="2" style="width:30%;">Número de participantes por edad y sexo</th>
+            <th rowspan="2" style="width:30%;">Total de participantes</th>
+          </tr>
+          <tr>
+            <th>F</th>
+            <th>M</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in section.rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="center">{{ row.f }}</td>
+            <td class="center">{{ row.m }}</td>
+            <td class="center">{{ row.total }}</td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td><strong>TOTAL</strong></td>
+            <td class="center"><strong>{{ section.total_f }}</strong></td>
+            <td class="center"><strong>{{ section.total_m }}</strong></td>
+            <td class="center"><strong>{{ section.total_all }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
 
-{% for section in program_sections %}
-<div class="mb-4">
-  <h5 class="mb-1">{{ section.program.code }} - {{ section.program.name }}</h5>
-  <div class="small text-muted mb-2">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
-  <table class="table table-bordered align-middle mb-0">
-    <thead class="table-light">
-      <tr>
-        <th>Clasificación</th>
-        <th>F</th>
-        <th>M</th>
-        <th>Total de participantes</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in section.rows %}
-      <tr>
-        <td>{{ row.label }}</td>
-        <td>{{ row.f }}</td>
-        <td>{{ row.m }}</td>
-        <td>{{ row.total }}</td>
-      </tr>
-      {% endfor %}
-      <tr class="table-secondary fw-bold">
-        <td>TOTAL</td>
-        <td>{{ section.total_f }}</td>
-        <td>{{ section.total_m }}</td>
-        <td>{{ section.total_all }}</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-{% endfor %}
-{% endblock %}
+    <div class="footer">
+      <div>Yo, {{ authorized_name or '______________________________' }}, funcionario autorizado, certifico que la información presentada en este informe corresponde al periodo seleccionado y refleja participantes no duplicados por programa, edad y sexo.</div>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div style="margin-top:6px;">{{ authorized_name or '' }}</div>
+      </div>
+      <div class="footer-logo">
+        <img src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro de Esperanza">
+      </div>
+      <div class="page-number">Página 1 de 1</div>
+    </div>
+  </div>
+</body>
+</html>

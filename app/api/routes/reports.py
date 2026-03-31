@@ -2470,7 +2470,7 @@ def por_programa_report_excel(
 
     ws["A1"] = "Informe mensual de participantes"
     ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Participación por programa (No Duplicado)"
+    ws["A2"] = "Participación no duplicada por programa, edad y sexo en los proyectos impactados"
     ws["A2"].font = Font(bold=True)
     ws["A4"] = "Residencial"
     ws["B4"] = context["residential_name"] or ""
@@ -2490,12 +2490,20 @@ def por_programa_report_excel(
         ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
 
         header_row = row_index + 3
-        headers = ["Clasificación", "F", "M", "Total de participantes"]
-        for col_index, header in enumerate(headers, start=1):
-            cell = ws.cell(row=header_row, column=col_index, value=header)
-            cell.font = Font(bold=True)
+        ws.cell(row=header_row, column=1, value="Clasificación").font = Font(bold=True)
+        ws.cell(row=header_row, column=2, value="Número de participantes por edad y sexo").font = Font(bold=True)
+        ws.cell(row=header_row, column=4, value="Total de participantes").font = Font(bold=True)
+        ws.merge_cells(start_row=header_row, start_column=2, end_row=header_row, end_column=3)
+        ws.merge_cells(start_row=header_row, start_column=1, end_row=header_row + 1, end_column=1)
+        ws.merge_cells(start_row=header_row, start_column=4, end_row=header_row + 1, end_column=4)
+        ws.cell(row=header_row + 1, column=2, value="F").font = Font(bold=True)
+        ws.cell(row=header_row + 1, column=3, value="M").font = Font(bold=True)
 
-        current_row = header_row + 1
+        for col_index in range(1, 5):
+            ws.cell(row=header_row, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
+            ws.cell(row=header_row + 1, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
+
+        current_row = header_row + 2
         for row in section["rows"]:
             ws.cell(row=current_row, column=1, value=row["label"])
             ws.cell(row=current_row, column=2, value=row["f"])
@@ -2510,7 +2518,7 @@ def por_programa_report_excel(
 
         row_index = current_row + 3
 
-    widths = {"A": 40, "B": 12, "C": 12, "D": 22}
+    widths = {"A": 40, "B": 14, "C": 14, "D": 22}
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
 
