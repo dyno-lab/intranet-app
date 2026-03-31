@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Form
 from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
