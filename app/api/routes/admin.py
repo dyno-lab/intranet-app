@@ -1084,11 +1084,16 @@ def admin_report_programs(
         assigned_code_ids_by_program_id: dict[int, set[int]] = {}
         activity_to_program_id = {activity.program_activity_id: activity.program_id for activity in synthetic_activity_by_program_id.values()}
 
+        seen_program_activity_pairs: set[tuple[int, int]] = set()
         for assigned in assigned_rows:
             program_id_for_mapping = activity_to_program_id.get(assigned.program_activity_id)
             activity_code = proposal_activity_code_map.get(assigned.activity_code_id)
             if not program_id_for_mapping or not activity_code:
                 continue
+            pair_key = (program_id_for_mapping, activity_code.activity_code_id)
+            if pair_key in seen_program_activity_pairs:
+                continue
+            seen_program_activity_pairs.add(pair_key)
             assigned_codes_by_program_id.setdefault(program_id_for_mapping, []).append(activity_code)
             assigned_code_ids_by_program_id.setdefault(program_id_for_mapping, set()).add(activity_code.activity_code_id)
 
@@ -1473,16 +1478,24 @@ def admin_add_activity_code_to_report_program_activity(
             "Error: Debe seleccionar un código de actividad válido de la propuesta.",
         )
 
-    existing = db.execute(
-        select(ProposalReportProgramActivityCode).where(
-            ProposalReportProgramActivityCode.program_activity_id == program_activity_id,
-            ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
+    program_activity_ids = db.execute(
+        select(ProposalReportProgramActivity.program_activity_id).where(
+            ProposalReportProgramActivity.program_id == program.program_id
         )
-    ).scalar_one_or_none()
+    ).scalars().all()
+
+    existing = None
+    if program_activity_ids:
+        existing = db.execute(
+            select(ProposalReportProgramActivityCode).where(
+                ProposalReportProgramActivityCode.program_activity_id.in_(program_activity_ids),
+                ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
+            )
+        ).scalar_one_or_none()
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ese código de actividad ya está asociado a la actividad programática seleccionada.",
+            "Error: Esa actividad ya está adjudicada a este programa y no puede repetirse.",
         )
 
     db.add(
