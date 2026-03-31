@@ -902,6 +902,10 @@ def open_session(
         p.participant_id: _is_participant_active(p)
         for p in participants
     }
+    participant_age_map = {
+        p.participant_id: _calc_age(p.fecha_nacimiento)
+        for p in participants
+    }
 
     att_stmt = select(Attendance.participant_id).where(
         Attendance.session_id == session_id,
@@ -922,6 +926,7 @@ def open_session(
             "proposals": proposals,
             "participants": participants,
             "participant_status_map": participant_status_map,
+            "participant_age_map": participant_age_map,
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,

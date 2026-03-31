@@ -130,6 +130,7 @@
             <th>Nombre</th>
             <th>Inicial</th>
             <th>Apellidos</th>
+            <th>Edad</th>
             <th>Estado</th>
             <th class="text-center">Asistió</th>
           </tr>
@@ -142,6 +143,7 @@
             <td>{{ p.nombre }}</td>
             <td>{{ p.inicial or '' }}</td>
             <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+            <td>{{ participant_age_map.get(p.participant_id) if participant_age_map.get(p.participant_id) is not none else '—' }}</td>
             <td>
               {% if is_active %}
                 <span class="badge bg-success">● Activo</span>
