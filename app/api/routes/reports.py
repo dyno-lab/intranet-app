@@ -5,7 +5,7 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, extract, func
+from sqlalchemy import select, extract, func, distinct
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
@@ -64,6 +64,7 @@ from app.services.report_programs import (
     program_display_name as _program_report_display_name,
     program_uses_population_structure as _program_uses_population_structure,
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
+    resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks,
 )
 from app.services.visits import (
     resolve_report_scope,
@@ -210,6 +211,7 @@ REPORT_OPTIONS = [
     {"value": "notas", "label": "Notas"},
     {"value": "visitas", "label": "Visitas"},
     {"value": "por-programa", "label": "Informes por programa"},
+    {"value": "hoja-cotejo", "label": "Hoja de Cotejo"},
     {"value": "vca", "label": "Informe VCA"},
     {"value": "todos", "label": "Todos"},
 ]
@@ -354,6 +356,12 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/por-programa?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "hoja-cotejo":
+        return RedirectResponse(
+            f"/ui/reports/hoja-cotejo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
@@ -2099,6 +2107,24 @@ def no_duplicado_report(
     return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
 
 
+@router.get("/hoja-cotejo", response_class=HTMLResponse)
+def hoja_cotejo_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/hoja_cotejo.html", context)
+
+
 @router.get("/por-programa", response_class=HTMLResponse)
 def por_programa_report(
     request: Request,
@@ -2317,6 +2343,148 @@ def no_duplicado_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _build_hoja_cotejo_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    proposals = base_context["proposals"]
+    report_users = base_context["report_users"]
+    year_options = base_context["year_options"]
+    month_lookup = base_context["month_lookup"]
+    user_residential_map = base_context["user_residential_map"]
+
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
+    location = _resolve_reporting_location(selected_user, is_global)
+    residential_name = location["residential_name"]
+    municipality = location["municipality"]
+    rq_code = location["rq_code"]
+
+    program_blocks = []
+    total_contact_hours = 0.0
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        structure_blocks = _resolve_effective_program_population_blocks(db, proposal_id)
+
+        activity_code_ids = sorted({
+            row["activity_code_id"]
+            for block in structure_blocks
+            for population_block in block["population_blocks"]
+            for row in population_block["rows"]
+        })
+
+        session_metrics_by_activity_code_id = {}
+        attendance_metrics_by_activity_code_id = {}
+
+        if activity_code_ids:
+            session_stmt = (
+                select(
+                    ActivitySession.activity_code_id,
+                    func.count(distinct(ActivitySession.session_id)).label("activities_count"),
+                    func.coalesce(func.sum(ActivitySession.hours), 0).label("contact_hours"),
+                )
+                .where(
+                    ActivitySession.proposal_id == proposal_id,
+                    ActivitySession.activity_code_id.in_(activity_code_ids),
+                )
+                .group_by(ActivitySession.activity_code_id)
+            )
+            session_stmt = _apply_session_period_filter(session_stmt, period)
+            if not is_global:
+                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+            for activity_code_id_value, activities_count, contact_hours in db.execute(session_stmt).all():
+                session_metrics_by_activity_code_id[activity_code_id_value] = {
+                    "activities_count": int(activities_count or 0),
+                    "contact_hours": float(contact_hours or 0),
+                }
+
+            attendance_stmt = (
+                select(
+                    ActivitySession.activity_code_id,
+                    func.count(Attendance.attendance_id).label("duplicados"),
+                    func.count(distinct(Attendance.participant_id)).label("unique_participants"),
+                )
+                .join(Attendance, Attendance.session_id == ActivitySession.session_id)
+                .where(
+                    ActivitySession.proposal_id == proposal_id,
+                    ActivitySession.activity_code_id.in_(activity_code_ids),
+                    Attendance.attended == True,  # noqa: E712
+                )
+                .group_by(ActivitySession.activity_code_id)
+            )
+            attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
+            if not is_global:
+                attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+            for activity_code_id_value, duplicados, unique_participants in db.execute(attendance_stmt).all():
+                attendance_metrics_by_activity_code_id[activity_code_id_value] = {
+                    "duplicados": int(duplicados or 0),
+                    "unique_participants": int(unique_participants or 0),
+                }
+
+        for block in structure_blocks:
+            population_blocks = []
+            for population_block in block["population_blocks"]:
+                rows = []
+                for row in population_block["rows"]:
+                    session_metrics = session_metrics_by_activity_code_id.get(row["activity_code_id"], {})
+                    attendance_metrics = attendance_metrics_by_activity_code_id.get(row["activity_code_id"], {})
+                    activities_count = int(session_metrics.get("activities_count", 0))
+                    contact_hours = float(session_metrics.get("contact_hours", 0))
+                    duplicados = int(attendance_metrics.get("duplicados", 0))
+                    unique_participants = int(attendance_metrics.get("unique_participants", 0))
+                    rows.append({
+                        **row,
+                        "activities_count": activities_count,
+                        "duplicados": duplicados,
+                        "unique_participants": unique_participants,
+                        "contact_hours": contact_hours,
+                    })
+                    total_contact_hours += contact_hours
+                population_blocks.append({
+                    **population_block,
+                    "rows": rows,
+                })
+            program_blocks.append({
+                **block,
+                "population_blocks": population_blocks,
+            })
+
+    return {
+        "proposals": proposals,
+        "report_users": report_users,
+        "user_residential_map": user_residential_map,
+        "month_options": MONTH_OPTIONS,
+        "month_lookup": month_lookup,
+        "year_options": year_options,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "municipality": municipality,
+        "rq_code": rq_code,
+        "program_blocks": program_blocks,
+        "total_contact_hours": total_contact_hours,
+    }
 
 
 def _build_por_programa_context(
