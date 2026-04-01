@@ -36,6 +36,12 @@ from app.models.proposal_report_program_activity import ProposalReportProgramAct
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.models.proposal_report_program_population import ProposalReportProgramPopulation
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
+from app.helpers.report_context import (
+    base_reports_context as _base_reports_context,
+    municipality_from_user as _municipality_from_user,
+    residential_from_user as _residential_from_user,
+    rq_from_user as _rq_from_user,
+)
 from app.helpers.reports import (
     AGE_BUCKETS,
     build_percentage_breakdown as _build_percentage_breakdown,
@@ -72,49 +78,6 @@ MONTH_OPTIONS = [
     (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
 ]
 
-USER_RESIDENTIAL = {
-    "AC": "Aristides Chavier",
-    "PJR": "Pedro J. Rosaly",
-    "JPDL": "Juan Ponce de León",
-    "ERA": "Ernesto Ramos Antonini",
-    "RLN": "Rafael Lopez Nussa",
-    "LC": "La Ceiba",
-    "LS": "Leónardo Santiago",
-    "VDP": "Villa del Parque",
-    "BDM": "Brisas del Mar",
-    "BV": "Bella Vista",
-    "VDG": "Valles de Guayama",
-    "JDG": "Jardines de Guamani",
-    "FC": "Fernando Calimano",
-    "SAC": "San Antonio Carioca",
-    "EC": "El Carmen",
-    "MH": "Manuel Hernandez Rosa",
-    "RH": "Rafael Hernandez",
-    "CL": "Columbus Landing",
-    "ADMIN": "Global",
-}
-
-RESIDENTIAL_MUNICIPALITY = {
-    "ARISTIDES CHAVIER": "Ponce",
-    "PEDRO J. ROSALY": "Ponce",
-    "JUAN PONCE DE LEÓN": "Ponce",
-    "ERNESTO RAMOS ANTONINI": "Ponce",
-    "RAFAEL LOPEZ NUSSA": "Ponce",
-    "LA CEIBA": "Ponce",
-    "LEÓNARDO SANTIAGO": "Juana Díaz",
-    "VILLA DEL PARQUE": "Juana Díaz",
-    "BRISAS DEL MAR": "Salinas",
-    "BELLA VISTA": "Salinas",
-    "VALLES DE GUAYAMA": "Guayama",
-    "JARDINES DE GUAMANI": "Guayama",
-    "FERNANDO CALIMANO": "Guayama",
-    "SAN ANTONIO CARIOCA": "Guayama",
-    "EL CARMEN": "Mayagüez",
-    "MANUEL HERNANDEZ ROSA": "Mayagüez",
-    "RAFAEL HERNANDEZ": "Mayagüez",
-    "COLUMBUS LANDING": "Mayagüez",
-}
-
 FIXED_SIGNATURES = [
     {"name": "Karla Santiago Pérez", "title": "Coordinadora Educativa"},
     {"name": "Alice E. Beard García", "title": "Coordinadora Prevención"},
@@ -123,76 +86,6 @@ FIXED_SIGNATURES = [
 ]
 
 ROWS_PER_BONAFIDE_PAGE = 26
-
-RESIDENTIAL_RQ = {
-    "ARISTIDES CHAVIER": "RQ1014",
-    "PEDRO J. ROSALY": "RQ1009",
-    "JUAN PONCE DE LEÓN": "RQ1001",
-    "ERNESTO RAMOS ANTONINI": "RQ1017",
-    "RAFAEL LOPEZ NUSSA": "RQ1016",
-    "LA CEIBA": "RQ5022",
-    "LEÓNARDO SANTIAGO": "RQ5148",
-    "VILLA DEL PARQUE": "RQ3089",
-    "BRISAS DEL MAR": "RQ5045",
-    "BELLA VISTA": "RQ3090",
-    "VALLES DE GUAYAMA": "RQ5266",
-    "JARDINES DE GUAMANI": "RQ5184",
-    "FERNANDO CALIMANO": "RQ5314",
-    "SAN ANTONIO CARIOCA": "RQ5048",
-    "EL CARMEN": "RQ4010",
-    "MANUEL HERNANDEZ ROSA": "RQ4009",
-    "RAFAEL HERNANDEZ": "RQ4011",
-    "COLUMBUS LANDING": "RQ4001",
-}
-
-
-def _residential_from_user(user: User | None) -> str:
-    if not user:
-        return ""
-    if getattr(user, "residential", None):
-        return _normalize_text(user.residential.name)
-    username = _normalize_text(user.username).upper()
-    return USER_RESIDENTIAL.get(username, _normalize_text(user.username))
-
-
-def _municipality_from_user(user: User | None) -> str:
-    if not user:
-        return ""
-    if getattr(user, "residential", None):
-        return _normalize_text(user.residential.municipality)
-    residential_name = _residential_from_user(user)
-    return RESIDENTIAL_MUNICIPALITY.get(residential_name.upper(), "")
-
-
-def _rq_from_user(user: User | None) -> str:
-    if not user:
-        return ""
-    if getattr(user, "residential", None):
-        return _normalize_text(user.residential.rq_code)
-    residential_name = _residential_from_user(user)
-    return RESIDENTIAL_RQ.get(residential_name.upper(), "")
-
-
-def _base_reports_context(db: Session, current_user: User):
-    proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
-    report_users = db.execute(
-        select(User).where(User.is_active == True, User.role == "user").order_by(User.username)
-    ).scalars().all()  # noqa: E712
-    current_year = date.today().year
-    year_options = list(range(current_year - 2, current_year + 3))
-    month_lookup = dict(MONTH_OPTIONS)
-    user_residential_map = {user.user_id: f"{user.username} = {_residential_from_user(user)}" for user in report_users}
-    residential_name = _residential_from_user(current_user) if current_user.role == "user" else None
-    return {
-        "proposals": proposals,
-        "report_users": report_users,
-        "user_residential_map": user_residential_map,
-        "month_options": MONTH_OPTIONS,
-        "month_lookup": month_lookup,
-        "year_options": year_options,
-        "residential_name": residential_name,
-    }
-
 
 def _apply_session_period_filter(stmt, period: dict):
     if period["is_custom"]:
@@ -221,7 +114,7 @@ def _build_bonafide_context(
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
 
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     proposals = base_context["proposals"]
     report_users = base_context["report_users"]
     year_options = base_context["year_options"]
@@ -345,7 +238,7 @@ def reports_home(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _base_reports_context(db, current_user)
+    context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     context.update(
         {
             "request": request,
@@ -546,7 +439,7 @@ def _build_vca_context(
     end_date: date | str | None = None,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
     selected_user = None
@@ -668,7 +561,7 @@ def _build_school_dropout_summary_context(
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
 
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
     selected_user = None
@@ -863,7 +756,7 @@ def _build_pregnancy_summary_context(
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
 
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
     selected_user = None
@@ -1038,7 +931,7 @@ def _build_notes_context(
     end_date: date | str | None = None,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
     selected_user = None
@@ -1217,7 +1110,7 @@ def _build_visits_context(
     end_date: date | str | None = None,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
     user_residential_map = base_context["user_residential_map"]
 
@@ -1504,7 +1397,7 @@ def _build_no_duplicado_context(
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
 
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     report_users = base_context["report_users"]
 
     selected_user = None
@@ -2530,7 +2423,7 @@ def _build_por_programa_context(
     end_date: date | str | None = None,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
-    base_context = _base_reports_context(db, current_user)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
 
     selected_user = None
     is_global = False
