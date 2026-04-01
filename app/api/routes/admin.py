@@ -25,6 +25,9 @@ from app.models.proposal_report_program_activity import ProposalReportProgramAct
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.models.proposal_report_program_population import ProposalReportProgramPopulation
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
+from app.services.report_programs import (
+    activity_code_is_assigned_anywhere_in_proposal as _activity_code_is_assigned_anywhere_in_proposal,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -79,59 +82,6 @@ def _resolve_effective_activity_code_ids_for_program(db: Session, program_id: in
         .where(ProposalReportProgramActivity.program_id == program_id)
     ).all()
     return {activity_code_id for (activity_code_id,) in rows}
-
-
-def _activity_code_is_assigned_anywhere_in_proposal(
-    db: Session,
-    proposal_id: int,
-    activity_code_id: int,
-    *,
-    exclude_program_population_id: int | None = None,
-    exclude_program_id: int | None = None,
-) -> bool:
-    legacy_stmt = (
-        select(ProposalReportProgramActivityCode.id)
-        .join(
-            ProposalReportProgramActivity,
-            ProposalReportProgramActivity.program_activity_id == ProposalReportProgramActivityCode.program_activity_id,
-        )
-        .join(
-            ProposalReportProgram,
-            ProposalReportProgram.program_id == ProposalReportProgramActivity.program_id,
-        )
-        .where(
-            ProposalReportProgram.proposal_id == proposal_id,
-            ProposalReportProgramActivityCode.activity_code_id == activity_code_id,
-        )
-    )
-    if exclude_program_id is not None:
-        legacy_stmt = legacy_stmt.where(ProposalReportProgram.program_id != exclude_program_id)
-    legacy_match = db.execute(legacy_stmt).first()
-    if legacy_match:
-        return True
-
-    new_stmt = (
-        select(ProposalReportProgramPopulationActivityCode.id)
-        .join(
-            ProposalReportProgramPopulation,
-            ProposalReportProgramPopulation.program_population_id
-            == ProposalReportProgramPopulationActivityCode.program_population_id,
-        )
-        .join(
-            ProposalReportProgram,
-            ProposalReportProgram.program_id == ProposalReportProgramPopulation.program_id,
-        )
-        .where(
-            ProposalReportProgram.proposal_id == proposal_id,
-            ProposalReportProgramPopulationActivityCode.activity_code_id == activity_code_id,
-        )
-    )
-    if exclude_program_population_id is not None:
-        new_stmt = new_stmt.where(
-            ProposalReportProgramPopulation.program_population_id != exclude_program_population_id
-        )
-    new_match = db.execute(new_stmt).first()
-    return new_match is not None
 
 
 # ============================================================
