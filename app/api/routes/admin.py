@@ -1372,20 +1372,42 @@ def admin_delete_report_program(
             ProposalReportProgramActivity.program_id == program_id
         )
     ).scalars().all()
-
     activity_ids = [activity.program_activity_id for activity in related_activities]
-    linked_codes_count = 0
+
+    related_populations = db.execute(
+        select(ProposalReportProgramPopulation).where(
+            ProposalReportProgramPopulation.program_id == program_id
+        )
+    ).scalars().all()
+    program_population_ids = [population.program_population_id for population in related_populations]
+
+    linked_legacy_codes_count = 0
     if activity_ids:
-        linked_codes_count = db.execute(
+        linked_legacy_codes_count = db.execute(
             select(func.count()).select_from(ProposalReportProgramActivityCode).where(
                 ProposalReportProgramActivityCode.program_activity_id.in_(activity_ids)
             )
         ).scalar() or 0
 
-    if linked_codes_count > 0:
+    linked_population_codes_count = 0
+    if program_population_ids:
+        linked_population_codes_count = db.execute(
+            select(func.count()).select_from(ProposalReportProgramPopulationActivityCode).where(
+                ProposalReportProgramPopulationActivityCode.program_population_id.in_(program_population_ids)
+            )
+        ).scalar() or 0
+
+    if linked_legacy_codes_count > 0 or linked_population_codes_count > 0:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: No se puede eliminar el programa porque todavía tiene actividades adjudicadas asociadas. Remuévalas primero o inactívelo.",
+        )
+
+    if program_population_ids:
+        db.execute(
+            delete(ProposalReportProgramPopulationActivityCode).where(
+                ProposalReportProgramPopulationActivityCode.program_population_id.in_(program_population_ids)
+            )
         )
 
     if activity_ids:
@@ -1394,11 +1416,18 @@ def admin_delete_report_program(
                 ProposalReportProgramActivityCode.program_activity_id.in_(activity_ids)
             )
         )
-        db.execute(
-            delete(ProposalReportProgramActivity).where(
-                ProposalReportProgramActivity.program_id == program_id
-            )
+
+    db.execute(
+        delete(ProposalReportProgramPopulation).where(
+            ProposalReportProgramPopulation.program_id == program_id
         )
+    )
+
+    db.execute(
+        delete(ProposalReportProgramActivity).where(
+            ProposalReportProgramActivity.program_id == program_id
+        )
+    )
 
     db.execute(
         delete(ProposalReportProgram).where(ProposalReportProgram.program_id == program_id)
