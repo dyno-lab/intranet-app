@@ -40,6 +40,7 @@ from app.helpers.report_context import (
     base_reports_context as _base_reports_context,
     municipality_from_user as _municipality_from_user,
     residential_from_user as _residential_from_user,
+    resolve_reporting_location as _resolve_reporting_location,
     resolve_reporting_scope as _resolve_reporting_scope,
     rq_from_user as _rq_from_user,
 )
@@ -1370,18 +1371,10 @@ def _build_no_duplicado_context(
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
-    residential_name = None
-    municipality = None
-    rq_code = None
-    if is_global:
-        residential_name = "Global"
-        municipality = "Todos"
-        rq_code = "Global"
-    elif selected_user:
-        residential_name = _residential_from_user(selected_user)
-        municipality = _municipality_from_user(selected_user)
-        rq_code = _rq_from_user(selected_user)
-
+    location = _resolve_reporting_location(selected_user, is_global)
+    residential_name = location["residential_name"]
+    municipality = location["municipality"]
+    rq_code = location["rq_code"]
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
@@ -2388,18 +2381,10 @@ def _build_por_programa_context(
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
-    residential_name = None
-    municipality = None
-    rq_code = None
-    if is_global:
-        residential_name = "Global"
-        municipality = "Todos"
-        rq_code = "Global"
-    elif selected_user:
-        residential_name = _residential_from_user(selected_user)
-        municipality = _municipality_from_user(selected_user)
-        rq_code = _rq_from_user(selected_user)
-
+    location = _resolve_reporting_location(selected_user, is_global)
+    residential_name = location["residential_name"]
+    municipality = location["municipality"]
+    rq_code = location["rq_code"]
     program_sections = []
     overall_total_f = overall_total_m = overall_total_all = 0
 
