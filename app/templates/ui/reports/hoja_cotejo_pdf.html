@@ -1,0 +1,266 @@
+{% extends "ui/_base.html" %}
+{% block title %}Hoja de Cotejo PDF{% endblock %}
+
+{% block content %}
+<style>
+  .cotejo-pdf-shell {
+    background: #fff;
+  }
+
+  .cotejo-page {
+    background: #fff;
+    padding: 0;
+    margin: 0 0 1rem 0;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .cotejo-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .cotejo-page-header {
+    margin-bottom: 1rem;
+  }
+
+  .cotejo-header-image,
+  .cotejo-footer-image {
+    width: 100%;
+    display: block;
+  }
+
+  .cotejo-header-text {
+    text-align: center;
+    margin: 0.75rem 0 1rem;
+    line-height: 1.25;
+  }
+
+  .cotejo-header-text .line-1,
+  .cotejo-header-text .line-2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .cotejo-report-title {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+  }
+
+  .cotejo-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 1rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .cotejo-population-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  .cotejo-table {
+    width: 100%;
+    table-layout: fixed;
+    margin-bottom: 0.75rem;
+    border-collapse: collapse;
+  }
+
+  .cotejo-table th,
+  .cotejo-table td {
+    vertical-align: middle;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.88rem;
+    border: 1px solid #212529;
+  }
+
+  .cotejo-table thead th {
+    background: #f1f3f5;
+  }
+
+  .cotejo-activity-cell {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .cotejo-signatures {
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cotejo-signature-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .cotejo-signature-table td {
+    vertical-align: bottom;
+    padding: 0.35rem 0.5rem 0.2rem 0;
+    font-size: 0.88rem;
+  }
+
+  .cotejo-signature-main {
+    width: 78%;
+  }
+
+  .cotejo-signature-date-col {
+    width: 22%;
+    padding-left: 1rem;
+  }
+
+  .cotejo-line {
+    display: block;
+    width: 100%;
+    border-bottom: 1px solid #212529;
+    height: 1.4rem;
+  }
+
+  .cotejo-signature-label,
+  .cotejo-date-label {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.82rem;
+    text-align: center;
+    font-weight: 400;
+  }
+
+  .cotejo-initials-text {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .cotejo-footer {
+    margin-top: 1rem;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cotejo-footer-summary {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: end;
+  }
+
+  table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+</style>
+
+<div class="cotejo-pdf-shell">
+  {% for program_block in program_blocks %}
+  <div class="cotejo-page">
+    <div class="cotejo-page-header">
+      <img class="cotejo-header-image" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
+
+      <div class="cotejo-header-text">
+        <div class="line-1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+        <div class="line-2">PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN</div>
+      </div>
+
+      <div class="cotejo-report-title">HOJA DE COTEJO</div>
+
+      <div class="cotejo-meta-grid">
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+        <div><strong>Municipio:</strong> {{ municipality or '' }}</div>
+        <div><strong>RQ:</strong> {{ rq_code or '' }}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Programa:</strong> {{ program_block.program_display_name }}</div>
+        <div><strong>Tipo de reporte:</strong> Hoja de Cotejo</div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+      {% for population_block in program_block.population_blocks %}
+      <div>
+        <div class="cotejo-population-title">Clasificación / población: {{ population_block.population_label }}</div>
+        <table class="cotejo-table">
+          <colgroup>
+            <col style="width: 48%;">
+            <col style="width: 13%;">
+            <col style="width: 13%;">
+            <col style="width: 13%;">
+            <col style="width: 13%;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th style="text-align: left;">ACTIVIDADES</th>
+              <th>REALIZADAS</th>
+              <th>DUPLICADOS</th>
+              <th>ÚNICOS</th>
+              <th>HORAS CONTACTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if population_block.rows %}
+              {% for row in population_block.rows %}
+              <tr>
+                <td class="cotejo-activity-cell">
+                  <div><strong>{{ row.activity_code }}</strong></div>
+                  <div>{{ row.activity_description }}</div>
+                </td>
+                <td style="text-align: center;">{{ row.activities_count }}</td>
+                <td style="text-align: center;">{{ row.duplicados }}</td>
+                <td style="text-align: center;">{{ row.unique_participants }}</td>
+                <td style="text-align: center;">{{ '%.2f'|format(row.contact_hours) }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: #6c757d;">No hay actividades asignadas a esta clasificación.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="cotejo-signatures">
+      <table class="cotejo-signature-table">
+        <tr>
+          <td class="cotejo-signature-main">
+            <span class="cotejo-line"></span>
+            <span class="cotejo-signature-label">Firma (Facilitador de Servicios)</span>
+          </td>
+          <td class="cotejo-signature-date-col">
+            <span class="cotejo-line"></span>
+            <span class="cotejo-date-label">Fecha</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="cotejo-signature-main">
+            <span class="cotejo-line"></span>
+            <span class="cotejo-initials-text">Iniciales: Promotor Educativo / Intercesor Empleo / Trabajador Social</span>
+          </td>
+          <td class="cotejo-signature-date-col">
+            <span class="cotejo-line"></span>
+            <span class="cotejo-date-label">Fecha</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="cotejo-footer">
+      <img class="cotejo-footer-image" src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro">
+      <div class="cotejo-footer-summary">
+        Total Horas Contacto del reporte: {{ '%.2f'|format(total_contact_hours) }} HRS.
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

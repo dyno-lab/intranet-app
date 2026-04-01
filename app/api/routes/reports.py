@@ -2125,6 +2125,24 @@ def hoja_cotejo_report(
     return templates.TemplateResponse("ui/reports/hoja_cotejo.html", context)
 
 
+@router.get("/hoja-cotejo/pdf", response_class=HTMLResponse)
+def hoja_cotejo_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/hoja_cotejo_pdf.html", context)
+
+
 @router.get("/por-programa", response_class=HTMLResponse)
 def por_programa_report(
     request: Request,
@@ -2434,6 +2452,11 @@ def _build_hoja_cotejo_context(
                     "unique_participants": int(unique_participants or 0),
                 }
 
+        total_contact_hours = sum(
+            float(metrics.get("contact_hours", 0) or 0)
+            for metrics in session_metrics_by_activity_code_id.values()
+        )
+
         for block in structure_blocks:
             population_blocks = []
             for population_block in block["population_blocks"]:
@@ -2452,7 +2475,6 @@ def _build_hoja_cotejo_context(
                         "unique_participants": unique_participants,
                         "contact_hours": contact_hours,
                     })
-                    total_contact_hours += contact_hours
                 population_blocks.append({
                     **population_block,
                     "rows": rows,
