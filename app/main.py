@@ -27,6 +27,8 @@ from app.db.schema import ensure_schema_updates
 import app.models.residential  # noqa: F401
 import app.models.vca_column  # noqa: F401
 import app.models.vca_column_activity_code  # noqa: F401
+import app.models.proposal_report_program_population  # noqa: F401
+import app.models.proposal_report_program_population_activity_code  # noqa: F401
 
 app = FastAPI(title="Intranet App")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

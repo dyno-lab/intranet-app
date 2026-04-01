@@ -757,6 +757,69 @@ IF NOT EXISTS (
 BEGIN
     CREATE INDEX IX_proposal_report_program_activity_codes_activity_code_id ON dbo.proposal_report_program_activity_codes(activity_code_id);
 END;
+
+IF OBJECT_ID(N'dbo.proposal_report_program_populations', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_program_populations (
+        program_population_id INT IDENTITY(1,1) PRIMARY KEY,
+        program_id INT NOT NULL,
+        population_group_id INT NOT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_proposal_report_program_populations_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_report_program_populations_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_report_program_populations_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_report_program_populations_programs FOREIGN KEY (program_id) REFERENCES dbo.proposal_report_programs(program_id),
+        CONSTRAINT FK_proposal_report_program_populations_population_groups FOREIGN KEY (population_group_id) REFERENCES dbo.proposal_population_groups(population_group_id),
+        CONSTRAINT UQ_proposal_report_program_populations_program_population UNIQUE (program_id, population_group_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_populations_program_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_populations')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_populations_program_id ON dbo.proposal_report_program_populations(program_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_populations_population_group_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_populations')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_populations_population_group_id ON dbo.proposal_report_program_populations(population_group_id);
+END;
+
+IF OBJECT_ID(N'dbo.proposal_report_program_population_activity_codes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_program_population_activity_codes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        program_population_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        CONSTRAINT FK_proposal_report_program_population_activity_codes_program_populations FOREIGN KEY (program_population_id) REFERENCES dbo.proposal_report_program_populations(program_population_id),
+        CONSTRAINT FK_proposal_report_program_population_activity_codes_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_proposal_report_program_population_activity_codes UNIQUE (program_population_id, activity_code_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_population_activity_codes_program_population_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_population_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_population_activity_codes_program_population_id ON dbo.proposal_report_program_population_activity_codes(program_population_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_program_population_activity_codes_activity_code_id'
+      AND object_id = OBJECT_ID('dbo.proposal_report_program_population_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_program_population_activity_codes_activity_code_id ON dbo.proposal_report_program_population_activity_codes(activity_code_id);
+END;
 """
 
 
