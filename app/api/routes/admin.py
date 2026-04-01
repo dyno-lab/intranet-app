@@ -1321,11 +1321,29 @@ def admin_create_report_program(
         is_active=True,
     )
     db.add(program)
+    db.flush()
+
+    existing_program_population = db.execute(
+        select(ProposalReportProgramPopulation).where(
+            ProposalReportProgramPopulation.program_id == program.program_id,
+            ProposalReportProgramPopulation.population_group_id == population_group_id,
+        )
+    ).scalar_one_or_none()
+    if not existing_program_population:
+        db.add(
+            ProposalReportProgramPopulation(
+                program_id=program.program_id,
+                population_group_id=population_group_id,
+                sort_order=0,
+                is_active=True,
+            )
+        )
+
     db.commit()
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Programa creado exitosamente.",
+        "Programa creado exitosamente con su población inicial sincronizada.",
     )
 
 
