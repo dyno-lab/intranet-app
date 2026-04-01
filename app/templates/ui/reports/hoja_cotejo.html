@@ -8,43 +8,74 @@
     border: 1px solid #dee2e6;
     border-radius: 0.5rem;
     margin-bottom: 2rem;
-    padding: 1.5rem;
+    padding: 1.25rem 1.25rem 1rem;
   }
 
   .cotejo-page-header {
-    border-bottom: 2px solid #212529;
-    padding-bottom: 0.75rem;
     margin-bottom: 1rem;
   }
 
-  .cotejo-logo-box {
-    width: 84px;
-    height: 84px;
-    border: 1px solid #adb5bd;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    color: #6c757d;
-    background: #f8f9fa;
-    flex-shrink: 0;
+  .cotejo-header-image,
+  .cotejo-footer-image {
+    width: 100%;
+    display: block;
+  }
+
+  .cotejo-header-text {
+    text-align: center;
+    margin: 0.75rem 0 1rem;
+    line-height: 1.25;
+  }
+
+  .cotejo-header-text .line-1,
+  .cotejo-header-text .line-2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .cotejo-report-title {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
   }
 
   .cotejo-meta-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem 1rem;
+    gap: 0.35rem 1rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .cotejo-program-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #212529;
+    background: #f8f9fa;
+  }
+
+  .cotejo-population-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
   }
 
   .cotejo-table {
     width: 100%;
     table-layout: fixed;
+    margin-bottom: 0.75rem;
   }
 
   .cotejo-table th,
   .cotejo-table td {
     vertical-align: middle;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.88rem;
   }
 
   .cotejo-activity-cell {
@@ -53,23 +84,41 @@
   }
 
   .cotejo-signatures {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid #dee2e6;
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+  }
+
+  .cotejo-signature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+  }
+
+  .cotejo-signature-box {
+    min-height: 90px;
   }
 
   .cotejo-signature-line {
     border-top: 1px solid #212529;
-    margin-top: 2.5rem;
-    padding-top: 0.35rem;
+    margin-top: 2.25rem;
+    padding-top: 0.3rem;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+  }
+
+  .cotejo-signature-date {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
   }
 
   .cotejo-footer {
     margin-top: 1rem;
-    font-size: 0.85rem;
-    color: #6c757d;
+  }
+
+  .cotejo-footer-summary {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
     text-align: end;
   }
 
@@ -99,6 +148,7 @@
 
     .cotejo-page-header,
     .cotejo-signatures,
+    .cotejo-footer,
     .table-responsive {
       break-inside: avoid;
       page-break-inside: avoid;
@@ -188,17 +238,16 @@
     {% for program_block in program_blocks %}
     <div class="cotejo-page">
       <div class="cotejo-page-header">
-        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-          <div class="cotejo-logo-box">LOGO</div>
-          <div class="text-center flex-grow-1">
-            <div class="fw-bold">Residenciales Públicos / Proyecto</div>
-            <div class="fw-semibold">Hoja de Cotejo</div>
-            <div class="small text-muted">Reporte por programa, clasificación y actividad</div>
-          </div>
-          <div class="cotejo-logo-box">LOGO</div>
+        <img class="cotejo-header-image" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
+
+        <div class="cotejo-header-text">
+          <div class="line-1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+          <div class="line-2">PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN</div>
         </div>
 
-        <div class="cotejo-meta-grid small">
+        <div class="cotejo-report-title">HOJA DE COTEJO</div>
+
+        <div class="cotejo-meta-grid">
           <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
           <div><strong>Municipio:</strong> {{ municipality or '' }}</div>
           <div><strong>RQ:</strong> {{ rq_code or '' }}</div>
@@ -211,7 +260,7 @@
       <div class="d-flex flex-column gap-3">
         {% for population_block in program_block.population_blocks %}
         <div>
-          <div class="fw-semibold mb-2">Clasificación / población: {{ population_block.population_label }}</div>
+          <div class="cotejo-population-title">Clasificación / población: {{ population_block.population_label }}</div>
           <div class="table-responsive">
             <table class="table table-bordered table-sm align-middle mb-0 cotejo-table">
               <colgroup>
@@ -257,18 +306,23 @@
       </div>
 
       <div class="cotejo-signatures">
-        <div class="row g-4">
-          <div class="col-md-6">
-            <div class="cotejo-signature-line">Preparado por</div>
+        <div class="cotejo-signature-grid">
+          <div class="cotejo-signature-box">
+            <div class="cotejo-signature-line">Firma del recurso / preparado por</div>
+            <div class="cotejo-signature-date"><strong>Fecha:</strong> ____________________</div>
           </div>
-          <div class="col-md-6">
-            <div class="cotejo-signature-line">Revisado / Aprobado por</div>
+          <div class="cotejo-signature-box">
+            <div class="cotejo-signature-line">Firma del supervisor / revisado y aprobado</div>
+            <div class="cotejo-signature-date"><strong>Fecha:</strong> ____________________</div>
           </div>
         </div>
       </div>
 
       <div class="cotejo-footer">
-        Total Horas Contacto del reporte: {{ '%.2f'|format(total_contact_hours) }} HRS.
+        <img class="cotejo-footer-image" src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro">
+        <div class="cotejo-footer-summary">
+          Total Horas Contacto del reporte: {{ '%.2f'|format(total_contact_hours) }} HRS.
+        </div>
       </div>
     </div>
     {% endfor %}
