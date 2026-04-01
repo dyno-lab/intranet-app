@@ -40,6 +40,7 @@ from app.helpers.report_context import (
     base_reports_context as _base_reports_context,
     municipality_from_user as _municipality_from_user,
     residential_from_user as _residential_from_user,
+    resolve_reporting_scope as _resolve_reporting_scope,
     rq_from_user as _rq_from_user,
 )
 from app.helpers.reports import (
@@ -121,17 +122,10 @@ def _build_bonafide_context(
     month_lookup = base_context["month_lookup"]
     user_residential_map = base_context["user_residential_map"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     rows = []
     municipality = None
     residential_name = None
@@ -442,17 +436,10 @@ def _build_vca_context(
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     columns = []
     rows = []
     residential_name = None
@@ -564,17 +551,10 @@ def _build_school_dropout_summary_context(
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     grade_columns = ["SC", "EE", "K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
     rows = []
     total = {
@@ -759,17 +739,10 @@ def _build_pregnancy_summary_context(
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     rows = []
     residential_name = None
     total = {
@@ -934,17 +907,10 @@ def _build_notes_context(
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     rows = []
     age_labels = ["Menos de 5 años", "5 - 7 años", "8 - 10 años", "11 - 15 años", "16 - 21 años"]
     note_letters = ["A", "B", "C", "D", "F"]
@@ -1400,17 +1366,10 @@ def _build_no_duplicado_context(
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     report_users = base_context["report_users"]
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     residential_name = None
     municipality = None
     rq_code = None
@@ -2425,17 +2384,10 @@ def _build_por_programa_context(
     period = _build_period_filter(period_type, month, year, start_date, end_date)
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
 
-    selected_user = None
-    is_global = False
-    if current_user.role in {"admin", "supervisor"}:
-        if employee_id == 0:
-            is_global = True
-        elif employee_id:
-            selected_user = db.get(User, employee_id)
-    else:
-        selected_user = current_user
-        employee_id = current_user.user_id
-
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
     residential_name = None
     municipality = None
     rq_code = None
@@ -2736,3 +2688,4 @@ def bonafide_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
