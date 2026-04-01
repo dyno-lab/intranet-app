@@ -1029,10 +1029,19 @@ def admin_delete_population_group(
         )
     ).scalar()
 
-    if related_programs_count and related_programs_count > 0:
+    related_program_populations_count = db.execute(
+        select(func.count()).select_from(ProposalReportProgramPopulation).where(
+            ProposalReportProgramPopulation.population_group_id == population_group_id
+        )
+    ).scalar()
+
+    if (
+        (related_programs_count and related_programs_count > 0)
+        or (related_program_populations_count and related_program_populations_count > 0)
+    ):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar la categoría poblacional porque ya tiene programas asociados. Puede inactivarla en su lugar.",
+            "Error: No se puede eliminar la categoría poblacional porque todavía está asociada a uno o más programas. Remuévala primero de la configuración correspondiente.",
         )
 
     db.delete(group)
