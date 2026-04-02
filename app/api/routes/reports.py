@@ -2125,7 +2125,7 @@ def hoja_cotejo_report(
     return templates.TemplateResponse("ui/reports/hoja_cotejo.html", context)
 
 
-@router.get("/hoja-cotejo/pdf")
+@router.get("/hoja-cotejo/pdf", response_class=HTMLResponse)
 def hoja_cotejo_report_pdf(
     request: Request,
     proposal_id: int | None = None,
@@ -2140,33 +2140,94 @@ def hoja_cotejo_report_pdf(
 ):
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/hoja_cotejo_pdf.html", context)
+
+
+@router.get("/hoja-cotejo/excel")
+def hoja_cotejo_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/hoja-cotejo", status_code=303)
 
-    try:
-        from weasyprint import HTML
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "No se pudo cargar WeasyPrint para generar el PDF de Hoja de Cotejo. "
-                f"Revise dependencias nativas del sistema: {exc}"
-            ),
-        )
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Hoja de Cotejo"
 
-    try:
-        rendered = templates.get_template("ui/reports/hoja_cotejo_pdf.html").render(context)
-        pdf_bytes = HTML(string=rendered, base_url=str(request.base_url)).write_pdf()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"No se pudo generar el PDF de Hoja de Cotejo: {exc}")
+    ws["A1"] = "Hoja de Cotejo"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Reporte por programa, clasificación y actividad"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["A5"] = "Municipio"
+    ws["B5"] = context["municipality"] or ""
+    ws["A6"] = "RQ"
+    ws["B6"] = context["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"
+    ws["B7"] = context["period_label"]
 
+    row_index = 10
+    for program_block in context["program_blocks"]:
+        ws.cell(row=row_index, column=1, value=f"Programa: {program_block['program_display_name']}").font = Font(bold=True)
+        row_index += 1
+
+        for population_block in program_block["population_blocks"]:
+            ws.cell(row=row_index, column=1, value=f"Clasificación / población: {population_block['population_label']}").font = Font(bold=True)
+            row_index += 1
+
+            headers = ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas contacto"]
+            for col_index, header in enumerate(headers, start=1):
+                cell = ws.cell(row=row_index, column=col_index, value=header)
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            row_index += 1
+
+            if population_block["rows"]:
+                for row in population_block["rows"]:
+                    ws.cell(row=row_index, column=1, value=f"{row['activity_code']} {row['activity_description'] or ''}".strip())
+                    ws.cell(row=row_index, column=2, value=row["activities_count"])
+                    ws.cell(row=row_index, column=3, value=row["duplicados"])
+                    ws.cell(row=row_index, column=4, value=row["unique_participants"])
+                    ws.cell(row=row_index, column=5, value=row["contact_hours"])
+                    row_index += 1
+            else:
+                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificación.")
+                row_index += 1
+
+            row_index += 1
+
+        row_index += 1
+
+    ws.cell(row=row_index, column=1, value="Total Horas Contacto")
+    ws.cell(row=row_index, column=2, value=context["total_contact_hours"])
+    ws.cell(row=row_index, column=1).font = Font(bold=True)
+    ws.cell(row=row_index, column=2).font = Font(bold=True)
+
+    widths = {"A": 55, "B": 14, "C": 14, "D": 14, "E": 16}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
     safe_residential = (context["residential_name"] or "hoja_cotejo").replace(" ", "_")
-    filename = f"hoja_cotejo_{safe_residential}_{_period_filename_suffix(context)}.pdf"
+    filename = f"hoja_cotejo_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+
     return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
