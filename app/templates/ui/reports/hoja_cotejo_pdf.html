@@ -131,14 +131,6 @@
       white-space: nowrap;
     }
 
-    .cotejo-section-row td {
-      background: #bdbdbd;
-      font-weight: 700;
-      text-align: center;
-      padding-top: 2px;
-      padding-bottom: 2px;
-    }
-
     .cotejo-program-label,
     .cotejo-population-label {
       white-space: nowrap;
@@ -288,20 +280,11 @@
         </thead>
         <tbody>
           {% for population_block in program_block.population_blocks %}
-            <tr class="cotejo-section-row">
-              <td class="cotejo-program-label">{{ program_block.program_display_name }}</td>
-              <td class="cotejo-center">&nbsp;</td>
-              <td class="cotejo-population-label">{{ population_block.population_label }}</td>
-              <td class="cotejo-center">&nbsp;</td>
-              <td class="cotejo-center">&nbsp;</td>
-              <td class="cotejo-center">&nbsp;</td>
-              <td class="cotejo-center">&nbsp;</td>
-            </tr>
             {% if population_block.rows %}
               {% for row in population_block.rows %}
               {% set activity_text = (row.activity_code ~ ' ' ~ (row.activity_description or ''))|trim %}
               <tr>
-                <td class="cotejo-center">&nbsp;</td>
+                <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
                 <td class="cotejo-center">&nbsp;</td>
                 <td class="cotejo-activity-cell">
                   <span class="cotejo-activity-single-line">{{ activity_text[:56] }}{% if activity_text|length > 56 %}...{% endif %}</span>
@@ -314,7 +297,7 @@
               {% endfor %}
             {% else %}
               <tr class="cotejo-empty-row">
-                <td class="cotejo-center">&nbsp;</td>
+                <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
                 <td class="cotejo-center">&nbsp;</td>
                 <td colspan="5">No hay actividades asignadas a esta clasificación.</td>
               </tr>
