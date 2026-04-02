@@ -55,15 +55,6 @@
       margin-bottom: 5px;
     }
 
-    .cotejo-header-image {
-      max-width: 500px;
-      max-height: 80px;
-      width: auto;
-      display: block;
-      margin: 0 auto 4px auto;
-      object-fit: contain;
-    }
-
     .cotejo-header .line-1,
     .cotejo-header .line-2 {
       margin: 0;
@@ -89,8 +80,7 @@
     }
 
     .cotejo-meta-table td {
-      border-top: 1px solid #333;
-      border-bottom: 1px solid #333;
+      border: none;
       padding: 2px 4px;
       font-size: 10px;
       line-height: 1.05;
@@ -216,7 +206,6 @@
   <div class="cotejo-page">
     <div class="cotejo-page-inner">
       <div class="cotejo-header">
-        <img class="cotejo-header-image" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
         <div class="line-1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
         <div class="line-2">PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN</div>
       </div>
@@ -226,6 +215,7 @@
           <tr>
             <td><strong>MES DEL INFORME:</strong> {{ period_label }}</td>
             <td><strong>RESIDENCIAL:</strong> {{ residential_name or '' }}</td>
+            <td><strong>RQ:</strong> {{ rq_code or '' }}</td>
           </tr>
         </table>
       </div>
