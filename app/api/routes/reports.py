@@ -8,7 +8,6 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func, distinct
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
-from weasyprint import HTML
 from openpyxl.styles import Font, Alignment
 
 from app.api.deps import get_db
@@ -2144,6 +2143,17 @@ def hoja_cotejo_report_pdf(
 
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/hoja-cotejo", status_code=303)
+
+    try:
+        from weasyprint import HTML
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "No se pudo cargar WeasyPrint para generar el PDF de Hoja de Cotejo. "
+                f"Revise dependencias nativas del sistema: {exc}"
+            ),
+        )
 
     try:
         rendered = templates.get_template("ui/reports/hoja_cotejo_pdf.html").render(context)
