@@ -2547,6 +2547,8 @@ def _build_hoja_cotejo_context(
 
         for block in structure_blocks:
             population_blocks = []
+            program_contact_hours = 0.0
+            seen_program_activity_ids: set[int] = set()
             for population_block in block["population_blocks"]:
                 rows = []
                 for row in population_block["rows"]:
@@ -2563,6 +2565,9 @@ def _build_hoja_cotejo_context(
                         "unique_participants": unique_participants,
                         "contact_hours": contact_hours,
                     })
+                    if row["activity_code_id"] not in seen_program_activity_ids:
+                        program_contact_hours += contact_hours
+                        seen_program_activity_ids.add(row["activity_code_id"])
                 population_blocks.append({
                     **population_block,
                     "rows": rows,
@@ -2570,6 +2575,7 @@ def _build_hoja_cotejo_context(
             program_blocks.append({
                 **block,
                 "population_blocks": population_blocks,
+                "program_contact_hours": program_contact_hours,
             })
 
     return {

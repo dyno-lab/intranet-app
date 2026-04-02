@@ -275,7 +275,7 @@
         </tbody>
       </table>
 
-      <div class="cotejo-total">Total Horas Contacto: {{ '%.2f'|format(total_contact_hours) }} HRS.</div>
+      <div class="cotejo-total">Total Horas Contacto: {{ '%.2f'|format(program_block.program_contact_hours or 0) }} HRS.</div>
 
       <div class="cotejo-signatures">
         <div class="cotejo-signature-grid">

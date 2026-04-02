@@ -324,7 +324,7 @@
       <div class="cotejo-footer">
         <img class="cotejo-footer-image" src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro">
         <div class="cotejo-footer-summary">
-          Total Horas Contacto del reporte: {{ '%.2f'|format(total_contact_hours) }} HRS.
+          Total Horas Contacto del programa: {{ '%.2f'|format(program_block.program_contact_hours or 0) }} HRS.
         </div>
       </div>
     </div>
