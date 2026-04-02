@@ -65,9 +65,7 @@
     }
 
     .cotejo-header .line-1,
-    .cotejo-header .line-2,
-    .cotejo-header .line-3,
-    .cotejo-header .line-4 {
+    .cotejo-header .line-2 {
       margin: 0;
       font-weight: 700;
       font-size: 10px;
@@ -75,8 +73,7 @@
       text-transform: uppercase;
     }
 
-    .cotejo-header .line-3,
-    .cotejo-header .line-4 {
+    .cotejo-header .line-2 {
       margin-top: 1px;
     }
 
@@ -107,13 +104,12 @@
       margin: 0;
     }
 
-    .cotejo-main-table col.col-programa { width: 33%; }
-    .cotejo-main-table col.col-certificados { width: 12%; }
-    .cotejo-main-table col.col-activity { width: 30%; }
-    .cotejo-main-table col.col-realizadas { width: 8%; }
+    .cotejo-main-table col.col-programa { width: 38%; }
+    .cotejo-main-table col.col-activity { width: 34%; }
+    .cotejo-main-table col.col-realizadas { width: 9%; }
     .cotejo-main-table col.col-duplicados { width: 7%; }
-    .cotejo-main-table col.col-unicos { width: 5%; }
-    .cotejo-main-table col.col-horas { width: 5%; }
+    .cotejo-main-table col.col-unicos { width: 6%; }
+    .cotejo-main-table col.col-horas { width: 6%; }
 
     .cotejo-main-table th,
     .cotejo-main-table td {
@@ -131,8 +127,7 @@
       white-space: nowrap;
     }
 
-    .cotejo-program-label,
-    .cotejo-population-label {
+    .cotejo-program-label {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: clip;
@@ -171,55 +166,35 @@
     }
 
     .cotejo-signatures {
-      margin-top: 5px;
+      margin-top: 8px;
     }
 
-    .cotejo-signature-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
+    .cotejo-signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 20px;
+      margin-top: 8px;
     }
 
-    .cotejo-signature-table td {
-      vertical-align: bottom;
-      padding: 1px 4px 0 0;
+    .cotejo-sig {
+      text-align: center;
+    }
+
+    .cotejo-sig-line {
+      border-top: 1px solid #111;
+      margin: 0 auto 5px auto;
+      width: 88%;
+    }
+
+    .cotejo-sig-name {
+      font-weight: 700;
+      font-size: 9.5px;
+    }
+
+    .cotejo-sig-title {
+      margin-top: 2px;
       font-size: 9px;
-      line-height: 1.0;
-    }
-
-    .cotejo-signature-main {
-      width: 78%;
-    }
-
-    .cotejo-signature-date-col {
-      width: 22%;
-      padding-left: 8px;
-    }
-
-    .cotejo-line {
-      display: block;
-      width: 100%;
-      border-bottom: 1px solid #111;
-      height: 12px;
-    }
-
-    .cotejo-signature-label,
-    .cotejo-date-label {
-      display: block;
-      margin-top: 1px;
-      font-size: 8px;
-      font-weight: 400;
-      text-align: center;
-      line-height: 1.0;
-    }
-
-    .cotejo-initials-text {
-      display: block;
-      margin-top: 1px;
-      font-size: 7px;
-      font-weight: 400;
-      line-height: 1.0;
-      text-align: center;
+      line-height: 1.1;
     }
 
     .cotejo-footer {
@@ -244,8 +219,6 @@
         <img class="cotejo-header-image" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
         <div class="line-1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
         <div class="line-2">PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN</div>
-        <div class="line-3">SERVICIOS DE SALUD Y BIENESTAR BIO-PSICO-SOCIAL</div>
-        <div class="line-4">HOJA MENSUAL DE COTEJO DE METAS LOGRADAS / PARTICIPACIÓN POR ACTIVIDAD</div>
       </div>
 
       <div class="cotejo-meta">
@@ -260,7 +233,6 @@
       <table class="cotejo-main-table">
         <colgroup>
           <col class="col-programa">
-          <col class="col-certificados">
           <col class="col-activity">
           <col class="col-realizadas">
           <col class="col-duplicados">
@@ -270,7 +242,6 @@
         <thead>
           <tr>
             <th>PROGRAMA / CLASIFICACIÓN</th>
-            <th>GRUPOS</th>
             <th>ACTIVIDADES</th>
             <th>REALIZ.</th>
             <th>DUPL.</th>
@@ -285,7 +256,6 @@
               {% set activity_text = (row.activity_code ~ ' ' ~ (row.activity_description or ''))|trim %}
               <tr>
                 <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
-                <td class="cotejo-center">&nbsp;</td>
                 <td class="cotejo-activity-cell">
                   <span class="cotejo-activity-single-line">{{ activity_text[:56] }}{% if activity_text|length > 56 %}...{% endif %}</span>
                 </td>
@@ -298,7 +268,6 @@
             {% else %}
               <tr class="cotejo-empty-row">
                 <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
-                <td class="cotejo-center">&nbsp;</td>
                 <td colspan="5">No hay actividades asignadas a esta clasificación.</td>
               </tr>
             {% endif %}
@@ -309,28 +278,24 @@
       <div class="cotejo-total">Total Horas Contacto: {{ '%.2f'|format(total_contact_hours) }} HRS.</div>
 
       <div class="cotejo-signatures">
-        <table class="cotejo-signature-table">
-          <tr>
-            <td class="cotejo-signature-main">
-              <span class="cotejo-line"></span>
-              <span class="cotejo-signature-label">Firma (Facilitador de Servicios)</span>
-            </td>
-            <td class="cotejo-signature-date-col">
-              <span class="cotejo-line"></span>
-              <span class="cotejo-date-label">Fecha</span>
-            </td>
-          </tr>
-          <tr>
-            <td class="cotejo-signature-main">
-              <span class="cotejo-line"></span>
-              <span class="cotejo-initials-text">Iniciales: Promotor Educativo / Intercesor Empleo / Trabajador Social</span>
-            </td>
-            <td class="cotejo-signature-date-col">
-              <span class="cotejo-line"></span>
-              <span class="cotejo-date-label">Fecha</span>
-            </td>
-          </tr>
-        </table>
+        <div class="cotejo-signature-grid">
+          <div class="cotejo-sig">
+            <div class="cotejo-sig-line"></div>
+            <div class="cotejo-sig-name">Firma (Facilitador de Servicios)</div>
+          </div>
+          <div class="cotejo-sig">
+            <div class="cotejo-sig-line"></div>
+            <div class="cotejo-sig-name">Fecha</div>
+          </div>
+          <div class="cotejo-sig">
+            <div class="cotejo-sig-line"></div>
+            <div class="cotejo-sig-title">Iniciales: Promotor Educativo / Intercesor Empleo / Trabajador Social</div>
+          </div>
+          <div class="cotejo-sig">
+            <div class="cotejo-sig-line"></div>
+            <div class="cotejo-sig-name">Fecha</div>
+          </div>
+        </div>
       </div>
 
       <div class="cotejo-footer">
