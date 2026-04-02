@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from io import BytesIO
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func, distinct
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
+from weasyprint import HTML
 from openpyxl.styles import Font, Alignment
 
 from app.api.deps import get_db
@@ -2125,7 +2126,7 @@ def hoja_cotejo_report(
     return templates.TemplateResponse("ui/reports/hoja_cotejo.html", context)
 
 
-@router.get("/hoja-cotejo/pdf", response_class=HTMLResponse)
+@router.get("/hoja-cotejo/pdf")
 def hoja_cotejo_report_pdf(
     request: Request,
     proposal_id: int | None = None,
@@ -2140,7 +2141,23 @@ def hoja_cotejo_report_pdf(
 ):
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
-    return templates.TemplateResponse("ui/reports/hoja_cotejo_pdf.html", context)
+
+    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
+        return RedirectResponse("/ui/reports/hoja-cotejo", status_code=303)
+
+    try:
+        rendered = templates.get_template("ui/reports/hoja_cotejo_pdf.html").render(context)
+        pdf_bytes = HTML(string=rendered, base_url=str(request.base_url)).write_pdf()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"No se pudo generar el PDF de Hoja de Cotejo: {exc}")
+
+    safe_residential = (context["residential_name"] or "hoja_cotejo").replace(" ", "_")
+    filename = f"hoja_cotejo_{safe_residential}_{_period_filename_suffix(context)}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get("/por-programa", response_class=HTMLResponse)
