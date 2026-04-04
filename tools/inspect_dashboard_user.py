@@ -1,5 +1,11 @@
 from datetime import date
+from pathlib import Path
+import sys
 from sqlalchemy import select, func, distinct
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from app.db.session import SessionLocal
 from app.models.user import User
