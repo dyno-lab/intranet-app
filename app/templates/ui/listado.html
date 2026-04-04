@@ -117,6 +117,11 @@
     <p class="mb-0 text-muted">
       Marca los participantes que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
     </p>
+    <div class="mt-2">
+      <span class="badge text-bg-primary fs-6 px-3 py-2">
+        Asistencias marcadas: <span id="attendance-counter-value">0</span>
+      </span>
+    </div>
   </div>
 </div>
 
@@ -172,24 +177,39 @@
 (function () {
   const proposalSelect = document.getElementById('edit_proposal_id_select');
   const activitySelect = document.getElementById('edit_activity_code_select');
-  if (!proposalSelect || !activitySelect) return;
+  if (proposalSelect && activitySelect) {
+    function refreshActivities() {
+      const selectedProposal = proposalSelect.value || '';
+      const options = Array.from(activitySelect.options);
 
-  function refreshActivities() {
-    const selectedProposal = proposalSelect.value || '';
-    const options = Array.from(activitySelect.options);
+      options.forEach((option) => {
+        const optionProposal = option.dataset.proposalId || '';
+        const allowed = optionProposal === selectedProposal;
+        option.hidden = !allowed;
+        if (!allowed && option.selected) {
+          activitySelect.value = '';
+        }
+      });
+    }
 
-    options.forEach((option) => {
-      const optionProposal = option.dataset.proposalId || '';
-      const allowed = optionProposal === selectedProposal;
-      option.hidden = !allowed;
-      if (!allowed && option.selected) {
-        activitySelect.value = '';
-      }
-    });
+    proposalSelect.addEventListener('change', refreshActivities);
+    refreshActivities();
   }
 
-  proposalSelect.addEventListener('change', refreshActivities);
-  refreshActivities();
+  const counterValue = document.getElementById('attendance-counter-value');
+  const attendanceCheckboxes = Array.from(document.querySelectorAll('input[name="present"]:not(:disabled)'));
+
+  function refreshAttendanceCounter() {
+    if (!counterValue) return;
+    const selectedCount = attendanceCheckboxes.filter((checkbox) => checkbox.checked).length;
+    counterValue.textContent = String(selectedCount);
+  }
+
+  attendanceCheckboxes.forEach((checkbox) => {
+    checkbox.addEventListener('change', refreshAttendanceCounter);
+  });
+
+  refreshAttendanceCounter();
 })();
 </script>
 {% endblock %}
