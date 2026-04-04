@@ -6,7 +6,7 @@
   <style>
     @page {
       size: letter;
-      margin: 0.34in 0.38in 0.28in 0.38in;
+      margin: 0.24in 0.28in 0.2in 0.28in;
     }
 
     body {
@@ -21,10 +21,12 @@
       display: block;
       page-break-after: always;
       break-after: page;
-      page-break-inside: avoid;
-      break-inside: avoid;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
       margin: 0;
       padding: 0;
+      min-height: 10.55in;
+      overflow: hidden;
     }
 
     .cotejo-page:last-child {
@@ -33,11 +35,15 @@
     }
 
     .cotejo-page-inner {
-      display: block;
-      page-break-inside: avoid;
-      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
       margin: 0;
       padding: 0;
+      min-height: 10.55in;
+      overflow: hidden;
     }
 
     .cotejo-header,
@@ -45,22 +51,28 @@
     .cotejo-main-table,
     .cotejo-signatures,
     .cotejo-footer,
-    .cotejo-total {
-      page-break-inside: avoid;
-      break-inside: avoid;
+    .cotejo-total,
+    .cotejo-meta-table,
+    .cotejo-main-table thead,
+    .cotejo-main-table tbody,
+    .cotejo-main-table tr,
+    .cotejo-signature-grid,
+    .cotejo-sig {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     .cotejo-header {
       text-align: center;
-      margin-bottom: 5px;
+      margin-bottom: 3px;
     }
 
     .cotejo-header-image {
-      max-width: 500px;
-      max-height: 80px;
+      max-width: 460px;
+      max-height: 68px;
       width: auto;
       display: block;
-      margin: 0 auto 4px auto;
+      margin: 0 auto 2px auto;
       object-fit: contain;
     }
 
@@ -68,8 +80,8 @@
     .cotejo-header .line-2 {
       margin: 0;
       font-weight: 700;
-      font-size: 10px;
-      line-height: 1.05;
+      font-size: 9px;
+      line-height: 1.0;
       text-transform: uppercase;
     }
 
@@ -78,8 +90,8 @@
     }
 
     .cotejo-meta {
-      font-size: 10px;
-      margin: 4px 0 4px 0;
+      font-size: 9px;
+      margin: 2px 0 3px 0;
     }
 
     .cotejo-meta-table {
@@ -90,9 +102,9 @@
 
     .cotejo-meta-table td {
       border: none;
-      padding: 2px 4px;
-      font-size: 10px;
-      line-height: 1.05;
+      padding: 1px 3px;
+      font-size: 9px;
+      line-height: 1.0;
       vertical-align: middle;
     }
 
@@ -103,19 +115,19 @@
       margin: 0;
     }
 
-    .cotejo-main-table col.col-programa { width: 25%; }
-    .cotejo-main-table col.col-activity { width: 33%; }
-    .cotejo-main-table col.col-realizadas { width: 10%; }
-    .cotejo-main-table col.col-duplicados { width: 10%; }
-    .cotejo-main-table col.col-unicos { width: 10%; }
-    .cotejo-main-table col.col-horas { width: 12%; }
+    .cotejo-main-table col.col-programa { width: 22%; }
+    .cotejo-main-table col.col-activity { width: 38%; }
+    .cotejo-main-table col.col-realizadas { width: 9%; }
+    .cotejo-main-table col.col-duplicados { width: 9%; }
+    .cotejo-main-table col.col-unicos { width: 9%; }
+    .cotejo-main-table col.col-horas { width: 13%; }
 
     .cotejo-main-table th,
     .cotejo-main-table td {
       border: 1px solid #333;
-      padding: 2px 3px;
-      font-size: 9px;
-      line-height: 1.0;
+      padding: 1px 2px;
+      font-size: 8px;
+      line-height: 0.95;
       vertical-align: middle;
     }
 
@@ -124,55 +136,58 @@
       text-align: center;
       font-weight: 700;
       white-space: nowrap;
+      font-size: 7.7px;
+      line-height: 0.95;
     }
 
     .cotejo-program-label {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: clip;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      font-weight: 700;
     }
 
     .cotejo-activity-cell {
-      white-space: nowrap;
+      white-space: normal;
       overflow: hidden;
-      text-overflow: clip;
     }
 
     .cotejo-activity-single-line {
       display: block;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: clip;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .cotejo-center {
       text-align: center;
+      white-space: nowrap;
     }
 
     .cotejo-empty-row td {
       color: #666;
-      font-size: 8px;
-      padding: 2px 3px;
+      font-size: 7.6px;
+      padding: 1px 2px;
       text-align: center;
     }
 
     .cotejo-total {
-      margin-top: 3px;
-      font-size: 9px;
+      margin-top: 2px;
+      font-size: 8px;
       font-weight: 700;
-      text-align: center;
+      text-align: right;
       line-height: 1.0;
     }
 
     .cotejo-signatures {
-      margin-top: 8px;
+      margin-top: 6px;
     }
 
     .cotejo-signature-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px 20px;
-      margin-top: 8px;
+      gap: 7px 14px;
+      margin-top: 5px;
     }
 
     .cotejo-sig {
@@ -181,19 +196,20 @@
 
     .cotejo-sig-line {
       border-top: 1px solid #111;
-      margin: 0 auto 5px auto;
-      width: 88%;
+      margin: 0 auto 3px auto;
+      width: 90%;
     }
 
     .cotejo-sig-name {
       font-weight: 700;
-      font-size: 9.5px;
+      font-size: 8px;
+      line-height: 1.0;
     }
 
     .cotejo-sig-title {
-      margin-top: 2px;
-      font-size: 9px;
-      line-height: 1.1;
+      margin-top: 1px;
+      font-size: 7.6px;
+      line-height: 1.0;
     }
 
     .cotejo-footer {
@@ -202,8 +218,8 @@
     }
 
     .cotejo-footer-image {
-      max-width: 300px;
-      max-height: 82px;
+      max-width: 280px;
+      max-height: 68px;
       width: auto;
       display: inline-block;
       object-fit: contain;
@@ -226,6 +242,9 @@
             <td><strong>MES DEL INFORME:</strong> {{ period_label }}</td>
             <td><strong>RESIDENCIAL:</strong> {{ residential_name or '' }}</td>
             <td><strong>RQ:</strong> {{ rq_code or '' }}</td>
+          </tr>
+          <tr>
+            <td colspan="3"><strong>PROGRAMA:</strong> {{ program_block.program_display_name }}</td>
           </tr>
         </table>
       </div>
@@ -255,9 +274,9 @@
               {% for row in population_block.rows %}
               {% set activity_text = (row.activity_code ~ ' ' ~ (row.activity_description or ''))|trim %}
               <tr>
-                <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
+                <td class="cotejo-program-label">{{ population_block.population_label }}</td>
                 <td class="cotejo-activity-cell">
-                  <span class="cotejo-activity-single-line">{{ activity_text[:70] }}{% if activity_text|length > 70 %}...{% endif %}</span>
+                  <span class="cotejo-activity-single-line">{{ activity_text }}</span>
                 </td>
                 <td class="cotejo-center">{{ row.activities_count }}</td>
                 <td class="cotejo-center">{{ row.duplicados }}</td>
@@ -267,7 +286,7 @@
               {% endfor %}
             {% else %}
               <tr class="cotejo-empty-row">
-                <td class="cotejo-program-label">{{ program_block.program_display_name }} - {{ population_block.population_label }}</td>
+                <td class="cotejo-program-label">{{ population_block.population_label }}</td>
                 <td colspan="5">No hay actividades asignadas a esta clasificación.</td>
               </tr>
             {% endif %}

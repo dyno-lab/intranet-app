@@ -15,11 +15,6 @@
     margin-bottom: 1rem;
   }
 
-  .cotejo-footer-image {
-    width: 100%;
-    display: block;
-  }
-
   .cotejo-header-text {
     text-align: center;
     margin: 0.75rem 0 1rem;
@@ -322,7 +317,6 @@
       </div>
 
       <div class="cotejo-footer">
-        <img class="cotejo-footer-image" src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro">
         <div class="cotejo-footer-summary">
           Total Horas Contacto del programa: {{ '%.2f'|format(program_block.program_contact_hours or 0) }} HRS.
         </div>
