@@ -241,6 +241,7 @@ def reports_home(
     current_user: User = Depends(get_current_user),
 ):
     context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    dashboard_context = _build_current_month_dashboard_cards(db, current_user)
     context.update(
         {
             "request": request,
@@ -257,6 +258,7 @@ def reports_home(
             "authorized_name": (authorized_name or "").strip(),
             "selected_start_date": start_date or "",
             "selected_end_date": end_date or "",
+            **dashboard_context,
         }
     )
     return templates.TemplateResponse("ui/reports/index.html", context)
@@ -1362,35 +1364,27 @@ def visits_report_excel(
     )
 
 
-def _build_no_duplicado_context(
+def _calculate_no_duplicado_metric(
     db: Session,
     current_user: User,
     proposal_id: int | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
-    authorized_name: str | None = None,
     duplicated: bool = False,
     period_type: str = "monthly",
     start_date: date | str | None = None,
     end_date: date | str | None = None,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
-
-    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
-    report_users = base_context["report_users"]
-
     scope = _resolve_reporting_scope(current_user, employee_id, db)
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
-    location = _resolve_reporting_location(selected_user, is_global)
-    residential_name = location["residential_name"]
-    municipality = location["municipality"]
-    rq_code = location["rq_code"]
     summary = {key: {"label": label, "f": 0, "m": 0, "total": 0} for key, label in AGE_BUCKETS}
+    participants = []
 
-    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+    if (((proposal_id is not None) and ((period["month"] and period["year"]) or period["is_custom"])) or period["is_custom"]) and (selected_user or is_global):
         if duplicated:
             stmt = (
                 select(Attendance, Participant)
@@ -1398,9 +1392,10 @@ def _build_no_duplicado_context(
                 .join(Participant, Participant.participant_id == Attendance.participant_id)
                 .where(
                     Attendance.attended == True,  # noqa: E712
-                    ActivitySession.proposal_id == proposal_id,
                 )
             )
+            if proposal_id is not None:
+                stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
             stmt = _apply_session_period_filter(stmt, period)
             if not is_global:
                 stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
@@ -1424,9 +1419,10 @@ def _build_no_duplicado_context(
                 .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
                 .where(
                     Attendance.attended == True,  # noqa: E712
-                    ActivitySession.proposal_id == proposal_id,
                 )
             )
+            if proposal_id is not None:
+                stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
             stmt = _apply_session_period_filter(stmt, period)
             stmt = stmt.distinct()
             if not is_global:
@@ -1455,31 +1451,144 @@ def _build_no_duplicado_context(
             total_m += row["m"]
             total_all += row["total"]
     else:
-        participant_summary = _summarize_participants_by_age_and_gender(participants if 'participants' in locals() else [])
+        participant_summary = _summarize_participants_by_age_and_gender(participants)
         rows = participant_summary["rows"]
         total_f = participant_summary["total_f"]
         total_m = participant_summary["total_m"]
         total_all = participant_summary["total_all"]
 
     return {
-        **base_context,
-        "selected_proposal_id": proposal_id,
-        "selected_month": period["month"],
-        "selected_year": period["year"],
-        "selected_period_type": period["period_type"],
-        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
-        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
-        "period_label": _describe_period(period, base_context["month_lookup"]),
-        "selected_employee_id": employee_id,
+        "period": period,
         "selected_user": selected_user,
         "is_global": is_global,
-        "residential_name": residential_name,
-        "municipality": municipality,
-        "rq_code": rq_code,
+        "employee_id": employee_id,
         "rows": rows,
         "total_f": total_f,
         "total_m": total_m,
         "total_all": total_all,
+    }
+
+
+def _build_current_month_dashboard_cards(
+    db: Session,
+    current_user: User,
+):
+    today = date.today()
+    month_start = today.replace(day=1)
+    scope_employee_id = 0 if current_user.role in ["admin", "supervisor"] else current_user.user_id
+
+    no_duplicado_metric = _calculate_no_duplicado_metric(
+        db,
+        current_user,
+        proposal_id=None,
+        month=None,
+        year=None,
+        employee_id=scope_employee_id,
+        duplicated=False,
+        period_type="custom",
+        start_date=month_start,
+        end_date=today,
+    )
+    duplicados_metric = _calculate_no_duplicado_metric(
+        db,
+        current_user,
+        proposal_id=None,
+        month=None,
+        year=None,
+        employee_id=scope_employee_id,
+        duplicated=True,
+        period_type="custom",
+        start_date=month_start,
+        end_date=today,
+    )
+
+    session_stmt = select(func.count(distinct(ActivitySession.session_id))).where(
+        ActivitySession.session_date >= month_start,
+        ActivitySession.session_date <= today,
+    )
+    if current_user.role not in ["admin", "supervisor"]:
+        session_stmt = session_stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+    activities_count = db.execute(session_stmt).scalar_one() or 0
+
+    period_label = f"Del {month_start.strftime('%d/%m/%Y')} al {today.strftime('%d/%m/%Y')}"
+    scope_label = "Global" if current_user.role in ["admin", "supervisor"] else "Propio"
+
+    return {
+        "dashboard_period_label": period_label,
+        "dashboard_scope_label": scope_label,
+        "dashboard_cards": [
+            {
+                "key": "no-duplicado",
+                "label": "No Duplicado",
+                "value": no_duplicado_metric["total_all"],
+                "tone": "primary",
+                "subtitle": "Participantes únicos acumulados del mes corriente",
+            },
+            {
+                "key": "duplicados",
+                "label": "Duplicados",
+                "value": duplicados_metric["total_all"],
+                "tone": "warning",
+                "subtitle": "Participaciones acumuladas del mes corriente",
+            },
+            {
+                "key": "actividades-realizadas",
+                "label": "Actividades Realizadas",
+                "value": activities_count,
+                "tone": "success",
+                "subtitle": "Sesiones registradas del mes corriente",
+            },
+        ],
+    }
+
+
+def _build_no_duplicado_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    authorized_name: str | None = None,
+    duplicated: bool = False,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    metric = _calculate_no_duplicado_metric(
+        db,
+        current_user,
+        proposal_id,
+        month,
+        year,
+        employee_id,
+        duplicated=duplicated,
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    location = _resolve_reporting_location(metric["selected_user"], metric["is_global"])
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": metric["period"]["month"],
+        "selected_year": metric["period"]["year"],
+        "selected_period_type": metric["period"]["period_type"],
+        "selected_start_date": metric["period"]["start_date"].isoformat() if metric["period"]["start_date"] else "",
+        "selected_end_date": metric["period"]["end_date"].isoformat() if metric["period"]["end_date"] else "",
+        "period_label": _describe_period(metric["period"], base_context["month_lookup"]),
+        "selected_employee_id": metric["employee_id"],
+        "selected_user": metric["selected_user"],
+        "is_global": metric["is_global"],
+        "residential_name": location["residential_name"],
+        "municipality": location["municipality"],
+        "rq_code": location["rq_code"],
+        "rows": metric["rows"],
+        "total_f": metric["total_f"],
+        "total_m": metric["total_m"],
+        "total_all": metric["total_all"],
         "authorized_name": (authorized_name or "").strip(),
     }
 

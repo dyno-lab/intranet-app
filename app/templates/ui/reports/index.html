@@ -99,17 +99,27 @@
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <h5 class="mb-3">Diseño funcional del módulo central de Reportes</h5>
-    <ul class="mb-2">
-      <li>Un solo formulario con criterios compartidos: propuesta, periodo, residencial/global y formato.</li>
-      <li>Selector del informe a generar: Bonafide, No Duplicado, Duplicados, Por programa, VCA o Todos.</li>
-      <li>Mensual es el modo operativo principal.</li>
-      <li>Trimestral, anual y personalizado quedan visibles como base para seguimiento del programa.</li>
-      <li>Los usuarios normales solo generan los reportes de su propio residencial.</li>
-      <li>El admin puede elegir un residencial específico o Global.</li>
-      <li>La opción <strong>Todos</strong> queda como punto central para luego ejecutar/exportar varios reportes con los mismos criterios.</li>
-    </ul>
-    <div class="small text-muted">Opciones operativas conectadas ahora mismo: <strong>Bonafide</strong>, <strong>No Duplicado</strong> y <strong>Duplicados</strong>. Las demás quedan preparadas en la UX para seguir montándolas sin rehacer la entrada de reportes.</div>
+    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+      <div>
+        <h5 class="mb-1">Dashboard mensual en vivo</h5>
+        <div class="small text-muted">{{ dashboard_period_label }} · Alcance: {{ dashboard_scope_label }}</div>
+      </div>
+      <div class="small text-muted">Actualizado al cargar esta página</div>
+    </div>
+
+    <div class="row g-3">
+      {% for card in dashboard_cards %}
+      <div class="col-md-4">
+        <div class="card border-{{ card.tone }} h-100">
+          <div class="card-body">
+            <div class="text-muted small text-uppercase mb-2">{{ card.label }}</div>
+            <div class="display-6 fw-bold text-{{ card.tone }}">{{ card.value }}</div>
+            <div class="small text-muted mt-2">{{ card.subtitle }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
