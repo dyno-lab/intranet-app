@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date, datetime
+from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -869,6 +870,13 @@ def create_session_ui(
 def open_session(
     session_id: int,
     request: Request,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    page: int | None = None,
+    per_page: int | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -913,6 +921,18 @@ def open_session(
     )
     attended_ids = set(db.execute(att_stmt).scalars().all())
 
+    list_query_params = {
+        "proposal_id": proposal_id or "",
+        "month": month or "",
+        "year": year or "",
+        "from_date": from_date or "",
+        "to_date": to_date or "",
+        "page": page or "",
+        "per_page": per_page or "",
+    }
+    list_query_string = urlencode({k: v for k, v in list_query_params.items() if v not in (None, "")})
+    back_to_list_url = f"/ui/listado?{list_query_string}" if list_query_string else "/ui/listado"
+
     return templates.TemplateResponse(
         "ui/listado.html",
         {
@@ -932,6 +952,7 @@ def open_session(
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
             "msg": msg,
+            "back_to_list_url": back_to_list_url,
         },
     )
 

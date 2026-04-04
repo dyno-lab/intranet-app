@@ -19,7 +19,7 @@
       <button class="btn btn-outline-danger">Eliminar Sesión</button>
     </form>
     {% endif %}
-    <a class="btn btn-outline-secondary" href="/ui/listado">Volver a Sesiones</a>
+    <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a Sesiones</a>
   </div>
 </div>
 

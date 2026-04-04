@@ -175,7 +175,7 @@
           {% endif %}
           <td>{{ s.hours or '' }}</td>
           <td class="text-end">
-            <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}">Abrir</a>
+            <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
 
             {% if current_user.role in ['admin', 'supervisor'] %}
             <form method="post"
