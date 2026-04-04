@@ -25,7 +25,9 @@
       break-inside: avoid !important;
       margin: 0;
       padding: 0;
+      height: 10.55in;
       min-height: 10.55in;
+      max-height: 10.55in;
       overflow: hidden;
     }
 
@@ -42,7 +44,9 @@
       break-inside: avoid !important;
       margin: 0;
       padding: 0;
+      height: 10.55in;
       min-height: 10.55in;
+      max-height: 10.55in;
       overflow: hidden;
     }
 
@@ -113,6 +117,7 @@
       border-collapse: collapse;
       table-layout: fixed;
       margin: 0;
+      flex: 1 1 auto;
     }
 
     .cotejo-main-table col.col-programa { width: 22%; }
@@ -125,9 +130,9 @@
     .cotejo-main-table th,
     .cotejo-main-table td {
       border: 1px solid #333;
-      padding: 1px 2px;
-      font-size: 8px;
-      line-height: 0.95;
+      padding: 0.5px 1.5px;
+      font-size: 7.4px;
+      line-height: 0.88;
       vertical-align: middle;
     }
 
@@ -136,27 +141,27 @@
       text-align: center;
       font-weight: 700;
       white-space: nowrap;
-      font-size: 7.7px;
-      line-height: 0.95;
+      font-size: 7px;
+      line-height: 0.9;
     }
 
     .cotejo-program-label {
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
       font-weight: 700;
     }
 
     .cotejo-activity-cell {
-      white-space: normal;
+      white-space: nowrap;
       overflow: hidden;
     }
 
     .cotejo-activity-single-line {
       display: block;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
     }
 
     .cotejo-center {
@@ -166,28 +171,28 @@
 
     .cotejo-empty-row td {
       color: #666;
-      font-size: 7.6px;
-      padding: 1px 2px;
+      font-size: 7px;
+      padding: 0.5px 1.5px;
       text-align: center;
     }
 
     .cotejo-total {
-      margin-top: 2px;
-      font-size: 8px;
+      margin-top: 1px;
+      font-size: 7.4px;
       font-weight: 700;
       text-align: right;
-      line-height: 1.0;
+      line-height: 0.95;
     }
 
     .cotejo-signatures {
-      margin-top: 6px;
+      margin-top: 4px;
     }
 
     .cotejo-signature-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 7px 14px;
-      margin-top: 5px;
+      gap: 5px 12px;
+      margin-top: 3px;
     }
 
     .cotejo-sig {
@@ -196,30 +201,31 @@
 
     .cotejo-sig-line {
       border-top: 1px solid #111;
-      margin: 0 auto 3px auto;
-      width: 90%;
+      margin: 0 auto 2px auto;
+      width: 92%;
     }
 
     .cotejo-sig-name {
       font-weight: 700;
-      font-size: 8px;
-      line-height: 1.0;
+      font-size: 7.2px;
+      line-height: 0.95;
     }
 
     .cotejo-sig-title {
-      margin-top: 1px;
-      font-size: 7.6px;
-      line-height: 1.0;
+      margin-top: 0;
+      font-size: 6.8px;
+      line-height: 0.95;
     }
 
     .cotejo-footer {
-      margin-top: 4px;
+      margin-top: auto;
+      padding-top: 3px;
       text-align: left;
     }
 
     .cotejo-footer-image {
-      max-width: 280px;
-      max-height: 68px;
+      max-width: 245px;
+      max-height: 54px;
       width: auto;
       display: inline-block;
       object-fit: contain;
