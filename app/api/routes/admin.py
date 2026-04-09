@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import require_admin
+from app.core.proposal_guard import is_proposal_finalized
 from app.core.security import hash_password
 from app.models.user import User
 from app.models.activity_code import ActivityCode
@@ -44,6 +45,12 @@ DEFAULT_POPULATION_GROUP_OPTIONS = [
 def _redirect_with_msg(url: str, msg: str):
     separator = "&" if "?" in url else "?"
     return RedirectResponse(f"{url}{separator}msg={quote_plus(msg)}", status_code=303)
+
+
+def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
+    if is_proposal_finalized(proposal):
+        return _redirect_with_msg(redirect_url, message)
+    return None
 
 
 def _program_uses_population_structure(db: Session, program_id: int) -> bool:
@@ -353,6 +360,14 @@ def admin_create_visit_mapping(
     if not proposal or not activity:
         return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: Propuesta o actividad no encontrada.")
 
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/visits?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     if activity.proposal_id != proposal_id:
         return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
@@ -392,6 +407,15 @@ def admin_delete_visit_mapping(
     mapping = db.get(VisitActivityMapping, mapping_id)
     if not mapping:
         return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: Configuración no encontrada.")
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/visits?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     db.delete(mapping)
     db.commit()
@@ -469,6 +493,14 @@ def admin_create_vca_column(
     if not proposal:
         return _redirect_with_msg("/ui/admin/vca", "Error: Propuesta no encontrada.")
 
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/vca?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     column = VCAColumn(proposal_id=proposal_id, name=name.strip(), sort_order=sort_order)
     db.add(column)
     db.commit()
@@ -489,6 +521,15 @@ def admin_edit_vca_column(
     if not column:
         return RedirectResponse("/ui/admin/vca?msg=Error: Columna VCA no encontrada.", status_code=303)
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/vca?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     column.name = name.strip()
     column.sort_order = sort_order
     column.is_active = is_active == "on"
@@ -507,6 +548,14 @@ def admin_assign_activity_to_vca_column(
 ):
     column = db.get(VCAColumn, vca_column_id)
     activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/vca?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
     if not column or not activity:
         return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Columna o actividad no encontrada.", status_code=303)
     if column.proposal_id != proposal_id or activity.proposal_id != proposal_id:
@@ -538,6 +587,14 @@ def admin_unassign_activity_from_vca_column(
     mapping = db.get(VCAColumnActivityCode, mapping_id)
     if not mapping:
         return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Asignación no encontrada.", status_code=303)
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/vca?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
     db.delete(mapping)
     db.commit()
     return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Asignación removida exitosamente.", status_code=303)
@@ -857,7 +914,7 @@ def admin_create_proposal(
     if existing:
         return _redirect_with_msg("/ui/admin/proposals", "Error: El código de propuesta ya existe.")
 
-    proposal = Proposal(code=code, name=name, description=description)
+    proposal = Proposal(code=code, name=name, description=description, status="active")
     db.add(proposal)
     db.commit()
 
@@ -896,6 +953,12 @@ def admin_edit_proposal(
             status_code=303,
         )
 
+    if proposal.status == "finalized":
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: La propuesta está finalizada y no permite edición.",
+            status_code=303,
+        )
+
     proposal.code = code
     proposal.name = name
     proposal.description = description
@@ -906,6 +969,40 @@ def admin_edit_proposal(
 
     return RedirectResponse(
         "/ui/admin/proposals?msg=Propuesta actualizada exitosamente.",
+        status_code=303,
+    )
+
+
+@router.post("/proposals/{proposal_id}/finalize")
+def admin_finalize_proposal(
+    proposal_id: int,
+    finalization_note: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: Propuesta no encontrada.",
+            status_code=303,
+        )
+
+    if proposal.status == "finalized":
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: La propuesta ya está finalizada.",
+            status_code=303,
+        )
+
+    proposal.status = "finalized"
+    proposal.finalized_at = func.sysutcdatetime()
+    proposal.finalized_by_user_id = current_user.user_id
+    proposal.finalization_note = (finalization_note or "").strip() or None
+
+    db.add(proposal)
+    db.commit()
+
+    return RedirectResponse(
+        "/ui/admin/proposals?msg=Propuesta finalizada exitosamente. Quedó en modo solo lectura.",
         status_code=303,
     )
 
@@ -928,6 +1025,14 @@ def admin_create_population_group(
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/report-programs", "Error: La propuesta seleccionada no existe.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     normalized_code = code.strip().lower()
     existing = db.execute(
@@ -980,6 +1085,15 @@ def admin_edit_population_group(
             "Error: Categoría poblacional no encontrada.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     normalized_code = code.strip().lower()
     existing = db.execute(
         select(ProposalPopulationGroup).where(
@@ -1022,6 +1136,15 @@ def admin_delete_population_group(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Categoría poblacional no encontrada.",
         )
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     related_programs_count = db.execute(
         select(func.count()).select_from(ProposalReportProgram).where(
@@ -1250,6 +1373,14 @@ def admin_create_report_program(
     if not proposal:
         return _redirect_with_msg("/ui/admin/report-programs", "Error: La propuesta seleccionada no existe.")
 
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     population_group = db.get(ProposalPopulationGroup, population_group_id)
     if not population_group or population_group.proposal_id != proposal_id:
         return _redirect_with_msg(
@@ -1326,6 +1457,15 @@ def admin_edit_report_program(
             "Error: Programa no encontrado.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     population_group = db.get(ProposalPopulationGroup, population_group_id)
     if not population_group or population_group.proposal_id != proposal_id:
         return _redirect_with_msg(
@@ -1375,6 +1515,15 @@ def admin_delete_report_program(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Programa no encontrado.",
         )
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     related_activities = db.execute(
         select(ProposalReportProgramActivity).where(
@@ -1468,6 +1617,15 @@ def admin_create_report_program_activity(
             "Error: Programa no encontrado para crear actividad.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     normalized_code = code.strip().upper()
     if not normalized_code:
         return _redirect_with_msg(
@@ -1525,6 +1683,15 @@ def admin_edit_report_program_activity(
             "Error: Actividad programática no encontrada.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     program = db.get(ProposalReportProgram, activity.program_id)
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
@@ -1581,6 +1748,15 @@ def admin_delete_report_program_activity(
             "Error: Actividad programática no encontrada.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     program = db.get(ProposalReportProgram, activity.program_id)
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
@@ -1622,6 +1798,15 @@ def admin_add_activity_code_to_report_program_activity(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Actividad programática no encontrada.",
         )
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     program = db.get(ProposalReportProgram, activity.program_id)
     if not program or program.proposal_id != proposal_id:
@@ -1699,6 +1884,15 @@ def admin_remove_activity_code_from_report_program_activity(
             "Error: Actividad programática no encontrada.",
         )
 
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
     program = db.get(ProposalReportProgram, activity.program_id)
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
@@ -1742,6 +1936,15 @@ def admin_create_report_program_population(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Programa no encontrado para agregar población.",
         )
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     population_group = db.get(ProposalPopulationGroup, population_group_id)
     if not population_group or population_group.proposal_id != proposal_id:
@@ -1791,6 +1994,15 @@ def admin_delete_report_program_population(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Relación programa-población no encontrada.",
         )
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/report-programs?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
 
     program = db.get(ProposalReportProgram, program_population.program_id)
     if not program or program.proposal_id != proposal_id:

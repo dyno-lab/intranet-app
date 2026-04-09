@@ -9,8 +9,62 @@ BEGIN
         code VARCHAR(50) NOT NULL UNIQUE,
         name VARCHAR(150) NOT NULL,
         description VARCHAR(255) NULL,
-        is_active BIT NOT NULL CONSTRAINT DF_proposals_is_active DEFAULT 1
+        is_active BIT NOT NULL CONSTRAINT DF_proposals_is_active DEFAULT 1,
+        status VARCHAR(20) NOT NULL CONSTRAINT DF_proposals_status DEFAULT 'active',
+        finalized_at DATETIMEOFFSET NULL,
+        finalized_by_user_id INT NULL,
+        finalization_note VARCHAR(500) NULL,
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposals_updated_at DEFAULT SYSUTCDATETIME()
     );
+END;
+
+IF COL_LENGTH('dbo.proposals', 'status') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD status VARCHAR(20) NOT NULL CONSTRAINT DF_proposals_status DEFAULT 'active';
+END;
+
+IF COL_LENGTH('dbo.proposals', 'finalized_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD finalized_at DATETIMEOFFSET NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'finalized_by_user_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD finalized_by_user_id INT NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'finalization_note') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD finalization_note VARCHAR(500) NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'updated_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposals_updated_at DEFAULT SYSUTCDATETIME();
+END;
+
+UPDATE dbo.proposals
+SET status = CASE
+    WHEN finalized_at IS NOT NULL THEN 'finalized'
+    ELSE 'active'
+END
+WHERE status IS NULL
+   OR LTRIM(RTRIM(status)) = '';
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_proposals_finalized_by_user'
+)
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD CONSTRAINT FK_proposals_finalized_by_user
+    FOREIGN KEY (finalized_by_user_id) REFERENCES dbo.users(user_id);
 END;
 
 IF COL_LENGTH('dbo.activity_sessions', 'proposal_id') IS NULL

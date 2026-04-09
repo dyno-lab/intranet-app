@@ -52,6 +52,7 @@
           <th>Nombre</th>
           <th>Descripción</th>
           <th>Estado</th>
+          <th>Cierre</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -63,21 +64,39 @@
           <td>{{ proposal.name }}</td>
           <td>{{ proposal.description or '-' }}</td>
           <td>
-            {% if proposal.is_active %}
+            {% if proposal.status == 'finalized' %}
+              <span class="badge bg-secondary">Finalizada</span>
+            {% elif proposal.is_active %}
               <span class="badge bg-success">Activa</span>
             {% else %}
               <span class="badge bg-danger">Inactiva</span>
             {% endif %}
           </td>
           <td>
+            {% if proposal.status == 'finalized' %}
+              <div class="small">
+                <div><strong>Fecha:</strong> {{ proposal.finalized_at or '—' }}</div>
+                <div><strong>Usuario ID:</strong> {{ proposal.finalized_by_user_id or '—' }}</div>
+                <div><strong>Nota:</strong> {{ proposal.finalization_note or '—' }}</div>
+              </div>
+            {% else %}
+              <span class="text-muted small">Pendiente</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if proposal.status != 'finalized' %}
             <button class="btn btn-sm btn-outline-primary" type="button"
                     data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">
               Editar
             </button>
+            {% else %}
+            <span class="badge bg-light text-dark border">Solo lectura</span>
+            {% endif %}
           </td>
         </tr>
         <tr class="collapse" id="edit-proposal-{{ proposal.proposal_id }}">
-          <td colspan="6" class="bg-light">
+          <td colspan="7" class="bg-light">
+            {% if proposal.status != 'finalized' %}
             <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/edit" class="row g-2 align-items-end p-2">
               <div class="col-md-2">
                 <label class="form-label small">Código</label>
@@ -104,6 +123,23 @@
                         data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">Cancelar</button>
               </div>
             </form>
+            <hr>
+            <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/finalize" class="p-2" onsubmit="return confirm('¿Finalizar esta propuesta? Quedará en solo lectura para operaciones.');">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label small">Nota de cierre (opcional)</label>
+                  <input type="text" class="form-control form-control-sm" name="finalization_note" placeholder="Motivo u observación del cierre">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                  <button type="submit" class="btn btn-sm btn-warning">Finalizar propuesta</button>
+                  <button type="button" class="btn btn-sm btn-secondary"
+                          data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">Cancelar</button>
+                </div>
+              </div>
+            </form>
+            {% else %}
+            <div class="p-2 text-muted small">La propuesta está finalizada. Esta sección queda en solo lectura.</div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

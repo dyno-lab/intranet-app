@@ -24,6 +24,10 @@ from app.models.residential import Residential
 
 from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
 from app.core.config import settings
+from app.core.proposal_guard import (
+    is_proposal_finalized,
+    require_session_proposal_not_finalized,
+)
 from app.api.deps import get_db
 
 router = APIRouter()
@@ -85,6 +89,12 @@ def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, acti
     return db.execute(stmt).scalars().all()
 
 
+def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
+    if is_proposal_finalized(proposal):
+        return _redirect_with_msg(redirect_url, message)
+    return None
+
+
 def _load_catalog_options(db: Session, key: str):
     catalog_type = db.execute(
         select(CatalogType).where(CatalogType.key == key, CatalogType.is_active == True)  # noqa: E712
@@ -143,6 +153,7 @@ def _build_sessions_stmt(current_user: User):
             ActivitySession.hours,
             Proposal.code.label("proposal_code"),
             Proposal.name.label("proposal_name"),
+            Proposal.status.label("proposal_status"),
             User.username.label("created_by_username"),
             Residential.name.label("created_by_residential"),
         )
@@ -839,6 +850,13 @@ def create_session_ui(
         proposal = db.get(Proposal, proposal_id)
         if not proposal:
             return _redirect_with_msg("/ui/listado", "Error: La propuesta seleccionada no existe.")
+        redirect = _redirect_if_proposal_finalized(
+            proposal,
+            "/ui/listado",
+            "Error: La propuesta seleccionada está finalizada y no permite crear sesiones.",
+        )
+        if redirect:
+            return redirect
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
@@ -890,6 +908,7 @@ def open_session(
     activity_code = db.get(ActivityCode, s.activity_code_id)
     employee = db.get(Employee, s.employee_id)
     proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+    proposal_is_finalized = is_proposal_finalized(proposal)
 
     activity_codes = _load_activity_codes_for_proposal(db, s.proposal_id, active_only=True)
     employees = db.execute(
@@ -941,6 +960,7 @@ def open_session(
             "activity_code": activity_code,
             "employee": employee,
             "proposal": proposal,
+            "proposal_is_finalized": proposal_is_finalized,
             "activity_codes": activity_codes,
             "employees": employees,
             "proposals": proposals,
@@ -969,6 +989,15 @@ async def save_attendance(
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
     _check_session_access(s, current_user)
+
+    try:
+        require_session_proposal_not_finalized(
+            db,
+            s,
+            message="Error: La propuesta de esta sesión está finalizada y no permite modificar asistencias.",
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
 
     form = await request.form()
     present = [int(v) for v in form.getlist("present")]
@@ -1029,10 +1058,26 @@ def edit_session(
 
     _check_session_access(s, current_user)
 
+    try:
+        require_session_proposal_not_finalized(
+            db,
+            s,
+            message="Error: La propuesta de esta sesión está finalizada y no permite editar la sesión.",
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
+
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
         if not proposal:
             return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La propuesta seleccionada no existe.")
+        redirect = _redirect_if_proposal_finalized(
+            proposal,
+            f"/ui/listado/{session_id}",
+            "Error: La propuesta seleccionada está finalizada y no permite editar sesiones.",
+        )
+        if redirect:
+            return redirect
         s.proposal_id = proposal.proposal_id
     else:
         s.proposal_id = None
@@ -1068,6 +1113,15 @@ def delete_session(
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
     _check_session_access(s, current_user)
+
+    try:
+        require_session_proposal_not_finalized(
+            db,
+            s,
+            message="Error: La propuesta de esta sesión está finalizada y no permite eliminar la sesión.",
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg("/ui/listado", str(exc.detail))
 
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)

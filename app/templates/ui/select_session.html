@@ -10,6 +10,16 @@
 </div>
 {% endif %}
 
+{% if selected_proposal_id %}
+  {% for proposal in proposals %}
+    {% if proposal.proposal_id == selected_proposal_id and proposal.status == 'finalized' %}
+    <div class="alert alert-warning" role="alert">
+      La propuesta seleccionada está <strong>finalizada</strong>. Su operación queda en modo solo lectura.
+    </div>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
   <h4 class="mb-0">Listado - Sesiones</h4>
   <div class="d-flex gap-2 flex-wrap">
@@ -97,7 +107,7 @@
         <select class="form-select" name="proposal_id" id="proposal_id_select">
           <option value="">Sin propuesta</option>
           {% for proposal in proposals if proposal.is_active %}
-            <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
+            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}">{{ proposal.code }} - {{ proposal.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -129,7 +139,7 @@
       </div>
 
       <div class="col-12 mt-2">
-        <button class="btn btn-success w-100">Crear y Abrir Sesión</button>
+        <button class="btn btn-success w-100" id="create-session-btn">Crear y Abrir Sesión</button>
       </div>
     </form>
   </div>
@@ -159,6 +169,9 @@
           <td>
             {% if s.proposal_code %}
               <span class="badge bg-info text-dark">{{ s.proposal_code }}</span>
+              {% if s.proposal_status == 'finalized' %}
+                <span class="badge bg-secondary">Finalizada</span>
+              {% endif %}
               <div class="small text-muted">{{ s.proposal_name }}</div>
             {% else %}
               <span class="text-muted">Sin propuesta</span>
@@ -177,7 +190,7 @@
           <td class="text-end">
             <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
 
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor'] and s.proposal_status != 'finalized' %}
             <form method="post"
                   action="/ui/listado/{{ s.session_id }}/delete"
                   style="display:inline;"
@@ -225,10 +238,13 @@
 (function () {
   const proposalSelect = document.getElementById('proposal_id_select');
   const activitySelect = document.getElementById('activity_code_select');
+  const createBtn = document.getElementById('create-session-btn');
   if (!proposalSelect || !activitySelect) return;
 
   function refreshActivities() {
     const selectedProposal = proposalSelect.value || '';
+    const selectedOption = proposalSelect.options[proposalSelect.selectedIndex];
+    const selectedStatus = selectedOption ? (selectedOption.dataset.status || 'active') : 'active';
     const options = Array.from(activitySelect.options);
 
     options.forEach((option, index) => {
@@ -243,6 +259,12 @@
         activitySelect.value = '';
       }
     });
+
+    if (createBtn) {
+      const isFinalized = selectedProposal && selectedStatus === 'finalized';
+      createBtn.disabled = !!isFinalized;
+      createBtn.textContent = isFinalized ? 'Propuesta finalizada (solo lectura)' : 'Crear y Abrir Sesión';
+    }
   }
 
   proposalSelect.addEventListener('change', refreshActivities);

@@ -8,6 +8,11 @@ from app.schemas.participant import ParticipantCreate, ParticipantOut
 
 router = APIRouter()
 
+# LIMITACIÓN TEMPORAL FASE 1:
+# Participant todavía funciona como listado operativo global y aún no está separado
+# en Person / ProposalParticipant. Por eso, el cierre por propuesta no puede
+# bloquear creación/edición de participantes con precisión total en esta fase.
+
 @router.post("", response_model=ParticipantOut)
 def create_participant(payload: ParticipantCreate, db: Session = Depends(get_db)):
     existing = db.execute(select(Participant).where(Participant.expediente_num == payload.expediente_num)).scalar_one_or_none()

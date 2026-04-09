@@ -8,10 +8,15 @@
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
+{% if proposal_is_finalized %}
+<div class="alert alert-warning" role="alert">
+  Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
+</div>
+{% endif %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0">Marcar Asistencia</h4>
   <div>
-    {% if current_user and current_user.role in ["admin", "supervisor"] %}
+    {% if current_user and current_user.role in ["admin", "supervisor"] and not proposal_is_finalized %}
     <form method="post"
           action="/ui/listado/{{ session.session_id }}/delete"
           style="display:inline;"
@@ -27,9 +32,13 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Datos de la Sesión</h5>
+      {% if not proposal_is_finalized %}
       <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
         ✏️ Editar Sesión
       </button>
+      {% else %}
+      <span class="badge bg-secondary">Solo lectura</span>
+      {% endif %}
     </div>
 
     <div class="row g-2">
@@ -40,6 +49,7 @@
         <strong>Propuesta:</strong>
         {% if proposal %}
           {{ proposal.code }} - {{ proposal.name }}
+          {% if proposal_is_finalized %}<span class="badge bg-secondary ms-1">Finalizada</span>{% endif %}
         {% else %}
           <span class="text-muted">Sin propuesta</span>
         {% endif %}
@@ -65,6 +75,7 @@
       </div>
     </div>
 
+    {% if not proposal_is_finalized %}
     <div class="collapse mt-3" id="editSessionForm">
       <hr>
       <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2">
@@ -112,6 +123,7 @@
         </div>
       </form>
     </div>
+    {% endif %}
 
     <hr class="my-2">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
@@ -163,14 +175,18 @@
                      name="present"
                      value="{{ p.participant_id }}"
                      {% if p.participant_id in attended_ids %}checked{% endif %}
-                     {% if not is_active %}disabled{% endif %}>
+                     {% if not is_active or proposal_is_finalized %}disabled{% endif %}>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
 
+      {% if not proposal_is_finalized %}
       <button class="btn btn-success mt-2">Guardar Asistencia</button>
+      {% else %}
+      <button class="btn btn-secondary mt-2" disabled>Propuesta finalizada (solo lectura)</button>
+      {% endif %}
     </div>
   </div>
 </form>

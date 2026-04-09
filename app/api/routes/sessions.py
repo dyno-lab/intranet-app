@@ -4,9 +4,11 @@ from sqlalchemy import select
 from datetime import date
 
 from app.api.deps import get_db
+from app.core.proposal_guard import require_proposal_id_not_finalized
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
+from app.models.proposal import Proposal
 from app.schemas.session import SessionCreate, SessionOut
 
 router = APIRouter()
@@ -31,6 +33,16 @@ def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
     emp = db.get(Employee, payload.employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="employee_id no existe")
+
+    if payload.proposal_id:
+        proposal = db.get(Proposal, payload.proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="proposal_id no existe")
+        require_proposal_id_not_finalized(
+            db,
+            payload.proposal_id,
+            message="La propuesta está finalizada y no permite crear sesiones.",
+        )
 
     obj = ActivitySession(**payload.model_dump())
     db.add(obj)
