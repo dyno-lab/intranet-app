@@ -1189,6 +1189,16 @@ INNER JOIN dbo.proposal_participants pp
 WHERE s.proposal_id IS NOT NULL
   AND a.participant_id IS NOT NULL
   AND a.proposal_participant_id IS NULL;
+
+UPDATE a
+SET a.participant_id = per.legacy_participant_id
+FROM dbo.attendance a
+INNER JOIN dbo.proposal_participants pp
+    ON pp.proposal_participant_id = a.proposal_participant_id
+INNER JOIN dbo.persons per
+    ON per.person_id = pp.person_id
+WHERE a.participant_id IS NULL
+  AND per.legacy_participant_id IS NOT NULL;
 """
 
 
