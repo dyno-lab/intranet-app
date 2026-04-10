@@ -52,6 +52,7 @@
           <th>Nombre</th>
           <th>Descripción</th>
           <th>Estado</th>
+          <th>Participantes</th>
           <th>Cierre</th>
           <th>Acciones</th>
         </tr>
@@ -73,6 +74,14 @@
             {% endif %}
           </td>
           <td>
+            <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
+              Administrar participantes
+            </a>
+            <div class="small text-muted mt-1">
+              {{ participant_counts.get(proposal.proposal_id, 0) }} asociado(s)
+            </div>
+          </td>
+          <td>
             {% if proposal.status == 'finalized' %}
               <div class="small">
                 <div><strong>Fecha:</strong> {{ proposal.finalized_at or '—' }}</div>
@@ -85,17 +94,27 @@
           </td>
           <td>
             {% if proposal.status != 'finalized' %}
-            <button class="btn btn-sm btn-outline-primary" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">
-              Editar
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-outline-primary" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">
+                Editar
+              </button>
+              <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
+                Participantes
+              </a>
+            </div>
             {% else %}
-            <span class="badge bg-light text-dark border">Solo lectura</span>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+              <span class="badge bg-light text-dark border">Solo lectura</span>
+              <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
+                Ver participantes
+              </a>
+            </div>
             {% endif %}
           </td>
         </tr>
         <tr class="collapse" id="edit-proposal-{{ proposal.proposal_id }}">
-          <td colspan="7" class="bg-light">
+          <td colspan="8" class="bg-light">
             {% if proposal.status != 'finalized' %}
             <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/edit" class="row g-2 align-items-end p-2">
               <div class="col-md-2">

@@ -897,12 +897,20 @@ def admin_proposals(
         select(Proposal).order_by(Proposal.code)
     ).scalars().all()
 
+    participant_counts = dict(
+        db.execute(
+            select(ProposalParticipant.proposal_id, func.count(ProposalParticipant.proposal_participant_id))
+            .group_by(ProposalParticipant.proposal_id)
+        ).all()
+    )
+
     return templates.TemplateResponse(
         "ui/admin/proposals.html",
         {
             "request": request,
             "current_user": current_user,
             "proposals": proposals,
+            "participant_counts": participant_counts,
             "msg": msg,
         },
     )
