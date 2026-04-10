@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -9,8 +9,14 @@ router = APIRouter()
 
 
 @router.get("")
-def list_attendance(session_id: int | None = None, db: Session = Depends(get_db)):
+def list_attendance(
+    session_id: int | None = None,
+    proposal_participant_id: int | None = None,
+    db: Session = Depends(get_db),
+):
     stmt = select(Attendance)
     if session_id:
         stmt = stmt.where(Attendance.session_id == session_id)
+    if proposal_participant_id:
+        stmt = stmt.where(Attendance.proposal_participant_id == proposal_participant_id)
     return list(db.execute(stmt).scalars().all())
