@@ -93,7 +93,13 @@
             <strong>{{ column.sort_order }}. {{ column.name }}</strong>
             {% if column.is_active %}<span class="badge bg-success ms-2">Activa</span>{% else %}<span class="badge bg-danger ms-2">Inactiva</span>{% endif %}
           </div>
-          <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-vca-{{ column.vca_column_id }}">Editar</button>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-vca-{{ column.vca_column_id }}">Editar</button>
+            <form method="post" action="/ui/admin/vca/columns/{{ column.vca_column_id }}/delete" class="mb-0" onsubmit="return confirm('¿Eliminar esta columna VCA y sus asignaciones de actividades?');">
+              <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </div>
         </div>
 
         <div class="collapse mb-3" id="edit-vca-{{ column.vca_column_id }}">

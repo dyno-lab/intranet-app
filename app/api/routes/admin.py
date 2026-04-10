@@ -526,6 +526,37 @@ def admin_create_vca_column(
     return _redirect_with_msg(f"/ui/admin/vca?proposal_id={proposal_id}", "Columna VCA creada exitosamente.")
 
 
+@router.post("/vca/columns/{vca_column_id}/delete")
+def admin_delete_vca_column(
+    vca_column_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    column = db.get(VCAColumn, vca_column_id)
+    if not column:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Columna VCA no encontrada.", status_code=303)
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/vca?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
+    if column.proposal_id != proposal_id:
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: La columna no pertenece a la propuesta seleccionada.", status_code=303)
+
+    db.execute(
+        delete(VCAColumnActivityCode).where(VCAColumnActivityCode.vca_column_id == vca_column_id)
+    )
+    db.delete(column)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Columna VCA eliminada exitosamente.", status_code=303)
+
+
 @router.post("/vca/columns/{vca_column_id}/edit")
 def admin_edit_vca_column(
     vca_column_id: int,
