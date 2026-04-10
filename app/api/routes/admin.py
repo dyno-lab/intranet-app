@@ -20,7 +20,15 @@ from app.models.proposal import Proposal
 from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
+from app.models.proposal_population_group import ProposalPopulationGroup
+from app.models.proposal_report_program import ProposalReportProgram
 from app.models.residential import Residential
+from app.models.vca_column import VCAColumn
+from app.models.visit_activity_mapping import VisitActivityMapping
+from app.models.visit_report import VisitReport
+from app.models.pregnancy_report import PregnancyReport
+from app.models.school_grade_report import SchoolGradeReport
+from app.models.school_dropout_report import SchoolDropoutReport
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.visit_activity_mapping import VisitActivityMapping
@@ -1510,26 +1518,78 @@ def admin_delete_proposal(
             "Error: La contraseña de administrador no es correcta.",
         )
 
+    blockers: list[str] = []
+
     session_count = db.execute(
         select(func.count()).select_from(ActivitySession).where(ActivitySession.proposal_id == proposal_id)
     ).scalar() or 0
+    if session_count > 0:
+        blockers.append(f"{session_count} sesión(es)")
+
     participant_count = db.execute(
         select(func.count()).select_from(ProposalParticipant).where(ProposalParticipant.proposal_id == proposal_id)
     ).scalar() or 0
-
-    if session_count > 0 or participant_count > 0:
-        return _redirect_with_msg(
-            "/ui/admin/proposals",
-            "Error: No se puede eliminar la propuesta porque tiene sesiones o participantes asociados.",
-        )
+    if participant_count > 0:
+        blockers.append(f"{participant_count} participante(s) asociados")
 
     linked_activity_codes = db.execute(
         select(func.count()).select_from(ActivityCode).where(ActivityCode.proposal_id == proposal_id)
     ).scalar() or 0
     if linked_activity_codes > 0:
+        blockers.append(f"{linked_activity_codes} actividad(es)")
+
+    vca_column_count = db.execute(
+        select(func.count()).select_from(VCAColumn).where(VCAColumn.proposal_id == proposal_id)
+    ).scalar() or 0
+    if vca_column_count > 0:
+        blockers.append(f"{vca_column_count} configuración(es) VCA")
+
+    population_group_count = db.execute(
+        select(func.count()).select_from(ProposalPopulationGroup).where(ProposalPopulationGroup.proposal_id == proposal_id)
+    ).scalar() or 0
+    if population_group_count > 0:
+        blockers.append(f"{population_group_count} grupo(s) de población")
+
+    report_program_count = db.execute(
+        select(func.count()).select_from(ProposalReportProgram).where(ProposalReportProgram.proposal_id == proposal_id)
+    ).scalar() or 0
+    if report_program_count > 0:
+        blockers.append(f"{report_program_count} programa(s) de reporte")
+
+    visit_mapping_count = db.execute(
+        select(func.count()).select_from(VisitActivityMapping).where(VisitActivityMapping.proposal_id == proposal_id)
+    ).scalar() or 0
+    if visit_mapping_count > 0:
+        blockers.append(f"{visit_mapping_count} mapeo(s) de visitas")
+
+    visit_report_count = db.execute(
+        select(func.count()).select_from(VisitReport).where(VisitReport.proposal_id == proposal_id)
+    ).scalar() or 0
+    if visit_report_count > 0:
+        blockers.append(f"{visit_report_count} reporte(s) de visitas")
+
+    pregnancy_report_count = db.execute(
+        select(func.count()).select_from(PregnancyReport).where(PregnancyReport.proposal_id == proposal_id)
+    ).scalar() or 0
+    if pregnancy_report_count > 0:
+        blockers.append(f"{pregnancy_report_count} reporte(s) de embarazo")
+
+    school_grade_report_count = db.execute(
+        select(func.count()).select_from(SchoolGradeReport).where(SchoolGradeReport.proposal_id == proposal_id)
+    ).scalar() or 0
+    if school_grade_report_count > 0:
+        blockers.append(f"{school_grade_report_count} reporte(s) de notas")
+
+    school_dropout_report_count = db.execute(
+        select(func.count()).select_from(SchoolDropoutReport).where(SchoolDropoutReport.proposal_id == proposal_id)
+    ).scalar() or 0
+    if school_dropout_report_count > 0:
+        blockers.append(f"{school_dropout_report_count} reporte(s) de deserción")
+
+    if blockers:
         return _redirect_with_msg(
             "/ui/admin/proposals",
-            "Error: No se puede eliminar la propuesta porque tiene actividades asociadas. Debe desvincularlas o eliminarlas primero.",
+            "Error: No se puede eliminar la propuesta porque todavía tiene relaciones activas: " + ", ".join(blockers) + ".",
         )
 
     db.delete(proposal)
