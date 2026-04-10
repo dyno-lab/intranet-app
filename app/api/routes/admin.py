@@ -953,12 +953,43 @@ def admin_proposal_participants(
         assigned_pairs = db.execute(assigned_stmt).all()
         for proposal_participant, person, owner_username, residential_name in assigned_pairs:
             assigned_person_ids.add(person.person_id)
+
+            source_participant = None
+            is_outdated = False
+            outdated_fields: list[str] = []
+            if person.legacy_participant_id:
+                source_participant = db.execute(
+                    select(Participant).where(Participant.participant_id == person.legacy_participant_id)
+                ).scalar_one_or_none()
+
+            if source_participant:
+                comparisons = [
+                    ("expediente", proposal_participant.expediente_num, source_participant.expediente_num),
+                    ("edificio", proposal_participant.edificio, source_participant.edificio),
+                    ("apartamento", proposal_participant.apart, source_participant.apart),
+                    ("vca", proposal_participant.vca, source_participant.vca),
+                    ("primera_vez", proposal_participant.primera_vez, source_participant.primera_vez),
+                    ("composicion_familiar", proposal_participant.composicion_familiar, source_participant.composicion_familiar),
+                    ("estatus", proposal_participant.estatus, source_participant.estatus),
+                    ("grupo_familiar", proposal_participant.grupo_familiar, source_participant.grupo_familiar),
+                    ("fuente_ingreso_principal", proposal_participant.fuente_ingreso_principal, source_participant.fuente_ingreso_principal),
+                    ("rango_ingreso", proposal_participant.rango_ingreso, source_participant.rango_ingreso),
+                    ("is_active", bool(getattr(proposal_participant, "is_active", False)), bool(getattr(source_participant, "is_active", False))),
+                ]
+                for field_name, current_value, source_value in comparisons:
+                    if (current_value or "") != (source_value or ""):
+                        is_outdated = True
+                        outdated_fields.append(field_name)
+
             assigned_rows.append({
                 "proposal_participant": proposal_participant,
                 "person": person,
                 "owner_username": owner_username,
                 "residential_name": residential_name,
                 "is_active": bool(getattr(proposal_participant, "is_active", False)),
+                "is_outdated": is_outdated,
+                "outdated_fields": outdated_fields,
+                "has_source_participant": source_participant is not None,
             })
 
     available_rows = []

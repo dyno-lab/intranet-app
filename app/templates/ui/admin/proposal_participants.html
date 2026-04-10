@@ -166,16 +166,16 @@
           <table class="table table-sm table-hover align-middle">
             <thead>
               <tr>
-                <th style="width: 28%;">Expediente</th>
-                <th style="width: 30%;">Nombre</th>
-                <th style="width: 12%;">Estado</th>
-                <th style="width: 15%;">Últ. act.</th>
-                <th class="text-end" style="width: 15%;">Acc.</th>
+                <th style="width: 24%;">Expediente</th>
+                <th style="width: 26%;">Nombre</th>
+                <th style="width: 16%;">Estado</th>
+                <th style="width: 18%;">Sync</th>
+                <th class="text-end" style="width: 16%;">Acc.</th>
               </tr>
             </thead>
             <tbody>
               {% for row in assigned_rows %}
-              <tr class="{{ 'table-danger' if not row.is_active else '' }}">
+              <tr class="{{ 'table-danger' if not row.is_active else ('table-warning' if row.is_outdated else '') }}">
                 <td>{{ row.proposal_participant.expediente_num or '-' }}</td>
                 <td>{{ row.person.nombre }} {{ row.person.apellido_paterno }} {{ row.person.apellido_materno or '' }}</td>
                 <td>
@@ -186,10 +186,16 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% if row.proposal_participant.updated_at %}
-                  <div class="small text-nowrap">{{ row.proposal_participant.updated_at.strftime('%d/%m %I:%M %p') }}</div>
+                  {% if row.is_outdated %}
+                  <div><span class="badge bg-warning text-dark">Pendiente sync</span></div>
+                  <div class="small text-muted text-truncate" style="max-width: 180px;" title="{{ row.outdated_fields|join(', ') }}">{{ row.outdated_fields|join(', ') }}</div>
+                  {% elif row.has_source_participant %}
+                  <div><span class="badge border text-success">Al día</span></div>
                   {% else %}
-                  <span class="text-muted">—</span>
+                  <div><span class="badge bg-secondary">Sin fuente</span></div>
+                  {% endif %}
+                  {% if row.proposal_participant.updated_at %}
+                  <div class="small text-muted text-nowrap mt-1">{{ row.proposal_participant.updated_at.strftime('%d/%m %I:%M %p') }}</div>
                   {% endif %}
                 </td>
                 <td class="text-end">
