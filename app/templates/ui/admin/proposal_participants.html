@@ -151,7 +151,7 @@
       </div>
       <div class="card-body">
         {% if selected_proposal.status != 'finalized' and assigned_rows %}
-        <form method="post" action="/ui/admin/proposal-participants/sync-all" class="mb-3" onsubmit="return confirm('¿Sincronizar todos los participantes asociados visibles desde New-list?');">
+        <form method="post" action="/ui/admin/proposal-participants/sync-all" class="mb-3" onsubmit="return confirm('¿Sincronizar todos los participantes asociados visibles desde New-list? Esto actualizará la fecha de última actualización de los registros sincronizados.');">
           <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
           <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
           <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
@@ -170,6 +170,7 @@
                 <th>Expediente</th>
                 <th>Nombre</th>
                 <th>Estado</th>
+                <th>Última actualización</th>
                 <th class="text-end">Acciones</th>
               </tr>
             </thead>
@@ -186,10 +187,13 @@
                   <span class="badge bg-danger">Inactivo</span>
                   {% endif %}
                 </td>
+                <td>
+                  <div class="small">{{ row.proposal_participant.updated_at or '—' }}</div>
+                </td>
                 <td class="text-end">
                   {% if selected_proposal.status != 'finalized' %}
                   <div class="d-flex justify-content-end gap-2 flex-wrap">
-                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list?');">
+                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list? Esto actualizará su fecha de última actualización.');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
