@@ -23,6 +23,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
   <h4 class="mb-0">Listado - Sesiones</h4>
   <div class="d-flex gap-2 flex-wrap">
+    {% if selected_proposal_id %}
+    <a class="btn btn-outline-secondary btn-sm" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
+    {% endif %}
     <a class="btn btn-outline-success btn-sm" href="/ui/listado/export.csv?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
     <a class="btn btn-outline-success btn-sm" href="/ui/listado/export-attendance.csv?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar asistencias CSV</a>
   </div>

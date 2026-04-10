@@ -13,9 +13,12 @@
   Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
 </div>
 {% endif %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
   <h4 class="mb-0">Marcar Asistencia</h4>
-  <div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if proposal %}
+    <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
+    {% endif %}
     {% if current_user and current_user.role in ["admin", "supervisor"] and not proposal_is_finalized %}
     <form method="post"
           action="/ui/listado/{{ session.session_id }}/delete"
