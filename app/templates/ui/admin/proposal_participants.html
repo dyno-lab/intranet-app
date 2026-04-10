@@ -150,6 +150,17 @@
         <span class="badge bg-secondary">{{ assigned_rows|length }}</span>
       </div>
       <div class="card-body">
+        {% if selected_proposal.status != 'finalized' and assigned_rows %}
+        <form method="post" action="/ui/admin/proposal-participants/sync-all" class="mb-3" onsubmit="return confirm('¿Sincronizar todos los participantes asociados visibles desde New-list?');">
+          <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+          <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+          <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
+          <input type="hidden" name="q" value="{{ q or '' }}">
+          <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar todos desde New-list</button>
+        </form>
+        {% endif %}
+
         {% if assigned_rows %}
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle">
@@ -159,7 +170,7 @@
                 <th>Expediente</th>
                 <th>Nombre</th>
                 <th>Estado</th>
-                <th class="text-end">Acción</th>
+                <th class="text-end">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -177,14 +188,24 @@
                 </td>
                 <td class="text-end">
                   {% if selected_proposal.status != 'finalized' %}
-                  <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
-                    <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
-                    <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
-                    <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
-                    <input type="hidden" name="q" value="{{ q or '' }}">
-                    <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
-                  </form>
+                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list?');">
+                      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                      <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+                      <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
+                      <input type="hidden" name="q" value="{{ q or '' }}">
+                      <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+                      <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar</button>
+                    </form>
+                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
+                      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                      <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+                      <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
+                      <input type="hidden" name="q" value="{{ q or '' }}">
+                      <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                    </form>
+                  </div>
                   {% else %}
                   <span class="text-muted small">Solo lectura</span>
                   {% endif %}

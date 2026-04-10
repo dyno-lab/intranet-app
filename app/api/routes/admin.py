@@ -1127,6 +1127,197 @@ def admin_add_participants_to_proposal(
     )
 
 
+@router.post("/proposal-participants/{proposal_participant_id}/sync")
+def admin_sync_proposal_participant(
+    proposal_participant_id: int,
+    proposal_id: int = Form(...),
+    residential_id: int | None = Form(default=None),
+    status_filter: str | None = Form(default="active"),
+    q: str | None = Form(default=None),
+    only_available: int = Form(default=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_supervisor),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
+    )
+    if redirect:
+        return redirect
+
+    proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
+    if not proposal_participant or proposal_participant.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: Participante asociado no encontrado.",
+        )
+
+    person = db.get(Person, proposal_participant.person_id)
+    if not person or not person.legacy_participant_id:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: Este participante asociado no está vinculado a un registro de New-list.",
+        )
+
+    participant = db.execute(
+        select(Participant).where(Participant.participant_id == person.legacy_participant_id)
+    ).scalar_one_or_none()
+    if not participant:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: No se encontró el participante fuente en New-list.",
+        )
+
+    if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: No tienes permiso para sincronizar este participante.",
+        )
+
+    person.nombre = participant.nombre
+    person.inicial = participant.inicial
+    person.apellido_paterno = participant.apellido_paterno
+    person.apellido_materno = participant.apellido_materno
+    person.genero = participant.genero
+    person.fecha_nacimiento = participant.fecha_nacimiento
+
+    proposal_participant.created_by_user_id = participant.created_by_user_id
+    proposal_participant.exp_year = participant.exp_year
+    proposal_participant.exp_employee_initials = participant.exp_employee_initials
+    proposal_participant.exp_seq4 = participant.exp_seq4
+    proposal_participant.expediente_num = participant.expediente_num
+    proposal_participant.edificio = participant.edificio
+    proposal_participant.apart = participant.apart
+    proposal_participant.vca = participant.vca
+    proposal_participant.primera_vez = participant.primera_vez
+    proposal_participant.composicion_familiar = participant.composicion_familiar
+    proposal_participant.estatus = participant.estatus
+    proposal_participant.grupo_familiar = participant.grupo_familiar
+    proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
+    proposal_participant.rango_ingreso = participant.rango_ingreso
+    proposal_participant.is_active = bool(getattr(participant, "is_active", False))
+
+    db.add(person)
+    db.add(proposal_participant)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        "Participante sincronizado desde New-list exitosamente.",
+    )
+
+
+@router.post("/proposal-participants/sync-all")
+def admin_sync_all_proposal_participants(
+    proposal_id: int = Form(...),
+    residential_id: int | None = Form(default=None),
+    status_filter: str | None = Form(default="active"),
+    q: str | None = Form(default=None),
+    only_available: int = Form(default=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_supervisor),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
+    )
+    if redirect:
+        return redirect
+
+    stmt = select(ProposalParticipant, Person).join(Person, Person.person_id == ProposalParticipant.person_id).where(
+        ProposalParticipant.proposal_id == proposal_id
+    )
+    if residential_id:
+        stmt = stmt.join(User, User.user_id == ProposalParticipant.created_by_user_id).where(User.residential_id == residential_id)
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+
+    rows = db.execute(stmt).all()
+    synced_count = 0
+    skipped_count = 0
+
+    for proposal_participant, person in rows:
+        if not person.legacy_participant_id:
+            skipped_count += 1
+            continue
+
+        participant = db.execute(
+            select(Participant).where(Participant.participant_id == person.legacy_participant_id)
+        ).scalar_one_or_none()
+        if not participant:
+            skipped_count += 1
+            continue
+
+        if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
+            skipped_count += 1
+            continue
+
+        normalized_status_filter = (status_filter or "all").strip().lower()
+        participant_is_active = bool(getattr(participant, "is_active", False))
+        if normalized_status_filter == "active" and not participant_is_active:
+            skipped_count += 1
+            continue
+        if normalized_status_filter == "inactive" and participant_is_active:
+            skipped_count += 1
+            continue
+
+        q_value = (q or "").strip().lower()
+        if q_value:
+            haystack = " ".join([
+                participant.expediente_num or "",
+                participant.nombre or "",
+                participant.apellido_paterno or "",
+                participant.apellido_materno or "",
+            ]).lower()
+            if q_value not in haystack:
+                skipped_count += 1
+                continue
+
+        person.nombre = participant.nombre
+        person.inicial = participant.inicial
+        person.apellido_paterno = participant.apellido_paterno
+        person.apellido_materno = participant.apellido_materno
+        person.genero = participant.genero
+        person.fecha_nacimiento = participant.fecha_nacimiento
+
+        proposal_participant.created_by_user_id = participant.created_by_user_id
+        proposal_participant.exp_year = participant.exp_year
+        proposal_participant.exp_employee_initials = participant.exp_employee_initials
+        proposal_participant.exp_seq4 = participant.exp_seq4
+        proposal_participant.expediente_num = participant.expediente_num
+        proposal_participant.edificio = participant.edificio
+        proposal_participant.apart = participant.apart
+        proposal_participant.vca = participant.vca
+        proposal_participant.primera_vez = participant.primera_vez
+        proposal_participant.composicion_familiar = participant.composicion_familiar
+        proposal_participant.estatus = participant.estatus
+        proposal_participant.grupo_familiar = participant.grupo_familiar
+        proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
+        proposal_participant.rango_ingreso = participant.rango_ingreso
+        proposal_participant.is_active = participant_is_active
+
+        db.add(person)
+        db.add(proposal_participant)
+        synced_count += 1
+
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        f"Sincronización completada. {synced_count} participante(s) actualizado(s). {skipped_count} omitido(s).",
+    )
+
+
 @router.post("/proposal-participants/{proposal_participant_id}/remove")
 def admin_remove_participant_from_proposal(
     proposal_participant_id: int,
