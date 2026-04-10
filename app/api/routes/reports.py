@@ -1248,11 +1248,11 @@ def visits_report_delete(
             status_code=303,
         )
 
-    delete_visit_referrals_only(db, reports)
+    delete_visit_reports_and_referrals(db, reports)
     db.commit()
 
     return RedirectResponse(
-        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Referidos eliminados exitosamente.",
+        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Informe de visitas eliminado exitosamente.",
         status_code=303,
     )
 
