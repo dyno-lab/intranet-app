@@ -21,6 +21,8 @@ from app.models.user import User
 from app.models.catalog_type import CatalogType
 from app.models.catalog_option import CatalogOption
 from app.models.residential import Residential
+from app.models.person import Person
+from app.models.proposal_participant import ProposalParticipant
 
 from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
 from app.core.config import settings
@@ -120,6 +122,32 @@ def _participant_form_catalogs(db: Session):
         "rango_ingreso_options": _load_catalog_options(db, "rango_ingreso"),
         "estatus_options": _load_catalog_options(db, "estatus_participante"),
     }
+
+
+def _load_session_proposal_participants(db: Session, session: ActivitySession, current_user: User):
+    if not session.proposal_id:
+        return []
+
+    stmt = (
+        select(ProposalParticipant, Person)
+        .join(Person, Person.person_id == ProposalParticipant.person_id)
+        .where(ProposalParticipant.proposal_id == session.proposal_id)
+        .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
+    )
+
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+
+    rows = db.execute(stmt).all()
+    result = []
+    for proposal_participant, person in rows:
+        result.append({
+            "proposal_participant": proposal_participant,
+            "person": person,
+            "is_active": bool(getattr(proposal_participant, "is_active", False)),
+            "age": _calc_age(person.fecha_nacimiento),
+        })
+    return result
 
 
 def _csv_response(filename: str, headers: list[str], rows: list[list[object]]):
@@ -916,27 +944,12 @@ def open_session(
     ).scalars().all()
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
 
-    stmt = select(Participant).order_by(
-        Participant.apellido_paterno,
-        Participant.nombre,
-    )
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(
-            Participant.created_by_user_id == current_user.user_id
-        )
-    participants = db.execute(stmt).scalars().all()
-    participant_status_map = {
-        p.participant_id: _is_participant_active(p)
-        for p in participants
-    }
-    participant_age_map = {
-        p.participant_id: _calc_age(p.fecha_nacimiento)
-        for p in participants
-    }
+    proposal_participant_rows = _load_session_proposal_participants(db, s, current_user)
 
-    att_stmt = select(Attendance.participant_id).where(
+    att_stmt = select(Attendance.proposal_participant_id).where(
         Attendance.session_id == session_id,
         Attendance.attended == True,
+        Attendance.proposal_participant_id.is_not(None),
     )
     attended_ids = set(db.execute(att_stmt).scalars().all())
 
@@ -964,9 +977,7 @@ def open_session(
             "activity_codes": activity_codes,
             "employees": employees,
             "proposals": proposals,
-            "participants": participants,
-            "participant_status_map": participant_status_map,
-            "participant_age_map": participant_age_map,
+            "proposal_participant_rows": proposal_participant_rows,
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
@@ -999,37 +1010,63 @@ async def save_attendance(
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
 
+    if not s.proposal_id:
+        return _redirect_with_msg(
+            f"/ui/listado/{session_id}",
+            "Error: Esta fase solo permite guardar asistencias nuevas usando participantes operativos de sesiones con propuesta.",
+        )
+
     form = await request.form()
     present = [int(v) for v in form.getlist("present")]
 
     if present:
-        participant_stmt = select(Participant).where(Participant.participant_id.in_(present))
+        pp_stmt = select(ProposalParticipant).where(
+            ProposalParticipant.proposal_participant_id.in_(present)
+        )
         if not is_admin_or_supervisor(current_user):
-            participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
-        selected_participants = db.execute(participant_stmt).scalars().all()
-        selected_map = {p.participant_id: p for p in selected_participants}
+            pp_stmt = pp_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+
+        selected_participants = db.execute(pp_stmt).scalars().all()
+        selected_map = {
+            p.proposal_participant_id: p
+            for p in selected_participants
+        }
 
         missing_ids = [pid for pid in present if pid not in selected_map]
         if missing_ids:
             return _redirect_with_msg(
                 f"/ui/listado/{session_id}",
-                "Error: No tienes permiso para registrar asistencia para uno o más participantes.",
+                "Error: No tienes permiso para registrar asistencia para uno o más participantes operativos.",
             )
 
-        inactive_ids = [pid for pid, participant in selected_map.items() if not _is_participant_active(participant)]
+        invalid_proposal_ids = [
+            pid for pid, proposal_participant in selected_map.items()
+            if proposal_participant.proposal_id != s.proposal_id
+        ]
+        if invalid_proposal_ids:
+            return _redirect_with_msg(
+                f"/ui/listado/{session_id}",
+                "Error: Uno o más participantes operativos no pertenecen a la propuesta de esta sesión.",
+            )
+
+        inactive_ids = [
+            pid for pid, proposal_participant in selected_map.items()
+            if not bool(getattr(proposal_participant, "is_active", False))
+        ]
         if inactive_ids:
             return _redirect_with_msg(
                 f"/ui/listado/{session_id}",
-                "Error: No se puede registrar asistencia para participantes inactivos.",
+                "Error: No se puede registrar asistencia para participantes operativos inactivos.",
             )
 
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
 
-    for pid in present:
+    for proposal_participant_id in present:
         att = Attendance(
-            participant_id=pid,
+            participant_id=None,
+            proposal_participant_id=proposal_participant_id,
             session_id=session_id,
             attended=True,
             marked_by=current_user.username,
