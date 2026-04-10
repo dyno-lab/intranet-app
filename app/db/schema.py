@@ -610,6 +610,31 @@ END;
 
 
 PHASE4_VCA_SQL = """
+IF OBJECT_ID(N'dbo.adm_service_types', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.adm_service_types (
+        adm_service_type_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        sort_order INT NOT NULL CONSTRAINT DF_adm_service_types_sort_order DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_adm_service_types_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_adm_service_types_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_adm_service_types_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.adm_service_type_activity_codes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.adm_service_type_activity_codes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        adm_service_type_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        CONSTRAINT FK_adm_service_type_activity_codes_service_types FOREIGN KEY (adm_service_type_id) REFERENCES dbo.adm_service_types(adm_service_type_id),
+        CONSTRAINT FK_adm_service_type_activity_codes_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_adm_service_type_activity_codes UNIQUE (adm_service_type_id, activity_code_id)
+    );
+END;
+
 IF OBJECT_ID(N'dbo.vca_columns', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.vca_columns (

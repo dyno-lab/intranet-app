@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>ADM PDF</title>
+  <style>
+    @page { size: letter landscape; margin: 0.4in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 11px; margin: 8px 0 10px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 10px; }
+    .meta-row div { width: 33%; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th, td { border: 1px solid #333; padding: 4px 5px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header ADM">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">INFORME ADM</div>
+      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
+        <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
+        <div><strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 55%;">Tipo de Servicio</th>
+          <th style="width: 15%;">Servicios</th>
+          <th style="width: 15%;">Duplicados</th>
+          <th style="width: 15%;">No Duplicados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.service_type_name }}</td>
+          <td class="center">{{ row.services_count }}</td>
+          <td class="center">{{ row.duplicados }}</td>
+          <td class="center">{{ row.no_duplicados }}</td>
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="4" class="center">No hay tipos de servicio ADM configurados o no hay datos para ese filtro.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

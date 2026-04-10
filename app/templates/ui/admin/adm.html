@@ -1,0 +1,142 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Configuración ADM{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<h3 class="mb-4">🧩 Configuración ADM</h3>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id" required>
+          <option value="">Selecciona...</option>
+          {% for proposal in proposals %}
+          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Cargar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_proposal %}
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white"><strong>Crear tipo de servicio ADM</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/adm/service-types/create" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-6">
+        <label class="form-label">Tipo de servicio</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Orden</label>
+        <input type="number" class="form-control" name="sort_order" value="0" required>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Crear tipo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-secondary text-white"><strong>Asignar actividades a tipos de servicio</strong></div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/adm/assign" class="row g-3 align-items-end">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+      <div class="col-md-4">
+        <label class="form-label">Tipo de servicio</label>
+        <select class="form-select" name="adm_service_type_id" required>
+          <option value="">Selecciona...</option>
+          {% for service_type in service_types if service_type.is_active %}
+          <option value="{{ service_type.adm_service_type_id }}">{{ service_type.sort_order }} - {{ service_type.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Actividad</label>
+        <select class="form-select" name="activity_code_id" required>
+          <option value="">Selecciona...</option>
+          {% for activity in activities %}
+          <option value="{{ activity.activity_code_id }}" {% if activity.activity_code_id in assigned_activity_ids %}disabled{% endif %}>{{ activity.code }} - {{ activity.description or '' }}{% if activity.activity_code_id in assigned_activity_ids %} (ya asignada){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-success">Asignar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>Tipos de servicio configurados para {{ selected_proposal.code }} - {{ selected_proposal.name }}</strong></div>
+  <div class="card-body">
+    {% if service_types %}
+      {% for service_type in service_types %}
+      <div class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <strong>{{ service_type.sort_order }}. {{ service_type.name }}</strong>
+            {% if service_type.is_active %}<span class="badge bg-success ms-2">Activo</span>{% else %}<span class="badge bg-danger ms-2">Inactivo</span>{% endif %}
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-adm-{{ service_type.adm_service_type_id }}">Editar</button>
+            <form method="post" action="/ui/admin/adm/service-types/{{ service_type.adm_service_type_id }}/delete" class="mb-0" onsubmit="return confirm('¿Eliminar este tipo de servicio ADM y sus asignaciones de actividades?');">
+              <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="collapse mb-3" id="edit-adm-{{ service_type.adm_service_type_id }}">
+          <form method="post" action="/ui/admin/adm/service-types/{{ service_type.adm_service_type_id }}/edit" class="row g-2 align-items-end">
+            <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+            <div class="col-md-6"><label class="form-label small">Nombre</label><input type="text" class="form-control form-control-sm" name="name" value="{{ service_type.name }}" required></div>
+            <div class="col-md-2"><label class="form-label small">Orden</label><input type="number" class="form-control form-control-sm" name="sort_order" value="{{ service_type.sort_order }}" required></div>
+            <div class="col-md-2"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="is_active" id="adm-active-{{ service_type.adm_service_type_id }}" {{ 'checked' if service_type.is_active }}><label class="form-check-label" for="adm-active-{{ service_type.adm_service_type_id }}">Activo</label></div></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-sm btn-success">Guardar</button></div>
+          </form>
+        </div>
+
+        <div>
+          <div class="small text-muted mb-1">Actividades asignadas</div>
+          {% if service_type.assigned_activities %}
+            <ul class="list-group">
+              {% for item in service_type.assigned_activities %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ item.activity.code }} - {{ item.activity.description or '' }}</span>
+                <form method="post" action="/ui/admin/adm/unassign" class="mb-0">
+                  <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                  <input type="hidden" name="mapping_id" value="{{ item.mapping_id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="text-muted">No hay actividades asignadas.</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-muted">Todavía no hay tipos de servicio ADM configurados para esta propuesta.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

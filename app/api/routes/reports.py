@@ -22,6 +22,8 @@ from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
+from app.models.adm_service_type import ADMServiceType
+from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
 from app.models.school_dropout_report import SchoolDropoutReport
 from app.models.school_dropout_report_item import SchoolDropoutReportItem
 from app.models.pregnancy_report import PregnancyReport
@@ -213,6 +215,7 @@ REPORT_OPTIONS = [
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "hoja-cotejo", "label": "Hoja de Cotejo"},
     {"value": "vca", "label": "Informe VCA"},
+    {"value": "adm", "label": "Informe ADM"},
     {"value": "todos", "label": "Todos"},
 ]
 
@@ -342,6 +345,22 @@ def reports_run(
             )
         return RedirectResponse(
             f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "adm":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/adm/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/adm/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/adm?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
@@ -549,6 +568,225 @@ def _build_vca_context(
         "rows": rows,
         "total_people": total_people,
     }
+
+
+def _build_adm_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
+):
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    month_lookup = base_context["month_lookup"]
+
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
+    residential_name = None
+    rows = []
+
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
+        proposal = db.get(Proposal, proposal_id)
+        if proposal:
+            service_types = db.execute(
+                select(ADMServiceType)
+                .where(ADMServiceType.proposal_id == proposal_id, ADMServiceType.is_active == True)  # noqa: E712
+                .order_by(ADMServiceType.sort_order, ADMServiceType.name)
+            ).scalars().all()
+
+            mapping_rows = db.execute(
+                select(ADMServiceTypeActivityCode, ActivityCode, ADMServiceType)
+                .join(ActivityCode, ActivityCode.activity_code_id == ADMServiceTypeActivityCode.activity_code_id)
+                .join(ADMServiceType, ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id)
+                .where(ADMServiceType.proposal_id == proposal_id, ADMServiceType.is_active == True)  # noqa: E712
+            ).all()
+            activity_to_service_type = {activity.activity_code_id: service_type.adm_service_type_id for _, activity, service_type in mapping_rows}
+
+            session_stmt = (
+                select(ActivitySession.session_id, ActivitySession.activity_code_id)
+                .where(ActivitySession.proposal_id == proposal_id)
+            )
+            session_stmt = _apply_session_period_filter(session_stmt, period)
+            if is_global:
+                residential_name = "Global"
+            else:
+                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                residential_name = _residential_from_user(selected_user)
+            session_rows = db.execute(session_stmt).all()
+
+            sessions_by_service_type: dict[int, set[int]] = {}
+            session_ids = []
+            for session_id, activity_code_id in session_rows:
+                service_type_id = activity_to_service_type.get(activity_code_id)
+                if not service_type_id:
+                    continue
+                sessions_by_service_type.setdefault(service_type_id, set()).add(session_id)
+                session_ids.append(session_id)
+
+            attendance_by_service_type: dict[int, int] = {}
+            unique_participants_by_service_type: dict[int, set[int]] = {}
+            if session_ids:
+                attendance_stmt = (
+                    select(Attendance.session_id, Attendance.participant_id, ActivitySession.activity_code_id)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .where(
+                        Attendance.attended == True,  # noqa: E712
+                        Attendance.session_id.in_(session_ids),
+                    )
+                )
+                if not is_global:
+                    attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                attendance_rows = db.execute(attendance_stmt).all()
+                for session_id, participant_id, activity_code_id in attendance_rows:
+                    service_type_id = activity_to_service_type.get(activity_code_id)
+                    if not service_type_id:
+                        continue
+                    attendance_by_service_type[service_type_id] = attendance_by_service_type.get(service_type_id, 0) + 1
+                    if participant_id:
+                        unique_participants_by_service_type.setdefault(service_type_id, set()).add(participant_id)
+
+            for service_type in service_types:
+                rows.append({
+                    "service_type_name": service_type.name,
+                    "services_count": len(sessions_by_service_type.get(service_type.adm_service_type_id, set())),
+                    "duplicados": attendance_by_service_type.get(service_type.adm_service_type_id, 0),
+                    "no_duplicados": len(unique_participants_by_service_type.get(service_type.adm_service_type_id, set())),
+                })
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": period["month"],
+        "selected_year": period["year"],
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "rows": rows,
+        "authorized_name": authorized_name or "",
+    }
+
+
+@router.get("/adm", response_class=HTMLResponse)
+def adm_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/adm.html", context)
+
+
+@router.get("/adm/pdf", response_class=HTMLResponse)
+def adm_report_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/adm_pdf.html", context)
+
+
+@router.get("/adm/excel")
+def adm_report_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    if not (proposal_id and context["period_label"]):
+        return RedirectResponse("/ui/reports/adm", status_code=303)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ADM"
+    ws.freeze_panes = "A7"
+    ws.sheet_view.showGridLines = False
+    ws["A1"] = "AREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "INFORME ADM"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"
+    ws["B3"] = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
+    ws["A4"] = "Residencial"
+    ws["B4"] = context["residential_name"] or ""
+    ws["A5"] = "Periodo reportado"
+    ws["B5"] = context["period_label"]
+    ws["A6"] = "Funcionario autorizado"
+    ws["B6"] = context["authorized_name"] or ""
+
+    headers = ["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"]
+    for idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=7, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.fill = PatternFill(fill_type="solid", fgColor="D9EAF7")
+        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+
+    row_index = 8
+    for row in context["rows"]:
+        ws.cell(row=row_index, column=1, value=row["service_type_name"])
+        ws.cell(row=row_index, column=2, value=row["services_count"])
+        ws.cell(row=row_index, column=3, value=row["duplicados"])
+        ws.cell(row=row_index, column=4, value=row["no_duplicados"])
+        row_index += 1
+
+    if not context["rows"]:
+        ws.cell(row=row_index, column=1, value="No hay tipos de servicio ADM configurados o no hay datos para ese filtro.")
+        ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=4)
+
+    ws.column_dimensions["A"].width = 40
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 16
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    safe_residential = (context["residential_name"] or "adm").replace(" ", "_")
+    filename = f"adm_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 def _build_school_dropout_summary_context(

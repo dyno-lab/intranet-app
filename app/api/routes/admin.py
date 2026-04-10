@@ -14,6 +14,8 @@ from app.core.proposal_guard import is_proposal_finalized
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.models.activity_code import ActivityCode
+from app.models.adm_service_type import ADMServiceType
+from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
 from app.models.proposal import Proposal
@@ -442,6 +444,210 @@ def admin_delete_visit_mapping(
     db.commit()
 
     return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Actividad de visita eliminada exitosamente.")
+
+
+# ============================================================
+# ADM MANAGEMENT
+# ============================================================
+
+@router.get("/adm", response_class=HTMLResponse)
+def admin_adm(
+    request: Request,
+    proposal_id: int | None = None,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    service_types = []
+    assigned_activity_ids: set[int] = set()
+    activities = []
+
+    if selected_proposal:
+        service_types = db.execute(
+            select(ADMServiceType)
+            .where(ADMServiceType.proposal_id == selected_proposal.proposal_id)
+            .order_by(ADMServiceType.sort_order, ADMServiceType.name)
+        ).scalars().all()
+        mappings = db.execute(
+            select(ADMServiceTypeActivityCode, ActivityCode, ADMServiceType)
+            .join(ActivityCode, ActivityCode.activity_code_id == ADMServiceTypeActivityCode.activity_code_id)
+            .join(ADMServiceType, ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id)
+            .where(ADMServiceType.proposal_id == selected_proposal.proposal_id)
+            .order_by(ADMServiceType.adm_service_type_id, ActivityCode.code)
+        ).all()
+        activity_map: dict[int, list[dict]] = {}
+        for mapping, activity, service_type in mappings:
+            activity_map.setdefault(service_type.adm_service_type_id, []).append({"mapping_id": mapping.id, "activity": activity})
+            assigned_activity_ids.add(activity.activity_code_id)
+        for service_type in service_types:
+            setattr(service_type, "assigned_activities", activity_map.get(service_type.adm_service_type_id, []))
+
+        activities = db.execute(
+            select(ActivityCode)
+            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
+            .order_by(ActivityCode.code)
+        ).scalars().all()
+
+    return templates.TemplateResponse(
+        "ui/admin/adm.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "selected_proposal": selected_proposal,
+            "service_types": service_types,
+            "activities": activities,
+            "assigned_activity_ids": assigned_activity_ids,
+        },
+    )
+
+
+@router.post("/adm/service-types/create")
+def admin_create_adm_service_type(
+    proposal_id: int = Form(...),
+    name: str = Form(...),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/adm", "Error: Propuesta no encontrada.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/adm?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
+    db.add(ADMServiceType(proposal_id=proposal_id, name=name.strip(), sort_order=sort_order))
+    db.commit()
+    return _redirect_with_msg(f"/ui/admin/adm?proposal_id={proposal_id}", "Tipo de servicio ADM creado exitosamente.")
+
+
+@router.post("/adm/service-types/{adm_service_type_id}/edit")
+def admin_edit_adm_service_type(
+    adm_service_type_id: int,
+    proposal_id: int = Form(...),
+    name: str = Form(...),
+    sort_order: int = Form(0),
+    is_active: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    service_type = db.get(ADMServiceType, adm_service_type_id)
+    if not service_type:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Tipo de servicio ADM no encontrado.", status_code=303)
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/adm?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
+    service_type.name = name.strip()
+    service_type.sort_order = sort_order
+    service_type.is_active = is_active == "on"
+    db.add(service_type)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Tipo de servicio ADM actualizado exitosamente.", status_code=303)
+
+
+@router.post("/adm/service-types/{adm_service_type_id}/delete")
+def admin_delete_adm_service_type(
+    adm_service_type_id: int,
+    proposal_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    service_type = db.get(ADMServiceType, adm_service_type_id)
+    if not service_type:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Tipo de servicio ADM no encontrado.", status_code=303)
+
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/adm?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+
+    db.execute(delete(ADMServiceTypeActivityCode).where(ADMServiceTypeActivityCode.adm_service_type_id == adm_service_type_id))
+    db.delete(service_type)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Tipo de servicio ADM eliminado exitosamente.", status_code=303)
+
+
+@router.post("/adm/assign")
+def admin_assign_activity_to_adm_service_type(
+    proposal_id: int = Form(...),
+    adm_service_type_id: int = Form(...),
+    activity_code_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    service_type = db.get(ADMServiceType, adm_service_type_id)
+    activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/adm?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+    if not service_type or not activity:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Tipo de servicio o actividad no encontrada.", status_code=303)
+    if service_type.proposal_id != proposal_id or activity.proposal_id != proposal_id:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: La actividad y el tipo de servicio deben pertenecer a la misma propuesta.", status_code=303)
+
+    existing_assignment = db.execute(
+        select(ADMServiceTypeActivityCode)
+        .join(ADMServiceType, ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id)
+        .where(
+            ADMServiceType.proposal_id == proposal_id,
+            ADMServiceTypeActivityCode.activity_code_id == activity_code_id,
+        )
+    ).scalar_one_or_none()
+    if existing_assignment:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Esa actividad ya está asignada a un tipo de servicio ADM.", status_code=303)
+
+    db.add(ADMServiceTypeActivityCode(adm_service_type_id=adm_service_type_id, activity_code_id=activity_code_id))
+    db.commit()
+    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Actividad asignada exitosamente.", status_code=303)
+
+
+@router.post("/adm/unassign")
+def admin_unassign_activity_from_adm_service_type(
+    proposal_id: int = Form(...),
+    mapping_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    mapping = db.get(ADMServiceTypeActivityCode, mapping_id)
+    if not mapping:
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Asignación no encontrada.", status_code=303)
+    proposal = db.get(Proposal, proposal_id)
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/adm?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+    )
+    if redirect:
+        return redirect
+    db.delete(mapping)
+    db.commit()
+    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Asignación removida exitosamente.", status_code=303)
 
 
 # ============================================================
