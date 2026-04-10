@@ -882,6 +882,7 @@ IF OBJECT_ID(N'dbo.persons', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.persons (
         person_id INT IDENTITY(1,1) PRIMARY KEY,
+        legacy_participant_id INT NULL UNIQUE,
         nombre VARCHAR(150) NOT NULL,
         inicial VARCHAR(10) NULL,
         apellido_paterno VARCHAR(150) NOT NULL,
@@ -891,6 +892,21 @@ BEGIN
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_persons_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_persons_updated_at DEFAULT SYSUTCDATETIME()
     );
+END;
+
+IF COL_LENGTH('dbo.persons', 'legacy_participant_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.persons ADD legacy_participant_id INT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_persons_legacy_participant_id'
+      AND object_id = OBJECT_ID('dbo.persons')
+)
+BEGIN
+    CREATE UNIQUE INDEX IX_persons_legacy_participant_id ON dbo.persons(legacy_participant_id)
+    WHERE legacy_participant_id IS NOT NULL;
 END;
 
 IF NOT EXISTS (
@@ -1009,6 +1025,117 @@ IF NOT EXISTS (
 BEGIN
     CREATE INDEX IX_attendance_proposal_participant_id ON dbo.attendance(proposal_participant_id);
 END;
+
+DECLARE @ParticipantPersonMap TABLE (
+    participant_id INT PRIMARY KEY,
+    person_id INT NOT NULL
+);
+
+INSERT INTO dbo.persons (
+    legacy_participant_id,
+    nombre,
+    inicial,
+    apellido_paterno,
+    apellido_materno,
+    genero,
+    fecha_nacimiento,
+    created_at,
+    updated_at
+)
+OUTPUT src.participant_id, inserted.person_id
+INTO @ParticipantPersonMap(participant_id, person_id)
+SELECT
+    src.participant_id,
+    src.nombre,
+    src.inicial,
+    src.apellido_paterno,
+    src.apellido_materno,
+    src.genero,
+    src.fecha_nacimiento,
+    src.created_at,
+    src.updated_at
+FROM dbo.participants AS src
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.persons AS p
+    WHERE p.legacy_participant_id = src.participant_id
+);
+
+INSERT INTO @ParticipantPersonMap(participant_id, person_id)
+SELECT src.participant_id, p.person_id
+FROM dbo.participants AS src
+INNER JOIN dbo.persons AS p
+    ON p.legacy_participant_id = src.participant_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM @ParticipantPersonMap m WHERE m.participant_id = src.participant_id
+);
+
+INSERT INTO dbo.proposal_participants (
+    proposal_id,
+    person_id,
+    created_by_user_id,
+    exp_year,
+    exp_employee_initials,
+    exp_seq4,
+    expediente_num,
+    edificio,
+    apart,
+    vca,
+    primera_vez,
+    composicion_familiar,
+    estatus,
+    grupo_familiar,
+    fuente_ingreso_principal,
+    rango_ingreso,
+    is_active,
+    created_at,
+    updated_at
+)
+SELECT DISTINCT
+    s.proposal_id,
+    ppm.person_id,
+    p.created_by_user_id,
+    p.exp_year,
+    p.exp_employee_initials,
+    p.exp_seq4,
+    p.expediente_num,
+    p.edificio,
+    p.apart,
+    p.vca,
+    p.primera_vez,
+    p.composicion_familiar,
+    p.estatus,
+    p.grupo_familiar,
+    p.fuente_ingreso_principal,
+    p.rango_ingreso,
+    p.is_active,
+    p.created_at,
+    p.updated_at
+FROM dbo.attendance a
+INNER JOIN dbo.activity_sessions s ON s.session_id = a.session_id
+INNER JOIN dbo.participants p ON p.participant_id = a.participant_id
+INNER JOIN @ParticipantPersonMap ppm ON ppm.participant_id = p.participant_id
+WHERE s.proposal_id IS NOT NULL
+  AND a.participant_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dbo.proposal_participants pp
+      WHERE pp.proposal_id = s.proposal_id
+        AND pp.person_id = ppm.person_id
+  );
+
+UPDATE a
+SET a.proposal_participant_id = pp.proposal_participant_id
+FROM dbo.attendance a
+INNER JOIN dbo.activity_sessions s ON s.session_id = a.session_id
+INNER JOIN dbo.participants p ON p.participant_id = a.participant_id
+INNER JOIN @ParticipantPersonMap ppm ON ppm.participant_id = p.participant_id
+INNER JOIN dbo.proposal_participants pp
+    ON pp.proposal_id = s.proposal_id
+   AND pp.person_id = ppm.person_id
+WHERE s.proposal_id IS NOT NULL
+  AND a.participant_id IS NOT NULL
+  AND a.proposal_participant_id IS NULL;
 """
 
 
