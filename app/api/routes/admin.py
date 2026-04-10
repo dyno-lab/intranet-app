@@ -912,6 +912,8 @@ def admin_proposals(
 def admin_proposal_participants(
     request: Request,
     proposal_id: int | None = None,
+    residential_id: int | None = None,
+    status_filter: str | None = "active",
     q: str | None = None,
     only_available: int = 1,
     msg: str | None = None,
@@ -919,14 +921,19 @@ def admin_proposal_participants(
     current_user: User = Depends(require_admin_or_supervisor),
 ):
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    residentials = db.execute(
+        select(Residential).where(Residential.is_active == True).order_by(Residential.code)  # noqa: E712
+    ).scalars().all()
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
 
     assigned_rows = []
     assigned_person_ids: set[int] = set()
     if selected_proposal:
         assigned_stmt = (
-            select(ProposalParticipant, Person)
+            select(ProposalParticipant, Person, User.username.label("owner_username"), Residential.name.label("residential_name"))
             .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .outerjoin(User, User.user_id == ProposalParticipant.created_by_user_id)
+            .outerjoin(Residential, Residential.residential_id == User.residential_id)
             .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
             .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
         )
@@ -934,45 +941,67 @@ def admin_proposal_participants(
             assigned_stmt = assigned_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
 
         assigned_pairs = db.execute(assigned_stmt).all()
-        for proposal_participant, person in assigned_pairs:
+        for proposal_participant, person, owner_username, residential_name in assigned_pairs:
             assigned_person_ids.add(person.person_id)
             assigned_rows.append({
                 "proposal_participant": proposal_participant,
                 "person": person,
+                "owner_username": owner_username,
+                "residential_name": residential_name,
                 "is_active": bool(getattr(proposal_participant, "is_active", False)),
             })
 
-    participant_stmt = (
-        select(Participant, User.username.label("owner_username"), Person.person_id.label("person_id"))
-        .outerjoin(User, User.user_id == Participant.created_by_user_id)
-        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
-        .order_by(Participant.apellido_paterno, Participant.apellido_materno, Participant.nombre)
-    )
-    if not is_admin_or_supervisor(current_user):
-        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
-
-    q_value = (q or "").strip()
-    if q_value:
-        search = f"%{q_value}%"
-        participant_stmt = participant_stmt.where(
-            Participant.expediente_num.ilike(search)
-            | Participant.nombre.ilike(search)
-            | Participant.apellido_paterno.ilike(search)
-            | Participant.apellido_materno.ilike(search)
-        )
-
-    participant_rows = db.execute(participant_stmt).all()
     available_rows = []
-    for participant, owner_username, person_id in participant_rows:
-        if selected_proposal and only_available and person_id in assigned_person_ids:
-            continue
-        available_rows.append({
-            "participant": participant,
-            "owner_username": owner_username,
-            "person_id": person_id,
-            "age": _calc_age(participant.fecha_nacimiento),
-            "is_active": bool(getattr(participant, "is_active", False)),
-        })
+    q_value = (q or "").strip()
+    normalized_status_filter = (status_filter or "all").strip().lower()
+
+    if selected_proposal:
+        participant_stmt = (
+            select(
+                Participant,
+                User.username.label("owner_username"),
+                User.residential_id.label("owner_residential_id"),
+                Residential.name.label("residential_name"),
+                Person.person_id.label("person_id"),
+            )
+            .outerjoin(User, User.user_id == Participant.created_by_user_id)
+            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+            .order_by(Residential.name, Participant.apellido_paterno, Participant.apellido_materno, Participant.nombre)
+        )
+        if not is_admin_or_supervisor(current_user):
+            participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+
+        if residential_id:
+            participant_stmt = participant_stmt.where(User.residential_id == residential_id)
+
+        if normalized_status_filter == "active":
+            participant_stmt = participant_stmt.where(Participant.is_active == True)  # noqa: E712
+        elif normalized_status_filter == "inactive":
+            participant_stmt = participant_stmt.where(Participant.is_active == False)  # noqa: E712
+
+        if q_value:
+            search = f"%{q_value}%"
+            participant_stmt = participant_stmt.where(
+                Participant.expediente_num.ilike(search)
+                | Participant.nombre.ilike(search)
+                | Participant.apellido_paterno.ilike(search)
+                | Participant.apellido_materno.ilike(search)
+            )
+
+        participant_rows = db.execute(participant_stmt).all()
+        for participant, owner_username, owner_residential_id, residential_name, person_id in participant_rows:
+            if only_available and person_id in assigned_person_ids:
+                continue
+            available_rows.append({
+                "participant": participant,
+                "owner_username": owner_username,
+                "owner_residential_id": owner_residential_id,
+                "residential_name": residential_name,
+                "person_id": person_id,
+                "age": _calc_age(participant.fecha_nacimiento),
+                "is_active": bool(getattr(participant, "is_active", False)),
+            })
 
     return templates.TemplateResponse(
         "ui/admin/proposal_participants.html",
@@ -981,7 +1010,10 @@ def admin_proposal_participants(
             "current_user": current_user,
             "msg": msg,
             "proposals": proposals,
+            "residentials": residentials,
             "selected_proposal": selected_proposal,
+            "selected_residential_id": residential_id,
+            "selected_status_filter": normalized_status_filter,
             "assigned_rows": assigned_rows,
             "available_rows": available_rows,
             "q": q_value,
@@ -994,6 +1026,8 @@ def admin_proposal_participants(
 def admin_add_participants_to_proposal(
     proposal_id: int = Form(...),
     participant_ids: list[int] = Form(default=[]),
+    residential_id: int | None = Form(default=None),
+    status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
     db: Session = Depends(get_db),
@@ -1013,7 +1047,7 @@ def admin_add_participants_to_proposal(
 
     if not participant_ids:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: Debe seleccionar al menos un participante.",
         )
 
@@ -1086,7 +1120,7 @@ def admin_add_participants_to_proposal(
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
         f"{created_count} participante(s) asociado(s) exitosamente. {skipped_count} omitido(s).",
     )
 
@@ -1095,6 +1129,8 @@ def admin_add_participants_to_proposal(
 def admin_remove_participant_from_proposal(
     proposal_participant_id: int,
     proposal_id: int = Form(...),
+    residential_id: int | None = Form(default=None),
+    status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
     db: Session = Depends(get_db),
@@ -1115,7 +1151,7 @@ def admin_remove_participant_from_proposal(
     proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
     if not proposal_participant or proposal_participant.proposal_id != proposal_id:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: Participante asociado no encontrado.",
         )
 
@@ -1129,7 +1165,7 @@ def admin_remove_participant_from_proposal(
 
     if used_count > 0:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: No se puede remover porque ya tiene asistencias registradas en esta propuesta.",
         )
 
@@ -1137,7 +1173,7 @@ def admin_remove_participant_from_proposal(
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
         "Participante removido de la propuesta exitosamente.",
     )
 

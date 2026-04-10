@@ -10,7 +10,7 @@
     <form method="get" action="/ui/admin/proposal-participants" class="row g-3 align-items-end">
       <div class="col-md-4">
         <label class="form-label">Propuesta</label>
-        <select name="proposal_id" class="form-select" required>
+        <select name="proposal_id" class="form-select" required onchange="this.form.submit()">
           <option value="">Seleccione una propuesta</option>
           {% for proposal in proposals %}
           <option value="{{ proposal.proposal_id }}" {% if selected_proposal and selected_proposal.proposal_id == proposal.proposal_id %}selected{% endif %}>
@@ -19,19 +19,41 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-4">
-        <label class="form-label">Buscar participante</label>
-        <input type="text" name="q" class="form-control" value="{{ q or '' }}" placeholder="Nombre, apellido o expediente">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Solo no asociados</label>
-        <select name="only_available" class="form-select">
-          <option value="1" {% if only_available %}selected{% endif %}>Sí</option>
-          <option value="0" {% if not only_available %}selected{% endif %}>No</option>
+      <div class="col-md-3">
+        <label class="form-label">Residencial</label>
+        <select name="residential_id" class="form-select" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          {% for residential in residentials %}
+          <option value="{{ residential.residential_id }}" {% if selected_residential_id == residential.residential_id %}selected{% endif %}>
+            {{ residential.code }} - {{ residential.name }}
+          </option>
+          {% endfor %}
         </select>
       </div>
+      <div class="col-md-2">
+        <label class="form-label">Estado</label>
+        <select name="status_filter" class="form-select" onchange="this.form.submit()">
+          <option value="all" {% if selected_status_filter == 'all' %}selected{% endif %}>Todos</option>
+          <option value="active" {% if selected_status_filter == 'active' %}selected{% endif %}>Activos</option>
+          <option value="inactive" {% if selected_status_filter == 'inactive' %}selected{% endif %}>Inactivos</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Mostrar</label>
+        <select name="only_available" class="form-select" onchange="this.form.submit()">
+          <option value="1" {% if only_available %}selected{% endif %}>Solo pendientes de asociar</option>
+          <option value="0" {% if not only_available %}selected{% endif %}>Todos</option>
+        </select>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label">Buscar (opcional)</label>
+        <input type="text" name="q" class="form-control" value="{{ q or '' }}" placeholder="Nombre, apellido o expediente">
+      </div>
       <div class="col-md-2 d-grid">
-        <button class="btn btn-primary" type="submit">Cargar</button>
+        <button class="btn btn-primary" type="submit">Filtrar</button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants{% if selected_proposal %}?proposal_id={{ selected_proposal.proposal_id }}{% endif %}">Limpiar</a>
       </div>
     </form>
   </div>
@@ -41,7 +63,7 @@
 <div class="row g-4">
   <div class="col-lg-7">
     <div class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <strong>Participantes disponibles de New-list</strong>
         <span class="badge bg-secondary">{{ available_rows|length }}</span>
       </div>
@@ -50,11 +72,24 @@
         <div class="alert alert-warning mb-3">La propuesta está finalizada. Esta pantalla queda en solo lectura.</div>
         {% endif %}
 
+        <div class="small text-muted mb-3">
+          <strong>Solo pendientes de asociar</strong> significa que la tabla oculta los participantes que ya fueron vinculados a esta propuesta.
+        </div>
+
         {% if available_rows %}
         <form method="post" action="/ui/admin/proposal-participants/add">
           <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+          <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+          <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
           <input type="hidden" name="q" value="{{ q or '' }}">
           <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+
+          {% if selected_proposal.status != 'finalized' %}
+          <div class="d-flex gap-2 mb-3 flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="select-all-visible">Marcar todos los visibles</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-visible">Desmarcar todos</button>
+          </div>
+          {% endif %}
 
           <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
@@ -63,11 +98,12 @@
                   {% if selected_proposal.status != 'finalized' %}
                   <th style="width: 40px;"><input type="checkbox" id="check-all-available"></th>
                   {% endif %}
+                  <th>Residencial</th>
                   <th>Expediente</th>
                   <th>Nombre</th>
                   <th>Edad</th>
                   <th>Estado</th>
-                  <th>Creador</th>
+                  <th>Usuario</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,6 +112,7 @@
                   {% if selected_proposal.status != 'finalized' %}
                   <td><input type="checkbox" name="participant_ids" value="{{ row.participant.participant_id }}"></td>
                   {% endif %}
+                  <td>{{ row.residential_name or '-' }}</td>
                   <td>{{ row.participant.expediente_num }}</td>
                   <td>{{ row.participant.nombre }} {{ row.participant.apellido_paterno }} {{ row.participant.apellido_materno or '' }}</td>
                   <td>{{ row.age if row.age is not none else '' }}</td>
@@ -118,6 +155,7 @@
           <table class="table table-sm table-hover align-middle">
             <thead>
               <tr>
+                <th>Residencial</th>
                 <th>Expediente</th>
                 <th>Nombre</th>
                 <th>Estado</th>
@@ -127,6 +165,7 @@
             <tbody>
               {% for row in assigned_rows %}
               <tr class="{{ 'table-danger' if not row.is_active else '' }}">
+                <td>{{ row.residential_name or '-' }}</td>
                 <td>{{ row.proposal_participant.expediente_num or '-' }}</td>
                 <td>{{ row.person.nombre }} {{ row.person.apellido_paterno }} {{ row.person.apellido_materno or '' }}</td>
                 <td>
@@ -140,6 +179,8 @@
                   {% if selected_proposal.status != 'finalized' %}
                   <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
                     <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
+                    <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+                    <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                     <input type="hidden" name="q" value="{{ q or '' }}">
                     <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
@@ -166,13 +207,36 @@
 
 <script>
 (function () {
+  const checkboxes = () => Array.from(document.querySelectorAll('input[name="participant_ids"]'));
   const master = document.getElementById('check-all-available');
-  if (!master) return;
-  master.addEventListener('change', function () {
-    document.querySelectorAll('input[name="participant_ids"]').forEach((el) => {
-      el.checked = master.checked;
+  const selectAll = document.getElementById('select-all-visible');
+  const clearAll = document.getElementById('clear-all-visible');
+
+  if (master) {
+    master.addEventListener('change', function () {
+      checkboxes().forEach((el) => {
+        el.checked = master.checked;
+      });
     });
-  });
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('click', function () {
+      checkboxes().forEach((el) => {
+        el.checked = true;
+      });
+      if (master) master.checked = true;
+    });
+  }
+
+  if (clearAll) {
+    clearAll.addEventListener('click', function () {
+      checkboxes().forEach((el) => {
+        el.checked = false;
+      });
+      if (master) master.checked = false;
+    });
+  }
 })();
 </script>
 {% endblock %}
