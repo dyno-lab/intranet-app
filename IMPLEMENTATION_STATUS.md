@@ -127,6 +127,7 @@ Implementado y validado:
   - editar nombre, orden y estado
   - asignar actividades existentes a columnas
   - remover asignaciones
+  - eliminar columnas VCA junto con sus asignaciones hijas
 - las actividades VCA se toman del mismo catálogo de `activity_codes`
 - una actividad solo puede pertenecer a una columna VCA dentro de la misma propuesta
 - nuevo reporte `VCA` en:
@@ -141,6 +142,49 @@ Implementado y validado:
   - columnas dinámicas según configuración
 - el PDF VCA usa el mismo header institucional `bonafide-header-avp.png`
 - la pantalla del VCA tiene botones directos de exportación a Excel y PDF
+
+### Fase 9 — Participantes por propuesta, sincronización y limpieza administrativa
+Implementado y validado:
+- nueva pantalla `Admin > Participantes por Propuesta` (`/ui/admin/proposal-participants`)
+- asociación manual de participantes desde `New-list` hacia propuestas
+- filtros por propuesta, residencial, estado y búsqueda opcional
+- selección múltiple de participantes para asociación
+- remoción de participantes de propuesta cuando no tienen asistencias registradas
+- una persona puede estar asociada a múltiples propuestas
+- `New-list` queda como fuente principal de datos actuales
+- `proposal_participants` funciona como snapshot operativo por propuesta
+- sincronización manual desde `New-list`:
+  - por participante
+  - masiva por propuesta
+- indicador visual de `Pendiente sync` para cambios operativos pendientes respecto a `New-list`
+- badge `Al día` y `Sin fuente` en participantes asociados
+- visualización de última actualización (`updated_at`) en participantes asociados
+- mejoras de navegación:
+  - botón desde `Admin > Propuestas` hacia participantes de la propuesta
+  - contador de participantes asociados por propuesta
+  - accesos rápidos desde `/ui/listado` y desde la pantalla de asistencia
+- propuestas finalizadas quedan en modo solo lectura operativo
+- propuesta finalizada puede reabrirse por admin
+- borrado de propuesta con doble validación:
+  - confirmación explícita
+  - texto `ELIMINAR`
+  - contraseña actual del admin
+- detección explícita de bloqueos al borrar propuesta:
+  - sesiones
+  - participantes asociados
+  - actividades
+  - configuraciones VCA
+  - grupos poblacionales
+  - programas de reporte
+  - mapeos de visitas
+  - reportes operativos
+- limpieza administrativa de informes de visitas por propuesta desde Admin > Propuestas
+- corrección del borrado de informes de visitas para que elimine también `visit_reports` y no solo `visit_report_referrals`
+- al borrar propuesta se ignoran `visit_reports` vacíos sin referidos
+- fix de compatibilidad reportes/asistencia por propuesta:
+  - al guardar asistencia nueva con `proposal_participant_id`, también se rellena `attendance.participant_id` cuando existe vínculo legacy
+  - se añadió backfill para asistencias viejas con `proposal_participant_id` y `participant_id = NULL`
+- tras esos ajustes, el usuario validó que dashboard y reportes volvieron a actualizar correctamente
 
 ---
 
@@ -184,6 +228,24 @@ Implementado y validado:
 - cada celda representa el total de asistencias del participante en esa columna
 - si no hay asistencias en una columna, la celda queda en blanco
 - el total de personas con impedimentos en el encabezado corresponde a participantes únicos VCA con al menos una asistencia en el periodo
+- una columna VCA puede eliminarse si la propuesta no está finalizada; al hacerlo, también se eliminan sus asignaciones hijas a actividades
+
+### Participantes por propuesta
+- las asistencias por propuesta operan sobre `proposal_participants`, no directamente sobre `participants`
+- `New-list` se mantiene como fuente principal de datos actuales
+- `proposal_participants` guarda una copia operativa por propuesta
+- una misma persona puede estar en múltiples propuestas
+- los cambios en `New-list` no se aplican automáticamente a propuestas ya asociadas
+- la sincronización hacia propuesta es manual y controlada
+- propuestas finalizadas no permiten sincronizar, asociar ni remover participantes
+- el indicador visual `Pendiente sync` solo compara campos operativos clave; no marca cambios de nombre/apellidos si eso no se incluyó en la comparación
+
+### Propuestas
+- finalizar propuesta la deja en solo lectura operacional
+- reabrir propuesta devuelve `status = active` e `is_active = True`
+- el borrado de propuesta requiere doble validación y contraseña de admin
+- una propuesta no debe borrarse si mantiene relaciones activas estructurales u operativas
+- los `visit_reports` vacíos sin referidos no deben bloquear por sí solos el borrado de una propuesta
 
 ### Residenciales
 - la información operativa del residencial debe salir de `residentials`
@@ -228,6 +290,7 @@ Implementado y validado:
 - `participants.is_active`
 - `activity_codes.proposal_id`
 - `users.residential_id`
+- `attendance.proposal_participant_id`
 
 ---
 
@@ -248,6 +311,7 @@ Implementado y validado:
 
 ### Admin
 - `/ui/admin/proposals`
+- `/ui/admin/proposal-participants`
 - `/ui/admin/activity-codes`
 - `/ui/admin/catalogs`
 - `/ui/admin/users`
@@ -285,19 +349,31 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 - asignar actividad a propuesta
 - crear sesión con propuesta
 - verificar que solo salgan actividades de esa propuesta
+- finalizar propuesta
+- reabrir propuesta
+- validar borrado con doble confirmación y contraseña admin
+- validar mensaje de bloqueo si existen relaciones activas
 
-### 5. Filtros
+### 5. Participantes por propuesta
+- asociar participante desde `New-list`
+- sincronizar un participante
+- sincronizar todos los participantes de la propuesta
+- validar badge `Pendiente sync`
+- validar badge `Al día`
+- validar que propuesta finalizada quede en solo lectura
+
+### 6. Filtros
 - propuesta + mes + año
 - propuesta vacía + globales
 - opción `Todos`
 - periodo personalizado con `start_date` + `end_date`
 
-### 6. Catálogos
+### 7. Catálogos
 - editar una opción existente
 - confirmar que aparece en `New List`
 - inactivar opción y confirmar que deja de salir en formularios nuevos
 
-### 7. Reportes
+### 8. Reportes
 - bonafide mensual
 - bonafide personalizado
 - no duplicado mensual
@@ -310,13 +386,13 @@ Antes de dar una fase futura por buena, repetir al menos estas pruebas.
 - validar `Funcionario autorizado`
 - validar `Global` para admin/supervisor
 
-### 8. Residenciales y usuarios
+### 9. Residenciales y usuarios
 - crear residencial
 - editar residencial
 - asignar residencial a un usuario
 - confirmar que se vea residencial y RQ en Admin > Usuarios
 
-### 9. Configuración VCA
+### 10. Configuración VCA
 - crear columnas VCA por propuesta
 - asignar actividades a columnas
 - validar que una actividad no se repita en dos columnas de la misma propuesta
