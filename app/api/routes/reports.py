@@ -592,6 +592,10 @@ def _build_adm_context(
     employee_id = scope["employee_id"]
     residential_name = None
     rows = []
+    sociodemographic_rows = []
+    sociodemographic_total = {"f": 0, "m": 0, "total": 0, "vca": 0}
+    family_rows = []
+    family_total = 0
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         proposal = db.get(Proposal, proposal_id)
@@ -653,6 +657,61 @@ def _build_adm_context(
                     if participant_id:
                         unique_participants_by_service_type.setdefault(service_type_id, set()).add(participant_id)
 
+            unique_participant_ids = set()
+            for participant_ids in unique_participants_by_service_type.values():
+                unique_participant_ids.update(participant_ids)
+
+            participant_rows = []
+            if unique_participant_ids:
+                participant_stmt = select(Participant).where(Participant.participant_id.in_(unique_participant_ids))
+                participant_rows = db.execute(participant_stmt).scalars().all()
+
+            sociodemographic_summary = {
+                key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
+                for key, label in AGE_BUCKETS
+            }
+            family_summary: dict[str, int] = {}
+
+            for participant in participant_rows:
+                age = _calc_age(participant.fecha_nacimiento)
+                bucket = _get_age_bucket(age)
+                if bucket:
+                    gender = _normalize_text(participant.genero).upper()
+                    if gender.startswith("F"):
+                        sociodemographic_summary[bucket]["f"] += 1
+                    elif gender.startswith("M"):
+                        sociodemographic_summary[bucket]["m"] += 1
+                    sociodemographic_summary[bucket]["total"] += 1
+                    if _normalize_text(participant.vca).upper() == "SI":
+                        sociodemographic_summary[bucket]["vca"] += 1
+
+                family_key = (participant.composicion_familiar or "No especificado").strip() or "No especificado"
+                family_summary[family_key] = family_summary.get(family_key, 0) + 1
+
+            total_unique_people = len(participant_rows)
+            for key, label in AGE_BUCKETS:
+                row = sociodemographic_summary[key]
+                percent = round((row["total"] / total_unique_people) * 100, 2) if total_unique_people else 0
+                sociodemographic_rows.append({
+                    "label": label,
+                    "f": row["f"],
+                    "m": row["m"],
+                    "total": row["total"],
+                    "percent": percent,
+                    "vca": row["vca"],
+                })
+                sociodemographic_total["f"] += row["f"]
+                sociodemographic_total["m"] += row["m"]
+                sociodemographic_total["total"] += row["total"]
+                sociodemographic_total["vca"] += row["vca"]
+
+            for family_label in sorted(family_summary.keys()):
+                family_rows.append({
+                    "label": family_label,
+                    "count": family_summary[family_label],
+                })
+            family_total = sum(family_summary.values())
+
             for service_type in service_types:
                 rows.append({
                     "service_type_name": service_type.name,
@@ -675,6 +734,10 @@ def _build_adm_context(
         "is_global": is_global,
         "residential_name": residential_name,
         "rows": rows,
+        "sociodemographic_rows": sociodemographic_rows,
+        "sociodemographic_total": sociodemographic_total,
+        "family_rows": family_rows,
+        "family_total": family_total,
         "authorized_name": authorized_name or "",
     }
 
@@ -771,11 +834,55 @@ def adm_report_excel(
     if not context["rows"]:
         ws.cell(row=row_index, column=1, value="No hay tipos de servicio ADM configurados o no hay datos para ese filtro.")
         ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=4)
+        row_index += 1
+
+    row_index += 2
+    ws.cell(row=row_index, column=1, value="Socio-Demográfico").font = Font(bold=True, size=12)
+    row_index += 1
+    demo_headers = ["Edad", "F", "M", "Por Ciento", "Diversidad Funcional"]
+    for idx, header in enumerate(demo_headers, start=1):
+        cell = ws.cell(row=row_index, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.fill = PatternFill(fill_type="solid", fgColor="FCE4D6")
+        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    row_index += 1
+    for row in context["sociodemographic_rows"]:
+        ws.cell(row=row_index, column=1, value=row["label"])
+        ws.cell(row=row_index, column=2, value=row["f"])
+        ws.cell(row=row_index, column=3, value=row["m"])
+        ws.cell(row=row_index, column=4, value=row["percent"])
+        ws.cell(row=row_index, column=5, value=row["vca"])
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=context["sociodemographic_total"]["f"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=3, value=context["sociodemographic_total"]["m"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=4, value=100 if context["sociodemographic_total"]["total"] else 0).font = Font(bold=True)
+    ws.cell(row=row_index, column=5, value=context["sociodemographic_total"]["vca"]).font = Font(bold=True)
+
+    row_index += 2
+    ws.cell(row=row_index, column=1, value="Composición Familiar").font = Font(bold=True, size=12)
+    row_index += 1
+    family_headers = ["Composición familiar", "Cantidad"]
+    for idx, header in enumerate(family_headers, start=1):
+        cell = ws.cell(row=row_index, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.fill = PatternFill(fill_type="solid", fgColor="E2F0D9")
+        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    row_index += 1
+    for row in context["family_rows"]:
+        ws.cell(row=row_index, column=1, value=row["label"])
+        ws.cell(row=row_index, column=2, value=row["count"])
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=context["family_total"]).font = Font(bold=True)
 
     ws.column_dimensions["A"].width = 40
     ws.column_dimensions["B"].width = 14
     ws.column_dimensions["C"].width = 14
     ws.column_dimensions["D"].width = 16
+    ws.column_dimensions["E"].width = 22
 
     output = io.BytesIO()
     wb.save(output)

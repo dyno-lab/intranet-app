@@ -98,7 +98,7 @@
   </div>
 </div>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm mb-4">
   <div class="card-body table-responsive">
     <h5 class="mb-3">Resumen ADM</h5>
     <table class="table table-sm table-bordered align-middle text-center">
@@ -124,6 +124,67 @@
           <td colspan="4" class="text-muted">No hay tipos de servicio ADM configurados o no hay datos para ese filtro.</td>
         </tr>
         {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body table-responsive">
+    <h5 class="mb-3">Socio-Demográfico</h5>
+    <table class="table table-sm table-bordered align-middle text-center">
+      <thead>
+        <tr>
+          <th class="text-start">Edad</th>
+          <th>F</th>
+          <th>M</th>
+          <th>Por Ciento</th>
+          <th>Diversidad Funcional</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in sociodemographic_rows %}
+        <tr>
+          <td class="text-start">{{ row.label }}</td>
+          <td>{{ row.f }}</td>
+          <td>{{ row.m }}</td>
+          <td>{{ '%.2f'|format(row.percent) }}%</td>
+          <td>{{ row.vca }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="fw-bold table-light">
+          <td class="text-start">TOTAL</td>
+          <td>{{ sociodemographic_total.f }}</td>
+          <td>{{ sociodemographic_total.m }}</td>
+          <td>{{ '%.2f'|format(100 if sociodemographic_total.total else 0) }}%</td>
+          <td>{{ sociodemographic_total.vca }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <h5 class="mb-3">Composición Familiar</h5>
+    <table class="table table-sm table-bordered align-middle text-center">
+      <thead>
+        <tr>
+          <th class="text-start">Composición familiar</th>
+          <th>Cantidad</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in family_rows %}
+        <tr>
+          <td class="text-start">{{ row.label }}</td>
+          <td>{{ row.count }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="fw-bold table-light">
+          <td class="text-start">TOTAL</td>
+          <td>{{ family_total }}</td>
+        </tr>
       </tbody>
     </table>
   </div>
