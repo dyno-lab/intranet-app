@@ -929,6 +929,17 @@ IF COL_LENGTH('dbo.attendance', 'proposal_participant_id') IS NULL
 BEGIN
     ALTER TABLE dbo.attendance ADD proposal_participant_id INT NULL;
 END;
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.attendance')
+      AND [name] = 'participant_id'
+      AND is_nullable = 0
+)
+BEGIN
+    ALTER TABLE dbo.attendance ALTER COLUMN participant_id INT NULL;
+END;
 """
 
 
