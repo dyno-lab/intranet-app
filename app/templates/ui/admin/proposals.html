@@ -109,6 +109,9 @@
               <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
                 Ver participantes
               </a>
+              <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/reopen" class="mb-0" onsubmit="return confirm('¿Reabrir esta propuesta? Volverá a permitir operación.');">
+                <button type="submit" class="btn btn-sm btn-outline-warning">Reabrir</button>
+              </form>
             </div>
             {% endif %}
           </td>
@@ -157,7 +160,12 @@
               </div>
             </form>
             {% else %}
-            <div class="p-2 text-muted small">La propuesta está finalizada. Esta sección queda en solo lectura.</div>
+            <div class="p-2 text-muted small d-flex flex-wrap align-items-center gap-2">
+              <span>La propuesta está finalizada. Esta sección queda en solo lectura.</span>
+              <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/reopen" class="mb-0" onsubmit="return confirm('¿Reabrir esta propuesta? Volverá a permitir operación.');">
+                <button type="submit" class="btn btn-sm btn-outline-warning">Reabrir propuesta</button>
+              </form>
+            </div>
             {% endif %}
           </td>
         </tr>

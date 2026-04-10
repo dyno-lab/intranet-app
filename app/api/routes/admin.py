@@ -1486,6 +1486,27 @@ def admin_edit_proposal(
     )
 
 
+@router.post("/proposals/{proposal_id}/reopen")
+def admin_reopen_proposal(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: Propuesta no encontrada.")
+
+    proposal.status = "active"
+    proposal.is_active = True
+    db.add(proposal)
+    db.commit()
+
+    return _redirect_with_msg(
+        "/ui/admin/proposals",
+        "Propuesta reabierta exitosamente. Ya permite operación nuevamente.",
+    )
+
+
 @router.post("/proposals/{proposal_id}/finalize")
 def admin_finalize_proposal(
     proposal_id: int,
