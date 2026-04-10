@@ -204,6 +204,43 @@ def _build_bonafide_context(
     }
 
 
+ADM_AGE_BUCKETS = [
+    ("0_5", "0-5"),
+    ("6_11", "6-11"),
+    ("12_17", "12-17"),
+    ("18_21", "18-21"),
+    ("22_25", "22-25"),
+    ("26_45", "26-45"),
+    ("46_59", "46-59"),
+    ("60_74", "60-74"),
+    ("75_plus", "75+"),
+]
+
+
+def _get_adm_age_bucket(age: int | None) -> str | None:
+    if age is None:
+        return None
+    if 0 <= age <= 5:
+        return "0_5"
+    if 6 <= age <= 11:
+        return "6_11"
+    if 12 <= age <= 17:
+        return "12_17"
+    if 18 <= age <= 21:
+        return "18_21"
+    if 22 <= age <= 25:
+        return "22_25"
+    if 26 <= age <= 45:
+        return "26_45"
+    if 46 <= age <= 59:
+        return "46_59"
+    if 60 <= age <= 74:
+        return "60_74"
+    if age >= 75:
+        return "75_plus"
+    return None
+
+
 REPORT_OPTIONS = [
     {"value": "bonafide", "label": "Bonafide"},
     {"value": "no-duplicado", "label": "No Duplicado"},
@@ -668,13 +705,13 @@ def _build_adm_context(
 
             sociodemographic_summary = {
                 key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
-                for key, label in AGE_BUCKETS
+                for key, label in ADM_AGE_BUCKETS
             }
             family_summary: dict[str, int] = {}
 
             for participant in participant_rows:
                 age = _calc_age(participant.fecha_nacimiento)
-                bucket = _get_age_bucket(age)
+                bucket = _get_adm_age_bucket(age)
                 if bucket:
                     gender = _normalize_text(participant.genero).upper()
                     if gender.startswith("F"):
@@ -689,7 +726,7 @@ def _build_adm_context(
                 family_summary[family_key] = family_summary.get(family_key, 0) + 1
 
             total_unique_people = len(participant_rows)
-            for key, label in AGE_BUCKETS:
+            for key, label in ADM_AGE_BUCKETS:
                 row = sociodemographic_summary[key]
                 percent = round((row["total"] / total_unique_people) * 100, 2) if total_unique_people else 0
                 sociodemographic_rows.append({
