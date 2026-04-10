@@ -713,7 +713,10 @@ def _build_adm_context(
             family_catalog_options = db.execute(
                 select(CatalogOption)
                 .join(CatalogType, CatalogType.catalog_type_id == CatalogOption.catalog_type_id)
-                .where(CatalogType.key == "composicion_familiar")
+                .where(
+                    CatalogType.key == "composicion_familiar",
+                    CatalogOption.is_active == True,  # noqa: E712
+                )
                 .order_by(CatalogOption.sort_order, CatalogOption.label)
             ).scalars().all()
 
