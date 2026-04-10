@@ -1025,12 +1025,10 @@ IF NOT EXISTS (
 BEGIN
     CREATE INDEX IX_attendance_proposal_participant_id ON dbo.attendance(proposal_participant_id);
 END;
+"""
 
-DECLARE @ParticipantPersonMap TABLE (
-    participant_id INT PRIMARY KEY,
-    person_id INT NOT NULL
-);
 
+PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL = """
 INSERT INTO dbo.persons (
     legacy_participant_id,
     nombre,
@@ -1042,8 +1040,6 @@ INSERT INTO dbo.persons (
     created_at,
     updated_at
 )
-OUTPUT src.participant_id, inserted.person_id
-INTO @ParticipantPersonMap(participant_id, person_id)
 SELECT
     src.participant_id,
     src.nombre,
@@ -1061,14 +1057,16 @@ WHERE NOT EXISTS (
     WHERE p.legacy_participant_id = src.participant_id
 );
 
+DECLARE @ParticipantPersonMap TABLE (
+    participant_id INT PRIMARY KEY,
+    person_id INT NOT NULL
+);
+
 INSERT INTO @ParticipantPersonMap(participant_id, person_id)
 SELECT src.participant_id, p.person_id
 FROM dbo.participants AS src
 INNER JOIN dbo.persons AS p
-    ON p.legacy_participant_id = src.participant_id
-WHERE NOT EXISTS (
-    SELECT 1 FROM @ParticipantPersonMap m WHERE m.participant_id = src.participant_id
-);
+    ON p.legacy_participant_id = src.participant_id;
 
 INSERT INTO dbo.proposal_participants (
     proposal_id,
@@ -1147,3 +1145,6 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
