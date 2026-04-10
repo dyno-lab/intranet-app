@@ -912,7 +912,7 @@ def admin_proposals(
 def admin_proposal_participants(
     request: Request,
     proposal_id: int | None = None,
-    residential_id: int | None = None,
+    residential_id: str | None = None,
     status_filter: str | None = "active",
     q: str | None = None,
     only_available: int = 1,
@@ -920,6 +920,8 @@ def admin_proposal_participants(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
+    selected_residential_id = int(residential_id) if residential_id and residential_id.strip() else None
+
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
     residentials = db.execute(
         select(Residential).where(Residential.is_active == True).order_by(Residential.code)  # noqa: E712
@@ -972,8 +974,8 @@ def admin_proposal_participants(
         if not is_admin_or_supervisor(current_user):
             participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
 
-        if residential_id:
-            participant_stmt = participant_stmt.where(User.residential_id == residential_id)
+        if selected_residential_id:
+            participant_stmt = participant_stmt.where(User.residential_id == selected_residential_id)
 
         if normalized_status_filter == "active":
             participant_stmt = participant_stmt.where(Participant.is_active == True)  # noqa: E712
@@ -1012,7 +1014,7 @@ def admin_proposal_participants(
             "proposals": proposals,
             "residentials": residentials,
             "selected_proposal": selected_proposal,
-            "selected_residential_id": residential_id,
+            "selected_residential_id": selected_residential_id,
             "selected_status_filter": normalized_status_filter,
             "assigned_rows": assigned_rows,
             "available_rows": available_rows,
