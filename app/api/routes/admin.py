@@ -27,6 +27,7 @@ from app.models.vca_column import VCAColumn
 from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
+from app.services.visits import delete_visit_reports_and_referrals
 from app.models.pregnancy_report import PregnancyReport
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_dropout_report import SchoolDropoutReport
@@ -1523,6 +1524,42 @@ def admin_edit_proposal(
     return RedirectResponse(
         "/ui/admin/proposals?msg=Propuesta actualizada exitosamente.",
         status_code=303,
+    )
+
+
+@router.post("/proposals/{proposal_id}/visit-reports/delete")
+def admin_delete_proposal_visit_reports(
+    proposal_id: int,
+    admin_password: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: Propuesta no encontrada.")
+
+    if not verify_password(admin_password, current_user.password_hash):
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: La contraseña de administrador no es correcta.",
+        )
+
+    reports = db.execute(
+        select(VisitReport).where(VisitReport.proposal_id == proposal_id)
+    ).scalars().all()
+
+    if not reports:
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "No hay informes de visitas para limpiar en esta propuesta.",
+        )
+
+    delete_visit_reports_and_referrals(db, reports)
+    db.commit()
+
+    return _redirect_with_msg(
+        "/ui/admin/proposals",
+        f"Se eliminaron {len(reports)} informe(s) de visitas asociados a la propuesta.",
     )
 
 

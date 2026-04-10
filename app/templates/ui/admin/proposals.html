@@ -178,6 +178,21 @@
               </div>
               <div class="form-text text-danger">Doble validación: escriba ELIMINAR y confirme con su contraseña de administrador.</div>
             </form>
+            <hr>
+            <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/visit-reports/delete" class="p-2 border border-warning rounded bg-white" onsubmit="return confirm('¿Eliminar todos los informes de visitas asociados a esta propuesta? Esto borra sus referidos guardados en cualquier periodo/residencial.');">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label small text-warning">Contraseña admin para limpiar informes de visitas</label>
+                  <input type="password" class="form-control form-control-sm" name="admin_password" placeholder="Contraseña actual" required>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                  <button type="submit" class="btn btn-sm btn-outline-warning">Limpiar informes de visitas</button>
+                  <button type="button" class="btn btn-sm btn-secondary"
+                          data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">Cancelar</button>
+                </div>
+              </div>
+              <div class="form-text text-warning">Úsalo solo si necesitas liberar la propuesta para borrado y ya no deseas conservar esos informes.</div>
+            </form>
             {% else %}
             <div class="p-2 text-muted small d-flex flex-wrap align-items-center gap-2">
               <span>La propuesta está finalizada. Esta sección queda en solo lectura.</span>
