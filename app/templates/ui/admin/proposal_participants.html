@@ -61,7 +61,7 @@
 
 {% if selected_proposal %}
 <div class="row g-4">
-  <div class="col-lg-7">
+  <div class="col-xl-7 col-lg-12">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <strong>Participantes disponibles de New-list</strong>
@@ -118,9 +118,9 @@
                   <td>{{ row.age if row.age is not none else '' }}</td>
                   <td>
                     {% if row.is_active %}
-                    <span class="badge bg-success">Activo</span>
+                    <span class="badge bg-success px-2 py-1">Activo</span>
                     {% else %}
-                    <span class="badge bg-danger">Inactivo</span>
+                    <span class="badge bg-danger px-2 py-1">Inactivo</span>
                     {% endif %}
                   </td>
                   <td>{{ row.owner_username or '-' }}</td>
@@ -143,7 +143,7 @@
     </div>
   </div>
 
-  <div class="col-lg-5">
+  <div class="col-xl-5 col-lg-12">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
         <strong>Participantes asociados a {{ selected_proposal.code }}</strong>
@@ -166,12 +166,12 @@
           <table class="table table-sm table-hover align-middle">
             <thead>
               <tr>
-                <th style="width: 18%;">Residencial</th>
-                <th style="width: 16%;">Expediente</th>
-                <th style="width: 24%;">Nombre</th>
-                <th style="width: 12%;">Estado</th>
+                <th style="width: 22%;">Residencial</th>
+                <th style="width: 18%;">Expediente</th>
+                <th style="width: 22%;">Nombre</th>
+                <th style="width: 10%;">Estado</th>
                 <th style="width: 14%;">Última actualización</th>
-                <th class="text-end" style="width: 16%;">Acciones</th>
+                <th class="text-end" style="width: 14%;">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -189,7 +189,7 @@
                 </td>
                 <td>
                   {% if row.proposal_participant.updated_at %}
-                  <div class="small text-nowrap">{{ row.proposal_participant.updated_at.strftime('%Y-%m-%d') }}</div>
+                  <div class="small text-nowrap">{{ row.proposal_participant.updated_at.strftime('%d/%m/%Y') }}</div>
                   <div class="small text-muted text-nowrap">{{ row.proposal_participant.updated_at.strftime('%I:%M %p') }}</div>
                   {% else %}
                   <span class="text-muted">—</span>
@@ -197,14 +197,14 @@
                 </td>
                 <td class="text-end">
                   {% if selected_proposal.status != 'finalized' %}
-                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                  <div class="d-flex flex-column align-items-end gap-2">
                     <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list? Esto actualizará su fecha de última actualización.');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar</button>
+                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">Sincronizar</button>
                     </form>
                     <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
@@ -212,7 +212,7 @@
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-                      <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger w-100">Remover</button>
                     </form>
                   </div>
                   {% else %}
