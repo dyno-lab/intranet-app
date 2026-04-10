@@ -882,7 +882,7 @@ IF OBJECT_ID(N'dbo.persons', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.persons (
         person_id INT IDENTITY(1,1) PRIMARY KEY,
-        legacy_participant_id INT NULL UNIQUE,
+        legacy_participant_id INT NULL,
         nombre VARCHAR(150) NOT NULL,
         inicial VARCHAR(10) NULL,
         apellido_paterno VARCHAR(150) NOT NULL,
@@ -899,6 +899,40 @@ BEGIN
     ALTER TABLE dbo.persons ADD legacy_participant_id INT NULL;
 END;
 
+IF OBJECT_ID(N'dbo.proposal_participants', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_participants (
+        proposal_participant_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        person_id INT NOT NULL,
+        created_by_user_id INT NULL,
+        exp_year INT NULL,
+        exp_employee_initials VARCHAR(10) NULL,
+        exp_seq4 VARCHAR(4) NULL,
+        expediente_num VARCHAR(50) NULL,
+        edificio VARCHAR(50) NULL,
+        apart VARCHAR(50) NULL,
+        vca VARCHAR(5) NULL,
+        primera_vez VARCHAR(5) NULL,
+        composicion_familiar VARCHAR(100) NULL,
+        estatus VARCHAR(50) NULL,
+        grupo_familiar VARCHAR(20) NULL,
+        fuente_ingreso_principal VARCHAR(100) NULL,
+        rango_ingreso VARCHAR(30) NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_participants_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_updated_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF COL_LENGTH('dbo.attendance', 'proposal_participant_id') IS NULL
+BEGIN
+    ALTER TABLE dbo.attendance ADD proposal_participant_id INT NULL;
+END;
+"""
+
+
+PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_CONSTRAINTS_SQL = """
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name = 'IX_persons_legacy_participant_id'
@@ -927,34 +961,49 @@ BEGIN
     CREATE INDEX IX_persons_fecha_nacimiento ON dbo.persons(fecha_nacimiento);
 END;
 
-IF OBJECT_ID(N'dbo.proposal_participants', N'U') IS NULL
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_proposal_participants_proposals'
+)
 BEGIN
-    CREATE TABLE dbo.proposal_participants (
-        proposal_participant_id INT IDENTITY(1,1) PRIMARY KEY,
-        proposal_id INT NOT NULL,
-        person_id INT NOT NULL,
-        created_by_user_id INT NULL,
-        exp_year INT NULL,
-        exp_employee_initials VARCHAR(10) NULL,
-        exp_seq4 VARCHAR(4) NULL,
-        expediente_num VARCHAR(50) NULL,
-        edificio VARCHAR(50) NULL,
-        apart VARCHAR(50) NULL,
-        vca VARCHAR(5) NULL,
-        primera_vez VARCHAR(5) NULL,
-        composicion_familiar VARCHAR(100) NULL,
-        estatus VARCHAR(50) NULL,
-        grupo_familiar VARCHAR(20) NULL,
-        fuente_ingreso_principal VARCHAR(100) NULL,
-        rango_ingreso VARCHAR(30) NULL,
-        is_active BIT NOT NULL CONSTRAINT DF_proposal_participants_is_active DEFAULT 1,
-        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_created_at DEFAULT SYSUTCDATETIME(),
-        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_updated_at DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_proposal_participants_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT FK_proposal_participants_persons FOREIGN KEY (person_id) REFERENCES dbo.persons(person_id),
-        CONSTRAINT FK_proposal_participants_users FOREIGN KEY (created_by_user_id) REFERENCES dbo.users(user_id),
-        CONSTRAINT UQ_proposal_participants_proposal_person UNIQUE (proposal_id, person_id)
-    );
+    ALTER TABLE dbo.proposal_participants
+    ADD CONSTRAINT FK_proposal_participants_proposals
+    FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_proposal_participants_persons'
+)
+BEGIN
+    ALTER TABLE dbo.proposal_participants
+    ADD CONSTRAINT FK_proposal_participants_persons
+    FOREIGN KEY (person_id) REFERENCES dbo.persons(person_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_proposal_participants_users'
+)
+BEGIN
+    ALTER TABLE dbo.proposal_participants
+    ADD CONSTRAINT FK_proposal_participants_users
+    FOREIGN KEY (created_by_user_id) REFERENCES dbo.users(user_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE [type] = 'UQ'
+      AND [name] = 'UQ_proposal_participants_proposal_person'
+      AND [parent_object_id] = OBJECT_ID(N'dbo.proposal_participants')
+)
+BEGIN
+    ALTER TABLE dbo.proposal_participants
+    ADD CONSTRAINT UQ_proposal_participants_proposal_person UNIQUE (proposal_id, person_id);
 END;
 
 IF NOT EXISTS (
@@ -1000,11 +1049,6 @@ IF NOT EXISTS (
 )
 BEGIN
     CREATE INDEX IX_proposal_participants_proposal_active ON dbo.proposal_participants(proposal_id, is_active);
-END;
-
-IF COL_LENGTH('dbo.attendance', 'proposal_participant_id') IS NULL
-BEGIN
-    ALTER TABLE dbo.attendance ADD proposal_participant_id INT NULL;
 END;
 
 IF NOT EXISTS (
@@ -1145,6 +1189,9 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_CONSTRAINTS_SQL)
 
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
