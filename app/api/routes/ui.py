@@ -1063,9 +1063,21 @@ async def save_attendance(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
 
+    legacy_participant_map: dict[int, int | None] = {}
+    if present:
+        person_rows = db.execute(
+            select(ProposalParticipant.proposal_participant_id, Person.legacy_participant_id)
+            .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .where(ProposalParticipant.proposal_participant_id.in_(present))
+        ).all()
+        legacy_participant_map = {
+            proposal_participant_id: legacy_participant_id
+            for proposal_participant_id, legacy_participant_id in person_rows
+        }
+
     for proposal_participant_id in present:
         att = Attendance(
-            participant_id=None,
+            participant_id=legacy_participant_map.get(proposal_participant_id),
             proposal_participant_id=proposal_participant_id,
             session_id=session_id,
             attended=True,
