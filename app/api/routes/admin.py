@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Form
+from datetime import date
 from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -8,7 +9,7 @@ from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.auth import require_admin
+from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_or_supervisor
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.security import hash_password
 from app.models.user import User
@@ -16,6 +17,9 @@ from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
 from app.models.proposal import Proposal
+from app.models.participant import Participant
+from app.models.person import Person
+from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
@@ -51,6 +55,13 @@ def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str
     if is_proposal_finalized(proposal):
         return _redirect_with_msg(redirect_url, message)
     return None
+
+
+def _calc_age(dob: date | None):
+    if not dob:
+        return None
+    today = date.today()
+    return today.year - dob.year - (((today.month, today.day) < (dob.month, dob.day)))
 
 
 def _program_uses_population_structure(db: Session, program_id: int) -> bool:
@@ -894,6 +905,240 @@ def admin_proposals(
             "proposals": proposals,
             "msg": msg,
         },
+    )
+
+
+@router.get("/proposal-participants", response_class=HTMLResponse)
+def admin_proposal_participants(
+    request: Request,
+    proposal_id: int | None = None,
+    q: str | None = None,
+    only_available: int = 1,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_supervisor),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
+
+    assigned_rows = []
+    assigned_person_ids: set[int] = set()
+    if selected_proposal:
+        assigned_stmt = (
+            select(ProposalParticipant, Person)
+            .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
+            .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
+        )
+        if not is_admin_or_supervisor(current_user):
+            assigned_stmt = assigned_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+
+        assigned_pairs = db.execute(assigned_stmt).all()
+        for proposal_participant, person in assigned_pairs:
+            assigned_person_ids.add(person.person_id)
+            assigned_rows.append({
+                "proposal_participant": proposal_participant,
+                "person": person,
+                "is_active": bool(getattr(proposal_participant, "is_active", False)),
+            })
+
+    participant_stmt = (
+        select(Participant, User.username.label("owner_username"), Person.person_id.label("person_id"))
+        .outerjoin(User, User.user_id == Participant.created_by_user_id)
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .order_by(Participant.apellido_paterno, Participant.apellido_materno, Participant.nombre)
+    )
+    if not is_admin_or_supervisor(current_user):
+        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+
+    q_value = (q or "").strip()
+    if q_value:
+        search = f"%{q_value}%"
+        participant_stmt = participant_stmt.where(
+            Participant.expediente_num.ilike(search)
+            | Participant.nombre.ilike(search)
+            | Participant.apellido_paterno.ilike(search)
+            | Participant.apellido_materno.ilike(search)
+        )
+
+    participant_rows = db.execute(participant_stmt).all()
+    available_rows = []
+    for participant, owner_username, person_id in participant_rows:
+        if selected_proposal and only_available and person_id in assigned_person_ids:
+            continue
+        available_rows.append({
+            "participant": participant,
+            "owner_username": owner_username,
+            "person_id": person_id,
+            "age": _calc_age(participant.fecha_nacimiento),
+            "is_active": bool(getattr(participant, "is_active", False)),
+        })
+
+    return templates.TemplateResponse(
+        "ui/admin/proposal_participants.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal": selected_proposal,
+            "assigned_rows": assigned_rows,
+            "available_rows": available_rows,
+            "q": q_value,
+            "only_available": bool(only_available),
+        },
+    )
+
+
+@router.post("/proposal-participants/add")
+def admin_add_participants_to_proposal(
+    proposal_id: int = Form(...),
+    participant_ids: list[int] = Form(default=[]),
+    q: str | None = Form(default=None),
+    only_available: int = Form(default=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_supervisor),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y no permite asociar participantes.",
+    )
+    if redirect:
+        return redirect
+
+    if not participant_ids:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: Debe seleccionar al menos un participante.",
+        )
+
+    participants = db.execute(
+        select(Participant).where(Participant.participant_id.in_(participant_ids))
+    ).scalars().all()
+    participant_map = {p.participant_id: p for p in participants}
+
+    created_count = 0
+    skipped_count = 0
+
+    for participant_id in participant_ids:
+        participant = participant_map.get(participant_id)
+        if not participant:
+            skipped_count += 1
+            continue
+
+        if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
+            skipped_count += 1
+            continue
+
+        person = db.execute(
+            select(Person).where(Person.legacy_participant_id == participant.participant_id)
+        ).scalar_one_or_none()
+        if not person:
+            person = Person(
+                legacy_participant_id=participant.participant_id,
+                nombre=participant.nombre,
+                inicial=participant.inicial,
+                apellido_paterno=participant.apellido_paterno,
+                apellido_materno=participant.apellido_materno,
+                genero=participant.genero,
+                fecha_nacimiento=participant.fecha_nacimiento,
+            )
+            db.add(person)
+            db.flush()
+
+        exists = db.execute(
+            select(ProposalParticipant).where(
+                ProposalParticipant.proposal_id == proposal_id,
+                ProposalParticipant.person_id == person.person_id,
+            )
+        ).scalar_one_or_none()
+        if exists:
+            skipped_count += 1
+            continue
+
+        proposal_participant = ProposalParticipant(
+            proposal_id=proposal_id,
+            person_id=person.person_id,
+            created_by_user_id=participant.created_by_user_id,
+            exp_year=participant.exp_year,
+            exp_employee_initials=participant.exp_employee_initials,
+            exp_seq4=participant.exp_seq4,
+            expediente_num=participant.expediente_num,
+            edificio=participant.edificio,
+            apart=participant.apart,
+            vca=participant.vca,
+            primera_vez=participant.primera_vez,
+            composicion_familiar=participant.composicion_familiar,
+            estatus=participant.estatus,
+            grupo_familiar=participant.grupo_familiar,
+            fuente_ingreso_principal=participant.fuente_ingreso_principal,
+            rango_ingreso=participant.rango_ingreso,
+            is_active=bool(getattr(participant, "is_active", False)),
+        )
+        db.add(proposal_participant)
+        created_count += 1
+
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        f"{created_count} participante(s) asociado(s) exitosamente. {skipped_count} omitido(s).",
+    )
+
+
+@router.post("/proposal-participants/{proposal_participant_id}/remove")
+def admin_remove_participant_from_proposal(
+    proposal_participant_id: int,
+    proposal_id: int = Form(...),
+    q: str | None = Form(default=None),
+    only_available: int = Form(default=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_supervisor),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
+
+    redirect = _redirect_if_proposal_finalized(
+        proposal,
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
+        "Error: La propuesta está finalizada y no permite remover participantes.",
+    )
+    if redirect:
+        return redirect
+
+    proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
+    if not proposal_participant or proposal_participant.proposal_id != proposal_id:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: Participante asociado no encontrado.",
+        )
+
+    from app.models.attendance import Attendance
+
+    used_count = db.execute(
+        select(func.count()).select_from(Attendance).where(
+            Attendance.proposal_participant_id == proposal_participant_id
+        )
+    ).scalar() or 0
+
+    if used_count > 0:
+        return _redirect_with_msg(
+            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            "Error: No se puede remover porque ya tiene asistencias registradas en esta propuesta.",
+        )
+
+    db.delete(proposal_participant)
+    db.commit()
+
+    return _redirect_with_msg(
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        "Participante removido de la propuesta exitosamente.",
     )
 
 
