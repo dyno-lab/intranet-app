@@ -128,7 +128,7 @@
     <hr class="my-2">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
       <p class="mb-0 text-muted flex-grow-1">
-        Marca los participantes que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
+        Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
       </p>
       <div class="text-md-end">
         <span class="badge text-bg-primary fs-6 px-3 py-2">
@@ -155,30 +155,40 @@
           </tr>
         </thead>
         <tbody>
-          {% for p in participants %}
-          {% set is_active = participant_status_map.get(p.participant_id, false) %}
-          <tr class="{{ '' if is_active else 'table-danger' }}">
-            <td>{{ p.expediente_num }}</td>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.inicial or '' }}</td>
-            <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
-            <td>{{ participant_age_map.get(p.participant_id) if participant_age_map.get(p.participant_id) is not none else '—' }}</td>
-            <td>
-              {% if is_active %}
-                <span class="badge bg-success">● Activo</span>
-              {% else %}
-                <span class="badge bg-danger">● Inactivo</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <input type="checkbox"
-                     name="present"
-                     value="{{ p.participant_id }}"
-                     {% if p.participant_id in attended_ids %}checked{% endif %}
-                     {% if not is_active or proposal_is_finalized %}disabled{% endif %}>
-            </td>
-          </tr>
-          {% endfor %}
+          {% if session.proposal_id %}
+            {% for row in proposal_participant_rows %}
+            {% set pp = row.proposal_participant %}
+            {% set person = row.person %}
+            {% set is_active = row.is_active %}
+            <tr class="{{ '' if is_active else 'table-danger' }}">
+              <td>{{ pp.expediente_num or '—' }}</td>
+              <td>{{ person.nombre }}</td>
+              <td>{{ person.inicial or '' }}</td>
+              <td>{{ person.apellido_paterno }} {{ person.apellido_materno or '' }}</td>
+              <td>{{ row.age if row.age is not none else '—' }}</td>
+              <td>
+                {% if is_active %}
+                  <span class="badge bg-success">● Activo</span>
+                {% else %}
+                  <span class="badge bg-danger">● Inactivo</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <input type="checkbox"
+                       name="present"
+                       value="{{ pp.proposal_participant_id }}"
+                       {% if pp.proposal_participant_id in attended_ids %}checked{% endif %}
+                       {% if not is_active or proposal_is_finalized %}disabled{% endif %}>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-muted text-center py-4">
+                Esta sesión no tiene propuesta. La nueva Fase 2 de asistencia opera solo con sesiones asociadas a propuesta.
+              </td>
+            </tr>
+          {% endif %}
         </tbody>
       </table>
 
