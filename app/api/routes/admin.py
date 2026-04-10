@@ -26,6 +26,7 @@ from app.models.residential import Residential
 from app.models.vca_column import VCAColumn
 from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
+from app.models.visit_report_referral import VisitReportReferral
 from app.models.pregnancy_report import PregnancyReport
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_dropout_report import SchoolDropoutReport
@@ -1594,7 +1595,10 @@ def admin_delete_proposal(
         blockers.append(f"{visit_mapping_count} mapeo(s) de visitas")
 
     visit_report_count = db.execute(
-        select(func.count()).select_from(VisitReport).where(VisitReport.proposal_id == proposal_id)
+        select(func.count())
+        .select_from(VisitReport)
+        .join(VisitReportReferral, VisitReportReferral.report_id == VisitReport.report_id)
+        .where(VisitReport.proposal_id == proposal_id)
     ).scalar() or 0
     if visit_report_count > 0:
         blockers.append(f"{visit_report_count} reporte(s) de visitas")
