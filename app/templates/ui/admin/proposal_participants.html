@@ -166,12 +166,12 @@
           <table class="table table-sm table-hover align-middle">
             <thead>
               <tr>
-                <th>Residencial</th>
-                <th>Expediente</th>
-                <th>Nombre</th>
-                <th>Estado</th>
-                <th>Última actualización</th>
-                <th class="text-end">Acciones</th>
+                <th style="width: 18%;">Residencial</th>
+                <th style="width: 16%;">Expediente</th>
+                <th style="width: 24%;">Nombre</th>
+                <th style="width: 12%;">Estado</th>
+                <th style="width: 14%;">Última actualización</th>
+                <th class="text-end" style="width: 16%;">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -188,12 +188,17 @@
                   {% endif %}
                 </td>
                 <td>
-                  <div class="small">{{ row.proposal_participant.updated_at or '—' }}</div>
+                  {% if row.proposal_participant.updated_at %}
+                  <div class="small text-nowrap">{{ row.proposal_participant.updated_at.strftime('%Y-%m-%d') }}</div>
+                  <div class="small text-muted text-nowrap">{{ row.proposal_participant.updated_at.strftime('%I:%M %p') }}</div>
+                  {% else %}
+                  <span class="text-muted">—</span>
+                  {% endif %}
                 </td>
                 <td class="text-end">
                   {% if selected_proposal.status != 'finalized' %}
                   <div class="d-flex justify-content-end gap-2 flex-wrap">
-                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list? Esto actualizará su fecha de última actualización.');">
+                    <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/sync" onsubmit="return confirm('¿Sincronizar este participante desde New-list? Esto actualizará su fecha de última actualización.');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
@@ -201,7 +206,7 @@
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
                       <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar</button>
                     </form>
-                    <form method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
+                    <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
                       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
