@@ -25,6 +25,8 @@ from app.models.vca_column_activity_code import VCAColumnActivityCode
 from app.models.adm_service_type import ADMServiceType
 from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
 from app.models.school_dropout_report import SchoolDropoutReport
+from app.models.catalog_type import CatalogType
+from app.models.catalog_option import CatalogOption
 from app.models.school_dropout_report_item import SchoolDropoutReportItem
 from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
@@ -708,6 +710,15 @@ def _build_adm_context(
                 for key, label in ADM_AGE_BUCKETS
             }
             family_summary: dict[str, int] = {}
+            family_catalog_options = db.execute(
+                select(CatalogOption)
+                .join(CatalogType, CatalogType.catalog_type_id == CatalogOption.catalog_type_id)
+                .where(CatalogType.key == "composicion_familiar")
+                .order_by(CatalogOption.sort_order, CatalogOption.label)
+            ).scalars().all()
+
+            for option in family_catalog_options:
+                family_summary[option.label] = 0
 
             for participant in participant_rows:
                 age = _calc_age(participant.fecha_nacimiento)
