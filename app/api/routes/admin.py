@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_or_supervisor
 from app.core.proposal_guard import is_proposal_finalized
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
@@ -1483,6 +1483,61 @@ def admin_edit_proposal(
     return RedirectResponse(
         "/ui/admin/proposals?msg=Propuesta actualizada exitosamente.",
         status_code=303,
+    )
+
+
+@router.post("/proposals/{proposal_id}/delete")
+def admin_delete_proposal(
+    proposal_id: int,
+    admin_password: str = Form(...),
+    delete_confirmation: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: Propuesta no encontrada.")
+
+    if delete_confirmation.strip().upper() != "ELIMINAR":
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: Debe escribir ELIMINAR para confirmar el borrado de la propuesta.",
+        )
+
+    if not verify_password(admin_password, current_user.password_hash):
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: La contraseña de administrador no es correcta.",
+        )
+
+    session_count = db.execute(
+        select(func.count()).select_from(ActivitySession).where(ActivitySession.proposal_id == proposal_id)
+    ).scalar() or 0
+    participant_count = db.execute(
+        select(func.count()).select_from(ProposalParticipant).where(ProposalParticipant.proposal_id == proposal_id)
+    ).scalar() or 0
+
+    if session_count > 0 or participant_count > 0:
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: No se puede eliminar la propuesta porque tiene sesiones o participantes asociados.",
+        )
+
+    linked_activity_codes = db.execute(
+        select(func.count()).select_from(ActivityCode).where(ActivityCode.proposal_id == proposal_id)
+    ).scalar() or 0
+    if linked_activity_codes > 0:
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: No se puede eliminar la propuesta porque tiene actividades asociadas. Debe desvincularlas o eliminarlas primero.",
+        )
+
+    db.delete(proposal)
+    db.commit()
+
+    return _redirect_with_msg(
+        "/ui/admin/proposals",
+        "Propuesta eliminada exitosamente.",
     )
 
 
