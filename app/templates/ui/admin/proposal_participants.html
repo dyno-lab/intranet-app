@@ -162,8 +162,8 @@
         {% endif %}
 
         {% if assigned_rows %}
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle">
+        <div class="table-responsive" style="overflow-x: auto;">
+          <table class="table table-sm table-hover align-middle" style="min-width: 760px;">
             <thead>
               <tr>
                 <th style="width: 22%;">Residencial</th>
@@ -171,7 +171,7 @@
                 <th style="width: 22%;">Nombre</th>
                 <th style="width: 10%;">Estado</th>
                 <th style="width: 14%;">Última actualización</th>
-                <th class="text-end" style="width: 14%;">Acciones</th>
+                <th class="text-end" style="width: 14%;">Acc.</th>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +204,7 @@
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">Sincronizar</button>
+                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">Sync</button>
                     </form>
                     <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
                       <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
@@ -212,7 +212,7 @@
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-                      <button type="submit" class="btn btn-sm btn-outline-danger w-100">Remover</button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger w-100">Quitar</button>
                     </form>
                   </div>
                   {% else %}
