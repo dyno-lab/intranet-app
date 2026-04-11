@@ -7,14 +7,19 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from fastapi import Request
 from jinja2 import Environment
-from weasyprint import HTML, default_url_fetcher
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STATIC_DIR = PROJECT_ROOT / "app" / "static"
 TEMPLATES_DIR = PROJECT_ROOT / "app" / "templates"
 
 
+def _import_weasyprint():
+    from weasyprint import HTML, default_url_fetcher
+    return HTML, default_url_fetcher
+
+
 def _local_url_fetcher(url: str):
+    HTML, default_url_fetcher = _import_weasyprint()
     if url.startswith("/static/"):
         relative_path = unquote(url.removeprefix("/static/").replace("/", "\\"))
         file_path = STATIC_DIR / Path(relative_path)
@@ -37,6 +42,7 @@ def render_template_to_pdf_bytes(
     context: dict,
     request: Request | None = None,
 ) -> bytes:
+    HTML, _ = _import_weasyprint()
     env: Environment = templates.env
     template = env.get_template(template_name)
     rendered_html = template.render(context)
