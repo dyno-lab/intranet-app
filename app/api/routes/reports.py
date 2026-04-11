@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from io import BytesIO
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func, distinct
 from sqlalchemy.orm import Session
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user
@@ -63,6 +60,20 @@ from app.helpers.reports import (
     parse_optional_int as _parse_optional_int,
     period_filename_suffix as _period_filename_suffix,
     summarize_participants_by_age_and_gender as _summarize_participants_by_age_and_gender,
+)
+from app.services.report_excel_builders import (
+    make_workbook,
+    build_adm_sheet,
+    build_bonafide_sheet,
+    build_desercion_sheet,
+    build_embarazo_sheet,
+    build_hoja_cotejo_sheet,
+    build_no_duplicado_sheet,
+    build_notas_sheet,
+    build_por_programa_sheet,
+    build_vca_sheet,
+    build_visitas_sheet,
+    workbook_to_bytes,
 )
 from app.services.report_programs import (
     program_display_name as _program_report_display_name,
@@ -909,424 +920,39 @@ def all_reports_excel(
 ):
     bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
 
-    wb = Workbook()
-    default_ws = wb.active
-    wb.remove(default_ws)
-
-    def proposal_label_from(context: dict) -> str:
-        return next(
-            (f"{p.code} - {p.name}" for p in context.get("proposals", []) if p.proposal_id == context.get("selected_proposal_id")),
-            "",
-        )
-
-    def make_sheet(title: str):
-        ws = wb.create_sheet(title=title[:31])
-        ws.sheet_view.showGridLines = False
-        return ws
-
-    bonafide = bundle["bonafide"]
-    ws = make_sheet("Bonafide")
-    ws["A1"] = "Programa Faro de Esperanza"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Listado Bonafide"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Periodo"
-    ws["B4"] = bonafide["period_label"]
-    ws["A5"] = "Residencial"
-    ws["B5"] = bonafide["residential_name"] or ""
-    ws["A6"] = "Municipio"
-    ws["B6"] = bonafide["municipality"] or ""
-    headers = ["#", "Expediente", "Nombre", "F", "M", "Edad", "Edif.", "Apto."]
-    for col_index, header in enumerate(headers, start=1):
-        ws.cell(row=8, column=col_index, value=header).font = Font(bold=True)
-    for row_index, row in enumerate(bonafide.get("rows", []), start=9):
-        ws.cell(row=row_index, column=1, value=row.get("index", ""))
-        ws.cell(row=row_index, column=2, value=row.get("expediente", ""))
-        ws.cell(row=row_index, column=3, value=row.get("nombre", ""))
-        ws.cell(row=row_index, column=4, value=row.get("f", ""))
-        ws.cell(row=row_index, column=5, value=row.get("m", ""))
-        ws.cell(row=row_index, column=6, value=row.get("edad", ""))
-        ws.cell(row=row_index, column=7, value=row.get("edificio", ""))
-        ws.cell(row=row_index, column=8, value=row.get("apartamento", ""))
-    for col, width in {"A": 6, "B": 20, "C": 40, "D": 6, "E": 6, "F": 8, "G": 12, "H": 12}.items():
-        ws.column_dimensions[col].width = width
-
-    no_dup = bundle["no_duplicado"]
-    ws = make_sheet("No Duplicado")
-    ws["A1"] = "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "No Duplicado por edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"; ws["B4"] = no_dup["residential_name"] or ""
-    ws["A5"] = "Municipio"; ws["B5"] = no_dup["municipality"] or ""
-    ws["A6"] = "RQ"; ws["B6"] = no_dup["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"; ws["B7"] = no_dup["period_label"]
-    ws["A8"] = "Funcionario autorizado"; ws["B8"] = no_dup["authorized_name"] or ""
-    for col_index, header in enumerate(["Clasificación", "F", "M", "Total de participantes"], start=1):
-        ws.cell(row=10, column=col_index, value=header).font = Font(bold=True)
-    row_index = 11
-    for row in no_dup.get("rows", []):
-        ws.cell(row=row_index, column=1, value=row.get("label", ""))
-        ws.cell(row=row_index, column=2, value=row.get("f", 0))
-        ws.cell(row=row_index, column=3, value=row.get("m", 0))
-        ws.cell(row=row_index, column=4, value=row.get("total", 0))
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=no_dup["total_f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=no_dup["total_m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=no_dup["total_all"]).font = Font(bold=True)
-    for col, width in {"A": 35, "B": 10, "C": 10, "D": 20}.items():
-        ws.column_dimensions[col].width = width
-
-    dup = bundle["duplicado"]
-    ws = make_sheet("Duplicado")
-    ws["A1"] = "Informe mensual de participaciones"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Duplicado por edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"; ws["B4"] = dup["residential_name"] or ""
-    ws["A5"] = "Municipio"; ws["B5"] = dup["municipality"] or ""
-    ws["A6"] = "RQ"; ws["B6"] = dup["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"; ws["B7"] = dup["period_label"]
-    ws["A8"] = "Funcionario autorizado"; ws["B8"] = dup["authorized_name"] or ""
-    for col_index, header in enumerate(["Clasificación", "F", "M", "Total de participaciones"], start=1):
-        ws.cell(row=10, column=col_index, value=header).font = Font(bold=True)
-    row_index = 11
-    for row in dup.get("rows", []):
-        ws.cell(row=row_index, column=1, value=row.get("label", ""))
-        ws.cell(row=row_index, column=2, value=row.get("f", 0))
-        ws.cell(row=row_index, column=3, value=row.get("m", 0))
-        ws.cell(row=row_index, column=4, value=row.get("total", 0))
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=dup["total_f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=dup["total_m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=dup["total_all"]).font = Font(bold=True)
-    for col, width in {"A": 35, "B": 10, "C": 10, "D": 20}.items():
-        ws.column_dimensions[col].width = width
-
-    visitas = bundle["visitas"]
-    ws = make_sheet("Visitas")
-    ws.freeze_panes = "A6"
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Reporte de Visitas"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(visitas)
-    ws["D3"] = "Periodo"; ws["E3"] = visitas["period_label"]
-    ws["A4"] = "Residencial"; ws["B4"] = visitas["residential_name"] or ""
-    ws["D4"] = "Visitas"; ws["E4"] = visitas["summary"]["visits"]
-    ws["G4"] = "Asistencias"; ws["H4"] = visitas["summary"]["attendances"]
-    ws["J4"] = "Horas"; ws["K4"] = visitas["summary"]["hours"]
-    for col_index, header in enumerate(["Empleado", "Visitas registradas", "Asistencias acumuladas", "Horas acumuladas"], start=1):
-        cell = ws.cell(row=6, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
     employee_records = db.execute(
         select(Employee)
         .where(Employee.is_active == True)  # noqa: E712
         .order_by(Employee.full_name)
     ).scalars().all()
     visible_employee_names = [employee.full_name.strip() for employee in employee_records]
-    existing_by_name = {row.get("employee_name", ""): row for row in visitas.get("rows", [])}
-    normalized_rows = []
-    for employee_name in visible_employee_names:
-        row = existing_by_name.get(employee_name, None)
-        normalized_rows.append({
+    existing_by_name = {row.get("employee_name", ""): row for row in bundle["visitas"].get("rows", [])}
+    visit_rows = [
+        {
             "employee_name": employee_name,
-            "visits": row.get("visits", 0) if row else 0,
-            "attendances": row.get("attendances", 0) if row else 0,
-            "hours": row.get("hours", 0) if row else 0,
-        })
-    if not normalized_rows:
-        normalized_rows = visitas.get("rows", [])
-    row_index = 7
-    for row in normalized_rows:
-        values = [row.get("employee_name", ""), row.get("visits", 0), row.get("attendances", 0), row.get("hours", 0)]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            if col_index == 4:
-                cell.number_format = "0.00"
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-    totals = ["TOTALES", visitas["summary"]["visits"], visitas["summary"]["attendances"], visitas["summary"]["hours"]]
-    for col_index, value in enumerate(totals, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        if col_index == 4:
-            cell.number_format = "0.00"
-        cell.alignment = Alignment(horizontal="center")
-    for col, width in {"A": 34, "B": 18, "C": 20, "D": 18}.items():
-        ws.column_dimensions[col].width = width
+            "visits": existing_by_name.get(employee_name, {}).get("visits", 0),
+            "attendances": existing_by_name.get(employee_name, {}).get("attendances", 0),
+            "hours": existing_by_name.get(employee_name, {}).get("hours", 0),
+        }
+        for employee_name in visible_employee_names
+    ]
+    if not visit_rows:
+        visit_rows = bundle["visitas"].get("rows", [])
 
-    por_programa = bundle["por_programa"]
-    ws = make_sheet("Por Programa")
-    ws["A1"] = "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Participación no duplicada por programa, edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"; ws["B4"] = por_programa["residential_name"] or ""
-    ws["A5"] = "Municipio"; ws["B5"] = por_programa["municipality"] or ""
-    ws["A6"] = "RQ"; ws["B6"] = por_programa["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"; ws["B7"] = por_programa["period_label"]
-    ws["A8"] = "Funcionario autorizado"; ws["B8"] = por_programa["authorized_name"] or ""
-    row_index = 10
-    for section in por_programa.get("program_sections", []):
-        ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}").font = Font(bold=True)
-        ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
-        ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
-        header_row = row_index + 3
-        for idx, value in [(1, "Clasificación"), (2, "F"), (3, "M"), (4, "Total de participantes")]:
-            ws.cell(row=header_row, column=idx, value=value).font = Font(bold=True)
-        current_row = header_row + 1
-        for row in section.get("rows", []):
-            ws.cell(row=current_row, column=1, value=row.get("label", ""))
-            ws.cell(row=current_row, column=2, value=row.get("f", 0))
-            ws.cell(row=current_row, column=3, value=row.get("m", 0))
-            ws.cell(row=current_row, column=4, value=row.get("total", 0))
-            current_row += 1
-        ws.cell(row=current_row, column=1, value="TOTAL").font = Font(bold=True)
-        ws.cell(row=current_row, column=2, value=section["total_f"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=3, value=section["total_m"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=4, value=section["total_all"]).font = Font(bold=True)
-        row_index = current_row + 3
-    for col, width in {"A": 40, "B": 14, "C": 14, "D": 22}.items():
-        ws.column_dimensions[col].width = width
+    wb = make_workbook()
+    build_bonafide_sheet(wb, bundle["bonafide"], title="Bonafide")
+    build_no_duplicado_sheet(wb, bundle["no_duplicado"], title="No Duplicado")
+    build_no_duplicado_sheet(wb, bundle["duplicado"], title="Duplicado", duplicated=True)
+    build_visitas_sheet(wb, bundle["visitas"], title="Visitas", rows=visit_rows, include_totals_when_empty=True)
+    build_por_programa_sheet(wb, bundle["por_programa"], title="Por Programa")
+    build_hoja_cotejo_sheet(wb, bundle["hoja_cotejo"], title="Hoja Cotejo")
+    build_desercion_sheet(wb, bundle["desercion"], title="Desercion")
+    build_embarazo_sheet(wb, bundle["embarazo"], title="Embarazo")
+    build_notas_sheet(wb, bundle["notas"], title="Notas")
+    build_vca_sheet(wb, bundle["vca"], title="VCA")
+    build_adm_sheet(wb, bundle["adm"], title="ADM")
 
-    hoja = bundle["hoja_cotejo"]
-    ws = make_sheet("Hoja Cotejo")
-    ws["A1"] = "Hoja de Cotejo"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Reporte por programa, clasificación y actividad"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"; ws["B4"] = hoja["residential_name"] or ""
-    ws["A5"] = "Municipio"; ws["B5"] = hoja["municipality"] or ""
-    ws["A6"] = "RQ"; ws["B6"] = hoja["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"; ws["B7"] = hoja["period_label"]
-    row_index = 10
-    for program_block in hoja.get("program_blocks", []):
-        ws.cell(row=row_index, column=1, value=f"Programa: {program_block['program_display_name']}").font = Font(bold=True)
-        row_index += 1
-        for population_block in program_block.get("population_blocks", []):
-            ws.cell(row=row_index, column=1, value=f"Clasificación / población: {population_block['population_label']}").font = Font(bold=True)
-            row_index += 1
-            headers = ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas contacto"]
-            for col_index, header in enumerate(headers, start=1):
-                cell = ws.cell(row=row_index, column=col_index, value=header)
-                cell.font = Font(bold=True)
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-            row_index += 1
-            if population_block.get("rows"):
-                for row in population_block["rows"]:
-                    ws.cell(row=row_index, column=1, value=f"{row['activity_code']} {row['activity_description'] or ''}".strip())
-                    ws.cell(row=row_index, column=2, value=row["activities_count"])
-                    ws.cell(row=row_index, column=3, value=row["duplicados"])
-                    ws.cell(row=row_index, column=4, value=row["unique_participants"])
-                    ws.cell(row=row_index, column=5, value=row["contact_hours"])
-                    row_index += 1
-            else:
-                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificación.")
-                row_index += 1
-            row_index += 1
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="Total Horas Contacto").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=hoja["total_contact_hours"]).font = Font(bold=True)
-    for col, width in {"A": 55, "B": 14, "C": 14, "D": 14, "E": 16}.items():
-        ws.column_dimensions[col].width = width
-
-    desercion = bundle["desercion"]
-    ws = make_sheet("Desercion")
-    ws.freeze_panes = "B6"
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Deserción Escolar"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(desercion)
-    ws["D3"] = "Periodo"; ws["E3"] = desercion["period_label"]
-    ws["A4"] = "Residencial"; ws["B4"] = desercion["residential_name"] or ""
-    ws["D4"] = "Reclutados totales"; ws["E4"] = desercion["total"]["recruited"]
-    headers = ["Residencial", "Total", "F", "M"] + desercion["grade_columns"] + ["Tutorías", "% Tutorías", "Escuela", "% Escuela", "10", "20", "30", "40"]
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=6, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    row_index = 7
-    for row in desercion.get("rows", []):
-        values = [row["residential_name"], row["recruited"], row["f"], row["m"], *[row["grades"].get(grade, 0) for grade in desercion["grade_columns"]], row["tutoring"], row["tutoring_pct"] / 100, row["school"], row["school_pct"] / 100, row["report_10"], row["report_20"], row["report_30"], row["report_40"]]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-            if col_index in {20, 22}:
-                cell.number_format = "0.00%"
-        row_index += 1
-    total_values = ["TOTAL", desercion["total"]["recruited"], desercion["total"]["f"], desercion["total"]["m"], *[desercion["total"]["grades"].get(grade, 0) for grade in desercion["grade_columns"]], desercion["total"]["tutoring"], desercion["total"]["tutoring_pct"] / 100, desercion["total"]["school"], desercion["total"]["school_pct"] / 100, desercion["total"]["report_10"], desercion["total"]["report_20"], desercion["total"]["report_30"], desercion["total"]["report_40"]]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-        if col_index in {20, 22}:
-            cell.number_format = "0.00%"
-
-    embarazo = bundle["embarazo"]
-    ws = make_sheet("Embarazo")
-    ws.freeze_panes = "A6"
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Embarazo"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(embarazo)
-    ws["D3"] = "Periodo"; ws["E3"] = embarazo["period_label"]
-    ws["A4"] = "Residencial"; ws["B4"] = embarazo["residential_name"] or ""
-    ws["D4"] = "Participación total"; ws["E4"] = embarazo["total"]["participation"]
-    headers = ["Residencial", "Total reclutados", "F", "M", "Participantes femeninas embarazadas", "Participantes masculinos que han embarazado", "% Prevención", "Embarazos", "No embarazos"]
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=6, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    row_index = 7
-    for row in embarazo.get("rows", []):
-        values = [row["residential_name"], row["recruited"], row["f"], row["m"], row["pregnant_f"], row["pregnant_m"], row["prevention_pct"] / 100, row["pregnancy_cases"], row["non_pregnant"]]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-            if col_index == 7:
-                cell.number_format = "0.00%"
-        row_index += 1
-    total_values = ["TOTAL", embarazo["total"]["recruited"], embarazo["total"]["f"], embarazo["total"]["m"], embarazo["total"]["pregnant_f"], embarazo["total"]["pregnant_m"], embarazo["total"]["prevention_pct"] / 100, embarazo["total"]["pregnancy_cases"], embarazo["total"]["non_pregnant"]]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-        if col_index == 7:
-            cell.number_format = "0.00%"
-
-    notas = bundle["notas"]
-    ws = make_sheet("Notas")
-    ws.freeze_panes = "A6"
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Notas"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = notas.get("proposal_label", "")
-    ws["D3"] = "Periodo"; ws["E3"] = notas["period_label"]
-    ws["A4"] = "Residencial"; ws["B4"] = notas["residential_name"] or ""
-    ws["D4"] = "Total evaluados"; ws["E4"] = notas["total_row"]["TOTAL"]
-    summary_headers = ["Nota", "Cantidad", "%"]
-    for col_index, header in enumerate(summary_headers, start=1):
-        cell = ws.cell(row=6, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-    row_index = 7
-    for segment in notas.get("general_chart_segments", []):
-        ws.cell(row=row_index, column=1, value=segment["label"])
-        ws.cell(row=row_index, column=2, value=segment["value"])
-        pct_cell = ws.cell(row=row_index, column=3, value=segment["percentage"] / 100)
-        pct_cell.number_format = "0.00%"
-        row_index += 1
-    row_index += 1
-    for col_index, header in enumerate(["Edad", "A", "B", "C", "D", "F", "Especial", "K", "TOTAL"], start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-    row_index += 1
-    for row in notas.get("rows", []):
-        values = [row["age_label"], row["A"], row["B"], row["C"], row["D"], row["F"], row["Especial"], row["K"], row["TOTAL"]]
-        for col_index, value in enumerate(values, start=1):
-            ws.cell(row=row_index, column=col_index, value=value).alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-    total_values = ["TOTALES", notas["total_row"]["A"], notas["total_row"]["B"], notas["total_row"]["C"], notas["total_row"]["D"], notas["total_row"]["F"], notas["total_row"]["Especial"], notas["total_row"]["K"], notas["total_row"]["TOTAL"]]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    vca = bundle["vca"]
-    ws = make_sheet("VCA")
-    ws.freeze_panes = "A9"
-    ws["A1"] = "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "INFORME VCA"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(vca)
-    ws["A4"] = "Residencial"; ws["B4"] = vca["residential_name"] or ""
-    ws["A5"] = "Periodo reportado"; ws["B5"] = vca["period_label"]
-    ws["A6"] = "Total personas con impedimentos"; ws["B6"] = vca["total_people"]
-    headers = ["Expediente", "Nombre", "Género", "Edad"] + [column.name for column in vca.get("columns", [])]
-    for col_index, header in enumerate(headers, start=1):
-        ws.cell(row=8, column=col_index, value=header).font = Font(bold=True)
-    for row_index, row in enumerate(vca.get("rows", []), start=9):
-        ws.cell(row=row_index, column=1, value=row.get("expediente", ""))
-        ws.cell(row=row_index, column=2, value=row.get("nombre", ""))
-        ws.cell(row=row_index, column=3, value=row.get("genero", ""))
-        ws.cell(row=row_index, column=4, value=row.get("edad", ""))
-        for offset, column in enumerate(vca.get("columns", []), start=5):
-            ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
-
-    adm = bundle["adm"]
-    ws = make_sheet("ADM")
-    ws.freeze_panes = "A7"
-    ws["A1"] = "AREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "INFORME ADM"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(adm)
-    ws["A4"] = "Residencial"; ws["B4"] = adm["residential_name"] or ""
-    ws["A5"] = "Periodo reportado"; ws["B5"] = adm["period_label"]
-    ws["A6"] = "Funcionario autorizado"; ws["B6"] = adm["authorized_name"] or ""
-    for idx, header in enumerate(["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"], start=1):
-        cell = ws.cell(row=7, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    row_index = 8
-    for row in adm.get("rows", []):
-        ws.cell(row=row_index, column=1, value=row["service_type_name"])
-        ws.cell(row=row_index, column=2, value=row["services_count"])
-        ws.cell(row=row_index, column=3, value=row["duplicados"])
-        ws.cell(row=row_index, column=4, value=row["no_duplicados"])
-        row_index += 1
-    if not adm.get("rows"):
-        ws.cell(row=row_index, column=1, value="No hay tipos de servicio ADM configurados o no hay datos para ese filtro.")
-        row_index += 1
-    row_index += 2
-    ws.cell(row=row_index, column=1, value="Socio-Demográfico").font = Font(bold=True, size=12)
-    row_index += 1
-    for idx, header in enumerate(["Edad", "F", "M", "Por Ciento", "Diversidad Funcional"], start=1):
-        cell = ws.cell(row=row_index, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    row_index += 1
-    for row in adm.get("sociodemographic_rows", []):
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["f"])
-        ws.cell(row=row_index, column=3, value=row["m"])
-        ws.cell(row=row_index, column=4, value=row["percent"])
-        ws.cell(row=row_index, column=5, value=row["vca"])
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=adm["sociodemographic_total"]["f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=adm["sociodemographic_total"]["m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=100 if adm["sociodemographic_total"]["total"] else 0).font = Font(bold=True)
-    ws.cell(row=row_index, column=5, value=adm["sociodemographic_total"]["vca"]).font = Font(bold=True)
-    row_index += 2
-    ws.cell(row=row_index, column=1, value="Composición Familiar").font = Font(bold=True, size=12)
-    row_index += 1
-    for idx, header in enumerate(["Composición familiar", "Cantidad"], start=1):
-        cell = ws.cell(row=row_index, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    row_index += 1
-    for row in adm.get("family_rows", []):
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["count"])
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=adm["family_total"]).font = Font(bold=True)
-    for col, width in {"A": 40, "B": 14, "C": 14, "D": 16, "E": 22}.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    output = workbook_to_bytes(wb)
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1351,96 +977,9 @@ def adm_report_excel(
     if not (proposal_id and context["period_label"]):
         return RedirectResponse("/ui/reports/adm", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "ADM"
-    ws.freeze_panes = "A7"
-    ws.sheet_view.showGridLines = False
-    ws["A1"] = "AREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "INFORME ADM"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Periodo reportado"
-    ws["B5"] = context["period_label"]
-    ws["A6"] = "Funcionario autorizado"
-    ws["B6"] = context["authorized_name"] or ""
-
-    headers = ["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"]
-    for idx, header in enumerate(headers, start=1):
-        cell = ws.cell(row=7, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.fill = PatternFill(fill_type="solid", fgColor="D9EAF7")
-        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-
-    row_index = 8
-    for row in context["rows"]:
-        ws.cell(row=row_index, column=1, value=row["service_type_name"])
-        ws.cell(row=row_index, column=2, value=row["services_count"])
-        ws.cell(row=row_index, column=3, value=row["duplicados"])
-        ws.cell(row=row_index, column=4, value=row["no_duplicados"])
-        row_index += 1
-
-    if not context["rows"]:
-        ws.cell(row=row_index, column=1, value="No hay tipos de servicio ADM configurados o no hay datos para ese filtro.")
-        ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=4)
-        row_index += 1
-
-    row_index += 2
-    ws.cell(row=row_index, column=1, value="Socio-Demográfico").font = Font(bold=True, size=12)
-    row_index += 1
-    demo_headers = ["Edad", "F", "M", "Por Ciento", "Diversidad Funcional"]
-    for idx, header in enumerate(demo_headers, start=1):
-        cell = ws.cell(row=row_index, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.fill = PatternFill(fill_type="solid", fgColor="FCE4D6")
-        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-    row_index += 1
-    for row in context["sociodemographic_rows"]:
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["f"])
-        ws.cell(row=row_index, column=3, value=row["m"])
-        ws.cell(row=row_index, column=4, value=row["percent"])
-        ws.cell(row=row_index, column=5, value=row["vca"])
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=context["sociodemographic_total"]["f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=context["sociodemographic_total"]["m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=100 if context["sociodemographic_total"]["total"] else 0).font = Font(bold=True)
-    ws.cell(row=row_index, column=5, value=context["sociodemographic_total"]["vca"]).font = Font(bold=True)
-
-    row_index += 2
-    ws.cell(row=row_index, column=1, value="Composición Familiar").font = Font(bold=True, size=12)
-    row_index += 1
-    family_headers = ["Composición familiar", "Cantidad"]
-    for idx, header in enumerate(family_headers, start=1):
-        cell = ws.cell(row=row_index, column=idx, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.fill = PatternFill(fill_type="solid", fgColor="E2F0D9")
-        cell.border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-    row_index += 1
-    for row in context["family_rows"]:
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["count"])
-        row_index += 1
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=context["family_total"]).font = Font(bold=True)
-
-    ws.column_dimensions["A"].width = 40
-    ws.column_dimensions["B"].width = 14
-    ws.column_dimensions["C"].width = 14
-    ws.column_dimensions["D"].width = 16
-    ws.column_dimensions["E"].width = 22
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_adm_sheet(wb, context, title="ADM")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "adm").replace(" ", "_")
     filename = f"adm_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
     return StreamingResponse(
@@ -1448,6 +987,7 @@ def adm_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 
 
 def _build_school_dropout_summary_context(
@@ -2192,67 +1732,9 @@ def visits_report_excel(
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/visitas", status_code=303)
 
-    proposal_label = next(
-        (f"{proposal.code} - {proposal.name}" for proposal in context["proposals"] if proposal.proposal_id == context["selected_proposal_id"]),
-        "",
-    )
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Visitas"
-    ws.freeze_panes = "A6"
-
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Reporte de Visitas"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = proposal_label
-    ws["D3"] = "Periodo"
-    ws["E3"] = context["period_label"]
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["D4"] = "Visitas"
-    ws["E4"] = context["summary"]["visits"]
-    ws["G4"] = "Asistencias"
-    ws["H4"] = context["summary"]["attendances"]
-    ws["J4"] = "Horas"
-    ws["K4"] = context["summary"]["hours"]
-
-    headers = ["Empleado", "Visitas registradas", "Asistencias acumuladas", "Horas acumuladas"]
-    header_row = 6
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index = header_row + 1
-    for row in context["rows"]:
-        values = [row["employee_name"], row["visits"], row["attendances"], row["hours"]]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            if col_index == 4:
-                cell.number_format = "0.00"
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-
-    if context["rows"]:
-        totals = ["TOTALES", context["summary"]["visits"], context["summary"]["attendances"], context["summary"]["hours"]]
-        for col_index, value in enumerate(totals, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.font = Font(bold=True)
-            if col_index == 4:
-                cell.number_format = "0.00"
-            cell.alignment = Alignment(horizontal="center")
-
-    ws.column_dimensions["A"].width = 34
-    ws.column_dimensions["B"].width = 18
-    ws.column_dimensions["C"].width = 20
-    ws.column_dimensions["D"].width = 18
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_visitas_sheet(wb, context, title="Visitas")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "visitas").replace(" ", "_")
     filename = f"visitas_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -2261,6 +1743,7 @@ def visits_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 
 
 def _calculate_no_duplicado_metric(
@@ -2574,115 +2057,9 @@ def notes_report_excel(
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/notas", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Notas"
-    ws.freeze_panes = "A6"
-
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Notas"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = context["proposal_label"]
-    ws["D3"] = "Periodo"
-    ws["E3"] = context["period_label"]
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["D4"] = "Total evaluados"
-    ws["E4"] = context["total_row"]["TOTAL"]
-
-    summary_headers = ["Nota", "Cantidad", "%"]
-    summary_row = 6
-    for col_index, header in enumerate(summary_headers, start=1):
-        cell = ws.cell(row=summary_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index = summary_row + 1
-    for segment in context["general_chart_segments"]:
-        ws.cell(row=row_index, column=1, value=segment["label"])
-        ws.cell(row=row_index, column=2, value=segment["value"])
-        pct_cell = ws.cell(row=row_index, column=3, value=segment["percentage"] / 100)
-        pct_cell.number_format = "0.00%"
-        row_index += 1
-
-    row_index += 1
-    table_header_row = row_index
-    headers = ["Edad", "A", "B", "C", "D", "F", "Especial", "K", "TOTAL"]
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=table_header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index = table_header_row + 1
-    for row in context["rows"]:
-        values = [row["age_label"], row["A"], row["B"], row["C"], row["D"], row["F"], row["Especial"], row["K"], row["TOTAL"]]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-
-    total_values = ["TOTALES", context["total_row"]["A"], context["total_row"]["B"], context["total_row"]["C"], context["total_row"]["D"], context["total_row"]["F"], context["total_row"]["Especial"], context["total_row"]["K"], context["total_row"]["TOTAL"]]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index += 2
-    residential_header_row = row_index
-    residential_headers = ["Residencial", "A", "B", "C", "D", "F", "TOTAL"]
-    for col_index, header in enumerate(residential_headers, start=1):
-        cell = ws.cell(row=residential_header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index = residential_header_row + 1
-    for residential_row in context["residential_chart_rows"]:
-        values = [
-            residential_row["residential_name"],
-            residential_row["A"],
-            residential_row["B"],
-            residential_row["C"],
-            residential_row["D"],
-            residential_row["F"],
-            residential_row["total"],
-        ]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-
-    row_index += 2
-    subject_header_row = row_index
-    subject_headers = ["Materia", "A", "B", "C", "D", "F"]
-    for col_index, header in enumerate(subject_headers, start=1):
-        cell = ws.cell(row=subject_header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-
-    row_index = subject_header_row + 1
-    for subject_card in context["subject_chart_cards"]:
-        values = [
-            subject_card["subject_name"],
-            subject_card["counts"]["A"],
-            subject_card["counts"]["B"],
-            subject_card["counts"]["C"],
-            subject_card["counts"]["D"],
-            subject_card["counts"]["F"],
-        ]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-        row_index += 1
-
-    widths = {"A": 24, "B": 16, "C": 12, "D": 16, "E": 16, "F": 12, "G": 12, "H": 12, "I": 12}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_notas_sheet(wb, context, title="Notas")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "notas").replace(" ", "_")
     filename = f"notas_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -2745,87 +2122,9 @@ def pregnancy_summary_report_excel(
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/embarazo", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Embarazo"
-    ws.freeze_panes = "A6"
-
-    proposal_label = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Embarazo"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = proposal_label
-    ws["D3"] = "Periodo"
-    ws["E3"] = context["period_label"]
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["D4"] = "Participación total"
-    ws["E4"] = context["total"]["participation"]
-
-    headers = [
-        "Residencial",
-        "Total reclutados",
-        "F",
-        "M",
-        "Participantes femeninas embarazadas",
-        "Participantes masculinos que han embarazado",
-        "% Prevención",
-        "Embarazos",
-        "No embarazos",
-    ]
-    header_row = 6
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    row_index = header_row + 1
-    for row in context["rows"]:
-        values = [
-            row["residential_name"],
-            row["recruited"],
-            row["f"],
-            row["m"],
-            row["pregnant_f"],
-            row["pregnant_m"],
-            row["prevention_pct"] / 100,
-            row["pregnancy_cases"],
-            row["non_pregnant"],
-        ]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
-            if col_index == 7:
-                cell.number_format = "0.00%"
-        row_index += 1
-
-    total_values = [
-        "TOTAL",
-        context["total"]["recruited"],
-        context["total"]["f"],
-        context["total"]["m"],
-        context["total"]["pregnant_f"],
-        context["total"]["pregnant_m"],
-        context["total"]["prevention_pct"] / 100,
-        context["total"]["pregnancy_cases"],
-        context["total"]["non_pregnant"],
-    ]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-        if col_index == 7:
-            cell.number_format = "0.00%"
-
-    widths = {"A": 28, "B": 15, "C": 8, "D": 8, "E": 22, "F": 24, "G": 14, "H": 12, "I": 14}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_embarazo_sheet(wb, context, title="Embarazo")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "embarazo").replace(" ", "_")
     filename = f"embarazo_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -2888,92 +2187,9 @@ def school_dropout_summary_report_excel(
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/desercion-escolar", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Desercion"
-    ws.freeze_panes = "B6"
-
-    proposal_label = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
-    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Informe de Deserción Escolar"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = proposal_label
-    ws["D3"] = "Periodo"
-    ws["E3"] = context["period_label"]
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["D4"] = "Reclutados totales"
-    ws["E4"] = context["total"]["recruited"]
-
-    headers = ["Residencial", "Total", "F", "M"] + context["grade_columns"] + ["Tutorías", "% Tutorías", "Escuela", "% Escuela", "10", "20", "30", "40"]
-    header_row = 6
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    row_index = header_row + 1
-    for row in context["rows"]:
-        values = [
-            row["residential_name"],
-            row["recruited"],
-            row["f"],
-            row["m"],
-            *[row["grades"].get(grade, 0) for grade in context["grade_columns"]],
-            row["tutoring"],
-            row["tutoring_pct"] / 100,
-            row["school"],
-            row["school_pct"] / 100,
-            row["report_10"],
-            row["report_20"],
-            row["report_30"],
-            row["report_40"],
-        ]
-        for col_index, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            if col_index in {1}:
-                cell.alignment = Alignment(horizontal="left")
-            else:
-                cell.alignment = Alignment(horizontal="center")
-            if col_index in {20, 22}:
-                cell.number_format = "0.00%"
-        row_index += 1
-
-    total_values = [
-        "TOTAL",
-        context["total"]["recruited"],
-        context["total"]["f"],
-        context["total"]["m"],
-        *[context["total"]["grades"].get(grade, 0) for grade in context["grade_columns"]],
-        context["total"]["tutoring"],
-        context["total"]["tutoring_pct"] / 100,
-        context["total"]["school"],
-        context["total"]["school_pct"] / 100,
-        context["total"]["report_10"],
-        context["total"]["report_20"],
-        context["total"]["report_30"],
-        context["total"]["report_40"],
-    ]
-    for col_index, value in enumerate(total_values, start=1):
-        cell = ws.cell(row=row_index, column=col_index, value=value)
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center")
-        if col_index in {20, 22}:
-            cell.number_format = "0.00%"
-
-    widths = {
-        "A": 26, "B": 10, "C": 8, "D": 8, "E": 6, "F": 6, "G": 6, "H": 6, "I": 6,
-        "J": 6, "K": 6, "L": 6, "M": 6, "N": 6, "O": 6, "P": 6, "Q": 6, "R": 6,
-        "S": 10, "T": 12, "U": 10, "V": 12, "W": 8, "X": 8, "Y": 8, "Z": 8,
-    }
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_desercion_sheet(wb, context, title="Desercion")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "desercion_escolar").replace(" ", "_")
     filename = f"desercion_escolar_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3040,52 +2256,9 @@ def duplicado_report_excel(
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/duplicado", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Duplicado"
-
-    ws["A1"] = "Informe mensual de participaciones"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Duplicado por edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-    ws["A8"] = "Funcionario autorizado"
-    ws["B8"] = context["authorized_name"] or ""
-
-    headers = ["Clasificación", "F", "M", "Total de participaciones"]
-    header_row = 10
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-
-    row_index = header_row + 1
-    for row in context["rows"]:
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["f"])
-        ws.cell(row=row_index, column=3, value=row["m"])
-        ws.cell(row=row_index, column=4, value=row["total"])
-        row_index += 1
-
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=context["total_f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=context["total_m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=context["total_all"]).font = Font(bold=True)
-
-    widths = {"A": 35, "B": 10, "C": 10, "D": 20}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-
+    wb = make_workbook()
+    build_no_duplicado_sheet(wb, context, title="Duplicado", duplicated=True)
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "duplicado").replace(" ", "_")
     filename = f"duplicado_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3168,67 +2341,9 @@ def hoja_cotejo_report_excel(
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/hoja-cotejo", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Hoja de Cotejo"
-
-    ws["A1"] = "Hoja de Cotejo"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Reporte por programa, clasificación y actividad"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-
-    row_index = 10
-    for program_block in context["program_blocks"]:
-        ws.cell(row=row_index, column=1, value=f"Programa: {program_block['program_display_name']}").font = Font(bold=True)
-        row_index += 1
-
-        for population_block in program_block["population_blocks"]:
-            ws.cell(row=row_index, column=1, value=f"Clasificación / población: {population_block['population_label']}").font = Font(bold=True)
-            row_index += 1
-
-            headers = ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas contacto"]
-            for col_index, header in enumerate(headers, start=1):
-                cell = ws.cell(row=row_index, column=col_index, value=header)
-                cell.font = Font(bold=True)
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-            row_index += 1
-
-            if population_block["rows"]:
-                for row in population_block["rows"]:
-                    ws.cell(row=row_index, column=1, value=f"{row['activity_code']} {row['activity_description'] or ''}".strip())
-                    ws.cell(row=row_index, column=2, value=row["activities_count"])
-                    ws.cell(row=row_index, column=3, value=row["duplicados"])
-                    ws.cell(row=row_index, column=4, value=row["unique_participants"])
-                    ws.cell(row=row_index, column=5, value=row["contact_hours"])
-                    row_index += 1
-            else:
-                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificación.")
-                row_index += 1
-
-            row_index += 1
-
-        row_index += 1
-
-    ws.cell(row=row_index, column=1, value="Total Horas Contacto")
-    ws.cell(row=row_index, column=2, value=context["total_contact_hours"])
-    ws.cell(row=row_index, column=1).font = Font(bold=True)
-    ws.cell(row=row_index, column=2).font = Font(bold=True)
-
-    widths = {"A": 55, "B": 14, "C": 14, "D": 14, "E": 16}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_hoja_cotejo_sheet(wb, context, title="Hoja de Cotejo")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "hoja_cotejo").replace(" ", "_")
     filename = f"hoja_cotejo_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3295,67 +2410,9 @@ def por_programa_report_excel(
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/por-programa", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Por Programa"
-
-    ws["A1"] = "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Participación no duplicada por programa, edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-    ws["A8"] = "Funcionario autorizado"
-    ws["B8"] = context["authorized_name"] or ""
-
-    row_index = 10
-    for section in context["program_sections"]:
-        ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}").font = Font(bold=True)
-        ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
-        ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
-
-        header_row = row_index + 3
-        ws.cell(row=header_row, column=1, value="Clasificación").font = Font(bold=True)
-        ws.cell(row=header_row, column=2, value="Número de participantes por edad y sexo").font = Font(bold=True)
-        ws.cell(row=header_row, column=4, value="Total de participantes").font = Font(bold=True)
-        ws.merge_cells(start_row=header_row, start_column=2, end_row=header_row, end_column=3)
-        ws.merge_cells(start_row=header_row, start_column=1, end_row=header_row + 1, end_column=1)
-        ws.merge_cells(start_row=header_row, start_column=4, end_row=header_row + 1, end_column=4)
-        ws.cell(row=header_row + 1, column=2, value="F").font = Font(bold=True)
-        ws.cell(row=header_row + 1, column=3, value="M").font = Font(bold=True)
-
-        for col_index in range(1, 5):
-            ws.cell(row=header_row, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
-            ws.cell(row=header_row + 1, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
-
-        current_row = header_row + 2
-        for row in section["rows"]:
-            ws.cell(row=current_row, column=1, value=row["label"])
-            ws.cell(row=current_row, column=2, value=row["f"])
-            ws.cell(row=current_row, column=3, value=row["m"])
-            ws.cell(row=current_row, column=4, value=row["total"])
-            current_row += 1
-
-        ws.cell(row=current_row, column=1, value="TOTAL").font = Font(bold=True)
-        ws.cell(row=current_row, column=2, value=section["total_f"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=3, value=section["total_m"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=4, value=section["total_all"]).font = Font(bold=True)
-
-        row_index = current_row + 3
-
-    widths = {"A": 40, "B": 14, "C": 14, "D": 22}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_por_programa_sheet(wb, context, title="Por Programa")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "por_programa").replace(" ", "_")
     filename = f"por_programa_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3403,52 +2460,9 @@ def no_duplicado_report_excel(
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/no-duplicado", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "No Duplicado"
-
-    ws["A1"] = "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "No Duplicado por edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-    ws["A8"] = "Funcionario autorizado"
-    ws["B8"] = context["authorized_name"] or ""
-
-    headers = ["Clasificación", "F", "M", "Total de participantes"]
-    header_row = 10
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-
-    row_index = header_row + 1
-    for row in context["rows"]:
-        ws.cell(row=row_index, column=1, value=row["label"])
-        ws.cell(row=row_index, column=2, value=row["f"])
-        ws.cell(row=row_index, column=3, value=row["m"])
-        ws.cell(row=row_index, column=4, value=row["total"])
-        row_index += 1
-
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=context["total_f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=context["total_m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=context["total_all"]).font = Font(bold=True)
-
-    widths = {"A": 35, "B": 10, "C": 10, "D": 20}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-
+    wb = make_workbook()
+    build_no_duplicado_sheet(wb, context, title="No Duplicado")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "no_duplicado").replace(" ", "_")
     filename = f"no_duplicado_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3457,6 +2471,7 @@ def no_duplicado_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 
 
 def _build_hoja_cotejo_context(
@@ -3771,48 +2786,9 @@ def vca_report_excel(
     if not (proposal_id and context["period_label"] and context["columns"]):
         return RedirectResponse("/ui/reports/vca", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "VCA"
-    ws.freeze_panes = "A9"
-    ws.sheet_view.showGridLines = False
-    ws["A1"] = "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "INFORME VCA"
-    ws["A2"].font = Font(bold=True, size=12)
-    ws["A3"] = "Propuesta"
-    ws["B3"] = next((f"{p.code} - {p.name}" for p in context["proposals"] if p.proposal_id == context["selected_proposal_id"]), "")
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Periodo reportado"
-    ws["B5"] = context["period_label"]
-    ws["A6"] = "Total personas con impedimentos"
-    ws["B6"] = context["total_people"]
-
-    headers = ["Expediente", "Nombre", "Género", "Edad"] + [column.name for column in context["columns"]]
-    header_row = 8
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-
-    for row_index, row in enumerate(context["rows"], start=header_row + 1):
-        ws.cell(row=row_index, column=1, value=row["expediente"])
-        ws.cell(row=row_index, column=2, value=row["nombre"])
-        ws.cell(row=row_index, column=3, value=row["genero"])
-        ws.cell(row=row_index, column=4, value=row["edad"])
-        for offset, column in enumerate(context["columns"], start=5):
-            ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
-
-    ws.column_dimensions["A"].width = 20
-    ws.column_dimensions["B"].width = 35
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 10
-    for index in range(len(context["columns"])):
-        ws.column_dimensions[chr(69 + index)].width = 28
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+    wb = make_workbook()
+    build_vca_sheet(wb, context, title="VCA")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "vca").replace(" ", "_")
     filename = f"vca_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
     return StreamingResponse(
@@ -3875,45 +2851,9 @@ def bonafide_report_excel(
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/bonafide", status_code=303)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Bonafide"
-
-    ws["A1"] = "Programa Faro de Esperanza"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Listado Bonafide"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Periodo"
-    ws["B4"] = context["period_label"]
-    ws["A5"] = "Residencial"
-    ws["B5"] = context["residential_name"] or ""
-    ws["A6"] = "Municipio"
-    ws["B6"] = context["municipality"] or ""
-
-    headers = ["#", "Expediente", "Nombre", "F", "M", "Edad", "Edif.", "Apto."]
-    header_row = 8
-    for col_index, header in enumerate(headers, start=1):
-        cell = ws.cell(row=header_row, column=col_index, value=header)
-        cell.font = Font(bold=True)
-
-    for row_index, row in enumerate(context["rows"], start=header_row + 1):
-        ws.cell(row=row_index, column=1, value=row["index"])
-        ws.cell(row=row_index, column=2, value=row["expediente"])
-        ws.cell(row=row_index, column=3, value=row["nombre"])
-        ws.cell(row=row_index, column=4, value=row["f"])
-        ws.cell(row=row_index, column=5, value=row["m"])
-        ws.cell(row=row_index, column=6, value=row["edad"])
-        ws.cell(row=row_index, column=7, value=row["edificio"])
-        ws.cell(row=row_index, column=8, value=row["apartamento"])
-
-    widths = {"A": 6, "B": 20, "C": 40, "D": 6, "E": 6, "F": 8, "G": 12, "H": 12}
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-
+    wb = make_workbook()
+    build_bonafide_sheet(wb, context, title="Bonafide")
+    output = workbook_to_bytes(wb)
     safe_residential = (context["residential_name"] or "bonafide").replace(" ", "_")
     filename = f"bonafide_{safe_residential}_{_period_filename_suffix(context)}.xlsx"
 
@@ -3922,4 +2862,3 @@ def bonafide_report_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
