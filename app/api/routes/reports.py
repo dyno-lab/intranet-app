@@ -1025,9 +1025,9 @@ def all_reports_excel(
     employee_records = db.execute(
         select(Employee)
         .where(Employee.is_active == True)  # noqa: E712
-        .order_by(Employee.nombre, Employee.apellido)
+        .order_by(Employee.full_name)
     ).scalars().all()
-    visible_employee_names = [f"{employee.nombre} {employee.apellido}".strip() for employee in employee_records]
+    visible_employee_names = [employee.full_name.strip() for employee in employee_records]
     existing_by_name = {row.get("employee_name", ""): row for row in visitas.get("rows", [])}
     normalized_rows = []
     for employee_name in visible_employee_names:
