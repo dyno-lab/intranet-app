@@ -866,7 +866,7 @@ def _build_all_reports_bundle_context(
         "duplicado": _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date),
         "visitas": _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
         "por_programa": _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-        "hoja_cotejo": _build_checklist_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "hoja_cotejo": _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
         "desercion": _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
         "embarazo": _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
         "notas": _build_school_grade_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
