@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -19,5 +20,9 @@ class Settings(BaseSettings):
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
     DB_ENCRYPT: str = "yes"
     DB_TRUST_CERT: str = "yes"
+
+    # Optional explicit path for wkhtmltopdf. If omitted, the app will try PATH.
+    WKHTMLTOPDF_PATH: str | None = None
+
 
 settings = Settings()

@@ -81,7 +81,12 @@ from app.services.report_programs import (
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
     resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks,
 )
-from app.services.report_pdf import render_template_to_pdf_bytes, build_zip_bytes
+from app.services.report_pdf import (
+    PDFBackendUnavailableError,
+    PDFRenderError,
+    build_zip_bytes,
+    render_template_to_pdf_bytes,
+)
 from app.services.notes_chart_svg import build_notes_pdf_chart_images
 from app.services.visits import (
     resolve_report_scope,
@@ -920,12 +925,17 @@ def _render_report_pdf_response(
     filename: str,
 ) -> Response:
     pdf_context = {**context, "request": request}
-    pdf_bytes = render_template_to_pdf_bytes(
-        templates=templates,
-        template_name=template_name,
-        context=pdf_context,
-        request=request,
-    )
+    try:
+        pdf_bytes = render_template_to_pdf_bytes(
+            templates=templates,
+            template_name=template_name,
+            context=pdf_context,
+            request=request,
+        )
+    except PDFBackendUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -965,8 +975,13 @@ def all_reports_pdf(
     ]
 
     files = []
-    for _, template_name, context, filename in pdf_specs:
-        files.append((filename, render_template_to_pdf_bytes(templates=templates, template_name=template_name, context={**context, "request": request}, request=request)))
+    try:
+        for _, template_name, context, filename in pdf_specs:
+            files.append((filename, render_template_to_pdf_bytes(templates=templates, template_name=template_name, context={**context, "request": request}, request=request)))
+    except PDFBackendUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     zip_filename = _pdf_download_filename("todos_los_reportes", bundle["bonafide"], extension="zip")
     zip_bytes = build_zip_bytes(files)
