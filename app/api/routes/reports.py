@@ -1022,11 +1022,12 @@ def all_reports_excel(
         cell = ws.cell(row=6, column=col_index, value=header)
         cell.font = Font(bold=True)
         cell.alignment = Alignment(horizontal="center")
-    visible_employee_names = []
-    if visitas.get("is_global"):
-        visible_employee_names = [f"{u.username} ({_residential_from_user(u)})" for u in visitas.get("report_users", [])]
-    elif visitas.get("selected_user"):
-        visible_employee_names = [visitas["selected_user"].username]
+    employee_records = db.execute(
+        select(Employee)
+        .where(Employee.is_active == True)  # noqa: E712
+        .order_by(Employee.nombre, Employee.apellido)
+    ).scalars().all()
+    visible_employee_names = [f"{employee.nombre} {employee.apellido}".strip() for employee in employee_records]
     existing_by_name = {row.get("employee_name", ""): row for row in visitas.get("rows", [])}
     normalized_rows = []
     for employee_name in visible_employee_names:
