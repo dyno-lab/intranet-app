@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, extract, func, distinct
 from sqlalchemy.orm import Session
@@ -81,6 +81,8 @@ from app.services.report_programs import (
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
     resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks,
 )
+from app.services.report_pdf import render_template_to_pdf_bytes, build_zip_bytes
+from app.services.notes_chart_svg import build_notes_pdf_chart_images
 from app.services.visits import (
     resolve_report_scope,
     get_or_create_visit_report,
@@ -859,6 +861,25 @@ def adm_report_pdf(
     return templates.TemplateResponse("ui/reports/adm_pdf.html", context)
 
 
+@router.get("/adm/pdf/download")
+def adm_report_pdf_download(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"current_user": current_user})
+    return _render_report_pdf_response(request, "ui/reports/adm_pdf.html", context, _pdf_download_filename("adm", context))
+
+
 def _build_all_reports_bundle_context(
     db: Session,
     current_user: User,
@@ -886,7 +907,33 @@ def _build_all_reports_bundle_context(
     }
 
 
-@router.get("/todos/pdf", response_class=HTMLResponse)
+def _pdf_download_filename(prefix: str, context: dict, extension: str = "pdf") -> str:
+    safe_residential = (context.get("residential_name") or prefix).replace(" ", "_")
+    return f"{prefix}_{safe_residential}_{_period_filename_suffix(context)}.{extension}"
+
+
+
+def _render_report_pdf_response(
+    request: Request,
+    template_name: str,
+    context: dict,
+    filename: str,
+) -> Response:
+    pdf_context = {**context, "request": request}
+    pdf_bytes = render_template_to_pdf_bytes(
+        templates=templates,
+        template_name=template_name,
+        context=pdf_context,
+        request=request,
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/todos/pdf")
 def all_reports_pdf(
     request: Request,
     proposal_id: int | None = None,
@@ -901,8 +948,33 @@ def all_reports_pdf(
     current_user: User = Depends(get_current_user),
 ):
     bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
-    bundle.update({"request": request, "current_user": current_user, "authorized_name": authorized_name or ""})
-    return templates.TemplateResponse("ui/reports/all_reports_pdf.html", bundle)
+    shared_context = {"current_user": current_user, "authorized_name": authorized_name or ""}
+
+    pdf_specs = [
+        ("bonafide", "ui/reports/bonafide_pdf.html", {**bundle["bonafide"], **shared_context}, _pdf_download_filename("bonafide", bundle["bonafide"])),
+        ("no_duplicado", "ui/reports/no_duplicado_pdf.html", {**bundle["no_duplicado"], **shared_context}, _pdf_download_filename("no_duplicado", bundle["no_duplicado"])),
+        ("duplicado", "ui/reports/duplicado_pdf.html", {**bundle["duplicado"], **shared_context}, _pdf_download_filename("duplicado", bundle["duplicado"])),
+        ("visitas", "ui/reports/visitas_pdf.html", {**bundle["visitas"], **shared_context}, _pdf_download_filename("visitas", bundle["visitas"])),
+        ("por_programa", "ui/reports/por_programa_pdf.html", {**bundle["por_programa"], **shared_context}, _pdf_download_filename("por_programa", bundle["por_programa"])),
+        ("hoja_cotejo", "ui/reports/hoja_cotejo_pdf.html", {**bundle["hoja_cotejo"], **shared_context}, _pdf_download_filename("hoja_cotejo", bundle["hoja_cotejo"])),
+        ("desercion", "ui/reports/desercion_escolar_pdf.html", {**bundle["desercion"], **shared_context}, _pdf_download_filename("desercion_escolar", bundle["desercion"])),
+        ("embarazo", "ui/reports/embarazo_pdf.html", {**bundle["embarazo"], **shared_context}, _pdf_download_filename("embarazo", bundle["embarazo"])),
+        ("notas", "ui/reports/notas_pdf.html", {**bundle["notas"], **shared_context, **build_notes_pdf_chart_images(bundle["notas"])}, _pdf_download_filename("notas", bundle["notas"])),
+        ("vca", "ui/reports/vca_pdf.html", {**bundle["vca"], **shared_context}, _pdf_download_filename("vca", bundle["vca"])),
+        ("adm", "ui/reports/adm_pdf.html", {**bundle["adm"], **shared_context}, _pdf_download_filename("adm", bundle["adm"])),
+    ]
+
+    files = []
+    for _, template_name, context, filename in pdf_specs:
+        files.append((filename, render_template_to_pdf_bytes(templates=templates, template_name=template_name, context={**context, "request": request}, request=request)))
+
+    zip_filename = _pdf_download_filename("todos_los_reportes", bundle["bonafide"], extension="zip")
+    zip_bytes = build_zip_bytes(files)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+    )
 
 
 @router.get("/todos/excel")
@@ -2020,22 +2092,29 @@ def notes_report_pdf(
 
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     subject_chart_image_list = [img for img in (subject_chart_images or "").split("||") if img]
-    subject_chart_sections = [
-        {
+    fallback_chart_images = build_notes_pdf_chart_images(context)
+    subject_chart_sections = []
+    fallback_sections = fallback_chart_images["subject_chart_sections"]
+    for index, subject_card in enumerate(context["subject_chart_cards"]):
+        fallback_section = fallback_sections[index] if index < len(fallback_sections) else {
             "subject_name": subject_card["subject_name"],
-            "image": subject_chart_image_list[index] if index < len(subject_chart_image_list) else "",
+            "image": "",
             "counts": subject_card["counts"],
             "segments": subject_card["segments"],
         }
-        for index, subject_card in enumerate(context["subject_chart_cards"])
-    ]
+        subject_chart_sections.append({
+            "subject_name": subject_card["subject_name"],
+            "image": subject_chart_image_list[index] if index < len(subject_chart_image_list) and subject_chart_image_list[index] else fallback_section["image"],
+            "counts": subject_card["counts"],
+            "segments": subject_card["segments"],
+        })
 
     context.update({
         "request": request,
         "current_user": current_user,
-        "general_chart_image": general_chart_image or "",
-        "residential_chart_image": residential_chart_image or "",
-        "subject_chart_images": subject_chart_image_list,
+        "general_chart_image": general_chart_image or fallback_chart_images["general_chart_image"],
+        "residential_chart_image": residential_chart_image or fallback_chart_images["residential_chart_image"],
+        "subject_chart_images": [section["image"] for section in subject_chart_sections],
         "subject_chart_sections": subject_chart_sections,
     })
     return templates.TemplateResponse("ui/reports/notas_pdf.html", context)
@@ -2832,6 +2911,24 @@ def bonafide_report_pdf(
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/bonafide_pdf.html", context)
+
+
+@router.get("/bonafide/pdf/download")
+def bonafide_report_pdf_download(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"current_user": current_user})
+    return _render_report_pdf_response(request, "ui/reports/bonafide_pdf.html", context, _pdf_download_filename("bonafide", context))
 
 
 @router.get("/bonafide/excel")
