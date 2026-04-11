@@ -1022,8 +1022,25 @@ def all_reports_excel(
         cell = ws.cell(row=6, column=col_index, value=header)
         cell.font = Font(bold=True)
         cell.alignment = Alignment(horizontal="center")
+    visible_employee_names = []
+    if visitas.get("is_global"):
+        visible_employee_names = [f"{u.username} ({_residential_from_user(u)})" for u in visitas.get("report_users", [])]
+    elif visitas.get("selected_user"):
+        visible_employee_names = [visitas["selected_user"].username]
+    existing_by_name = {row.get("employee_name", ""): row for row in visitas.get("rows", [])}
+    normalized_rows = []
+    for employee_name in visible_employee_names:
+        row = existing_by_name.get(employee_name, None)
+        normalized_rows.append({
+            "employee_name": employee_name,
+            "visits": row.get("visits", 0) if row else 0,
+            "attendances": row.get("attendances", 0) if row else 0,
+            "hours": row.get("hours", 0) if row else 0,
+        })
+    if not normalized_rows:
+        normalized_rows = visitas.get("rows", [])
     row_index = 7
-    for row in visitas.get("rows", []):
+    for row in normalized_rows:
         values = [row.get("employee_name", ""), row.get("visits", 0), row.get("attendances", 0), row.get("hours", 0)]
         for col_index, value in enumerate(values, start=1):
             cell = ws.cell(row=row_index, column=col_index, value=value)
@@ -1031,14 +1048,13 @@ def all_reports_excel(
                 cell.number_format = "0.00"
             cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
         row_index += 1
-    if visitas.get("rows"):
-        totals = ["TOTALES", visitas["summary"]["visits"], visitas["summary"]["attendances"], visitas["summary"]["hours"]]
-        for col_index, value in enumerate(totals, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=value)
-            cell.font = Font(bold=True)
-            if col_index == 4:
-                cell.number_format = "0.00"
-            cell.alignment = Alignment(horizontal="center")
+    totals = ["TOTALES", visitas["summary"]["visits"], visitas["summary"]["attendances"], visitas["summary"]["hours"]]
+    for col_index, value in enumerate(totals, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        if col_index == 4:
+            cell.number_format = "0.00"
+        cell.alignment = Alignment(horizontal="center")
     for col, width in {"A": 34, "B": 18, "C": 20, "D": 18}.items():
         ws.column_dimensions[col].width = width
 
@@ -1267,6 +1283,9 @@ def all_reports_excel(
         ws.cell(row=row_index, column=3, value=row["duplicados"])
         ws.cell(row=row_index, column=4, value=row["no_duplicados"])
         row_index += 1
+    if not adm.get("rows"):
+        ws.cell(row=row_index, column=1, value="No hay tipos de servicio ADM configurados o no hay datos para ese filtro.")
+        row_index += 1
     row_index += 2
     ws.cell(row=row_index, column=1, value="Socio-Demográfico").font = Font(bold=True, size=12)
     row_index += 1
@@ -1282,6 +1301,27 @@ def all_reports_excel(
         ws.cell(row=row_index, column=4, value=row["percent"])
         ws.cell(row=row_index, column=5, value=row["vca"])
         row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=adm["sociodemographic_total"]["f"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=3, value=adm["sociodemographic_total"]["m"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=4, value=100 if adm["sociodemographic_total"]["total"] else 0).font = Font(bold=True)
+    ws.cell(row=row_index, column=5, value=adm["sociodemographic_total"]["vca"]).font = Font(bold=True)
+    row_index += 2
+    ws.cell(row=row_index, column=1, value="Composición Familiar").font = Font(bold=True, size=12)
+    row_index += 1
+    for idx, header in enumerate(["Composición familiar", "Cantidad"], start=1):
+        cell = ws.cell(row=row_index, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    row_index += 1
+    for row in adm.get("family_rows", []):
+        ws.cell(row=row_index, column=1, value=row["label"])
+        ws.cell(row=row_index, column=2, value=row["count"])
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=adm["family_total"]).font = Font(bold=True)
+    for col, width in {"A": 40, "B": 14, "C": 14, "D": 16, "E": 22}.items():
+        ws.column_dimensions[col].width = width
 
     output = BytesIO()
     wb.save(output)
