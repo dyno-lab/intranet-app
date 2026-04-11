@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Todos los reportes</title>
+  <style>
+    @page { size: letter landscape; margin: 0.4in; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 15px; }
+    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
+    .meta { font-size: 10px; margin: 8px 0 10px 0; }
+    .meta-row { display: flex; justify-content: space-between; gap: 12px; }
+    .meta-row div { flex: 1; }
+    .section-title { font-size: 12px; font-weight: 700; margin: 12px 0 6px 0; }
+    .note { font-size: 9px; color: #555; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 8px; }
+    th, td { border: 1px solid #333; padding: 4px 5px; }
+    th { background: #f2f2f2; text-align: center; }
+    td.center { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Reportes">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">CONSOLIDADO DE REPORTES</div>
+      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
+      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-row">
+        <div><strong>Periodo reportado:</strong> {{ bonafide.period_label or no_duplicado.period_label or visitas.period_label or '' }}</div>
+        <div><strong>Residencial:</strong> {{ bonafide.residential_name or no_duplicado.residential_name or visitas.residential_name or adm.residential_name or '' }}</div>
+        <div><strong>Funcionario autorizado:</strong> {{ authorized_name or '' }}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Índice del consolidado</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:8%;">#</th>
+          <th>Reporte</th>
+          <th style="width:24%;">Resumen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="center">1</td><td>Bonafide</td><td>{{ bonafide.rows|length }} registros</td></tr>
+        <tr><td class="center">2</td><td>No Duplicado</td><td>{{ no_duplicado.total_all }} participantes</td></tr>
+        <tr><td class="center">3</td><td>Duplicado</td><td>{{ duplicado.total_all }} participaciones</td></tr>
+        <tr><td class="center">4</td><td>Visitas</td><td>{{ visitas.summary.visits if visitas.summary else 0 }} visitas</td></tr>
+        <tr><td class="center">5</td><td>Por Programa</td><td>{{ por_programa.program_sections|length }} programas</td></tr>
+        <tr><td class="center">6</td><td>Hoja de Cotejo</td><td>{{ hoja_cotejo.total_contact_hours }} horas contacto</td></tr>
+        <tr><td class="center">7</td><td>Deserción Escolar</td><td>{{ desercion.total.recruited if desercion.total else 0 }} reclutados</td></tr>
+        <tr><td class="center">8</td><td>Embarazo</td><td>{{ embarazo.total.participation if embarazo.total else 0 }} participación</td></tr>
+        <tr><td class="center">9</td><td>Notas</td><td>{{ notas.total_row.TOTAL if notas.total_row else 0 }} evaluados</td></tr>
+        <tr><td class="center">10</td><td>VCA</td><td>{{ vca.total_people }} personas</td></tr>
+        <tr><td class="center">11</td><td>ADM</td><td>{{ adm.rows|length }} tipos de servicio</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Bonafide">
+      <div class="title">Bonafide</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="meta"><strong>Periodo:</strong> {{ bonafide.period_label }} | <strong>Residencial:</strong> {{ bonafide.residential_name or '' }} | <strong>Municipio:</strong> {{ bonafide.municipality or '' }}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Expediente</th><th>Nombre</th><th>F</th><th>M</th><th>Edad</th><th>Edif.</th><th>Apto.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in bonafide.rows[:25] %}
+        <tr>
+          <td class="center">{{ row.index }}</td><td>{{ row.expediente }}</td><td>{{ row.nombre }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.edad }}</td><td class="center">{{ row.edificio }}</td><td class="center">{{ row.apartamento }}</td>
+        </tr>
+        {% endfor %}
+        {% if bonafide.rows|length == 0 %}
+        <tr><td colspan="8" class="center">No hay datos para este filtro.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% if bonafide.rows|length > 25 %}<div class="note">Se muestran los primeros 25 registros de {{ bonafide.rows|length }}.</div>{% endif %}
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header No Duplicado">
+      <div class="title">No Duplicado y Duplicado</div>
+      <div class="subtitle">Resumen por edad y sexo</div>
+    </div>
+    <div class="section-title">No Duplicado</div>
+    <table>
+      <thead><tr><th>Clasificación</th><th>F</th><th>M</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for row in no_duplicado.rows %}
+        <tr><td>{{ row.label }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.total }}</td></tr>
+        {% endfor %}
+        <tr><td><strong>TOTAL</strong></td><td class="center"><strong>{{ no_duplicado.total_f }}</strong></td><td class="center"><strong>{{ no_duplicado.total_m }}</strong></td><td class="center"><strong>{{ no_duplicado.total_all }}</strong></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">Duplicado</div>
+    <table>
+      <thead><tr><th>Clasificación</th><th>F</th><th>M</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for row in duplicado.rows %}
+        <tr><td>{{ row.label }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.total }}</td></tr>
+        {% endfor %}
+        <tr><td><strong>TOTAL</strong></td><td class="center"><strong>{{ duplicado.total_f }}</strong></td><td class="center"><strong>{{ duplicado.total_m }}</strong></td><td class="center"><strong>{{ duplicado.total_all }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Visitas">
+      <div class="title">Visitas</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="meta"><strong>Periodo:</strong> {{ visitas.period_label }} | <strong>Residencial:</strong> {{ visitas.residential_name or '' }}</div>
+    <table>
+      <thead><tr><th>Empleado</th><th>Visitas</th><th>Asistencias</th><th>Horas</th></tr></thead>
+      <tbody>
+        {% for row in visitas.rows %}
+        <tr><td>{{ row.employee_name }}</td><td class="center">{{ row.visits }}</td><td class="center">{{ row.attendances }}</td><td class="center">{{ '%.2f'|format(row.hours) }}</td></tr>
+        {% endfor %}
+        {% if visitas.rows|length == 0 %}<tr><td colspan="4" class="center">No hay visitas registradas.</td></tr>{% endif %}
+      </tbody>
+    </table>
+    {% if visitas.referral_rows %}
+    <div class="section-title">Referidos</div>
+    <table>
+      <thead><tr><th>Tipo</th><th>Agencia</th><th>Propósito / referencia</th></tr></thead>
+      <tbody>
+        {% for row in visitas.referral_rows[:15] %}
+        <tr><td>{{ row.referral_type }}</td><td>{{ row.agency }}</td><td>{{ row.reference_or_purpose }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Por Programa">
+      <div class="title">Por Programa y Hoja de Cotejo</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="section-title">Por Programa</div>
+    <table>
+      <thead><tr><th>Programa</th><th>Clasificación</th><th>F</th><th>M</th><th>Total</th></tr></thead>
+      <tbody>
+        {% set ns = namespace(count=0) %}
+        {% for section in por_programa.program_sections %}
+          {% for row in section.rows %}
+            {% if ns.count < 30 %}
+            <tr><td>{{ section.program_display_name }}</td><td>{{ row.label }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.total }}</td></tr>
+            {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% if ns.count == 0 %}<tr><td colspan="5" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+
+    <div class="section-title">Hoja de Cotejo</div>
+    <table>
+      <thead><tr><th>Programa</th><th>Clasificación</th><th>Horas contacto</th></tr></thead>
+      <tbody>
+        {% for block in hoja_cotejo.program_blocks %}
+          {% for population in block.population_blocks %}
+          <tr><td>{{ block.program_display_name }}</td><td>{{ population.population_label }}</td><td class="center">{{ '%.2f'|format(block.program_contact_hours) }}</td></tr>
+          {% endfor %}
+        {% endfor %}
+        {% if hoja_cotejo.program_blocks|length == 0 %}<tr><td colspan="3" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+        <tr><td colspan="2"><strong>Total horas contacto</strong></td><td class="center"><strong>{{ '%.2f'|format(hoja_cotejo.total_contact_hours) }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Deserción y Embarazo">
+      <div class="title">Deserción Escolar y Embarazo</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="section-title">Deserción Escolar</div>
+    <table>
+      <thead><tr><th>Residencial</th><th>Reclutados</th><th>F</th><th>M</th><th>Tutorías</th><th>Escuela</th></tr></thead>
+      <tbody>
+        {% for row in desercion.rows %}
+        <tr><td>{{ row.residential_name }}</td><td class="center">{{ row.recruited }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.tutoring }}</td><td class="center">{{ row.school }}</td></tr>
+        {% endfor %}
+        {% if desercion.rows|length == 0 %}<tr><td colspan="6" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+
+    <div class="section-title">Embarazo</div>
+    <table>
+      <thead><tr><th>Residencial</th><th>Reclutados</th><th>F</th><th>M</th><th>Embarazos</th><th>No embarazos</th><th>% Prevención</th></tr></thead>
+      <tbody>
+        {% for row in embarazo.rows %}
+        <tr><td>{{ row.residential_name }}</td><td class="center">{{ row.recruited }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ row.pregnancy_cases }}</td><td class="center">{{ row.non_pregnant }}</td><td class="center">{{ '%.2f'|format(row.prevention_pct) }}%</td></tr>
+        {% endfor %}
+        {% if embarazo.rows|length == 0 %}<tr><td colspan="7" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header Notas y VCA">
+      <div class="title">Notas y VCA</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="section-title">Notas</div>
+    <table>
+      <thead><tr><th>Edad</th><th>A</th><th>B</th><th>C</th><th>D</th><th>F</th><th>Especial</th><th>K</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for row in notas.rows %}
+        <tr><td>{{ row.age_label }}</td><td class="center">{{ row.A }}</td><td class="center">{{ row.B }}</td><td class="center">{{ row.C }}</td><td class="center">{{ row.D }}</td><td class="center">{{ row.F }}</td><td class="center">{{ row.Especial }}</td><td class="center">{{ row.K }}</td><td class="center">{{ row.TOTAL }}</td></tr>
+        {% endfor %}
+        {% if notas.rows|length == 0 %}<tr><td colspan="9" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+
+    <div class="section-title">VCA</div>
+    <table>
+      <thead><tr><th>Expediente</th><th>Nombre</th><th>Género</th><th>Edad</th></tr></thead>
+      <tbody>
+        {% for row in vca.rows[:20] %}
+        <tr><td>{{ row.expediente }}</td><td>{{ row.nombre }}</td><td class="center">{{ row.genero }}</td><td class="center">{{ row.edad }}</td></tr>
+        {% endfor %}
+        {% if vca.rows|length == 0 %}<tr><td colspan="4" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+    {% if vca.rows|length > 20 %}<div class="note">Se muestran los primeros 20 registros de {{ vca.rows|length }}.</div>{% endif %}
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <img src="/static/img/bonafide-header-avp.png" alt="Header ADM">
+      <div class="title">ADM</div>
+      <div class="subtitle">Resumen consolidado</div>
+    </div>
+    <div class="meta"><strong>Residencial:</strong> {{ adm.residential_name or '' }} | <strong>Periodo:</strong> {{ adm.period_label }} | <strong>Funcionario autorizado:</strong> {{ adm.authorized_name or authorized_name or '' }}</div>
+    <div class="section-title">Resumen ADM</div>
+    <table>
+      <thead><tr><th>Tipo de Servicio</th><th>Servicios</th><th>Duplicados</th><th>No Duplicados</th></tr></thead>
+      <tbody>
+        {% for row in adm.rows %}
+        <tr><td>{{ row.service_type_name }}</td><td class="center">{{ row.services_count }}</td><td class="center">{{ row.duplicados }}</td><td class="center">{{ row.no_duplicados }}</td></tr>
+        {% endfor %}
+        {% if adm.rows|length == 0 %}<tr><td colspan="4" class="center">No hay datos para este filtro.</td></tr>{% endif %}
+      </tbody>
+    </table>
+
+    <div class="section-title">Socio-Demográfico</div>
+    <table>
+      <thead><tr><th>Edad</th><th>F</th><th>M</th><th>Por Ciento</th><th>Diversidad Funcional</th></tr></thead>
+      <tbody>
+        {% for row in adm.sociodemographic_rows %}
+        <tr><td>{{ row.label }}</td><td class="center">{{ row.f }}</td><td class="center">{{ row.m }}</td><td class="center">{{ '%.2f'|format(row.percent) }}%</td><td class="center">{{ row.vca }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

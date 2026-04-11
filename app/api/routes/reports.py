@@ -403,6 +403,22 @@ def reports_run(
             status_code=303,
         )
 
+    if report_key == "todos":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/todos/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/todos/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/?report_key=todos&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+            status_code=303,
+        )
+
     if report_key == "por-programa":
         if output == "excel":
             return RedirectResponse(
@@ -831,6 +847,101 @@ def adm_report_pdf(
     return templates.TemplateResponse("ui/reports/adm_pdf.html", context)
 
 
+def _build_all_reports_bundle_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: str | None,
+    year: str | None,
+    employee_id: int | None,
+    authorized_name: str | None,
+    period_type: str,
+    start_date: str | None,
+    end_date: str | None,
+):
+    return {
+        "bonafide": _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "no_duplicado": _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "duplicado": _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date),
+        "visitas": _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "por_programa": _build_program_report_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "hoja_cotejo": _build_checklist_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "desercion": _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "embarazo": _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "notas": _build_school_grade_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "vca": _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "adm": _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+    }
+
+
+@router.get("/todos/pdf", response_class=HTMLResponse)
+def all_reports_pdf(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
+    bundle.update({"request": request, "current_user": current_user, "authorized_name": authorized_name or ""})
+    return templates.TemplateResponse("ui/reports/all_reports_pdf.html", bundle)
+
+
+@router.get("/todos/excel")
+def all_reports_excel(
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
+
+    wb = Workbook()
+    default_ws = wb.active
+    wb.remove(default_ws)
+
+    def add_simple_sheet(title: str, headers: list[str], rows: list[list]):
+        ws = wb.create_sheet(title=title[:31])
+        for idx, header in enumerate(headers, start=1):
+            ws.cell(row=1, column=idx, value=header).font = Font(bold=True)
+        for row_idx, row in enumerate(rows, start=2):
+            for col_idx, value in enumerate(row, start=1):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+
+    add_simple_sheet("Bonafide", ["Expediente", "Nombre", "Género", "Edad"], [[r.get("expediente", ""), r.get("nombre", ""), r.get("genero", ""), r.get("edad", "")] for r in bundle["bonafide"].get("rows", [])] or [["Sin datos", "", "", ""]])
+    add_simple_sheet("No Duplicado", ["Edad", "F", "M", "Total"], [[r.get("label", ""), r.get("f", 0), r.get("m", 0), r.get("total", 0)] for r in bundle["no_duplicado"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
+    add_simple_sheet("Duplicado", ["Edad", "F", "M", "Total"], [[r.get("label", ""), r.get("f", 0), r.get("m", 0), r.get("total", 0)] for r in bundle["duplicado"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
+    add_simple_sheet("Visitas", ["Residencial", "Tipo", "Agencia", "Propósito"], [[r.get("residential_name", ""), r.get("referral_type", ""), r.get("agency", ""), r.get("reference_or_purpose", "")] for r in bundle["visitas"].get("referral_rows", [])] or [["Sin datos", "", "", ""]])
+    add_simple_sheet("Por Programa", ["Programa", "Clasificación", "F", "M", "Total"], [[section.get("program_display_name", ""), row.get("label", ""), row.get("f", 0), row.get("m", 0), row.get("total", 0)] for section in bundle["por_programa"].get("program_sections", []) for row in section.get("rows", [])] or [["Sin datos", "", 0, 0, 0]])
+    add_simple_sheet("Hoja Cotejo", ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas"], [[r.get("activity_name", ""), r.get("activities_count", 0), r.get("duplicados", 0), r.get("unique_participants", 0), r.get("contact_hours", 0)] for r in bundle["hoja_cotejo"].get("rows", [])] or [["Sin datos", 0, 0, 0, 0]])
+    add_simple_sheet("Deserción", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
+    add_simple_sheet("Embarazo", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
+    add_simple_sheet("Notas", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
+    add_simple_sheet("VCA", ["Expediente", "Nombre", "Género", "Edad"], [[r.get("expediente", ""), r.get("nombre", ""), r.get("genero", ""), r.get("edad", "")] for r in bundle["vca"].get("rows", [])] or [["Sin datos", "", "", ""]])
+    add_simple_sheet("ADM", ["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"], [[r.get("service_type_name", ""), r.get("services_count", 0), r.get("duplicados", 0), r.get("no_duplicados", 0)] for r in bundle["adm"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="todos_los_reportes.xlsx"'},
+    )
+
+
 @router.get("/adm/excel")
 def adm_report_excel(
     proposal_id: int | None = None,
@@ -935,7 +1046,7 @@ def adm_report_excel(
     ws.column_dimensions["D"].width = 16
     ws.column_dimensions["E"].width = 22
 
-    output = io.BytesIO()
+    output = BytesIO()
     wb.save(output)
     output.seek(0)
     safe_residential = (context["residential_name"] or "adm").replace(" ", "_")
