@@ -414,8 +414,9 @@ def reports_run(
                 f"/ui/reports/todos/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
+        employee_id_param = "" if employee_id is None else employee_id
         return RedirectResponse(
-            f"/ui/reports/?report_key=todos&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+            f"/ui/reports/?report_key=todos&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
         )
 
