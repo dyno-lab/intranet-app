@@ -913,25 +913,375 @@ def all_reports_excel(
     default_ws = wb.active
     wb.remove(default_ws)
 
-    def add_simple_sheet(title: str, headers: list[str], rows: list[list]):
-        ws = wb.create_sheet(title=title[:31])
-        for idx, header in enumerate(headers, start=1):
-            ws.cell(row=1, column=idx, value=header).font = Font(bold=True)
-        for row_idx, row in enumerate(rows, start=2):
-            for col_idx, value in enumerate(row, start=1):
-                ws.cell(row=row_idx, column=col_idx, value=value)
+    def proposal_label_from(context: dict) -> str:
+        return next(
+            (f"{p.code} - {p.name}" for p in context.get("proposals", []) if p.proposal_id == context.get("selected_proposal_id")),
+            "",
+        )
 
-    add_simple_sheet("Bonafide", ["Expediente", "Nombre", "Género", "Edad"], [[r.get("expediente", ""), r.get("nombre", ""), r.get("genero", ""), r.get("edad", "")] for r in bundle["bonafide"].get("rows", [])] or [["Sin datos", "", "", ""]])
-    add_simple_sheet("No Duplicado", ["Edad", "F", "M", "Total"], [[r.get("label", ""), r.get("f", 0), r.get("m", 0), r.get("total", 0)] for r in bundle["no_duplicado"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
-    add_simple_sheet("Duplicado", ["Edad", "F", "M", "Total"], [[r.get("label", ""), r.get("f", 0), r.get("m", 0), r.get("total", 0)] for r in bundle["duplicado"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
-    add_simple_sheet("Visitas", ["Residencial", "Tipo", "Agencia", "Propósito"], [[r.get("residential_name", ""), r.get("referral_type", ""), r.get("agency", ""), r.get("reference_or_purpose", "")] for r in bundle["visitas"].get("referral_rows", [])] or [["Sin datos", "", "", ""]])
-    add_simple_sheet("Por Programa", ["Programa", "Clasificación", "F", "M", "Total"], [[section.get("program_display_name", ""), row.get("label", ""), row.get("f", 0), row.get("m", 0), row.get("total", 0)] for section in bundle["por_programa"].get("program_sections", []) for row in section.get("rows", [])] or [["Sin datos", "", 0, 0, 0]])
-    add_simple_sheet("Hoja Cotejo", ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas"], [[r.get("activity_name", ""), r.get("activities_count", 0), r.get("duplicados", 0), r.get("unique_participants", 0), r.get("contact_hours", 0)] for r in bundle["hoja_cotejo"].get("rows", [])] or [["Sin datos", 0, 0, 0, 0]])
-    add_simple_sheet("Deserción", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
-    add_simple_sheet("Embarazo", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
-    add_simple_sheet("Notas", ["Sin datos"], [["Ver módulo / completar exportación consolidada"]])
-    add_simple_sheet("VCA", ["Expediente", "Nombre", "Género", "Edad"], [[r.get("expediente", ""), r.get("nombre", ""), r.get("genero", ""), r.get("edad", "")] for r in bundle["vca"].get("rows", [])] or [["Sin datos", "", "", ""]])
-    add_simple_sheet("ADM", ["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"], [[r.get("service_type_name", ""), r.get("services_count", 0), r.get("duplicados", 0), r.get("no_duplicados", 0)] for r in bundle["adm"].get("rows", [])] or [["Sin datos", 0, 0, 0]])
+    def make_sheet(title: str):
+        ws = wb.create_sheet(title=title[:31])
+        ws.sheet_view.showGridLines = False
+        return ws
+
+    bonafide = bundle["bonafide"]
+    ws = make_sheet("Bonafide")
+    ws["A1"] = "Programa Faro de Esperanza"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Listado Bonafide"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Periodo"
+    ws["B4"] = bonafide["period_label"]
+    ws["A5"] = "Residencial"
+    ws["B5"] = bonafide["residential_name"] or ""
+    ws["A6"] = "Municipio"
+    ws["B6"] = bonafide["municipality"] or ""
+    headers = ["#", "Expediente", "Nombre", "F", "M", "Edad", "Edif.", "Apto."]
+    for col_index, header in enumerate(headers, start=1):
+        ws.cell(row=8, column=col_index, value=header).font = Font(bold=True)
+    for row_index, row in enumerate(bonafide.get("rows", []), start=9):
+        ws.cell(row=row_index, column=1, value=row.get("index", ""))
+        ws.cell(row=row_index, column=2, value=row.get("expediente", ""))
+        ws.cell(row=row_index, column=3, value=row.get("nombre", ""))
+        ws.cell(row=row_index, column=4, value=row.get("f", ""))
+        ws.cell(row=row_index, column=5, value=row.get("m", ""))
+        ws.cell(row=row_index, column=6, value=row.get("edad", ""))
+        ws.cell(row=row_index, column=7, value=row.get("edificio", ""))
+        ws.cell(row=row_index, column=8, value=row.get("apartamento", ""))
+    for col, width in {"A": 6, "B": 20, "C": 40, "D": 6, "E": 6, "F": 8, "G": 12, "H": 12}.items():
+        ws.column_dimensions[col].width = width
+
+    no_dup = bundle["no_duplicado"]
+    ws = make_sheet("No Duplicado")
+    ws["A1"] = "Informe mensual de participantes"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "No Duplicado por edad y sexo en los proyectos impactados"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"; ws["B4"] = no_dup["residential_name"] or ""
+    ws["A5"] = "Municipio"; ws["B5"] = no_dup["municipality"] or ""
+    ws["A6"] = "RQ"; ws["B6"] = no_dup["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"; ws["B7"] = no_dup["period_label"]
+    ws["A8"] = "Funcionario autorizado"; ws["B8"] = no_dup["authorized_name"] or ""
+    for col_index, header in enumerate(["Clasificación", "F", "M", "Total de participantes"], start=1):
+        ws.cell(row=10, column=col_index, value=header).font = Font(bold=True)
+    row_index = 11
+    for row in no_dup.get("rows", []):
+        ws.cell(row=row_index, column=1, value=row.get("label", ""))
+        ws.cell(row=row_index, column=2, value=row.get("f", 0))
+        ws.cell(row=row_index, column=3, value=row.get("m", 0))
+        ws.cell(row=row_index, column=4, value=row.get("total", 0))
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=no_dup["total_f"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=3, value=no_dup["total_m"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=4, value=no_dup["total_all"]).font = Font(bold=True)
+    for col, width in {"A": 35, "B": 10, "C": 10, "D": 20}.items():
+        ws.column_dimensions[col].width = width
+
+    dup = bundle["duplicado"]
+    ws = make_sheet("Duplicado")
+    ws["A1"] = "Informe mensual de participaciones"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Duplicado por edad y sexo en los proyectos impactados"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"; ws["B4"] = dup["residential_name"] or ""
+    ws["A5"] = "Municipio"; ws["B5"] = dup["municipality"] or ""
+    ws["A6"] = "RQ"; ws["B6"] = dup["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"; ws["B7"] = dup["period_label"]
+    ws["A8"] = "Funcionario autorizado"; ws["B8"] = dup["authorized_name"] or ""
+    for col_index, header in enumerate(["Clasificación", "F", "M", "Total de participaciones"], start=1):
+        ws.cell(row=10, column=col_index, value=header).font = Font(bold=True)
+    row_index = 11
+    for row in dup.get("rows", []):
+        ws.cell(row=row_index, column=1, value=row.get("label", ""))
+        ws.cell(row=row_index, column=2, value=row.get("f", 0))
+        ws.cell(row=row_index, column=3, value=row.get("m", 0))
+        ws.cell(row=row_index, column=4, value=row.get("total", 0))
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=dup["total_f"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=3, value=dup["total_m"]).font = Font(bold=True)
+    ws.cell(row=row_index, column=4, value=dup["total_all"]).font = Font(bold=True)
+    for col, width in {"A": 35, "B": 10, "C": 10, "D": 20}.items():
+        ws.column_dimensions[col].width = width
+
+    visitas = bundle["visitas"]
+    ws = make_sheet("Visitas")
+    ws.freeze_panes = "A6"
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Reporte de Visitas"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(visitas)
+    ws["D3"] = "Periodo"; ws["E3"] = visitas["period_label"]
+    ws["A4"] = "Residencial"; ws["B4"] = visitas["residential_name"] or ""
+    ws["D4"] = "Visitas"; ws["E4"] = visitas["summary"]["visits"]
+    ws["G4"] = "Asistencias"; ws["H4"] = visitas["summary"]["attendances"]
+    ws["J4"] = "Horas"; ws["K4"] = visitas["summary"]["hours"]
+    for col_index, header in enumerate(["Empleado", "Visitas registradas", "Asistencias acumuladas", "Horas acumuladas"], start=1):
+        cell = ws.cell(row=6, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    row_index = 7
+    for row in visitas.get("rows", []):
+        values = [row.get("employee_name", ""), row.get("visits", 0), row.get("attendances", 0), row.get("hours", 0)]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            if col_index == 4:
+                cell.number_format = "0.00"
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+    if visitas.get("rows"):
+        totals = ["TOTALES", visitas["summary"]["visits"], visitas["summary"]["attendances"], visitas["summary"]["hours"]]
+        for col_index, value in enumerate(totals, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.font = Font(bold=True)
+            if col_index == 4:
+                cell.number_format = "0.00"
+            cell.alignment = Alignment(horizontal="center")
+    for col, width in {"A": 34, "B": 18, "C": 20, "D": 18}.items():
+        ws.column_dimensions[col].width = width
+
+    por_programa = bundle["por_programa"]
+    ws = make_sheet("Por Programa")
+    ws["A1"] = "Informe mensual de participantes"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Participación no duplicada por programa, edad y sexo en los proyectos impactados"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"; ws["B4"] = por_programa["residential_name"] or ""
+    ws["A5"] = "Municipio"; ws["B5"] = por_programa["municipality"] or ""
+    ws["A6"] = "RQ"; ws["B6"] = por_programa["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"; ws["B7"] = por_programa["period_label"]
+    ws["A8"] = "Funcionario autorizado"; ws["B8"] = por_programa["authorized_name"] or ""
+    row_index = 10
+    for section in por_programa.get("program_sections", []):
+        ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}").font = Font(bold=True)
+        ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
+        ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
+        header_row = row_index + 3
+        for idx, value in [(1, "Clasificación"), (2, "F"), (3, "M"), (4, "Total de participantes")]:
+            ws.cell(row=header_row, column=idx, value=value).font = Font(bold=True)
+        current_row = header_row + 1
+        for row in section.get("rows", []):
+            ws.cell(row=current_row, column=1, value=row.get("label", ""))
+            ws.cell(row=current_row, column=2, value=row.get("f", 0))
+            ws.cell(row=current_row, column=3, value=row.get("m", 0))
+            ws.cell(row=current_row, column=4, value=row.get("total", 0))
+            current_row += 1
+        ws.cell(row=current_row, column=1, value="TOTAL").font = Font(bold=True)
+        ws.cell(row=current_row, column=2, value=section["total_f"]).font = Font(bold=True)
+        ws.cell(row=current_row, column=3, value=section["total_m"]).font = Font(bold=True)
+        ws.cell(row=current_row, column=4, value=section["total_all"]).font = Font(bold=True)
+        row_index = current_row + 3
+    for col, width in {"A": 40, "B": 14, "C": 14, "D": 22}.items():
+        ws.column_dimensions[col].width = width
+
+    hoja = bundle["hoja_cotejo"]
+    ws = make_sheet("Hoja Cotejo")
+    ws["A1"] = "Hoja de Cotejo"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Reporte por programa, clasificación y actividad"
+    ws["A2"].font = Font(bold=True)
+    ws["A4"] = "Residencial"; ws["B4"] = hoja["residential_name"] or ""
+    ws["A5"] = "Municipio"; ws["B5"] = hoja["municipality"] or ""
+    ws["A6"] = "RQ"; ws["B6"] = hoja["rq_code"] or ""
+    ws["A7"] = "Periodo reportado"; ws["B7"] = hoja["period_label"]
+    row_index = 10
+    for program_block in hoja.get("program_blocks", []):
+        ws.cell(row=row_index, column=1, value=f"Programa: {program_block['program_display_name']}").font = Font(bold=True)
+        row_index += 1
+        for population_block in program_block.get("population_blocks", []):
+            ws.cell(row=row_index, column=1, value=f"Clasificación / población: {population_block['population_label']}").font = Font(bold=True)
+            row_index += 1
+            headers = ["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas contacto"]
+            for col_index, header in enumerate(headers, start=1):
+                cell = ws.cell(row=row_index, column=col_index, value=header)
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            row_index += 1
+            if population_block.get("rows"):
+                for row in population_block["rows"]:
+                    ws.cell(row=row_index, column=1, value=f"{row['activity_code']} {row['activity_description'] or ''}".strip())
+                    ws.cell(row=row_index, column=2, value=row["activities_count"])
+                    ws.cell(row=row_index, column=3, value=row["duplicados"])
+                    ws.cell(row=row_index, column=4, value=row["unique_participants"])
+                    ws.cell(row=row_index, column=5, value=row["contact_hours"])
+                    row_index += 1
+            else:
+                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificación.")
+                row_index += 1
+            row_index += 1
+        row_index += 1
+    ws.cell(row=row_index, column=1, value="Total Horas Contacto").font = Font(bold=True)
+    ws.cell(row=row_index, column=2, value=hoja["total_contact_hours"]).font = Font(bold=True)
+    for col, width in {"A": 55, "B": 14, "C": 14, "D": 14, "E": 16}.items():
+        ws.column_dimensions[col].width = width
+
+    desercion = bundle["desercion"]
+    ws = make_sheet("Desercion")
+    ws.freeze_panes = "B6"
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Deserción Escolar"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(desercion)
+    ws["D3"] = "Periodo"; ws["E3"] = desercion["period_label"]
+    ws["A4"] = "Residencial"; ws["B4"] = desercion["residential_name"] or ""
+    ws["D4"] = "Reclutados totales"; ws["E4"] = desercion["total"]["recruited"]
+    headers = ["Residencial", "Total", "F", "M"] + desercion["grade_columns"] + ["Tutorías", "% Tutorías", "Escuela", "% Escuela", "10", "20", "30", "40"]
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=6, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    row_index = 7
+    for row in desercion.get("rows", []):
+        values = [row["residential_name"], row["recruited"], row["f"], row["m"], *[row["grades"].get(grade, 0) for grade in desercion["grade_columns"]], row["tutoring"], row["tutoring_pct"] / 100, row["school"], row["school_pct"] / 100, row["report_10"], row["report_20"], row["report_30"], row["report_40"]]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+            if col_index in {20, 22}:
+                cell.number_format = "0.00%"
+        row_index += 1
+    total_values = ["TOTAL", desercion["total"]["recruited"], desercion["total"]["f"], desercion["total"]["m"], *[desercion["total"]["grades"].get(grade, 0) for grade in desercion["grade_columns"]], desercion["total"]["tutoring"], desercion["total"]["tutoring_pct"] / 100, desercion["total"]["school"], desercion["total"]["school_pct"] / 100, desercion["total"]["report_10"], desercion["total"]["report_20"], desercion["total"]["report_30"], desercion["total"]["report_40"]]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        if col_index in {20, 22}:
+            cell.number_format = "0.00%"
+
+    embarazo = bundle["embarazo"]
+    ws = make_sheet("Embarazo")
+    ws.freeze_panes = "A6"
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Embarazo"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(embarazo)
+    ws["D3"] = "Periodo"; ws["E3"] = embarazo["period_label"]
+    ws["A4"] = "Residencial"; ws["B4"] = embarazo["residential_name"] or ""
+    ws["D4"] = "Participación total"; ws["E4"] = embarazo["total"]["participation"]
+    headers = ["Residencial", "Total reclutados", "F", "M", "Participantes femeninas embarazadas", "Participantes masculinos que han embarazado", "% Prevención", "Embarazos", "No embarazos"]
+    for col_index, header in enumerate(headers, start=1):
+        cell = ws.cell(row=6, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    row_index = 7
+    for row in embarazo.get("rows", []):
+        values = [row["residential_name"], row["recruited"], row["f"], row["m"], row["pregnant_f"], row["pregnant_m"], row["prevention_pct"] / 100, row["pregnancy_cases"], row["non_pregnant"]]
+        for col_index, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col_index, value=value)
+            cell.alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+            if col_index == 7:
+                cell.number_format = "0.00%"
+        row_index += 1
+    total_values = ["TOTAL", embarazo["total"]["recruited"], embarazo["total"]["f"], embarazo["total"]["m"], embarazo["total"]["pregnant_f"], embarazo["total"]["pregnant_m"], embarazo["total"]["prevention_pct"] / 100, embarazo["total"]["pregnancy_cases"], embarazo["total"]["non_pregnant"]]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        if col_index == 7:
+            cell.number_format = "0.00%"
+
+    notas = bundle["notas"]
+    ws = make_sheet("Notas")
+    ws.freeze_panes = "A6"
+    ws["A1"] = "CENTROS SOR ISOLINA FERRÉ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "Informe de Notas"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = notas.get("proposal_label", "")
+    ws["D3"] = "Periodo"; ws["E3"] = notas["period_label"]
+    ws["A4"] = "Residencial"; ws["B4"] = notas["residential_name"] or ""
+    ws["D4"] = "Total evaluados"; ws["E4"] = notas["total_row"]["TOTAL"]
+    summary_headers = ["Nota", "Cantidad", "%"]
+    for col_index, header in enumerate(summary_headers, start=1):
+        cell = ws.cell(row=6, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    row_index = 7
+    for segment in notas.get("general_chart_segments", []):
+        ws.cell(row=row_index, column=1, value=segment["label"])
+        ws.cell(row=row_index, column=2, value=segment["value"])
+        pct_cell = ws.cell(row=row_index, column=3, value=segment["percentage"] / 100)
+        pct_cell.number_format = "0.00%"
+        row_index += 1
+    row_index += 1
+    for col_index, header in enumerate(["Edad", "A", "B", "C", "D", "F", "Especial", "K", "TOTAL"], start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    row_index += 1
+    for row in notas.get("rows", []):
+        values = [row["age_label"], row["A"], row["B"], row["C"], row["D"], row["F"], row["Especial"], row["K"], row["TOTAL"]]
+        for col_index, value in enumerate(values, start=1):
+            ws.cell(row=row_index, column=col_index, value=value).alignment = Alignment(horizontal="left" if col_index == 1 else "center")
+        row_index += 1
+    total_values = ["TOTALES", notas["total_row"]["A"], notas["total_row"]["B"], notas["total_row"]["C"], notas["total_row"]["D"], notas["total_row"]["F"], notas["total_row"]["Especial"], notas["total_row"]["K"], notas["total_row"]["TOTAL"]]
+    for col_index, value in enumerate(total_values, start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    vca = bundle["vca"]
+    ws = make_sheet("VCA")
+    ws.freeze_panes = "A9"
+    ws["A1"] = "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "INFORME VCA"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(vca)
+    ws["A4"] = "Residencial"; ws["B4"] = vca["residential_name"] or ""
+    ws["A5"] = "Periodo reportado"; ws["B5"] = vca["period_label"]
+    ws["A6"] = "Total personas con impedimentos"; ws["B6"] = vca["total_people"]
+    headers = ["Expediente", "Nombre", "Género", "Edad"] + [column.name for column in vca.get("columns", [])]
+    for col_index, header in enumerate(headers, start=1):
+        ws.cell(row=8, column=col_index, value=header).font = Font(bold=True)
+    for row_index, row in enumerate(vca.get("rows", []), start=9):
+        ws.cell(row=row_index, column=1, value=row.get("expediente", ""))
+        ws.cell(row=row_index, column=2, value=row.get("nombre", ""))
+        ws.cell(row=row_index, column=3, value=row.get("genero", ""))
+        ws.cell(row=row_index, column=4, value=row.get("edad", ""))
+        for offset, column in enumerate(vca.get("columns", []), start=5):
+            ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, ""))
+
+    adm = bundle["adm"]
+    ws = make_sheet("ADM")
+    ws.freeze_panes = "A7"
+    ws["A1"] = "AREA DE PROGRAMAS COMUNALES Y DE RESIDENTES"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = "INFORME ADM"
+    ws["A2"].font = Font(bold=True, size=12)
+    ws["A3"] = "Propuesta"; ws["B3"] = proposal_label_from(adm)
+    ws["A4"] = "Residencial"; ws["B4"] = adm["residential_name"] or ""
+    ws["A5"] = "Periodo reportado"; ws["B5"] = adm["period_label"]
+    ws["A6"] = "Funcionario autorizado"; ws["B6"] = adm["authorized_name"] or ""
+    for idx, header in enumerate(["Tipo de Servicio", "Servicios", "Duplicados", "No Duplicados"], start=1):
+        cell = ws.cell(row=7, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    row_index = 8
+    for row in adm.get("rows", []):
+        ws.cell(row=row_index, column=1, value=row["service_type_name"])
+        ws.cell(row=row_index, column=2, value=row["services_count"])
+        ws.cell(row=row_index, column=3, value=row["duplicados"])
+        ws.cell(row=row_index, column=4, value=row["no_duplicados"])
+        row_index += 1
+    row_index += 2
+    ws.cell(row=row_index, column=1, value="Socio-Demográfico").font = Font(bold=True, size=12)
+    row_index += 1
+    for idx, header in enumerate(["Edad", "F", "M", "Por Ciento", "Diversidad Funcional"], start=1):
+        cell = ws.cell(row=row_index, column=idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    row_index += 1
+    for row in adm.get("sociodemographic_rows", []):
+        ws.cell(row=row_index, column=1, value=row["label"])
+        ws.cell(row=row_index, column=2, value=row["f"])
+        ws.cell(row=row_index, column=3, value=row["m"])
+        ws.cell(row=row_index, column=4, value=row["percent"])
+        ws.cell(row=row_index, column=5, value=row["vca"])
+        row_index += 1
 
     output = BytesIO()
     wb.save(output)
