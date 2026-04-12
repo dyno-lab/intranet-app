@@ -20,14 +20,14 @@
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
     .footer { margin-top: 14px; font-size: 10px; }
-    .footer-text { margin: 6px 0 4px 0; line-height: 1.25; }
-    .new-entry-note { margin-bottom: 10px; font-size: 9px; }
-    .signature-row { margin-top: 18px; }
-    .signature-line { width: 320px; max-width: 100%; border-top: 1px solid #111; }
-    .signature-name { margin-top: 6px; font-size: 10px; }
-    .footer-logo { margin-top: 24px; text-align: left; }
-    .footer-logo img { max-width: 320px; max-height: 90px; object-fit: contain; }
-    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 8px; }
+    .footer-text { margin: 6px 0 2px 0; line-height: 1.35; font-size: 11px; font-weight: 700; }
+    .new-entry-note { margin-bottom: 18px; font-size: 11px; font-weight: 700; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; column-gap: 90px; row-gap: 34px; margin-top: 22px; }
+    .sig { text-align: center; }
+    .sig-line { width: 86%; margin: 0 auto 8px auto; border-top: 1px solid #111; }
+    .sig-name { font-size: 10px; line-height: 1.15; }
+    .sig-title { margin-top: 4px; font-size: 10px; font-weight: 700; line-height: 1.2; }
+    .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -92,14 +92,14 @@
         Los residentes bonafides antes mencionados participaron de los servicios/actividades desarrolladas por el Programa Faro de Esperanza de los Centros Sor Isolina Ferré, durante el periodo indicado.
       </div>
       <div class="new-entry-note">(*) Participante de nuevo ingreso.</div>
-      <div class="signature-row">
-        <div class="signature-line"></div>
-        {% if signatures and signatures[0] %}
-        <div class="signature-name">{{ signatures[0].name }}</div>
-        {% endif %}
-      </div>
-      <div class="footer-logo">
-        <img src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro de Esperanza">
+      <div class="signatures">
+        {% for sig in signatures %}
+        <div class="sig">
+          <div class="sig-line"></div>
+          <div class="sig-name">{{ sig.name }}</div>
+          <div class="sig-title">{{ sig.title }}</div>
+        </div>
+        {% endfor %}
       </div>
       <div class="page-number">Página {{ loop.index }} de {{ pages|length }}</div>
     </div>
