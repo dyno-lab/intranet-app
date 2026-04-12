@@ -28,12 +28,13 @@
         <li class="nav-item">
           <a class="nav-link" href="/ui/listado">Asistencias</a>
         </li>
-        {% if current_user and current_user.role == "admin" %}
+        {% if current_user and current_user.role in ["admin", "supervisor"] %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             ⚙️ Admin
           </a>
           <ul class="dropdown-menu">
+            {% if current_user.role == "admin" %}
             <li><a class="dropdown-item" href="/ui/admin/users">Usuarios</a></li>
             <li><a class="dropdown-item" href="/ui/admin/residentials">Residenciales</a></li>
             <li><a class="dropdown-item" href="/ui/admin/activity-codes">Actividades</a></li>
@@ -42,9 +43,11 @@
             <li><a class="dropdown-item" href="/ui/admin/visits">Configuración Visitas</a></li>
             <li><a class="dropdown-item" href="/ui/admin/employees">Empleados</a></li>
             <li><a class="dropdown-item" href="/ui/admin/proposals">Propuestas</a></li>
-            <li><a class="dropdown-item" href="/ui/admin/proposal-participants">Participantes por Propuesta</a></li>
             <li><a class="dropdown-item" href="/ui/admin/report-programs">Programas Reporte</a></li>
             <li><a class="dropdown-item" href="/ui/admin/catalogs">Catálogos</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% endif %}
+            <li><a class="dropdown-item" href="/ui/admin/proposal-participants">Participantes por Propuesta</a></li>
           </ul>
         </li>
         {% endif %}
