@@ -182,22 +182,25 @@
       padding-top: 4px;
     }
 
-    .cotejo-signature-grid {
-      display: grid;
-      grid-template-columns: 1.35fr 0.65fr;
-      gap: 12px 16px;
+    .cotejo-signature-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
       margin-top: 4px;
-      align-items: end;
     }
 
-    .cotejo-sig {
+    .cotejo-signature-table td {
+      border: none;
+      width: 50%;
+      padding: 0 8px 10px 8px;
+      vertical-align: top;
       text-align: center;
     }
 
     .cotejo-sig-line {
       border-top: 1px solid #111;
-      margin: 0 auto 4px auto;
-      width: 94%;
+      margin: 0 0 4px 0;
+      width: 100%;
     }
 
     .cotejo-sig-name {
@@ -210,6 +213,7 @@
       margin-top: 0;
       font-size: 7.4px;
       line-height: 1.08;
+      font-weight: 700;
     }
 
     .cotejo-footer {
@@ -298,24 +302,28 @@
       <div class="cotejo-total">Total Horas Contacto: {{ '%.2f'|format(program_block.program_contact_hours or 0) }} HRS.</div>
 
       <div class="cotejo-signatures">
-        <div class="cotejo-signature-grid">
-          <div class="cotejo-sig">
-            <div class="cotejo-sig-line"></div>
-            <div class="cotejo-sig-name">Firma (Facilitador de Servicios)</div>
-          </div>
-          <div class="cotejo-sig">
-            <div class="cotejo-sig-line"></div>
-            <div class="cotejo-sig-name">Fecha</div>
-          </div>
-          <div class="cotejo-sig">
-            <div class="cotejo-sig-line"></div>
-            <div class="cotejo-sig-title">Iniciales: Promotor Educativo / Intercesor Empleo / Trabajador Social</div>
-          </div>
-          <div class="cotejo-sig">
-            <div class="cotejo-sig-line"></div>
-            <div class="cotejo-sig-name">Fecha</div>
-          </div>
-        </div>
+        <table class="cotejo-signature-table">
+          <tr>
+            <td>
+              <div class="cotejo-sig-line"></div>
+              <div class="cotejo-sig-name">Firma (Facilitador de Servicios)</div>
+            </td>
+            <td>
+              <div class="cotejo-sig-line"></div>
+              <div class="cotejo-sig-name">Fecha</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="cotejo-sig-line"></div>
+              <div class="cotejo-sig-title">Iniciales: Promotor Educativo / Intercesor Empleo / Trabajador Social</div>
+            </td>
+            <td>
+              <div class="cotejo-sig-line"></div>
+              <div class="cotejo-sig-name">Fecha</div>
+            </td>
+          </tr>
+        </table>
       </div>
 
       <div class="cotejo-footer">
