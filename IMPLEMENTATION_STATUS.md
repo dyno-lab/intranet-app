@@ -93,6 +93,17 @@ Implementado y validado:
 - reportes muestran **Periodo** / **Periodo reportado** cuando aplica
 - `Duplicado` conserva los **rangos correctos** y suma **asistencias/participaciones**
 - `No Duplicado` mantiene lógica de **personas únicas**
+- **`Todos -> Excel`** implementado como consolidado multihoja
+- refactor de builders Excel reutilizables en `app/services/report_excel_builders.py`
+- los Excels individuales y `Todos -> Excel` comparten builders reutilizables para reducir retrabajo cuando cambien configuraciones/admin
+- en `Todos -> Excel` se ajustó Visitas para incluir empleados activos aunque estén en `0`
+- en `Todos -> Excel` se amplió ADM para reflejar mejor el contenido del reporte individual
+- **`Todos -> PDF`** ya genera un ZIP de PDFs individuales
+- se intentó WeasyPrint para backend PDF, pero en Windows causó conflicto por dependencias nativas
+- se migró el backend PDF a **`wkhtmltopdf`** para la estación Windows donde corre la app
+- se añadió soporte de configuración `WKHTMLTOPDF_PATH` para ubicar el ejecutable
+- se añadió generación backend de gráficas SVG para `Notas` para no depender del navegador al generar PDFs en lote
+- el ZIP PDF ya funciona operativamente, pero todavía queda pendiente alinear algunos **footers/layouts** con los PDFs individuales
 
 ### Fase 7 — Residenciales y supervisor (base + UI)
 Implementado y validado:
