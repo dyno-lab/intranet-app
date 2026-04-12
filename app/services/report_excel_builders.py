@@ -246,53 +246,58 @@ def build_visitas_sheet(wb: Workbook, context: dict, title: str = "Visitas", row
 
 def build_por_programa_sheet(wb: Workbook, context: dict, title: str = "Por Programa"):
     ws = make_sheet(wb, title)
-    ws["A1"] = "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Participación no duplicada por programa, edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-    ws["A8"] = "Funcionario autorizado"
-    ws["B8"] = context["authorized_name"] or ""
+    ws.freeze_panes = "A10"
+    style_title(ws, "A1", "Informe mensual de participantes", "D1")
+    style_subtitle(ws, "A2", "Participación no duplicada por programa, edad y sexo en los proyectos impactados", "D2")
+
+    meta = [
+        ("Residencial", context["residential_name"] or ""),
+        ("Municipio", context["municipality"] or ""),
+        ("RQ", context["rq_code"] or ""),
+        ("Periodo reportado", context["period_label"]),
+        ("Funcionario autorizado", context["authorized_name"] or ""),
+    ]
+    for idx, (label, value) in enumerate(meta, start=4):
+        style_meta_label(ws.cell(row=idx, column=1, value=label))
+        style_meta_value(ws.cell(row=idx, column=2, value=value))
 
     row_index = 10
     for section in context.get("program_sections", []):
-        ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}").font = Font(bold=True)
+        style_section(ws.cell(row=row_index, column=1, value=f"Programa: {section['program_display_name']}"))
+        ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=4)
+
         ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas")
         ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"])
+        style_meta_label(ws.cell(row=row_index + 1, column=1, value="Actividades adjudicadas"))
+        style_meta_value(ws.cell(row=row_index + 1, column=2, value=section["assigned_activity_count"]))
 
         header_row = row_index + 3
-        ws.cell(row=header_row, column=1, value="Clasificación").font = Font(bold=True)
-        ws.cell(row=header_row, column=2, value="Número de participantes por edad y sexo").font = Font(bold=True)
-        ws.cell(row=header_row, column=4, value="Total de participantes").font = Font(bold=True)
+        style_header(ws.cell(row=header_row, column=1, value="Clasificación"))
+        style_header(ws.cell(row=header_row, column=2, value="Número de participantes por edad y sexo"))
+        style_header(ws.cell(row=header_row, column=4, value="Total de participantes"))
         ws.merge_cells(start_row=header_row, start_column=2, end_row=header_row, end_column=3)
         ws.merge_cells(start_row=header_row, start_column=1, end_row=header_row + 1, end_column=1)
         ws.merge_cells(start_row=header_row, start_column=4, end_row=header_row + 1, end_column=4)
-        ws.cell(row=header_row + 1, column=2, value="F").font = Font(bold=True)
-        ws.cell(row=header_row + 1, column=3, value="M").font = Font(bold=True)
-
-        for col_index in range(1, 5):
-            ws.cell(row=header_row, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
-            ws.cell(row=header_row + 1, column=col_index).alignment = Alignment(horizontal="center", vertical="center")
+        style_header(ws.cell(row=header_row + 1, column=2, value="F"))
+        style_header(ws.cell(row=header_row + 1, column=3, value="M"))
+        ws.cell(row=header_row + 1, column=1).border = THIN_BORDER
+        ws.cell(row=header_row + 1, column=4).border = THIN_BORDER
 
         current_row = header_row + 2
         for row in section.get("rows", []):
-            ws.cell(row=current_row, column=1, value=row["label"])
-            ws.cell(row=current_row, column=2, value=row["f"])
-            ws.cell(row=current_row, column=3, value=row["m"])
-            ws.cell(row=current_row, column=4, value=row["total"])
+            ws.cell(row=current_row, column=1, value=row["label"]).alignment = LEFT
+            ws.cell(row=current_row, column=2, value=row["f"]).alignment = CENTER
+            ws.cell(row=current_row, column=3, value=row["m"]).alignment = CENTER
+            ws.cell(row=current_row, column=4, value=row["total"]).alignment = CENTER
             current_row += 1
 
-        ws.cell(row=current_row, column=1, value="TOTAL").font = Font(bold=True)
-        ws.cell(row=current_row, column=2, value=section["total_f"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=3, value=section["total_m"]).font = Font(bold=True)
-        ws.cell(row=current_row, column=4, value=section["total_all"]).font = Font(bold=True)
+        for col_index, value in enumerate(["TOTAL", section["total_f"], section["total_m"], section["total_all"]], start=1):
+            cell = ws.cell(row=current_row, column=col_index, value=value)
+            style_total(cell)
+            if col_index == 1:
+                cell.alignment = LEFT
+
+        apply_table_border(ws, header_row, current_row, 1, 4)
         row_index = current_row + 3
 
     for col, width in {"A": 40, "B": 14, "C": 14, "D": 22}.items():
