@@ -2124,11 +2124,16 @@ def notes_report_pdf(
             "segments": subject_card["segments"],
         })
 
+    def _looks_like_inline_image(value: str | None) -> bool:
+        if not value:
+            return False
+        return value.startswith("data:image/")
+
     context.update({
         "request": request,
         "current_user": current_user,
-        "general_chart_image": general_chart_image or fallback_chart_images["general_chart_image"],
-        "residential_chart_image": residential_chart_image or fallback_chart_images["residential_chart_image"],
+        "general_chart_image": general_chart_image if _looks_like_inline_image(general_chart_image) else fallback_chart_images["general_chart_image"],
+        "residential_chart_image": residential_chart_image if _looks_like_inline_image(residential_chart_image) else fallback_chart_images["residential_chart_image"],
         "subject_chart_images": [section["image"] for section in subject_chart_sections],
         "subject_chart_sections": subject_chart_sections,
     })

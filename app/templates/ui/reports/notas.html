@@ -322,17 +322,29 @@
   const residentialChartImageInput = document.getElementById('residentialChartImageInput');
   const subjectChartImagesInput = document.getElementById('subjectChartImagesInput');
 
+  function safeChartImage(chart) {
+    if (!chart || typeof chart.toBase64Image !== 'function') {
+      return '';
+    }
+    try {
+      return chart.toBase64Image('image/png', 1) || '';
+    } catch (error) {
+      console.warn('No se pudo serializar gráfica para PDF:', error);
+      return '';
+    }
+  }
+
   if (pdfButton && pdfForm) {
     pdfButton.addEventListener('click', function () {
-      if (generalChartImageInput && notesGeneralPieChart) {
-        generalChartImageInput.value = notesGeneralPieChart.toBase64Image('image/png', 1);
+      if (generalChartImageInput) {
+        generalChartImageInput.value = safeChartImage(notesGeneralPieChart);
       }
-      if (residentialChartImageInput && notesResidentialBarChart) {
-        residentialChartImageInput.value = notesResidentialBarChart.toBase64Image('image/png', 1);
+      if (residentialChartImageInput) {
+        residentialChartImageInput.value = safeChartImage(notesResidentialBarChart);
       }
       if (subjectChartImagesInput) {
         subjectChartImagesInput.value = subjectPieCharts
-          .map(chart => chart.toBase64Image('image/png', 1))
+          .map(chart => safeChartImage(chart))
           .join('||');
       }
       pdfForm.submit();
