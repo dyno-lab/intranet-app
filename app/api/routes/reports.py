@@ -912,6 +912,28 @@ def _build_all_reports_bundle_context(
     }
 
 
+ALL_REPORT_KEYS = [
+    "bonafide",
+    "no_duplicado",
+    "duplicado",
+    "visitas",
+    "por_programa",
+    "hoja_cotejo",
+    "desercion",
+    "embarazo",
+    "notas",
+    "vca",
+    "adm",
+]
+# IMPORTANTE:
+# Cuando se cree un reporte nuevo, revisar SIEMPRE estos puntos:
+# 1) _build_all_reports_bundle_context
+# 2) all_reports_excel
+# 3) all_reports_pdf
+# 4) índice / selector de reportes si aplica
+# La meta es que el reporte nuevo también quede contemplado en "Todos".
+
+
 def _pdf_download_filename(prefix: str, context: dict, extension: str = "pdf") -> str:
     safe_residential = (context.get("residential_name") or prefix).replace(" ", "_")
     return f"{prefix}_{safe_residential}_{_period_filename_suffix(context)}.{extension}"

@@ -12,6 +12,87 @@ THIN_BORDER = Border(
     bottom=Side(style="thin"),
 )
 
+TITLE_FILL = PatternFill(fill_type="solid", fgColor="1F4E78")
+SECTION_FILL = PatternFill(fill_type="solid", fgColor="D9EAF7")
+HEADER_FILL = PatternFill(fill_type="solid", fgColor="DDEBF7")
+TOTAL_FILL = PatternFill(fill_type="solid", fgColor="E2F0D9")
+META_LABEL_FILL = PatternFill(fill_type="solid", fgColor="F3F6FA")
+WHITE_FONT = Font(color="FFFFFF", bold=True)
+TITLE_FONT = Font(bold=True, size=14, color="FFFFFF")
+SUBTITLE_FONT = Font(bold=True, size=12)
+HEADER_FONT = Font(bold=True)
+TOTAL_FONT = Font(bold=True)
+CENTER = Alignment(horizontal="center", vertical="center")
+LEFT = Alignment(horizontal="left", vertical="center")
+
+
+def style_title(ws, cell_ref: str, value: str, merge_to: str | None = None):
+    ws[cell_ref] = value
+    cell = ws[cell_ref]
+    cell.font = TITLE_FONT
+    cell.fill = TITLE_FILL
+    cell.alignment = CENTER
+    cell.border = THIN_BORDER
+    if merge_to:
+        ws.merge_cells(f"{cell_ref}:{merge_to}")
+        for row in ws[cell_ref:merge_to]:
+            for merged_cell in row:
+                merged_cell.fill = TITLE_FILL
+                merged_cell.border = THIN_BORDER
+
+
+def style_subtitle(ws, cell_ref: str, value: str, merge_to: str | None = None):
+    ws[cell_ref] = value
+    cell = ws[cell_ref]
+    cell.font = SUBTITLE_FONT
+    cell.alignment = LEFT
+    if merge_to:
+        ws.merge_cells(f"{cell_ref}:{merge_to}")
+
+
+def style_meta_label(cell):
+    cell.font = HEADER_FONT
+    cell.fill = META_LABEL_FILL
+    cell.border = THIN_BORDER
+    cell.alignment = LEFT
+
+
+def style_meta_value(cell):
+    cell.border = THIN_BORDER
+    cell.alignment = LEFT
+
+
+def style_header(cell):
+    cell.font = HEADER_FONT
+    cell.fill = HEADER_FILL
+    cell.border = THIN_BORDER
+    cell.alignment = CENTER
+
+
+def style_section(cell):
+    cell.font = Font(bold=True, size=12)
+    cell.fill = SECTION_FILL
+    cell.border = THIN_BORDER
+    cell.alignment = LEFT
+
+
+def style_total(cell):
+    cell.font = TOTAL_FONT
+    cell.fill = TOTAL_FILL
+    cell.border = THIN_BORDER
+    cell.alignment = CENTER
+
+
+def apply_table_border(ws, start_row: int, end_row: int, start_col: int, end_col: int, left_align_first_col: bool = True):
+    for row in range(start_row, end_row + 1):
+        for col in range(start_col, end_col + 1):
+            cell = ws.cell(row=row, column=col)
+            cell.border = THIN_BORDER
+            if col == start_col and left_align_first_col:
+                cell.alignment = LEFT
+            elif cell.alignment == Alignment():
+                cell.alignment = CENTER
+
 
 def make_workbook() -> Workbook:
     wb = Workbook()
@@ -35,30 +116,37 @@ def proposal_label_from_context(context: dict) -> str:
 
 def build_bonafide_sheet(wb: Workbook, context: dict, title: str = "Bonafide"):
     ws = make_sheet(wb, title)
-    ws["A1"] = "Programa Faro de Esperanza"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Listado Bonafide"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Periodo"
-    ws["B4"] = context["period_label"]
-    ws["A5"] = "Residencial"
-    ws["B5"] = context["residential_name"] or ""
-    ws["A6"] = "Municipio"
-    ws["B6"] = context["municipality"] or ""
+    ws.freeze_panes = "A8"
+    style_title(ws, "A1", "Programa Faro de Esperanza", "H1")
+    style_subtitle(ws, "A2", "Listado Bonafide", "H2")
+
+    meta = [("Periodo", context["period_label"]), ("Residencial", context["residential_name"] or ""), ("Municipio", context["municipality"] or "")]
+    for idx, (label, value) in enumerate(meta, start=4):
+        style_meta_label(ws.cell(row=idx, column=1, value=label))
+        style_meta_value(ws.cell(row=idx, column=2, value=value))
 
     for col_index, header in enumerate(["#", "Expediente", "Nombre", "F", "M", "Edad", "Edif.", "Apto."], start=1):
-        ws.cell(row=8, column=col_index, value=header).font = Font(bold=True)
+        style_header(ws.cell(row=8, column=col_index, value=header))
 
+    end_row = 8
     for row_index, row in enumerate(context.get("rows", []), start=9):
-        ws.cell(row=row_index, column=1, value=row.get("index", ""))
-        ws.cell(row=row_index, column=2, value=row.get("expediente", ""))
-        ws.cell(row=row_index, column=3, value=row.get("nombre", ""))
-        ws.cell(row=row_index, column=4, value=row.get("f", ""))
-        ws.cell(row=row_index, column=5, value=row.get("m", ""))
-        ws.cell(row=row_index, column=6, value=row.get("edad", ""))
-        ws.cell(row=row_index, column=7, value=row.get("edificio", ""))
-        ws.cell(row=row_index, column=8, value=row.get("apartamento", ""))
+        ws.cell(row=row_index, column=1, value=row.get("index", "")).alignment = CENTER
+        ws.cell(row=row_index, column=2, value=row.get("expediente", "")).alignment = LEFT
+        ws.cell(row=row_index, column=3, value=row.get("nombre", "")).alignment = LEFT
+        ws.cell(row=row_index, column=4, value=row.get("f", "")).alignment = CENTER
+        ws.cell(row=row_index, column=5, value=row.get("m", "")).alignment = CENTER
+        ws.cell(row=row_index, column=6, value=row.get("edad", "")).alignment = CENTER
+        ws.cell(row=row_index, column=7, value=row.get("edificio", "")).alignment = CENTER
+        ws.cell(row=row_index, column=8, value=row.get("apartamento", "")).alignment = CENTER
+        end_row = row_index
 
+    if end_row == 8:
+        ws.cell(row=9, column=1, value="No hay datos para este filtro.")
+        ws.merge_cells("A9:H9")
+        ws["A9"].alignment = CENTER
+        end_row = 9
+
+    apply_table_border(ws, 8, end_row, 1, 8)
     for col, width in {"A": 6, "B": 20, "C": 40, "D": 6, "E": 6, "F": 8, "G": 12, "H": 12}.items():
         ws.column_dimensions[col].width = width
     return ws
@@ -66,38 +154,40 @@ def build_bonafide_sheet(wb: Workbook, context: dict, title: str = "Bonafide"):
 
 def build_no_duplicado_sheet(wb: Workbook, context: dict, title: str = "No Duplicado", duplicated: bool = False):
     ws = make_sheet(wb, title)
-    ws["A1"] = "Informe mensual de participaciones" if duplicated else "Informe mensual de participantes"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = "Duplicado por edad y sexo en los proyectos impactados" if duplicated else "No Duplicado por edad y sexo en los proyectos impactados"
-    ws["A2"].font = Font(bold=True)
-    ws["A4"] = "Residencial"
-    ws["B4"] = context["residential_name"] or ""
-    ws["A5"] = "Municipio"
-    ws["B5"] = context["municipality"] or ""
-    ws["A6"] = "RQ"
-    ws["B6"] = context["rq_code"] or ""
-    ws["A7"] = "Periodo reportado"
-    ws["B7"] = context["period_label"]
-    ws["A8"] = "Funcionario autorizado"
-    ws["B8"] = context["authorized_name"] or ""
+    ws.freeze_panes = "A10"
+    style_title(ws, "A1", "Informe mensual de participaciones" if duplicated else "Informe mensual de participantes", "D1")
+    style_subtitle(ws, "A2", "Duplicado por edad y sexo en los proyectos impactados" if duplicated else "No Duplicado por edad y sexo en los proyectos impactados", "D2")
+
+    meta = [
+        ("Residencial", context["residential_name"] or ""),
+        ("Municipio", context["municipality"] or ""),
+        ("RQ", context["rq_code"] or ""),
+        ("Periodo reportado", context["period_label"]),
+        ("Funcionario autorizado", context["authorized_name"] or ""),
+    ]
+    for idx, (label, value) in enumerate(meta, start=4):
+        style_meta_label(ws.cell(row=idx, column=1, value=label))
+        style_meta_value(ws.cell(row=idx, column=2, value=value))
 
     headers = ["Clasificación", "F", "M", "Total de participaciones" if duplicated else "Total de participantes"]
     for col_index, header in enumerate(headers, start=1):
-        ws.cell(row=10, column=col_index, value=header).font = Font(bold=True)
+        style_header(ws.cell(row=10, column=col_index, value=header))
 
     row_index = 11
     for row in context.get("rows", []):
-        ws.cell(row=row_index, column=1, value=row.get("label", ""))
-        ws.cell(row=row_index, column=2, value=row.get("f", 0))
-        ws.cell(row=row_index, column=3, value=row.get("m", 0))
-        ws.cell(row=row_index, column=4, value=row.get("total", 0))
+        ws.cell(row=row_index, column=1, value=row.get("label", "")).alignment = LEFT
+        ws.cell(row=row_index, column=2, value=row.get("f", 0)).alignment = CENTER
+        ws.cell(row=row_index, column=3, value=row.get("m", 0)).alignment = CENTER
+        ws.cell(row=row_index, column=4, value=row.get("total", 0)).alignment = CENTER
         row_index += 1
 
-    ws.cell(row=row_index, column=1, value="TOTAL").font = Font(bold=True)
-    ws.cell(row=row_index, column=2, value=context["total_f"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=3, value=context["total_m"]).font = Font(bold=True)
-    ws.cell(row=row_index, column=4, value=context["total_all"]).font = Font(bold=True)
+    for col_index, value in enumerate(["TOTAL", context["total_f"], context["total_m"], context["total_all"]], start=1):
+        cell = ws.cell(row=row_index, column=col_index, value=value)
+        style_total(cell)
+        if col_index == 1:
+            cell.alignment = LEFT
 
+    apply_table_border(ws, 10, row_index, 1, 4)
     for col, width in {"A": 35, "B": 10, "C": 10, "D": 20}.items():
         ws.column_dimensions[col].width = width
     return ws

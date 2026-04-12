@@ -98,6 +98,8 @@ Implementado y validado:
 - los Excels individuales y `Todos -> Excel` comparten builders reutilizables para reducir retrabajo cuando cambien configuraciones/admin
 - en `Todos -> Excel` se ajustó Visitas para incluir empleados activos aunque estén en `0`
 - en `Todos -> Excel` se amplió ADM para reflejar mejor el contenido del reporte individual
+- se empezó mejora visual de `Todos -> Excel` para que las hojas salgan más presentables (títulos, metadata, encabezados, bordes y totales más claros)
+- se documentó en código que todo reporte nuevo debe revisarse también en `_build_all_reports_bundle_context`, `all_reports_excel` y `all_reports_pdf` para que quede contemplado en `Todos`
 - **`Todos -> PDF`** ya genera un ZIP de PDFs individuales
 - se intentó WeasyPrint para backend PDF, pero en Windows causó conflicto por dependencias nativas
 - se migró el backend PDF a **`wkhtmltopdf`** para la estación Windows donde corre la app
