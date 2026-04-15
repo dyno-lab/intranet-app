@@ -14,6 +14,7 @@ from app.core.proposal_guard import is_proposal_finalized
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.models.activity_code import ActivityCode
+from app.models.activity_productivity_goal import ActivityProductivityGoal
 from app.models.adm_service_type import ADMServiceType
 from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
 from app.models.activity_session import ActivitySession
@@ -57,6 +58,15 @@ DEFAULT_POPULATION_GROUP_OPTIONS = [
     ("adulto_mayor", "Adulto Mayor", 60, None, 4),
 ]
 
+PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
+    ("none", "Sin meta productiva"),
+    ("per_residential_min_1", "Al menos 1 por residencial por mes"),
+    ("per_residential_fixed", "Cantidad fija por residencial por mes"),
+    ("global_fixed", "Cantidad global mensual entre residenciales"),
+]
+
+VALID_PRODUCTIVITY_GOAL_TYPES = {value for value, _ in PRODUCTIVITY_GOAL_TYPE_OPTIONS}
+
 
 def _redirect_with_msg(url: str, msg: str):
     separator = "&" if "?" in url else "?"
@@ -74,6 +84,85 @@ def _calc_age(dob: date | None):
         return None
     today = date.today()
     return today.year - dob.year - (((today.month, today.day) < (dob.month, dob.day)))
+
+
+def _normalize_activity_productivity_goal(
+    goal_type: str | None,
+    goal_value_raw: str | None,
+    proposal_id: int | None,
+) -> tuple[str, int | None]:
+    normalized_goal_type = (goal_type or "none").strip()
+    if normalized_goal_type not in VALID_PRODUCTIVITY_GOAL_TYPES:
+        raise ValueError("Error: Tipo de meta productiva inválido.")
+
+    if proposal_id is None:
+        return "none", None
+
+    if normalized_goal_type == "none":
+        return "none", None
+
+    if normalized_goal_type == "per_residential_min_1":
+        return "per_residential_min_1", 1
+
+    raw_value = (goal_value_raw or "").strip()
+    if not raw_value:
+        raise ValueError("Error: Debe indicar un valor para la meta productiva seleccionada.")
+
+    try:
+        goal_value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError("Error: El valor de la meta productiva debe ser un número entero.") from exc
+
+    if goal_value < 1:
+        raise ValueError("Error: El valor de la meta productiva debe ser mayor o igual a 1.")
+
+    return normalized_goal_type, goal_value
+
+
+def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | None) -> str:
+    if not goal or not goal.is_active:
+        return "Sin meta productiva"
+
+    if goal.goal_type == "per_residential_min_1":
+        return "Mín. 1 / residencial / mes"
+    if goal.goal_type == "per_residential_fixed":
+        return f"{goal.goal_value} / residencial / mes"
+    if goal.goal_type == "global_fixed":
+        return f"{goal.goal_value} global / mes"
+    return "Sin meta productiva"
+
+
+def _upsert_activity_productivity_goal(
+    db: Session,
+    activity_code: ActivityCode,
+    goal_type: str,
+    goal_value: int | None,
+    is_active: bool,
+):
+    existing_goal = db.execute(
+        select(ActivityProductivityGoal).where(
+            ActivityProductivityGoal.activity_code_id == activity_code.activity_code_id,
+            ActivityProductivityGoal.proposal_id == activity_code.proposal_id,
+        )
+    ).scalar_one_or_none()
+
+    if activity_code.proposal_id is None:
+        if existing_goal:
+            db.delete(existing_goal)
+        return
+
+    if not existing_goal:
+        existing_goal = ActivityProductivityGoal(
+            proposal_id=activity_code.proposal_id,
+            activity_code_id=activity_code.activity_code_id,
+        )
+
+    existing_goal.proposal_id = activity_code.proposal_id
+    existing_goal.activity_code_id = activity_code.activity_code_id
+    existing_goal.goal_type = goal_type
+    existing_goal.goal_value = goal_value
+    existing_goal.is_active = is_active
+    db.add(existing_goal)
 
 
 def _program_uses_population_structure(db: Session, program_id: int) -> bool:
@@ -870,8 +959,18 @@ def admin_activity_codes(
     current_user: User = Depends(require_admin),
 ):
     codes = db.execute(
-        select(ActivityCode, Proposal.code.label("proposal_code"), Proposal.name.label("proposal_name"))
+        select(
+            ActivityCode,
+            Proposal.code.label("proposal_code"),
+            Proposal.name.label("proposal_name"),
+            ActivityProductivityGoal,
+        )
         .outerjoin(Proposal, ActivityCode.proposal_id == Proposal.proposal_id)
+        .outerjoin(
+            ActivityProductivityGoal,
+            (ActivityProductivityGoal.activity_code_id == ActivityCode.activity_code_id)
+            & (ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id),
+        )
         .order_by(ActivityCode.code)
     ).all()
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
@@ -884,6 +983,8 @@ def admin_activity_codes(
             "codes": codes,
             "proposals": proposals,
             "msg": msg,
+            "productivity_goal_type_options": PRODUCTIVITY_GOAL_TYPE_OPTIONS,
+            "format_activity_productivity_goal_summary": _format_activity_productivity_goal_summary,
         },
     )
 
@@ -893,6 +994,9 @@ def admin_create_activity_code(
     code: str = Form(...),
     description: str | None = Form(default=None),
     proposal_id: int | None = Form(default=None),
+    productivity_goal_type: str | None = Form(default="none"),
+    productivity_goal_value: str | None = Form(default=None),
+    productivity_goal_is_active: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -907,12 +1011,33 @@ def admin_create_activity_code(
         if not proposal:
             return _redirect_with_msg("/ui/admin/activity-codes", "Error: La propuesta seleccionada no existe.")
 
+    normalized_proposal_id = proposal_id if proposal_id else None
+
+    try:
+        normalized_goal_type, normalized_goal_value = _normalize_activity_productivity_goal(
+            productivity_goal_type,
+            productivity_goal_value,
+            normalized_proposal_id,
+        )
+    except ValueError as exc:
+        return _redirect_with_msg("/ui/admin/activity-codes", str(exc))
+
     ac = ActivityCode(
         code=code.strip(),
         description=description,
-        proposal_id=proposal_id if proposal_id else None,
+        proposal_id=normalized_proposal_id,
     )
     db.add(ac)
+    db.flush()
+
+    _upsert_activity_productivity_goal(
+        db,
+        ac,
+        normalized_goal_type,
+        normalized_goal_value,
+        productivity_goal_is_active == "on",
+    )
+
     db.commit()
 
     return _redirect_with_msg("/ui/admin/activity-codes", "Código de actividad creado exitosamente.")
@@ -924,6 +1049,9 @@ def admin_edit_activity_code(
     code: str = Form(...),
     description: str | None = Form(default=None),
     proposal_id: int | None = Form(default=None),
+    productivity_goal_type: str | None = Form(default="none"),
+    productivity_goal_value: str | None = Form(default=None),
+    productivity_goal_is_active: str | None = Form(default=None),
     is_active: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -955,12 +1083,36 @@ def admin_edit_activity_code(
                 status_code=303,
             )
 
+    normalized_proposal_id = proposal_id if proposal_id else None
+
+    try:
+        normalized_goal_type, normalized_goal_value = _normalize_activity_productivity_goal(
+            productivity_goal_type,
+            productivity_goal_value,
+            normalized_proposal_id,
+        )
+    except ValueError as exc:
+        return RedirectResponse(
+            f"/ui/admin/activity-codes?msg={quote_plus(str(exc))}",
+            status_code=303,
+        )
+
     ac.code = code.strip()
     ac.description = description
-    ac.proposal_id = proposal_id if proposal_id else None
+    ac.proposal_id = normalized_proposal_id
     ac.is_active = is_active == "on"
 
     db.add(ac)
+    db.flush()
+
+    _upsert_activity_productivity_goal(
+        db,
+        ac,
+        normalized_goal_type,
+        normalized_goal_value,
+        productivity_goal_is_active == "on",
+    )
+
     db.commit()
 
     return RedirectResponse(
@@ -994,6 +1146,11 @@ def admin_delete_activity_code(
             status_code=303,
         )
 
+    db.execute(
+        delete(ActivityProductivityGoal).where(
+            ActivityProductivityGoal.activity_code_id == activity_code_id
+        )
+    )
     db.delete(ac)
     db.commit()
 

@@ -1108,6 +1108,97 @@ END;
 """
 
 
+PHASE8_ACTIVITY_PRODUCTIVITY_SQL = """
+IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.activity_productivity_goals (
+        productivity_goal_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        goal_type VARCHAR(50) NOT NULL CONSTRAINT DF_activity_productivity_goals_goal_type DEFAULT 'none',
+        goal_value INT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_activity_productivity_goals_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_activity_productivity_goals_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT FK_activity_productivity_goals_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_activity_productivity_goals_proposal_activity UNIQUE (proposal_id, activity_code_id)
+    );
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_type') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD goal_type VARCHAR(50) NOT NULL CONSTRAINT DF_activity_productivity_goals_goal_type DEFAULT 'none';
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_value') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD goal_value INT NULL;
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'is_active') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD is_active BIT NOT NULL CONSTRAINT DF_activity_productivity_goals_is_active DEFAULT 1;
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'created_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_created_at DEFAULT SYSUTCDATETIME();
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'updated_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_updated_at DEFAULT SYSUTCDATETIME();
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_activity_productivity_goals_proposal_id'
+      AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
+)
+BEGIN
+    CREATE INDEX IX_activity_productivity_goals_proposal_id
+    ON dbo.activity_productivity_goals(proposal_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_activity_productivity_goals_activity_code_id'
+      AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
+)
+BEGIN
+    CREATE INDEX IX_activity_productivity_goals_activity_code_id
+    ON dbo.activity_productivity_goals(activity_code_id);
+END;
+
+UPDATE dbo.activity_productivity_goals
+SET goal_type = CASE
+    WHEN goal_type IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed') THEN goal_type
+    ELSE 'none'
+END,
+    goal_value = CASE
+        WHEN goal_type = 'none' THEN NULL
+        WHEN goal_type = 'per_residential_min_1' THEN 1
+        WHEN goal_type IN ('per_residential_fixed', 'global_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
+        ELSE NULL
+    END
+WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed')
+   OR (goal_type = 'none' AND goal_value IS NOT NULL)
+   OR (goal_type = 'per_residential_min_1' AND ISNULL(goal_value, 0) <> 1)
+   OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1));
+
+DELETE apg
+FROM dbo.activity_productivity_goals apg
+INNER JOIN dbo.activity_codes ac ON ac.activity_code_id = apg.activity_code_id
+WHERE ac.proposal_id IS NULL;
+"""
+
+
 PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL = """
 INSERT INTO dbo.persons (
     legacy_participant_id,
@@ -1235,6 +1326,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
+        conn.exec_driver_sql(PHASE8_ACTIVITY_PRODUCTIVITY_SQL)
 
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_CONSTRAINTS_SQL)

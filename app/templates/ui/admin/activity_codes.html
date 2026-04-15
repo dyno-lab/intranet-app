@@ -19,22 +19,45 @@
   </div>
   <div class="card-body">
     <form method="post" action="/ui/admin/activity-codes/create" class="row g-3 align-items-end">
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label for="code" class="form-label">Código</label>
         <input type="text" class="form-control" name="code" id="code" required>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label for="description" class="form-label">Descripción</label>
         <input type="text" class="form-control" name="description" id="description">
       </div>
       <div class="col-md-3">
         <label for="proposal_id" class="form-label">Propuesta</label>
-        <select class="form-select" name="proposal_id" id="proposal_id">
+        <select class="form-select js-productivity-proposal" name="proposal_id" id="proposal_id" data-target-prefix="create-productivity">
           <option value="">Global / Todas</option>
           {% for proposal in proposals if proposal.is_active %}
             <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="col-md-2 js-productivity-fields d-none" id="create-productivity-container">
+        <label for="create_productivity_goal_type" class="form-label">Tipo de meta</label>
+        <select class="form-select js-productivity-goal-type" name="productivity_goal_type" id="create_productivity_goal_type" data-target-prefix="create-productivity">
+          {% for option_value, option_label in productivity_goal_type_options %}
+            <option value="{{ option_value }}">{{ option_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1 js-productivity-fields d-none" id="create-productivity-value-container">
+        <label for="create_productivity_goal_value" class="form-label">Valor</label>
+        <input type="number" min="1" class="form-control js-productivity-goal-value" name="productivity_goal_value" id="create_productivity_goal_value" data-target-prefix="create-productivity">
+      </div>
+      <div class="col-md-1 js-productivity-fields d-none" id="create-productivity-active-container">
+        <div class="form-check mt-4 pt-2">
+          <input class="form-check-input" type="checkbox" name="productivity_goal_is_active" id="create_productivity_goal_is_active" checked>
+          <label class="form-check-label" for="create_productivity_goal_is_active">Activa</label>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <div class="small text-muted js-productivity-help d-none" id="create-productivity-help">
+          La configuración productiva solo aplica a actividades asociadas a una propuesta.
+        </div>
       </div>
       <div class="col-md-2">
         <button type="submit" class="btn btn-primary w-100">Crear</button>
@@ -56,6 +79,7 @@
           <th>Código</th>
           <th>Descripción</th>
           <th>Propuesta</th>
+          <th>Meta productiva</th>
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
@@ -65,6 +89,7 @@
         {% set ac = row[0] %}
         {% set proposal_code = row[1] %}
         {% set proposal_name = row[2] %}
+        {% set productivity_goal = row[3] %}
         <tr class="{{ 'text-muted text-decoration-line-through' if not ac.is_active }}">
           <td>{{ ac.activity_code_id }}</td>
           <td><strong>{{ ac.code }}</strong></td>
@@ -75,6 +100,12 @@
               <div class="small text-muted">{{ proposal_name }}</div>
             {% else %}
               <span class="text-muted">Global</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="small">{{ format_activity_productivity_goal_summary(productivity_goal) }}</span>
+            {% if productivity_goal and not productivity_goal.is_active %}
+              <div><span class="badge bg-secondary">Inactiva</span></div>
             {% endif %}
           </td>
           <td>
@@ -96,19 +127,19 @@
           </td>
         </tr>
         <tr class="collapse" id="edit-ac-{{ ac.activity_code_id }}">
-          <td colspan="6" class="bg-light">
+          <td colspan="7" class="bg-light">
             <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/edit" class="row g-2 align-items-end p-2">
               <div class="col-md-2">
                 <label class="form-label small">Código</label>
                 <input type="text" class="form-control form-control-sm" name="code" value="{{ ac.code }}" required>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
                 <label class="form-label small">Descripción</label>
                 <input type="text" class="form-control form-control-sm" name="description" value="{{ ac.description or '' }}">
               </div>
               <div class="col-md-3">
                 <label class="form-label small">Propuesta</label>
-                <select class="form-select form-select-sm" name="proposal_id">
+                <select class="form-select form-select-sm js-productivity-proposal" name="proposal_id" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
                   <option value="">Global / Todas</option>
                   {% for proposal in proposals %}
                     <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id == ac.proposal_id %}selected{% endif %}>
@@ -117,12 +148,36 @@
                   {% endfor %}
                 </select>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-container">
+                <label class="form-label small">Tipo de meta</label>
+                <select class="form-select form-select-sm js-productivity-goal-type" name="productivity_goal_type" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
+                  {% set selected_goal_type = productivity_goal.goal_type if productivity_goal else 'none' %}
+                  {% for option_value, option_label in productivity_goal_type_options %}
+                    <option value="{{ option_value }}" {% if option_value == selected_goal_type %}selected{% endif %}>{{ option_label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'global_fixed'] %}
+              <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
+                <label class="form-label small">Valor</label>
+                <input type="number" min="1" class="form-control form-control-sm js-productivity-goal-value" name="productivity_goal_value" value="{{ productivity_goal.goal_value if productivity_goal and productivity_goal.goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
+              </div>
+              <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-active-container">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" name="productivity_goal_is_active" id="productivity-active-{{ ac.activity_code_id }}"
+                         {{ 'checked' if productivity_goal and productivity_goal.is_active }}>
+                  <label class="form-check-label" for="productivity-active-{{ ac.activity_code_id }}">Activa</label>
+                </div>
+              </div>
+              <div class="col-md-1">
                 <div class="form-check mt-4">
                   <input class="form-check-input" type="checkbox" name="is_active" id="active-ac-{{ ac.activity_code_id }}"
                          {{ 'checked' if ac.is_active }}>
                   <label class="form-check-label" for="active-ac-{{ ac.activity_code_id }}">Activo</label>
                 </div>
+              </div>
+              <div class="col-md-12 js-productivity-help {{ 'd-none' if ac.proposal_id else '' }}" id="edit-productivity-{{ ac.activity_code_id }}-help">
+                <div class="small text-muted">La configuración productiva solo aplica a actividades asociadas a una propuesta.</div>
               </div>
               <div class="col-md-2">
                 <button type="submit" class="btn btn-sm btn-success">Guardar</button>
@@ -137,5 +192,96 @@
     </table>
   </div>
 </div>
+
+<script>
+(function () {
+  function updateProductivityControls(prefix) {
+    const proposalSelect = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-proposal');
+    const goalTypeSelect = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-goal-type');
+    const goalValueInput = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-goal-value');
+    const container = document.getElementById(prefix + '-container');
+    const valueContainer = document.getElementById(prefix + '-value-container');
+    const activeContainer = document.getElementById(prefix + '-active-container');
+    const help = document.getElementById(prefix + '-help');
+
+    if (!proposalSelect || !goalTypeSelect || !container || !help) {
+      return;
+    }
+
+    const hasProposal = !!proposalSelect.value;
+    const goalType = goalTypeSelect.value;
+
+    container.classList.toggle('d-none', !hasProposal);
+    if (activeContainer) {
+      activeContainer.classList.toggle('d-none', !hasProposal);
+    }
+    help.classList.toggle('d-none', hasProposal);
+
+    if (!hasProposal) {
+      goalTypeSelect.value = 'none';
+      if (goalValueInput) {
+        goalValueInput.value = '';
+        goalValueInput.required = false;
+        goalValueInput.disabled = true;
+      }
+      if (valueContainer) {
+        valueContainer.classList.add('d-none');
+      }
+      return;
+    }
+
+    if (goalType === 'per_residential_min_1') {
+      if (goalValueInput) {
+        goalValueInput.value = '1';
+        goalValueInput.required = false;
+        goalValueInput.disabled = true;
+      }
+      if (valueContainer) {
+        valueContainer.classList.add('d-none');
+      }
+      return;
+    }
+
+    if (goalType === 'per_residential_fixed' || goalType === 'global_fixed') {
+      if (goalValueInput) {
+        goalValueInput.disabled = false;
+        goalValueInput.required = true;
+      }
+      if (valueContainer) {
+        valueContainer.classList.remove('d-none');
+      }
+      return;
+    }
+
+    if (goalValueInput) {
+      goalValueInput.value = '';
+      goalValueInput.required = false;
+      goalValueInput.disabled = true;
+    }
+    if (valueContainer) {
+      valueContainer.classList.add('d-none');
+    }
+  }
+
+  const proposalSelects = document.querySelectorAll('.js-productivity-proposal');
+  const goalTypeSelects = document.querySelectorAll('.js-productivity-goal-type');
+
+  proposalSelects.forEach(function (element) {
+    const prefix = element.dataset.targetPrefix;
+    element.addEventListener('change', function () {
+      updateProductivityControls(prefix);
+    });
+    updateProductivityControls(prefix);
+  });
+
+  goalTypeSelects.forEach(function (element) {
+    const prefix = element.dataset.targetPrefix;
+    element.addEventListener('change', function () {
+      updateProductivityControls(prefix);
+    });
+    updateProductivityControls(prefix);
+  });
+})();
+</script>
 
 {% endblock %}
