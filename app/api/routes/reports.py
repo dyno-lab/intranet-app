@@ -738,11 +738,12 @@ def productivity_report(
     proposal_id: int | None = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    context = _build_productivity_context(db, current_user, proposal_id, month, year, employee_id)
+    normalized_employee_id = _parse_optional_int(employee_id)
+    context = _build_productivity_context(db, current_user, proposal_id, month, year, normalized_employee_id)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/productividad.html", context)
 
