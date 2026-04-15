@@ -9,7 +9,7 @@
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <form method="get" action="/ui/reports/productividad" class="row g-3 align-items-end">
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Propuesta *</label>
         <select class="form-select" name="proposal_id" required>
           <option value="">Selecciona...</option>
@@ -51,8 +51,15 @@
         <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
+      <div class="col-md-2">
+        <label class="form-label">Vista</label>
+        <select class="form-select" name="view_mode">
+          <option value="activity" {% if selected_view_mode == 'activity' %}selected{% endif %}>Por actividad</option>
+          <option value="residential" {% if selected_view_mode == 'residential' %}selected{% endif %}>Por residencial</option>
+        </select>
+      </div>
+      <div class="col-md-1 d-grid">
+        <button class="btn btn-primary">Ver</button>
       </div>
     </form>
   </div>
@@ -64,6 +71,69 @@
 </div>
 {% endfor %}
 
+{% if selected_view_mode == 'residential' %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header">
+    <strong>Resumen por residencial</strong>
+    {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
+  </div>
+  <div class="card-body">
+    {% if residential_summary_rows %}
+    <div class="accordion" id="residentialProductivityAccordion">
+      {% for row in residential_summary_rows %}
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-{{ loop.index }}">
+          <button class="accordion-button {{ '' if loop.first else 'collapsed' }}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ loop.index }}">
+            <div class="w-100 d-flex flex-wrap justify-content-between gap-3 me-3">
+              <span><strong>{{ row.residential_name }}</strong></span>
+              <span>Total actividades: {{ row.total_activities }}</span>
+              <span class="text-success">Cumple: {{ row.cumple }}</span>
+              <span class="text-danger">No cumple: {{ row.no_cumple }}</span>
+              <span>Porcentaje: {{ row.percentage }}%</span>
+            </div>
+          </button>
+        </h2>
+        <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse {{ 'show' if loop.first else '' }}" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#residentialProductivityAccordion">
+          <div class="accordion-body p-0">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Propuesta</th>
+                  <th>Actividad</th>
+                  <th>Meta</th>
+                  <th>Ejecutado</th>
+                  <th>Cumplimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for detail in row.details %}
+                <tr>
+                  <td>
+                    <strong>{{ detail.proposal_code }}</strong>
+                    <div class="small text-muted">{{ detail.proposal_name }}</div>
+                  </td>
+                  <td>
+                    <strong>{{ detail.activity_code }}</strong>
+                    <div class="small text-muted">{{ detail.activity_description or '-' }}</div>
+                  </td>
+                  <td>{{ detail.goal_label }}</td>
+                  <td>{{ detail.executed }}</td>
+                  <td><span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
 <div class="card shadow-sm mb-4">
   <div class="card-header">
     <strong>Resumen mensual</strong>
@@ -151,4 +221,5 @@
     </table>
   </div>
 </div>
+{% endif %}
 {% endblock %}

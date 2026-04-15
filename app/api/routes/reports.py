@@ -545,6 +545,7 @@ def _build_productivity_context(
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
+    view_mode: str = "activity",
 ):
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
@@ -560,8 +561,10 @@ def _build_productivity_context(
 
     rows = []
     summary_rows = []
+    residential_summary_rows = []
     warning_messages = []
     residential_name = "Global" if is_global else _residential_from_user(selected_user)
+    normalized_view_mode = view_mode if view_mode in {"activity", "residential"} else "activity"
 
     if proposal_id and normalized_month and normalized_year:
         proposal = db.get(Proposal, proposal_id)
@@ -628,6 +631,8 @@ def _build_productivity_context(
 
             month_label = month_lookup.get(normalized_month, str(normalized_month))
 
+            residential_rollup: dict[str, dict] = {}
+
             for goal, proposal_code, proposal_name, activity_code, activity_description in goal_rows:
                 activity_key = (goal.proposal_id, goal.activity_code_id)
                 residential_counts = counts_by_activity.get(activity_key, [])
@@ -655,20 +660,25 @@ def _build_productivity_context(
                     target_value = None
                     status = "Informativo"
                     status_badge = "secondary"
+                    met_for_rollup = None
 
                     if goal_type == "per_residential_min_1":
                         target_value = 1
                         met = executed >= 1
+                        met_for_rollup = met
                         status = "Cumple" if met else "No cumple"
                         status_badge = "success" if met else "danger"
                         per_residential_results.append(met)
                     elif goal_type == "per_residential_fixed":
                         target_value = int(goal_value or 0)
                         met = executed >= target_value
+                        met_for_rollup = met
                         status = "Cumple" if met else "No cumple"
                         status_badge = "success" if met else "danger"
                         per_residential_results.append(met)
                     elif goal_type == "global_fixed":
+                        met = global_executed >= int(goal_value or 0)
+                        met_for_rollup = met
                         status = "Informativo"
                         status_badge = "secondary"
 
@@ -687,6 +697,33 @@ def _build_productivity_context(
                     }
                     detailed_rows.append(detailed_row)
                     rows.append(detailed_row)
+
+                    residential_bucket = residential_rollup.setdefault(
+                        residential_row["residential_name"],
+                        {
+                            "residential_name": residential_row["residential_name"],
+                            "total_activities": 0,
+                            "cumple": 0,
+                            "no_cumple": 0,
+                            "details": [],
+                        },
+                    )
+                    residential_bucket["total_activities"] += 1
+                    if met_for_rollup is True:
+                        residential_bucket["cumple"] += 1
+                    elif met_for_rollup is False:
+                        residential_bucket["no_cumple"] += 1
+                    residential_bucket["details"].append({
+                        "proposal_code": proposal_code,
+                        "proposal_name": proposal_name,
+                        "activity_code": activity_code,
+                        "activity_description": activity_description,
+                        "goal_label": goal_label,
+                        "executed": executed,
+                        "goal": target_value if target_value is not None else global_goal,
+                        "status": status,
+                        "status_badge": status_badge,
+                    })
 
                 if goal_type == "per_residential_min_1":
                     all_met = bool(per_residential_results) and all(per_residential_results)
@@ -716,6 +753,18 @@ def _build_productivity_context(
                     "residential_rows": detailed_rows,
                 })
 
+            for residential_bucket in residential_rollup.values():
+                total_activities = residential_bucket["total_activities"]
+                cumple = residential_bucket["cumple"]
+                no_cumple = residential_bucket["no_cumple"]
+                percentage = round((cumple / total_activities) * 100, 2) if total_activities else 0
+                residential_summary_rows.append({
+                    **residential_bucket,
+                    "percentage": percentage,
+                })
+
+            residential_summary_rows.sort(key=lambda item: item["residential_name"])
+
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
@@ -727,6 +776,8 @@ def _build_productivity_context(
         "residential_name": residential_name,
         "rows": rows,
         "summary_rows": summary_rows,
+        "residential_summary_rows": residential_summary_rows,
+        "selected_view_mode": normalized_view_mode,
         "warning_messages": warning_messages,
         "period_label": f'{month_lookup.get(normalized_month, "")} {normalized_year}'.strip(),
     }
@@ -739,11 +790,12 @@ def productivity_report(
     month: str | None = None,
     year: str | None = None,
     employee_id: str | None = None,
+    view_mode: str = "activity",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     normalized_employee_id = _parse_optional_int(employee_id)
-    context = _build_productivity_context(db, current_user, proposal_id, month, year, normalized_employee_id)
+    context = _build_productivity_context(db, current_user, proposal_id, month, year, normalized_employee_id, view_mode=view_mode)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/productividad.html", context)
 
