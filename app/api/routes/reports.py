@@ -576,10 +576,6 @@ def _build_productivity_context(
     if proposal_id and normalized_month and normalized_year:
         proposal = db.get(Proposal, proposal_id)
         if proposal:
-            warning_messages.append(
-                "Advertencia técnica: el residencial se deriva del creador actual de la sesión porque ActivitySession no materializa residencial en la transacción."
-            )
-
             goal_rows = db.execute(
                 select(
                     ActivityProductivityGoal,
