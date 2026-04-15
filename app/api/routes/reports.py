@@ -817,13 +817,30 @@ def _build_productivity_context(
 
             top_activities = sorted(ranked_activities, key=lambda item: item["progress_percentage"], reverse=True)[:5]
             bottom_activities = sorted(ranked_activities, key=lambda item: item["progress_percentage"])[:5]
-            residential_ranking = residential_summary_rows[:5]
+            residential_ranking = residential_summary_rows[:5] if is_global else []
 
             if not is_global and residential_name:
                 selected_residential_dashboard = next(
                     (item for item in residential_summary_rows if item["residential_name"] == residential_name),
                     None,
                 )
+                if selected_residential_dashboard:
+                    detail_rows = selected_residential_dashboard.get("details", [])
+                    detail_rows_with_progress = []
+                    for detail in detail_rows:
+                        goal_value = detail.get("goal")
+                        executed = int(detail.get("executed") or 0)
+                        if goal_value:
+                            progress_percentage = round((executed / int(goal_value)) * 100, 2)
+                        else:
+                            progress_percentage = 0
+                        detail_rows_with_progress.append({
+                            **detail,
+                            "progress_percentage": progress_percentage,
+                        })
+
+                    top_activities = sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"], reverse=True)[:5]
+                    bottom_activities = sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"])[:5]
             elif residential_summary_rows:
                 selected_residential_dashboard = residential_summary_rows[0]
 

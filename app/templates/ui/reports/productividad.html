@@ -119,7 +119,7 @@
 
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>Residencial priorizado</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Residencial priorizado{% else %}Tu residencial{% endif %}</strong></div>
       <div class="card-body">
         {% if selected_residential_dashboard %}
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -160,7 +160,7 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>Actividades más rezagadas</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades más rezagadas{% else %}Tus actividades más rezagadas{% endif %}</strong></div>
       <div class="card-body">
         {% if bottom_activities %}
           {% for item in bottom_activities %}
@@ -185,25 +185,40 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>Residenciales prioritarios</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Residenciales prioritarios{% else %}Estado de tu residencial{% endif %}</strong></div>
       <div class="card-body">
-        {% if residential_ranking %}
-          {% for item in residential_ranking %}
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <div>
-                <strong>{{ item.residential_name }}</strong>
-                <div class="small text-muted">Cumple {{ item.cumple }} de {{ item.total_activities }}</div>
+        {% if is_global %}
+          {% if residential_ranking %}
+            {% for item in residential_ranking %}
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <div>
+                  <strong>{{ item.residential_name }}</strong>
+                  <div class="small text-muted">Cumple {{ item.cumple }} de {{ item.total_activities }}</div>
+                </div>
+                <span class="badge {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ item.percentage }}%</span>
               </div>
-              <span class="badge {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ item.percentage }}%</span>
+              <div class="progress" style="height: 12px;">
+                <div class="progress-bar {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
+              </div>
             </div>
-            <div class="progress" style="height: 12px;">
-              <div class="progress-bar {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
-            </div>
-          </div>
-          {% endfor %}
+            {% endfor %}
+          {% else %}
+            <div class="text-muted">Sin resultados para mostrar.</div>
+          {% endif %}
         {% else %}
-          <div class="text-muted">Sin resultados para mostrar.</div>
+          {% if selected_residential_dashboard %}
+            <div class="mb-3">
+              <strong>{{ selected_residential_dashboard.residential_name }}</strong>
+              <div class="small text-muted">Cumple {{ selected_residential_dashboard.cumple }} de {{ selected_residential_dashboard.total_activities }}</div>
+            </div>
+            <div class="progress mb-3" style="height: 12px;">
+              <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
+            </div>
+            <div class="small text-muted">Porcentaje mensual: {{ selected_residential_dashboard.percentage }}%</div>
+          {% else %}
+            <div class="text-muted">Sin resultados para mostrar.</div>
+          {% endif %}
         {% endif %}
       </div>
     </div>
