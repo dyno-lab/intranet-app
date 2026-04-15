@@ -16,6 +16,7 @@ from app.models.proposal import Proposal
 from app.models.user import User
 from app.models.residential import Residential
 from app.models.activity_code import ActivityCode
+from app.models.activity_productivity_goal import ActivityProductivityGoal
 from app.models.employee import Employee
 from app.models.vca_column import VCAColumn
 from app.models.vca_column_activity_code import VCAColumnActivityCode
@@ -263,6 +264,7 @@ def _get_adm_age_bucket(age: int | None) -> str | None:
 
 REPORT_OPTIONS = [
     {"value": "bonafide", "label": "Bonafide"},
+    {"value": "productividad", "label": "Productividad"},
     {"value": "no-duplicado", "label": "No Duplicado"},
     {"value": "duplicados", "label": "Duplicados"},
     {"value": "desercion-escolar", "label": "Deserción Escolar"},
@@ -340,6 +342,12 @@ def reports_run(
     month_value = int(month) if (month or "").strip() else None
     year_value = int(year) if (year or "").strip() else None
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
+
+    if report_key == "productividad":
+        return RedirectResponse(
+            f"/ui/reports/productividad?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}",
+            status_code=303,
+        )
 
     if report_key == "bonafide":
         if output == "excel":
@@ -528,6 +536,215 @@ def reports_run(
         f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
     )
+
+
+def _build_productivity_context(
+    db: Session,
+    current_user: User,
+    proposal_id: int | None,
+    month: int | str | None,
+    year: int | str | None,
+    employee_id: int | None,
+):
+    base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    month_lookup = base_context["month_lookup"]
+    user_residential_map = base_context["user_residential_map"]
+
+    normalized_month = _parse_optional_int(month)
+    normalized_year = _parse_optional_int(year)
+
+    scope = _resolve_reporting_scope(current_user, employee_id, db)
+    selected_user = scope["selected_user"]
+    is_global = scope["is_global"]
+    employee_id = scope["employee_id"]
+
+    rows = []
+    summary_rows = []
+    warning_messages = []
+    residential_name = "Global" if is_global else _residential_from_user(selected_user)
+
+    if proposal_id and normalized_month and normalized_year:
+        proposal = db.get(Proposal, proposal_id)
+        if proposal:
+            warning_messages.append(
+                "Advertencia técnica: el residencial se deriva del creador actual de la sesión porque ActivitySession no materializa residencial en la transacción."
+            )
+
+            goal_rows = db.execute(
+                select(
+                    ActivityProductivityGoal,
+                    Proposal.code.label("proposal_code"),
+                    Proposal.name.label("proposal_name"),
+                    ActivityCode.code.label("activity_code"),
+                    ActivityCode.description.label("activity_description"),
+                )
+                .join(Proposal, Proposal.proposal_id == ActivityProductivityGoal.proposal_id)
+                .join(ActivityCode, ActivityCode.activity_code_id == ActivityProductivityGoal.activity_code_id)
+                .where(
+                    ActivityProductivityGoal.proposal_id == proposal_id,
+                    ActivityProductivityGoal.is_active == True,  # noqa: E712
+                )
+                .order_by(ActivityCode.code)
+            ).all()
+
+            counts_stmt = (
+                select(
+                    ActivitySession.proposal_id,
+                    ActivitySession.activity_code_id,
+                    User.user_id.label("owner_user_id"),
+                    Residential.name.label("residential_name"),
+                    func.count(ActivitySession.session_id).label("executed_count"),
+                )
+                .select_from(ActivitySession)
+                .outerjoin(User, User.user_id == ActivitySession.created_by_user_id)
+                .outerjoin(Residential, Residential.residential_id == User.residential_id)
+                .where(
+                    ActivitySession.proposal_id == proposal_id,
+                    extract("month", ActivitySession.session_date) == normalized_month,
+                    extract("year", ActivitySession.session_date) == normalized_year,
+                )
+                .group_by(
+                    ActivitySession.proposal_id,
+                    ActivitySession.activity_code_id,
+                    User.user_id,
+                    Residential.name,
+                )
+            )
+
+            if not is_global and selected_user:
+                counts_stmt = counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+            count_rows = db.execute(counts_stmt).all()
+
+            counts_by_activity: dict[tuple[int, int], list[dict]] = {}
+            for count_row in count_rows:
+                key = (count_row.proposal_id, count_row.activity_code_id)
+                derived_residential_name = count_row.residential_name or user_residential_map.get(count_row.owner_user_id) or "Sin residencial"
+                counts_by_activity.setdefault(key, []).append({
+                    "owner_user_id": count_row.owner_user_id,
+                    "residential_name": derived_residential_name,
+                    "executed": int(count_row.executed_count or 0),
+                })
+
+            month_label = month_lookup.get(normalized_month, str(normalized_month))
+
+            for goal, proposal_code, proposal_name, activity_code, activity_description in goal_rows:
+                activity_key = (goal.proposal_id, goal.activity_code_id)
+                residential_counts = counts_by_activity.get(activity_key, [])
+                global_executed = sum(item["executed"] for item in residential_counts)
+
+                goal_type = goal.goal_type
+                goal_value = goal.goal_value
+                goal_label = "Sin meta"
+                compliance_label = "No aplica"
+                compliance_badge = "secondary"
+                global_goal = None
+                detailed_rows = []
+                per_residential_results: list[bool] = []
+
+                if goal_type == "per_residential_min_1":
+                    goal_label = "Mín. 1 / residencial / mes"
+                elif goal_type == "per_residential_fixed":
+                    goal_label = f"{goal_value} / residencial / mes"
+                elif goal_type == "global_fixed":
+                    goal_label = f"{goal_value} global / mes"
+                    global_goal = goal_value
+
+                for residential_row in residential_counts:
+                    executed = residential_row["executed"]
+                    target_value = None
+                    status = "Informativo"
+                    status_badge = "secondary"
+
+                    if goal_type == "per_residential_min_1":
+                        target_value = 1
+                        met = executed >= 1
+                        status = "Cumple" if met else "No cumple"
+                        status_badge = "success" if met else "danger"
+                        per_residential_results.append(met)
+                    elif goal_type == "per_residential_fixed":
+                        target_value = int(goal_value or 0)
+                        met = executed >= target_value
+                        status = "Cumple" if met else "No cumple"
+                        status_badge = "success" if met else "danger"
+                        per_residential_results.append(met)
+                    elif goal_type == "global_fixed":
+                        status = "Informativo"
+                        status_badge = "secondary"
+
+                    detailed_row = {
+                        "proposal_code": proposal_code,
+                        "proposal_name": proposal_name,
+                        "activity_code": activity_code,
+                        "activity_description": activity_description,
+                        "residential_name": residential_row["residential_name"],
+                        "month_label": month_label,
+                        "executed": executed,
+                        "goal": target_value if target_value is not None else global_goal,
+                        "goal_type": goal_type,
+                        "status": status,
+                        "status_badge": status_badge,
+                    }
+                    detailed_rows.append(detailed_row)
+                    rows.append(detailed_row)
+
+                if goal_type == "per_residential_min_1":
+                    all_met = bool(per_residential_results) and all(per_residential_results)
+                    compliance_label = "Cumple" if all_met else "No cumple"
+                    compliance_badge = "success" if all_met else "danger"
+                elif goal_type == "per_residential_fixed":
+                    all_met = bool(per_residential_results) and all(per_residential_results)
+                    compliance_label = "Cumple" if all_met else "No cumple"
+                    compliance_badge = "success" if all_met else "danger"
+                elif goal_type == "global_fixed":
+                    all_met = global_executed >= int(goal_value or 0)
+                    compliance_label = "Cumple" if all_met else "No cumple"
+                    compliance_badge = "success" if all_met else "danger"
+
+                summary_rows.append({
+                    "proposal_code": proposal_code,
+                    "proposal_name": proposal_name,
+                    "activity_code": activity_code,
+                    "activity_description": activity_description,
+                    "month_label": month_label,
+                    "goal_label": goal_label,
+                    "goal_type": goal_type,
+                    "global_executed": global_executed,
+                    "global_goal": global_goal,
+                    "compliance_label": compliance_label,
+                    "compliance_badge": compliance_badge,
+                    "residential_rows": detailed_rows,
+                })
+
+    return {
+        **base_context,
+        "selected_proposal_id": proposal_id,
+        "selected_month": normalized_month,
+        "selected_year": normalized_year,
+        "selected_employee_id": employee_id,
+        "selected_user": selected_user,
+        "is_global": is_global,
+        "residential_name": residential_name,
+        "rows": rows,
+        "summary_rows": summary_rows,
+        "warning_messages": warning_messages,
+        "period_label": f'{month_lookup.get(normalized_month, "")} {normalized_year}'.strip(),
+    }
+
+
+@router.get("/productividad", response_class=HTMLResponse)
+def productivity_report(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_productivity_context(db, current_user, proposal_id, month, year, employee_id)
+    context.update({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("ui/reports/productividad.html", context)
 
 
 def _build_vca_context(
