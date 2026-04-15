@@ -565,6 +565,13 @@ def _build_productivity_context(
     warning_messages = []
     residential_name = "Global" if is_global else _residential_from_user(selected_user)
     normalized_view_mode = view_mode if view_mode in {"activity", "residential"} else "activity"
+    dashboard_cards = []
+    global_progress = {"percentage": 0, "cumple": 0, "total": 0}
+    compliance_distribution = []
+    top_activities = []
+    bottom_activities = []
+    residential_ranking = []
+    selected_residential_dashboard = None
 
     if proposal_id and normalized_month and normalized_year:
         proposal = db.get(Proposal, proposal_id)
@@ -763,7 +770,66 @@ def _build_productivity_context(
                     "percentage": percentage,
                 })
 
-            residential_summary_rows.sort(key=lambda item: item["residential_name"])
+            residential_summary_rows.sort(key=lambda item: item["percentage"], reverse=True)
+
+            total_activities_evaluated = len(summary_rows)
+            total_compliant = sum(1 for item in summary_rows if item["compliance_label"] == "Cumple")
+            total_non_compliant = sum(1 for item in summary_rows if item["compliance_label"] == "No cumple")
+            global_percentage = round((total_compliant / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0
+            residentials_evaluated = len(residential_summary_rows)
+            residentials_high = sum(1 for item in residential_summary_rows if item["percentage"] >= 80)
+            residentials_medium = sum(1 for item in residential_summary_rows if 50 <= item["percentage"] < 80)
+            residentials_low = sum(1 for item in residential_summary_rows if item["percentage"] < 50)
+
+            dashboard_cards = [
+                {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas este mes"},
+                {"label": "Cumplen", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento mensual"},
+                {"label": "No cumplen", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas este mes"},
+                {"label": "% cumplimiento global", "value": f"{global_percentage}%", "tone": "info", "subtitle": "Avance mensual del programa"},
+                {"label": "Residenciales evaluados", "value": residentials_evaluated, "tone": "secondary", "subtitle": "Residenciales con actividad evaluada"},
+                {"label": "Residenciales alto/medio/bajo", "value": f"{residentials_high}/{residentials_medium}/{residentials_low}", "tone": "dark", "subtitle": "Segmentación por desempeño"},
+            ]
+
+            global_progress = {
+                "percentage": global_percentage,
+                "cumple": total_compliant,
+                "total": total_activities_evaluated,
+            }
+
+            compliance_distribution = [
+                {"label": "Cumplen", "value": total_compliant, "percentage": global_percentage, "tone": "success"},
+                {"label": "No cumplen", "value": total_non_compliant, "percentage": round((total_non_compliant / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0, "tone": "danger"},
+            ]
+
+            ranked_activities = []
+            for item in summary_rows:
+                if item["goal_type"] == "global_fixed":
+                    target = int(item["global_goal"] or 0)
+                elif item["goal_type"] == "per_residential_min_1":
+                    target = len(item["residential_rows"])
+                elif item["goal_type"] == "per_residential_fixed":
+                    target = len(item["residential_rows"]) * max(1, int(next((goal.goal_value for goal, pc, pn, ac, ad in goal_rows if ac == item["activity_code"] and pc == item["proposal_code"]), 0) or 0))
+                else:
+                    target = 0
+
+                progress_percentage = round((item["global_executed"] / target) * 100, 2) if target else 0
+                ranked_activities.append({
+                    **item,
+                    "target": target,
+                    "progress_percentage": progress_percentage,
+                })
+
+            top_activities = sorted(ranked_activities, key=lambda item: item["progress_percentage"], reverse=True)[:5]
+            bottom_activities = sorted(ranked_activities, key=lambda item: item["progress_percentage"])[:5]
+            residential_ranking = residential_summary_rows[:5]
+
+            if not is_global and residential_name:
+                selected_residential_dashboard = next(
+                    (item for item in residential_summary_rows if item["residential_name"] == residential_name),
+                    None,
+                )
+            elif residential_summary_rows:
+                selected_residential_dashboard = residential_summary_rows[0]
 
     return {
         **base_context,
@@ -778,6 +844,13 @@ def _build_productivity_context(
         "summary_rows": summary_rows,
         "residential_summary_rows": residential_summary_rows,
         "selected_view_mode": normalized_view_mode,
+        "dashboard_cards": dashboard_cards,
+        "global_progress": global_progress,
+        "compliance_distribution": compliance_distribution,
+        "top_activities": top_activities,
+        "bottom_activities": bottom_activities,
+        "residential_ranking": residential_ranking,
+        "selected_residential_dashboard": selected_residential_dashboard,
         "warning_messages": warning_messages,
         "period_label": f'{month_lookup.get(normalized_month, "")} {normalized_year}'.strip(),
     }

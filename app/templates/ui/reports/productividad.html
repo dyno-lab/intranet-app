@@ -71,6 +71,146 @@
 </div>
 {% endfor %}
 
+{% if dashboard_cards %}
+<div class="row g-3 mb-4">
+  {% for card in dashboard_cards %}
+  <div class="col-md-4 col-xl-2">
+    <div class="card border-{{ card.tone }} shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small text-uppercase mb-2">{{ card.label }}</div>
+        <div class="h4 mb-1 text-{{ card.tone }}">{{ card.value }}</div>
+        <div class="small text-muted">{{ card.subtitle }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header"><strong>Avance global del mes</strong>{% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span>Cumplimiento global</span>
+          <strong>{{ global_progress.percentage }}%</strong>
+        </div>
+        <div class="progress mb-3" style="height: 20px;">
+          <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
+        </div>
+        <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
+
+        <hr>
+
+        {% for item in compliance_distribution %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span>{{ item.label }}</span>
+            <span>{{ item.value }} · {{ item.percentage }}%</span>
+          </div>
+          <div class="progress" style="height: 14px;">
+            <div class="progress-bar bg-{{ item.tone }}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header"><strong>Residencial priorizado</strong></div>
+      <div class="card-body">
+        {% if selected_residential_dashboard %}
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">{{ selected_residential_dashboard.residential_name }}</h5>
+            <span class="badge bg-primary">{{ selected_residential_dashboard.percentage }}%</span>
+          </div>
+          <div class="progress mb-3" style="height: 18px;">
+            <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
+          </div>
+          <div class="row g-3 text-center">
+            <div class="col-4">
+              <div class="border rounded p-2">
+                <div class="small text-muted">Actividades</div>
+                <div class="h5 mb-0">{{ selected_residential_dashboard.total_activities }}</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded p-2">
+                <div class="small text-muted">Cumple</div>
+                <div class="h5 mb-0 text-success">{{ selected_residential_dashboard.cumple }}</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded p-2">
+                <div class="small text-muted">No cumple</div>
+                <div class="h5 mb-0 text-danger">{{ selected_residential_dashboard.no_cumple }}</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="text-muted">Selecciona filtros para ver el estado del residencial.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header"><strong>Actividades más rezagadas</strong></div>
+      <div class="card-body">
+        {% if bottom_activities %}
+          {% for item in bottom_activities %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div>
+                <strong>{{ item.activity_code }}</strong>
+                <div class="small text-muted">{{ item.activity_description or '-' }}</div>
+              </div>
+              <span class="badge bg-danger">{{ item.progress_percentage }}%</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div class="progress-bar bg-danger" role="progressbar" style="width: {{ item.progress_percentage if item.progress_percentage <= 100 else 100 }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">Sin resultados para mostrar.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header"><strong>Residenciales prioritarios</strong></div>
+      <div class="card-body">
+        {% if residential_ranking %}
+          {% for item in residential_ranking %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div>
+                <strong>{{ item.residential_name }}</strong>
+                <div class="small text-muted">Cumple {{ item.cumple }} de {{ item.total_activities }}</div>
+              </div>
+              <span class="badge {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ item.percentage }}%</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div class="progress-bar {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">Sin resultados para mostrar.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% if selected_view_mode == 'residential' %}
 <div class="card shadow-sm mb-4">
   <div class="card-header">
