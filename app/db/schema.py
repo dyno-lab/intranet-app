@@ -1359,7 +1359,8 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
-        conn.exec_driver_sql(PHASE8_ACTIVITY_PRODUCTIVITY_SQL)
+        # PHASE8 temporalmente fuera del startup para no bloquear arranque por estados legacy de SQL Server.
+        # La corrección de activity_productivity_goals debe ejecutarse de forma controlada sobre la BD real.
 
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_CONSTRAINTS_SQL)
