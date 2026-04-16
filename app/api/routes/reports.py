@@ -886,7 +886,7 @@ def _build_productivity_context(
                 })
 
             top_activities = [item for item in sorted(ranked_activities, key=lambda item: item["progress_percentage"], reverse=True) if item["global_executed"] > 0][:5]
-            bottom_activities = [item for item in sorted(ranked_activities, key=lambda item: item["progress_percentage"]) if item["global_executed"] > 0][:5]
+            bottom_activities = [item for item in sorted(ranked_activities, key=lambda item: (item["global_executed"], item["progress_percentage"])) if item["global_executed"] == 0][:5]
             residential_ranking = residential_summary_rows[:5] if is_global else []
 
             if not is_global and residential_name:
@@ -910,7 +910,7 @@ def _build_productivity_context(
                         })
 
                     top_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"], reverse=True) if int(item.get("executed") or 0) > 0][:5]
-                    bottom_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"]) if int(item.get("executed") or 0) > 0][:5]
+                    bottom_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: (int(item.get("executed") or 0), item["progress_percentage"])) if int(item.get("executed") or 0) == 0][:5]
             elif residential_summary_rows:
                 selected_residential_dashboard = residential_summary_rows[0]
 

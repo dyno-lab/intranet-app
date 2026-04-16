@@ -179,10 +179,10 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades que superan la meta{% else %}Tus actividades que superan la meta{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades no realizadas{% else %}Tus actividades no realizadas{% endif %}</strong></div>
       <div class="card-body">
-        {% if top_activities %}
-          {% for item in top_activities %}
+        {% if bottom_activities %}
+          {% for item in bottom_activities %}
           <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
               <div>
