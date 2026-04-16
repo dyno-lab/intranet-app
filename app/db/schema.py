@@ -1117,6 +1117,7 @@ BEGIN
         activity_code_id INT NOT NULL,
         goal_type VARCHAR(50) NOT NULL CONSTRAINT DF_activity_productivity_goals_goal_type DEFAULT 'none',
         goal_value INT NULL,
+        period_goal_value INT NULL,
         is_active BIT NOT NULL CONSTRAINT DF_activity_productivity_goals_is_active DEFAULT 1,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_updated_at DEFAULT SYSUTCDATETIME(),
@@ -1136,6 +1137,12 @@ IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_value') IS NULL
 BEGIN
     ALTER TABLE dbo.activity_productivity_goals
     ADD goal_value INT NULL;
+END;
+
+IF COL_LENGTH('dbo.activity_productivity_goals', 'period_goal_value') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_productivity_goals
+    ADD period_goal_value INT NULL;
 END;
 
 IF COL_LENGTH('dbo.activity_productivity_goals', 'is_active') IS NULL
@@ -1186,11 +1193,17 @@ END,
         WHEN goal_type = 'per_residential_min_1' THEN 1
         WHEN goal_type IN ('per_residential_fixed', 'global_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
         ELSE NULL
+    END,
+    period_goal_value = CASE
+        WHEN goal_type = 'none' THEN NULL
+        WHEN period_goal_value IS NOT NULL AND period_goal_value >= 1 THEN period_goal_value
+        ELSE NULL
     END
 WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed')
-   OR (goal_type = 'none' AND goal_value IS NOT NULL)
+   OR (goal_type = 'none' AND (goal_value IS NOT NULL OR period_goal_value IS NOT NULL))
    OR (goal_type = 'per_residential_min_1' AND ISNULL(goal_value, 0) <> 1)
-   OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1));
+   OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1))
+   OR (period_goal_value IS NOT NULL AND period_goal_value < 1);
 
 DELETE apg
 FROM dbo.activity_productivity_goals apg

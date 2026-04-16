@@ -44,9 +44,13 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-1 js-productivity-fields d-none" id="create-productivity-value-container">
-        <label for="create_productivity_goal_value" class="form-label">Valor</label>
+      <div class="col-md-2 js-productivity-fields d-none" id="create-productivity-value-container">
+        <label for="create_productivity_goal_value" class="form-label">Meta mensual</label>
         <input type="number" min="1" class="form-control js-productivity-goal-value" name="productivity_goal_value" id="create_productivity_goal_value" data-target-prefix="create-productivity">
+      </div>
+      <div class="col-md-2 js-productivity-fields d-none" id="create-productivity-period-value-container">
+        <label for="create_productivity_period_goal_value" class="form-label">Meta período</label>
+        <input type="number" min="1" class="form-control js-productivity-period-goal-value" name="productivity_period_goal_value" id="create_productivity_period_goal_value" data-target-prefix="create-productivity">
       </div>
       <div class="col-md-1 js-productivity-fields d-none" id="create-productivity-active-container">
         <div class="form-check mt-4 pt-2">
@@ -158,9 +162,13 @@
                 </select>
               </div>
               {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'global_fixed'] %}
-              <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
-                <label class="form-label small">Valor</label>
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
+                <label class="form-label small">Meta mensual</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-goal-value" name="productivity_goal_value" value="{{ productivity_goal.goal_value if productivity_goal and productivity_goal.goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
+              </div>
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-period-value-container">
+                <label class="form-label small">Meta período</label>
+                <input type="number" min="1" class="form-control form-control-sm js-productivity-period-goal-value" name="productivity_period_goal_value" value="{{ productivity_goal.period_goal_value if productivity_goal and productivity_goal.period_goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
               </div>
               <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-active-container">
                 <div class="form-check mt-4">
@@ -199,8 +207,10 @@
     const proposalSelect = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-proposal');
     const goalTypeSelect = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-goal-type');
     const goalValueInput = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-goal-value');
+    const periodGoalValueInput = document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-period-goal-value');
     const container = document.getElementById(prefix + '-container');
     const valueContainer = document.getElementById(prefix + '-value-container');
+    const periodValueContainer = document.getElementById(prefix + '-period-value-container');
     const activeContainer = document.getElementById(prefix + '-active-container');
     const help = document.getElementById(prefix + '-help');
 
@@ -224,10 +234,26 @@
         goalValueInput.required = false;
         goalValueInput.disabled = true;
       }
+      if (periodGoalValueInput) {
+        periodGoalValueInput.value = '';
+        periodGoalValueInput.required = false;
+        periodGoalValueInput.disabled = false;
+      }
       if (valueContainer) {
         valueContainer.classList.add('d-none');
       }
+      if (periodValueContainer) {
+        periodValueContainer.classList.add('d-none');
+      }
       return;
+    }
+
+    if (periodGoalValueInput) {
+      periodGoalValueInput.required = false;
+      periodGoalValueInput.disabled = false;
+    }
+    if (periodValueContainer) {
+      periodValueContainer.classList.remove('d-none');
     }
 
     if (goalType === 'per_residential_min_1') {

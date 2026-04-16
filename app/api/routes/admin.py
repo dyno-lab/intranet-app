@@ -60,7 +60,7 @@ DEFAULT_POPULATION_GROUP_OPTIONS = [
 
 PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
     ("none", "Sin meta productiva"),
-    ("per_residential_min_1", "Al menos 1 por residencial por mes"),
+    ("per_residential_min_1", "Según Necesidad"),
     ("per_residential_fixed", "Cantidad fija por residencial por mes"),
     ("global_fixed", "Cantidad global mensual entre residenciales"),
 ]
@@ -89,20 +89,32 @@ def _calc_age(dob: date | None):
 def _normalize_activity_productivity_goal(
     goal_type: str | None,
     goal_value_raw: str | None,
+    period_goal_value_raw: str | None,
     proposal_id: int | None,
-) -> tuple[str, int | None]:
+) -> tuple[str, int | None, int | None]:
     normalized_goal_type = (goal_type or "none").strip()
     if normalized_goal_type not in VALID_PRODUCTIVITY_GOAL_TYPES:
         raise ValueError("Error: Tipo de meta productiva inválido.")
 
     if proposal_id is None:
-        return "none", None
+        return "none", None, None
 
     if normalized_goal_type == "none":
-        return "none", None
+        return "none", None, None
+
+    normalized_period_goal_value = None
+    raw_period_value = (period_goal_value_raw or "").strip()
+    if raw_period_value:
+        try:
+            normalized_period_goal_value = int(raw_period_value)
+        except ValueError as exc:
+            raise ValueError("Error: La meta global del período debe ser un número entero.") from exc
+
+        if normalized_period_goal_value < 1:
+            raise ValueError("Error: La meta global del período debe ser mayor o igual a 1.")
 
     if normalized_goal_type == "per_residential_min_1":
-        return "per_residential_min_1", 1
+        return "per_residential_min_1", 1, normalized_period_goal_value
 
     raw_value = (goal_value_raw or "").strip()
     if not raw_value:
@@ -116,20 +128,26 @@ def _normalize_activity_productivity_goal(
     if goal_value < 1:
         raise ValueError("Error: El valor de la meta productiva debe ser mayor o igual a 1.")
 
-    return normalized_goal_type, goal_value
+    return normalized_goal_type, goal_value, normalized_period_goal_value
 
 
 def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | None) -> str:
     if not goal or not goal.is_active:
         return "Sin meta productiva"
 
+    parts: list[str] = []
+
     if goal.goal_type == "per_residential_min_1":
-        return "Mín. 1 / residencial / mes"
-    if goal.goal_type == "per_residential_fixed":
-        return f"{goal.goal_value} / residencial / mes"
-    if goal.goal_type == "global_fixed":
-        return f"{goal.goal_value} global / mes"
-    return "Sin meta productiva"
+        parts.append("Según Necesidad")
+    elif goal.goal_type == "per_residential_fixed":
+        parts.append(f"{goal.goal_value} / residencial / mes")
+    elif goal.goal_type == "global_fixed":
+        parts.append(f"{goal.goal_value} global / mes")
+
+    if goal.period_goal_value:
+        parts.append(f"{goal.period_goal_value} global / período")
+
+    return " + ".join(parts) if parts else "Sin meta productiva"
 
 
 def _upsert_activity_productivity_goal(
@@ -137,6 +155,7 @@ def _upsert_activity_productivity_goal(
     activity_code: ActivityCode,
     goal_type: str,
     goal_value: int | None,
+    period_goal_value: int | None,
     is_active: bool,
 ):
     existing_goal = db.execute(
@@ -161,6 +180,7 @@ def _upsert_activity_productivity_goal(
     existing_goal.activity_code_id = activity_code.activity_code_id
     existing_goal.goal_type = goal_type
     existing_goal.goal_value = goal_value
+    existing_goal.period_goal_value = period_goal_value
     existing_goal.is_active = is_active
     db.add(existing_goal)
 
@@ -996,6 +1016,7 @@ def admin_create_activity_code(
     proposal_id: int | None = Form(default=None),
     productivity_goal_type: str | None = Form(default="none"),
     productivity_goal_value: str | None = Form(default=None),
+    productivity_period_goal_value: str | None = Form(default=None),
     productivity_goal_is_active: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -1014,9 +1035,10 @@ def admin_create_activity_code(
     normalized_proposal_id = proposal_id if proposal_id else None
 
     try:
-        normalized_goal_type, normalized_goal_value = _normalize_activity_productivity_goal(
+        normalized_goal_type, normalized_goal_value, normalized_period_goal_value = _normalize_activity_productivity_goal(
             productivity_goal_type,
             productivity_goal_value,
+            productivity_period_goal_value,
             normalized_proposal_id,
         )
     except ValueError as exc:
@@ -1035,6 +1057,7 @@ def admin_create_activity_code(
         ac,
         normalized_goal_type,
         normalized_goal_value,
+        normalized_period_goal_value,
         productivity_goal_is_active == "on",
     )
 
@@ -1051,6 +1074,7 @@ def admin_edit_activity_code(
     proposal_id: int | None = Form(default=None),
     productivity_goal_type: str | None = Form(default="none"),
     productivity_goal_value: str | None = Form(default=None),
+    productivity_period_goal_value: str | None = Form(default=None),
     productivity_goal_is_active: str | None = Form(default=None),
     is_active: str | None = Form(default=None),
     db: Session = Depends(get_db),
@@ -1086,9 +1110,10 @@ def admin_edit_activity_code(
     normalized_proposal_id = proposal_id if proposal_id else None
 
     try:
-        normalized_goal_type, normalized_goal_value = _normalize_activity_productivity_goal(
+        normalized_goal_type, normalized_goal_value, normalized_period_goal_value = _normalize_activity_productivity_goal(
             productivity_goal_type,
             productivity_goal_value,
+            productivity_period_goal_value,
             normalized_proposal_id,
         )
     except ValueError as exc:
@@ -1110,6 +1135,7 @@ def admin_edit_activity_code(
         ac,
         normalized_goal_type,
         normalized_goal_value,
+        normalized_period_goal_value,
         productivity_goal_is_active == "on",
     )
 

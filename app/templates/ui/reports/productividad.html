@@ -89,16 +89,20 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>Avance global del mes</strong>{% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}</div>
+      <div class="card-header"><strong>{% if is_global %}Avance global del período{% else %}Avance global del mes{% endif %}</strong>{% if period_label and not is_global %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}</div>
       <div class="card-body">
         <div class="d-flex justify-content-between mb-2">
-          <span>Cumplimiento global</span>
+          <span>{% if is_global %}Avance acumulado{% else %}Cumplimiento global{% endif %}</span>
           <strong>{{ global_progress.percentage }}%</strong>
         </div>
         <div class="progress mb-3" style="height: 20px;">
-          <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
+          <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage if global_progress.percentage <= 100 else 100 }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
         </div>
+        {% if is_global %}
+        <div class="small text-muted">Ejecutado: {{ global_progress.cumple }} · Meta: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
+        {% else %}
         <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
+        {% endif %}
 
         <hr>
 
@@ -319,12 +323,25 @@
             </td>
             <td>{{ row.goal_label }}</td>
             <td>
-              {{ row.global_executed }}
-              {% if row.global_goal is not none %}
-              <div class="small text-muted">Meta global: {{ row.global_goal }}</div>
+              {% if is_global and row.period_goal is not none %}
+                {{ row.period_executed }}
+                <div class="small text-muted">Meta período: {{ row.period_goal }}</div>
+                <div class="small text-muted">Faltante: {{ row.period_missing }}</div>
+                <div class="small text-muted">Avance: {{ row.period_percentage }}%</div>
+              {% else %}
+                {{ row.global_executed }}
+                {% if row.global_goal is not none %}
+                <div class="small text-muted">Meta global: {{ row.global_goal }}</div>
+                {% endif %}
               {% endif %}
             </td>
-            <td><span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span></td>
+            <td>
+              {% if is_global and row.period_goal is not none %}
+                <span class="badge bg-{{ row.period_compliance_badge }}">{{ row.period_compliance_label }}</span>
+              {% else %}
+                <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         {% else %}

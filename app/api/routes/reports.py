@@ -622,6 +622,26 @@ def _build_productivity_context(
 
             count_rows = db.execute(counts_stmt).all()
 
+            period_counts_stmt = (
+                select(
+                    ActivitySession.proposal_id,
+                    ActivitySession.activity_code_id,
+                    func.count(ActivitySession.session_id).label("executed_count"),
+                )
+                .select_from(ActivitySession)
+                .where(ActivitySession.proposal_id == proposal_id)
+                .group_by(ActivitySession.proposal_id, ActivitySession.activity_code_id)
+            )
+
+            if not is_global and selected_user:
+                period_counts_stmt = period_counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+
+            period_count_rows = db.execute(period_counts_stmt).all()
+            period_counts_by_activity = {
+                (row.proposal_id, row.activity_code_id): int(row.executed_count or 0)
+                for row in period_count_rows
+            }
+
             counts_by_activity: dict[tuple[int, int], list[dict]] = {}
             for count_row in count_rows:
                 key = (count_row.proposal_id, count_row.activity_code_id)
@@ -643,20 +663,29 @@ def _build_productivity_context(
 
                 goal_type = goal.goal_type
                 goal_value = goal.goal_value
+                period_goal_value = goal.period_goal_value
+                period_executed = period_counts_by_activity.get(activity_key, 0)
                 goal_label = "Sin meta"
                 compliance_label = "No aplica"
                 compliance_badge = "secondary"
                 global_goal = None
                 detailed_rows = []
                 per_residential_results: list[bool] = []
+                period_compliance_label = None
+                period_compliance_badge = None
+                period_missing = None
+                period_percentage = None
 
                 if goal_type == "per_residential_min_1":
-                    goal_label = "Mín. 1 / residencial / mes"
+                    goal_label = "Según necesidad"
                 elif goal_type == "per_residential_fixed":
                     goal_label = f"{goal_value} / residencial / mes"
                 elif goal_type == "global_fixed":
                     goal_label = f"{goal_value} global / mes"
                     global_goal = goal_value
+
+                if period_goal_value:
+                    goal_label = f"{goal_label} + {period_goal_value} global / período" if goal_label != "Sin meta" else f"{period_goal_value} global / período"
 
                 for residential_row in residential_counts:
                     executed = residential_row["executed"]
@@ -729,7 +758,7 @@ def _build_productivity_context(
                     })
 
                 if goal_type == "per_residential_min_1":
-                    all_met = bool(per_residential_results) and all(per_residential_results)
+                    all_met = global_executed >= 1 if is_global else (bool(per_residential_results) and all(per_residential_results))
                     compliance_label = "Cumple" if all_met else "No cumple"
                     compliance_badge = "success" if all_met else "danger"
                 elif goal_type == "per_residential_fixed":
@@ -741,6 +770,13 @@ def _build_productivity_context(
                     compliance_label = "Cumple" if all_met else "No cumple"
                     compliance_badge = "success" if all_met else "danger"
 
+                if period_goal_value:
+                    period_met = period_executed >= int(period_goal_value or 0)
+                    period_compliance_label = "Cumple" if period_met else "No cumple"
+                    period_compliance_badge = "success" if period_met else "danger"
+                    period_missing = max(int(period_goal_value or 0) - period_executed, 0)
+                    period_percentage = round((period_executed / int(period_goal_value or 0)) * 100, 2) if int(period_goal_value or 0) else 0
+
                 summary_rows.append({
                     "proposal_code": proposal_code,
                     "proposal_name": proposal_name,
@@ -751,6 +787,12 @@ def _build_productivity_context(
                     "goal_type": goal_type,
                     "global_executed": global_executed,
                     "global_goal": global_goal,
+                    "period_executed": period_executed,
+                    "period_goal": period_goal_value,
+                    "period_missing": period_missing,
+                    "period_percentage": period_percentage,
+                    "period_compliance_label": period_compliance_label,
+                    "period_compliance_badge": period_compliance_badge,
                     "compliance_label": compliance_label,
                     "compliance_badge": compliance_badge,
                     "residential_rows": detailed_rows,
@@ -769,28 +811,51 @@ def _build_productivity_context(
             residential_summary_rows.sort(key=lambda item: item["percentage"], reverse=True)
 
             total_activities_evaluated = len(summary_rows)
-            total_compliant = sum(1 for item in summary_rows if item["compliance_label"] == "Cumple")
-            total_non_compliant = sum(1 for item in summary_rows if item["compliance_label"] == "No cumple")
+            compliance_metric_key = "period_compliance_label" if is_global else "compliance_label"
+            total_compliant = sum(1 for item in summary_rows if item.get(compliance_metric_key) == "Cumple")
+            total_non_compliant = sum(1 for item in summary_rows if item.get(compliance_metric_key) == "No cumple")
             global_percentage = round((total_compliant / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0
             residentials_evaluated = len(residential_summary_rows)
             residentials_high = sum(1 for item in residential_summary_rows if item["percentage"] >= 80)
             residentials_medium = sum(1 for item in residential_summary_rows if 50 <= item["percentage"] < 80)
             residentials_low = sum(1 for item in residential_summary_rows if item["percentage"] < 50)
 
-            dashboard_cards = [
-                {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas este mes"},
-                {"label": "Cumplen", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento mensual"},
-                {"label": "No cumplen", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas este mes"},
-                {"label": "% cumplimiento global", "value": f"{global_percentage}%", "tone": "info", "subtitle": "Avance mensual del programa"},
-                {"label": "Residenciales evaluados", "value": residentials_evaluated, "tone": "secondary", "subtitle": "Residenciales con actividad evaluada"},
-                {"label": "Residenciales alto/medio/bajo", "value": f"{residentials_high}/{residentials_medium}/{residentials_low}", "tone": "dark", "subtitle": "Segmentación por desempeño"},
-            ]
+            if is_global:
+                total_period_executed = sum(int(item.get("period_executed") or 0) for item in summary_rows)
+                total_period_goal = sum(int(item.get("period_goal") or 0) for item in summary_rows if item.get("period_goal"))
+                total_period_missing = max(total_period_goal - total_period_executed, 0)
+                total_period_percentage = round((total_period_executed / total_period_goal) * 100, 2) if total_period_goal else 0
+                dashboard_cards = [
+                    {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas"},
+                    {"label": "Cumplen período", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento del período"},
+                    {"label": "No cumplen período", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas del período"},
+                    {"label": "Ejecutado período", "value": total_period_executed, "tone": "info", "subtitle": "Total acumulado de la propuesta"},
+                    {"label": "Meta período", "value": total_period_goal, "tone": "secondary", "subtitle": "Meta global acumulada configurada"},
+                    {"label": "% avance período", "value": f"{total_period_percentage}%", "tone": "dark", "subtitle": f"Faltante: {total_period_missing}"},
+                ]
+                global_progress = {
+                    "percentage": total_period_percentage,
+                    "cumple": total_period_executed,
+                    "total": total_period_goal,
+                    "missing": total_period_missing,
+                    "mode": "period",
+                }
+            else:
+                dashboard_cards = [
+                    {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas este mes"},
+                    {"label": "Cumplen", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento mensual"},
+                    {"label": "No cumplen", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas este mes"},
+                    {"label": "% cumplimiento global", "value": f"{global_percentage}%", "tone": "info", "subtitle": "Avance mensual del programa"},
+                    {"label": "Residenciales evaluados", "value": residentials_evaluated, "tone": "secondary", "subtitle": "Residenciales con actividad evaluada"},
+                    {"label": "Residenciales alto/medio/bajo", "value": f"{residentials_high}/{residentials_medium}/{residentials_low}", "tone": "dark", "subtitle": "Segmentación por desempeño"},
+                ]
 
-            global_progress = {
-                "percentage": global_percentage,
-                "cumple": total_compliant,
-                "total": total_activities_evaluated,
-            }
+                global_progress = {
+                    "percentage": global_percentage,
+                    "cumple": total_compliant,
+                    "total": total_activities_evaluated,
+                    "mode": "monthly",
+                }
 
             compliance_distribution = [
                 {"label": "Cumplen", "value": total_compliant, "percentage": global_percentage, "tone": "success"},
