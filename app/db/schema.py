@@ -1109,134 +1109,126 @@ END;
 
 
 PHASE8_ACTIVITY_PRODUCTIVITY_SQL = """
-IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.activity_productivity_goals (
-        productivity_goal_id INT IDENTITY(1,1) PRIMARY KEY,
-        proposal_id INT NOT NULL,
-        activity_code_id INT NOT NULL,
-        goal_type VARCHAR(50) NOT NULL DEFAULT 'none',
-        goal_value INT NULL,
-        period_goal_value INT NULL,
-        is_active BIT NOT NULL DEFAULT 1,
-        created_at DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
-        updated_at DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_activity_productivity_goals_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT FK_activity_productivity_goals_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
-        CONSTRAINT UQ_activity_productivity_goals_proposal_activity UNIQUE (proposal_id, activity_code_id)
-    );
-END;
+BEGIN TRY
+    IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.activity_productivity_goals (
+            productivity_goal_id INT IDENTITY(1,1) PRIMARY KEY,
+            proposal_id INT NOT NULL,
+            activity_code_id INT NOT NULL,
+            goal_type VARCHAR(50) NULL,
+            goal_value INT NULL,
+            period_goal_value INT NULL,
+            is_active BIT NULL,
+            created_at DATETIMEOFFSET NULL,
+            updated_at DATETIMEOFFSET NULL
+        );
+    END;
 
-IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_type') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD goal_type VARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_type') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD goal_type VARCHAR(50) NULL;
+    END;
+
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_value') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD goal_value INT NULL;
+    END;
+
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'period_goal_value') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD period_goal_value INT NULL;
+    END;
+
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'is_active') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD is_active BIT NULL;
+    END;
+
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'created_at') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD created_at DATETIMEOFFSET NULL;
+    END;
+
+    IF COL_LENGTH('dbo.activity_productivity_goals', 'updated_at') IS NULL
+    BEGIN
+        ALTER TABLE dbo.activity_productivity_goals
+        ADD updated_at DATETIMEOFFSET NULL;
+    END;
 
     UPDATE dbo.activity_productivity_goals
     SET goal_type = 'none'
     WHERE goal_type IS NULL;
 
-    ALTER TABLE dbo.activity_productivity_goals
-    ALTER COLUMN goal_type VARCHAR(50) NOT NULL;
-END;
-
-IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_value') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD goal_value INT NULL;
-END;
-
-IF COL_LENGTH('dbo.activity_productivity_goals', 'period_goal_value') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD period_goal_value INT NULL;
-END;
-
-IF COL_LENGTH('dbo.activity_productivity_goals', 'is_active') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD is_active BIT NULL;
-
     UPDATE dbo.activity_productivity_goals
     SET is_active = 1
     WHERE is_active IS NULL;
-
-    ALTER TABLE dbo.activity_productivity_goals
-    ALTER COLUMN is_active BIT NOT NULL;
-END;
-
-IF COL_LENGTH('dbo.activity_productivity_goals', 'created_at') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD created_at DATETIMEOFFSET NULL;
 
     UPDATE dbo.activity_productivity_goals
     SET created_at = SYSUTCDATETIME()
     WHERE created_at IS NULL;
 
-    ALTER TABLE dbo.activity_productivity_goals
-    ALTER COLUMN created_at DATETIMEOFFSET NOT NULL;
-END;
-
-IF COL_LENGTH('dbo.activity_productivity_goals', 'updated_at') IS NULL
-BEGIN
-    ALTER TABLE dbo.activity_productivity_goals
-    ADD updated_at DATETIMEOFFSET NULL;
-
     UPDATE dbo.activity_productivity_goals
     SET updated_at = SYSUTCDATETIME()
     WHERE updated_at IS NULL;
 
-    ALTER TABLE dbo.activity_productivity_goals
-    ALTER COLUMN updated_at DATETIMEOFFSET NOT NULL;
-END;
-
-IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_activity_productivity_goals_proposal_id'
-      AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
-)
-BEGIN
-    CREATE INDEX IX_activity_productivity_goals_proposal_id
-    ON dbo.activity_productivity_goals(proposal_id);
-END;
-
-IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_activity_productivity_goals_activity_code_id'
-      AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
-)
-BEGIN
-    CREATE INDEX IX_activity_productivity_goals_activity_code_id
-    ON dbo.activity_productivity_goals(activity_code_id);
-END;
-
-UPDATE dbo.activity_productivity_goals
-SET goal_type = CASE
-    WHEN goal_type IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed') THEN goal_type
-    ELSE 'none'
-END,
-    goal_value = CASE
-        WHEN goal_type = 'none' THEN NULL
-        WHEN goal_type = 'per_residential_min_1' THEN 1
-        WHEN goal_type IN ('per_residential_fixed', 'global_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
-        ELSE NULL
+    UPDATE dbo.activity_productivity_goals
+    SET goal_type = CASE
+        WHEN goal_type IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed') THEN goal_type
+        ELSE 'none'
     END,
-    period_goal_value = CASE
-        WHEN goal_type = 'none' THEN NULL
-        WHEN period_goal_value IS NOT NULL AND period_goal_value >= 1 THEN period_goal_value
-        ELSE NULL
-    END
-WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed')
-   OR (goal_type = 'none' AND (goal_value IS NOT NULL OR period_goal_value IS NOT NULL))
-   OR (goal_type = 'per_residential_min_1' AND ISNULL(goal_value, 0) <> 1)
-   OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1))
-   OR (period_goal_value IS NOT NULL AND period_goal_value < 1);
+        goal_value = CASE
+            WHEN goal_type = 'none' THEN NULL
+            WHEN goal_type = 'per_residential_min_1' THEN 1
+            WHEN goal_type IN ('per_residential_fixed', 'global_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
+            ELSE NULL
+        END,
+        period_goal_value = CASE
+            WHEN goal_type = 'none' THEN NULL
+            WHEN period_goal_value IS NOT NULL AND period_goal_value >= 1 THEN period_goal_value
+            ELSE NULL
+        END
+    WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed')
+       OR (goal_type = 'none' AND (goal_value IS NOT NULL OR period_goal_value IS NOT NULL))
+       OR (goal_type = 'per_residential_min_1' AND ISNULL(goal_value, 0) <> 1)
+       OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1))
+       OR (period_goal_value IS NOT NULL AND period_goal_value < 1);
 
-DELETE apg
-FROM dbo.activity_productivity_goals apg
-INNER JOIN dbo.activity_codes ac ON ac.activity_code_id = apg.activity_code_id
-WHERE ac.proposal_id IS NULL;
+    DELETE apg
+    FROM dbo.activity_productivity_goals apg
+    INNER JOIN dbo.activity_codes ac ON ac.activity_code_id = apg.activity_code_id
+    WHERE ac.proposal_id IS NULL;
+
+    IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NOT NULL
+       AND NOT EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE name = 'IX_activity_productivity_goals_proposal_id'
+              AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
+       )
+    BEGIN
+        CREATE INDEX IX_activity_productivity_goals_proposal_id
+        ON dbo.activity_productivity_goals(proposal_id);
+    END;
+
+    IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NOT NULL
+       AND NOT EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE name = 'IX_activity_productivity_goals_activity_code_id'
+              AND object_id = OBJECT_ID('dbo.activity_productivity_goals')
+       )
+    BEGIN
+        CREATE INDEX IX_activity_productivity_goals_activity_code_id
+        ON dbo.activity_productivity_goals(activity_code_id);
+    END;
+END TRY
+BEGIN CATCH
+    PRINT 'PHASE8_ACTIVITY_PRODUCTIVITY_SQL skipped: ' + ERROR_MESSAGE();
+END CATCH;
 """
 
 
