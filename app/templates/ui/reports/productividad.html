@@ -164,7 +164,7 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades que exceden{% else %}Tus actividades que exceden{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades con ejecución{% else %}Tus actividades con ejecución{% endif %}</strong></div>
       <div class="card-body">
         {% if bottom_activities %}
           {% for item in bottom_activities %}
