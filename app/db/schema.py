@@ -1115,12 +1115,12 @@ BEGIN
         productivity_goal_id INT IDENTITY(1,1) PRIMARY KEY,
         proposal_id INT NOT NULL,
         activity_code_id INT NOT NULL,
-        goal_type VARCHAR(50) NOT NULL CONSTRAINT DF_activity_productivity_goals_goal_type DEFAULT 'none',
+        goal_type VARCHAR(50) NOT NULL DEFAULT 'none',
         goal_value INT NULL,
         period_goal_value INT NULL,
-        is_active BIT NOT NULL CONSTRAINT DF_activity_productivity_goals_is_active DEFAULT 1,
-        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_created_at DEFAULT SYSUTCDATETIME(),
-        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_updated_at DEFAULT SYSUTCDATETIME(),
+        is_active BIT NOT NULL DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_activity_productivity_goals_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
         CONSTRAINT FK_activity_productivity_goals_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
         CONSTRAINT UQ_activity_productivity_goals_proposal_activity UNIQUE (proposal_id, activity_code_id)
@@ -1130,7 +1130,14 @@ END;
 IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_type') IS NULL
 BEGIN
     ALTER TABLE dbo.activity_productivity_goals
-    ADD goal_type VARCHAR(50) NOT NULL CONSTRAINT DF_activity_productivity_goals_goal_type DEFAULT 'none';
+    ADD goal_type VARCHAR(50) NULL;
+
+    UPDATE dbo.activity_productivity_goals
+    SET goal_type = 'none'
+    WHERE goal_type IS NULL;
+
+    ALTER TABLE dbo.activity_productivity_goals
+    ALTER COLUMN goal_type VARCHAR(50) NOT NULL;
 END;
 
 IF COL_LENGTH('dbo.activity_productivity_goals', 'goal_value') IS NULL
@@ -1148,19 +1155,40 @@ END;
 IF COL_LENGTH('dbo.activity_productivity_goals', 'is_active') IS NULL
 BEGIN
     ALTER TABLE dbo.activity_productivity_goals
-    ADD is_active BIT NOT NULL CONSTRAINT DF_activity_productivity_goals_is_active DEFAULT 1;
+    ADD is_active BIT NULL;
+
+    UPDATE dbo.activity_productivity_goals
+    SET is_active = 1
+    WHERE is_active IS NULL;
+
+    ALTER TABLE dbo.activity_productivity_goals
+    ALTER COLUMN is_active BIT NOT NULL;
 END;
 
 IF COL_LENGTH('dbo.activity_productivity_goals', 'created_at') IS NULL
 BEGIN
     ALTER TABLE dbo.activity_productivity_goals
-    ADD created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_created_at DEFAULT SYSUTCDATETIME();
+    ADD created_at DATETIMEOFFSET NULL;
+
+    UPDATE dbo.activity_productivity_goals
+    SET created_at = SYSUTCDATETIME()
+    WHERE created_at IS NULL;
+
+    ALTER TABLE dbo.activity_productivity_goals
+    ALTER COLUMN created_at DATETIMEOFFSET NOT NULL;
 END;
 
 IF COL_LENGTH('dbo.activity_productivity_goals', 'updated_at') IS NULL
 BEGIN
     ALTER TABLE dbo.activity_productivity_goals
-    ADD updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_activity_productivity_goals_updated_at DEFAULT SYSUTCDATETIME();
+    ADD updated_at DATETIMEOFFSET NULL;
+
+    UPDATE dbo.activity_productivity_goals
+    SET updated_at = SYSUTCDATETIME()
+    WHERE updated_at IS NULL;
+
+    ALTER TABLE dbo.activity_productivity_goals
+    ALTER COLUMN updated_at DATETIMEOFFSET NOT NULL;
 END;
 
 IF NOT EXISTS (
