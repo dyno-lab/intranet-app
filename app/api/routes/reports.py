@@ -835,7 +835,7 @@ def _build_productivity_context(
                     {"label": "Cumplen período", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento del período"},
                     {"label": "No cumplen período", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas del período"},
                     {"label": "Actividades realizadas en el período", "value": total_period_executed, "tone": "info", "subtitle": "Total acumulado registrado dentro del período consultado"},
-                    {"label": "Meta período", "value": total_period_goal, "tone": "secondary", "subtitle": "Meta global acumulada configurada"},
+                    {"label": "Meta período", "value": total_period_goal, "tone": "secondary", "subtitle": "Meta global de actividades"},
                     {"label": "% avance período", "value": f"{total_period_percentage}%", "tone": "dark", "subtitle": f"Faltante: {total_period_missing}"},
                 ]
                 global_progress = {

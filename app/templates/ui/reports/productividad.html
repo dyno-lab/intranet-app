@@ -9,7 +9,7 @@
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <form method="get" action="/ui/reports/productividad" class="row g-3 align-items-end">
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label class="form-label">Propuesta *</label>
         <select class="form-select" name="proposal_id" required>
           <option value="">Selecciona...</option>
@@ -66,7 +66,7 @@
         <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
-      <div class="col-md-1">
+      <div class="col-md-2">
         <label class="form-label">Vista</label>
         <select class="form-select" name="view_mode">
           <option value="activity" {% if selected_view_mode == 'activity' %}selected{% endif %}>Por actividad</option>
@@ -179,10 +179,10 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades que sobre pasa meta{% else %}Tus actividades que sobre pasa meta{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades que superan la meta{% else %}Tus actividades que superan la meta{% endif %}</strong></div>
       <div class="card-body">
-        {% if bottom_activities %}
-          {% for item in bottom_activities %}
+        {% if top_activities %}
+          {% for item in top_activities %}
           <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
               <div>
