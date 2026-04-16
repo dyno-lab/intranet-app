@@ -546,13 +546,17 @@ def _build_productivity_context(
     year: int | str | None,
     employee_id: int | None,
     view_mode: str = "activity",
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
 ):
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
     user_residential_map = base_context["user_residential_map"]
 
-    normalized_month = _parse_optional_int(month)
-    normalized_year = _parse_optional_int(year)
+    period = _build_period_filter(period_type, month, year, start_date, end_date)
+    normalized_month = period["month"]
+    normalized_year = period["year"]
 
     scope = _resolve_reporting_scope(current_user, employee_id, db)
     selected_user = scope["selected_user"]
@@ -573,7 +577,7 @@ def _build_productivity_context(
     residential_ranking = []
     selected_residential_dashboard = None
 
-    if proposal_id and normalized_month and normalized_year:
+    if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]):
         proposal = db.get(Proposal, proposal_id)
         if proposal:
             goal_rows = db.execute(
@@ -604,11 +608,7 @@ def _build_productivity_context(
                 .select_from(ActivitySession)
                 .outerjoin(User, User.user_id == ActivitySession.created_by_user_id)
                 .outerjoin(Residential, Residential.residential_id == User.residential_id)
-                .where(
-                    ActivitySession.proposal_id == proposal_id,
-                    extract("month", ActivitySession.session_date) == normalized_month,
-                    extract("year", ActivitySession.session_date) == normalized_year,
-                )
+                .where(ActivitySession.proposal_id == proposal_id)
                 .group_by(
                     ActivitySession.proposal_id,
                     ActivitySession.activity_code_id,
@@ -616,6 +616,8 @@ def _build_productivity_context(
                     Residential.name,
                 )
             )
+
+            counts_stmt = _apply_session_period_filter(counts_stmt, period)
 
             if not is_global and selected_user:
                 counts_stmt = counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
@@ -632,6 +634,9 @@ def _build_productivity_context(
                 .where(ActivitySession.proposal_id == proposal_id)
                 .group_by(ActivitySession.proposal_id, ActivitySession.activity_code_id)
             )
+
+            if period["is_custom"]:
+                period_counts_stmt = _apply_session_period_filter(period_counts_stmt, period)
 
             if not is_global and selected_user:
                 period_counts_stmt = period_counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
@@ -829,7 +834,7 @@ def _build_productivity_context(
                     {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas"},
                     {"label": "Cumplen período", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento del período"},
                     {"label": "No cumplen período", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas del período"},
-                    {"label": "Ejecutado período", "value": total_period_executed, "tone": "info", "subtitle": "Total acumulado de la propuesta"},
+                    {"label": "Actividades realizadas en el período", "value": total_period_executed, "tone": "info", "subtitle": "Total acumulado registrado dentro del período consultado"},
                     {"label": "Meta período", "value": total_period_goal, "tone": "secondary", "subtitle": "Meta global acumulada configurada"},
                     {"label": "% avance período", "value": f"{total_period_percentage}%", "tone": "dark", "subtitle": f"Faltante: {total_period_missing}"},
                 ]
@@ -930,7 +935,10 @@ def _build_productivity_context(
         "residential_ranking": residential_ranking,
         "selected_residential_dashboard": selected_residential_dashboard,
         "warning_messages": warning_messages,
-        "period_label": f'{month_lookup.get(normalized_month, "")} {normalized_year}'.strip(),
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
+        "period_label": _describe_period(period, month_lookup),
     }
 
 
@@ -942,11 +950,25 @@ def productivity_report(
     year: str | None = None,
     employee_id: str | None = None,
     view_mode: str = "activity",
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     normalized_employee_id = _parse_optional_int(employee_id)
-    context = _build_productivity_context(db, current_user, proposal_id, month, year, normalized_employee_id, view_mode=view_mode)
+    context = _build_productivity_context(
+        db,
+        current_user,
+        proposal_id,
+        month,
+        year,
+        normalized_employee_id,
+        view_mode=view_mode,
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/productividad.html", context)
 

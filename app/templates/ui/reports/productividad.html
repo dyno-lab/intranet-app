@@ -19,22 +19,37 @@
         </select>
       </div>
       <div class="col-md-2">
+        <label class="form-label">Tipo período *</label>
+        <select class="form-select" name="period_type" id="period_type" onchange="toggleProductivityPeriodFields()">
+          <option value="monthly" {% if selected_period_type != 'custom' %}selected{% endif %}>Mensual</option>
+          <option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option>
+        </select>
+      </div>
+      <div class="col-md-2 productivity-monthly-field">
         <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
+        <select class="form-select" name="month" id="productivity_month">
           <option value="">Selecciona...</option>
           {% for month_value, month_label in month_options %}
           <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-2 productivity-monthly-field">
         <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
+        <select class="form-select" name="year" id="productivity_year">
           <option value="">Selecciona...</option>
           {% for option_year in year_options %}
           <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="col-md-2 productivity-custom-field d-none">
+        <label class="form-label">Desde *</label>
+        <input type="date" class="form-control" name="start_date" id="productivity_start_date" value="{{ selected_start_date or '' }}">
+      </div>
+      <div class="col-md-2 productivity-custom-field d-none">
+        <label class="form-label">Hasta *</label>
+        <input type="date" class="form-control" name="end_date" id="productivity_end_date" value="{{ selected_end_date or '' }}">
       </div>
       <div class="col-md-2">
         <label class="form-label">Residencial *</label>
@@ -51,7 +66,7 @@
         <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
-      <div class="col-md-2">
+      <div class="col-md-1">
         <label class="form-label">Vista</label>
         <select class="form-select" name="view_mode">
           <option value="activity" {% if selected_view_mode == 'activity' %}selected{% endif %}>Por actividad</option>
@@ -99,7 +114,7 @@
           <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage if global_progress.percentage <= 100 else 100 }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
         </div>
         {% if is_global %}
-        <div class="small text-muted">Ejecutado: {{ global_progress.cumple }} · Meta: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
+        <div class="small text-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
         {% else %}
         <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
         {% endif %}
@@ -164,7 +179,7 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades con ejecución{% else %}Tus actividades con ejecución{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades que sobre pasa meta{% else %}Tus actividades que sobre pasa meta{% endif %}</strong></div>
       <div class="card-body">
         {% if bottom_activities %}
           {% for item in bottom_activities %}
@@ -295,7 +310,7 @@
 {% else %}
 <div class="card shadow-sm mb-4">
   <div class="card-header">
-    <strong>Resumen mensual</strong>
+    <strong>{% if selected_period_type == 'custom' %}Resumen del período{% else %}Resumen mensual{% endif %}</strong>
     {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
   </div>
   <div class="card-body p-0">
@@ -365,7 +380,7 @@
           <th>Propuesta</th>
           <th>Actividad</th>
           <th>Residencial</th>
-          <th>Mes</th>
+          <th>Período</th>
           <th>Act. Realizadas</th>
           <th>Meta</th>
           <th>Cumplimiento</th>
@@ -394,4 +409,24 @@
   </div>
 </div>
 {% endif %}
+
+<script>
+function toggleProductivityPeriodFields() {
+  const isCustom = document.getElementById('period_type')?.value === 'custom';
+  document.querySelectorAll('.productivity-monthly-field').forEach(el => el.classList.toggle('d-none', isCustom));
+  document.querySelectorAll('.productivity-custom-field').forEach(el => el.classList.toggle('d-none', !isCustom));
+
+  const month = document.getElementById('productivity_month');
+  const year = document.getElementById('productivity_year');
+  const start = document.getElementById('productivity_start_date');
+  const end = document.getElementById('productivity_end_date');
+
+  if (month) month.required = !isCustom;
+  if (year) year.required = !isCustom;
+  if (start) start.required = isCustom;
+  if (end) end.required = isCustom;
+}
+
+document.addEventListener('DOMContentLoaded', toggleProductivityPeriodFields);
+</script>
 {% endblock %}
