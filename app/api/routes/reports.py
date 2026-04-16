@@ -280,8 +280,6 @@ REPORT_OPTIONS = [
 
 PERIOD_TYPE_OPTIONS = [
     {"value": "monthly", "label": "Mensual"},
-    {"value": "quarterly", "label": "Trimestral"},
-    {"value": "annual", "label": "Anual"},
     {"value": "custom", "label": "Personalizado"},
 ]
 
@@ -304,12 +302,17 @@ def reports_home(
 ):
     context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     dashboard_context = _build_current_month_dashboard_cards(db, current_user)
+    productivity_only_screen = report_key == "productividad"
+    if productivity_only_screen and output != "screen":
+        output = "screen"
+
     context.update(
         {
             "request": request,
             "current_user": current_user,
             "report_options": REPORT_OPTIONS,
             "period_type_options": PERIOD_TYPE_OPTIONS,
+            "productivity_only_screen": productivity_only_screen,
             "selected_report_key": report_key,
             "selected_proposal_id": proposal_id,
             "selected_month": month,
@@ -345,7 +348,7 @@ def reports_run(
 
     if report_key == "productividad":
         return RedirectResponse(
-            f"/ui/reports/productividad?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}",
+            f"/ui/reports/productividad?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
         )
 

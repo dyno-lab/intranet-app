@@ -27,14 +27,14 @@
         </select>
       </div>
       <div class="col-md-2">
-        <label class="form-label">Periodo *</label>
+        <label class="form-label">Mensual o Personalizado *</label>
         <select class="form-select" name="period_type" id="periodType" required>
           {% for option in period_type_options %}
           <option value="{{ option.value }}" {% if selected_period_type == option.value %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2 period-block period-monthly period-quarterly">
+      <div class="col-md-2 period-block period-monthly">
         <label class="form-label">Mes *</label>
         <select class="form-select" name="month">
           <option value="">Selecciona...</option>
@@ -43,7 +43,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2 period-block period-monthly period-quarterly period-annual">
+      <div class="col-md-2 period-block period-monthly">
         <label class="form-label">Año *</label>
         <select class="form-select" name="year">
           <option value="">Selecciona...</option>
@@ -62,7 +62,7 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">Formato *</label>
-        <select class="form-select" name="output" required>
+        <select class="form-select" name="output" id="outputType" required>
           <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
           <option value="excel" {% if selected_output == 'excel' %}selected{% endif %}>Excel</option>
           <option value="pdf" {% if selected_output == 'pdf' %}selected{% endif %}>PDF</option>
@@ -126,7 +126,9 @@
 <script>
 (function () {
   const periodType = document.getElementById('periodType');
-  if (!periodType) return;
+  const reportKey = document.querySelector('select[name="report_key"]');
+  const outputType = document.getElementById('outputType');
+  if (!periodType || !reportKey || !outputType) return;
 
   function refreshPeriodUI() {
     const value = periodType.value;
@@ -134,17 +136,27 @@
 
     if (value === 'monthly') {
       document.querySelectorAll('.period-monthly').forEach(el => el.classList.remove('d-none'));
-    } else if (value === 'quarterly') {
-      document.querySelectorAll('.period-quarterly').forEach(el => el.classList.remove('d-none'));
-    } else if (value === 'annual') {
-      document.querySelectorAll('.period-annual').forEach(el => el.classList.remove('d-none'));
     } else if (value === 'custom') {
       document.querySelectorAll('.period-custom').forEach(el => el.classList.remove('d-none'));
     }
   }
 
+  function refreshOutputUI() {
+    const isProductividad = reportKey.value === 'productividad';
+    Array.from(outputType.options).forEach(option => {
+      const isScreen = option.value === 'screen';
+      option.hidden = isProductividad && !isScreen;
+      option.disabled = isProductividad && !isScreen;
+    });
+    if (isProductividad) {
+      outputType.value = 'screen';
+    }
+  }
+
   periodType.addEventListener('change', refreshPeriodUI);
+  reportKey.addEventListener('change', refreshOutputUI);
   refreshPeriodUI();
+  refreshOutputUI();
 })();
 </script>
 {% endblock %}
