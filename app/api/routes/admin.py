@@ -980,11 +980,12 @@ def admin_unassign_activity_from_vca_column(
 @router.get("/activity-codes", response_class=HTMLResponse)
 def admin_activity_codes(
     request: Request,
+    proposal_id: int | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    codes = db.execute(
+    codes_stmt = (
         select(
             ActivityCode,
             Proposal.code.label("proposal_code"),
@@ -997,9 +998,16 @@ def admin_activity_codes(
             (ActivityProductivityGoal.activity_code_id == ActivityCode.activity_code_id)
             & (ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id),
         )
-        .order_by(ActivityCode.code)
+    )
+
+    if proposal_id:
+        codes_stmt = codes_stmt.where(ActivityCode.proposal_id == proposal_id)
+
+    codes = db.execute(
+        codes_stmt.order_by(ActivityCode.code)
     ).all()
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
 
     return templates.TemplateResponse(
         "ui/admin/activity_codes.html",
@@ -1008,6 +1016,8 @@ def admin_activity_codes(
             "current_user": current_user,
             "codes": codes,
             "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "selected_proposal": selected_proposal,
             "msg": msg,
             "productivity_goal_type_options": PRODUCTIVITY_GOAL_TYPE_OPTIONS,
             "format_activity_productivity_goal_summary": _format_activity_productivity_goal_summary,

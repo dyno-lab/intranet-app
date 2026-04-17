@@ -14,6 +14,33 @@
 <h3 class="mb-4">📋 Gestión de Códigos de Actividad</h3>
 
 <div class="card mb-4">
+  <div class="card-header">
+    <strong>Filtrar por propuesta</strong>
+  </div>
+  <div class="card-body">
+    <form method="get" action="/ui/admin/activity-codes" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="filter_proposal_id" class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id" id="filter_proposal_id">
+          <option value="">Global / Todas</option>
+          {% for proposal in proposals if proposal.is_active %}
+            <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-outline-primary">Cargar</button>
+      </div>
+      {% if selected_proposal %}
+      <div class="col-md-6">
+        <div class="small text-muted mt-2">Mostrando actividades asociadas a la propuesta <strong>{{ selected_proposal.code }}</strong> - {{ selected_proposal.name }}</div>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
   <div class="card-header bg-primary text-white">
     <strong>Crear nuevo código de actividad</strong>
   </div>
