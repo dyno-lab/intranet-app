@@ -41,7 +41,7 @@ from app.models.proposal_report_program_population import ProposalReportProgramP
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
 from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.person import Person
-from app.helpers.report_context import build_base_reports_context
+from app.helpers.report_context import base_reports_context
 from app.services.report_excel_builders import (
     build_no_duplicado_excel,
     build_vca_excel,
@@ -74,7 +74,7 @@ MONTH_OPTIONS = [
 
 
 def _base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
-    return build_base_reports_context(db, current_user, month_options)
+    return base_reports_context(db, current_user, month_options)
 
 
 def _parse_optional_int(value):
