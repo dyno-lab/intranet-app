@@ -43,7 +43,6 @@ from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.person import Person
 from app.helpers.report_context import base_reports_context
 from app.services.report_programs import resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks
-from app.services.visits import build_visits_context as _build_visits_context
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
