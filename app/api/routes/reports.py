@@ -959,11 +959,20 @@ def _build_productivity_context(
                     bucket["percentage"] = round((bucket["cumple"] / total_activities) * 100, 2) if total_activities else 0
 
             residential_summary_rows = sorted(deduped_residential_summary_rows, key=lambda item: item["percentage"], reverse=True)
+            residentials_evaluated = len(residential_summary_rows)
+            residentials_high = sum(1 for item in residential_summary_rows if item["percentage"] >= 80)
+            residentials_medium = sum(1 for item in residential_summary_rows if 50 <= item["percentage"] < 80)
+            residentials_low = sum(1 for item in residential_summary_rows if item["percentage"] < 50)
             residential_ranking = residential_summary_rows[:5] if is_global else []
 
             if not is_global and residential_name:
+                normalized_selected_residential = residential_name.split("=")[-1].strip().upper()
                 selected_residential_dashboard = next(
-                    (item for item in residential_summary_rows if item["residential_name"] == residential_name),
+                    (
+                        item
+                        for item in residential_summary_rows
+                        if (item["residential_name"] or "").split("=")[-1].strip().upper() == normalized_selected_residential
+                    ),
                     None,
                 )
                 if selected_residential_dashboard:
