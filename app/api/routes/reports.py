@@ -63,6 +63,42 @@ MONTH_OPTIONS = [
 ]
 
 
+@router.get("/", response_class=HTMLResponse)
+def reports_home(
+    request: Request,
+    report_key: str = "bonafide",
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    output: str = "html",
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    authorized_name: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _base_reports_context(db, current_user, MONTH_OPTIONS)
+    context.update(
+        {
+            "request": request,
+            "current_user": current_user,
+            "selected_report_key": report_key,
+            "selected_proposal_id": proposal_id,
+            "selected_month": month,
+            "selected_year": year,
+            "selected_employee_id": employee_id,
+            "selected_output": output,
+            "selected_period_type": period_type,
+            "selected_start_date": start_date or "",
+            "selected_end_date": end_date or "",
+            "authorized_name": authorized_name or "",
+        }
+    )
+    return templates.TemplateResponse("ui/reports/index.html", context)
+
+
 def _base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
     return base_reports_context(db, current_user, month_options)
 
