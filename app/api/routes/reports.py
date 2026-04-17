@@ -42,15 +42,6 @@ from app.models.proposal_report_program_population_activity_code import Proposal
 from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.person import Person
 from app.helpers.report_context import base_reports_context
-from app.services.report_excel_builders import (
-    build_no_duplicado_excel,
-    build_vca_excel,
-    build_bonafide_excel,
-    build_visits_excel,
-    build_school_dropout_excel,
-    build_pregnancy_excel,
-    build_school_grades_excel,
-)
 from app.services.report_programs import resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks
 from app.services.visits import build_visits_context as _build_visits_context
 
