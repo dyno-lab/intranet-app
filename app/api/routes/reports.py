@@ -829,6 +829,16 @@ def _build_productivity_context(
                     period_compliance_label = "No cumple"
                     period_compliance_badge = "danger"
 
+                effective_period_compliance_label = period_compliance_label
+                effective_period_compliance_badge = period_compliance_badge
+                if effective_period_compliance_label is None:
+                    if compliance_label == "Cumple":
+                        effective_period_compliance_label = "Cumple"
+                        effective_period_compliance_badge = "success"
+                    else:
+                        effective_period_compliance_label = "No cumple"
+                        effective_period_compliance_badge = "danger"
+
                 summary_rows.append({
                     "proposal_code": proposal_code,
                     "proposal_name": proposal_name,
@@ -844,8 +854,8 @@ def _build_productivity_context(
                     "period_goal": period_goal_value,
                     "period_missing": period_missing,
                     "period_percentage": period_percentage,
-                    "period_compliance_label": period_compliance_label,
-                    "period_compliance_badge": period_compliance_badge,
+                    "period_compliance_label": effective_period_compliance_label,
+                    "period_compliance_badge": effective_period_compliance_badge,
                     "compliance_label": compliance_label,
                     "compliance_badge": compliance_badge,
                     "residential_rows": detailed_rows,
