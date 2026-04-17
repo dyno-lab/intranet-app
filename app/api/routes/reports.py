@@ -825,6 +825,9 @@ def _build_productivity_context(
                     period_compliance_badge = "success" if period_met else "danger"
                     period_missing = max(int(period_goal_value or 0) - period_executed, 0)
                     period_percentage = round((period_executed / int(period_goal_value or 0)) * 100, 2) if int(period_goal_value or 0) else 0
+                elif compliance_label == "No aplica":
+                    period_compliance_label = "No cumple"
+                    period_compliance_badge = "danger"
 
                 summary_rows.append({
                     "proposal_code": proposal_code,
