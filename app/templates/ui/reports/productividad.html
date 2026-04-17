@@ -86,12 +86,6 @@
 </div>
 {% endfor %}
 
-{% if has_period_accumulated_goals %}
-<div class="alert alert-info" role="alert">
-  <strong>Modalidad acumulada por período:</strong> estas actividades se evalúan por el acumulado del período completo de la propuesta y no deben interpretarse como atraso mensual.
-</div>
-{% endif %}
-
 {% if dashboard_cards %}
 <div class="row g-3 mb-4">
   {% for card in dashboard_cards %}
@@ -110,19 +104,17 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Avance global del período{% elif has_period_accumulated_goals %}Avance consolidado{% else %}Avance global del mes{% endif %}</strong>{% if period_label and not is_global %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}{% if has_period_accumulated_goals and proposal_period_label %}<div class="small text-muted mt-1">Actividades acumuladas por período usan el rango de la propuesta: {{ proposal_period_label }}</div>{% endif %}</div>
+      <div class="card-header"><strong>{% if is_global %}Avance global del período{% else %}Avance global del mes{% endif %}</strong>{% if period_label and not is_global %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}</div>
       <div class="card-body">
         <div class="d-flex justify-content-between mb-2">
-          <span>{% if is_global %}Avance acumulado{% elif has_period_accumulated_goals %}Cumplimiento consolidado{% else %}Cumplimiento global{% endif %}</span>
+          <span>{% if is_global %}Avance acumulado{% else %}Cumplimiento global{% endif %}</span>
           <strong>{{ global_progress.percentage }}%</strong>
         </div>
         <div class="progress mb-3" style="height: 20px;">
           <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage if global_progress.percentage <= 100 else 100 }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
         </div>
         {% if is_global %}
-        <div class="small text-muted">Ejecutado global acumulado: {{ global_progress.cumple }} · Meta global del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
-        {% elif has_period_accumulated_goals %}
-        <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen según la modalidad aplicable. Las acumuladas por período no se penalizan por mes.</div>
+        <div class="small text-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
         {% else %}
         <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
         {% endif %}
@@ -187,7 +179,7 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades con mayor avance{% else %}Tus actividades con mayor avance{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades que superan la meta{% else %}Tus actividades que superan la meta{% endif %}</strong></div>
       <div class="card-body">
         {% if top_activities %}
           {% for item in top_activities %}
@@ -196,9 +188,6 @@
               <div>
                 <strong>{{ item.activity_code }}</strong>
                 <div class="small text-muted">{{ item.activity_description or '-' }}</div>
-                {% if item.goal_type == 'per_residential_period_fixed' %}
-                <div class="small text-info">Acumulada por período</div>
-                {% endif %}
               </div>
               <span class="badge text-dark" style="background-color: #d4af37;">{{ item.progress_percentage }}%</span>
             </div>
@@ -241,9 +230,6 @@
             <div class="mb-3">
               <strong>{{ selected_residential_dashboard.residential_name }}</strong>
               <div class="small text-muted">Cumple {{ selected_residential_dashboard.cumple }} de {{ selected_residential_dashboard.total_activities }}</div>
-              {% if has_period_accumulated_goals %}
-              <div class="small text-muted">Incluye actividades acumuladas por período evaluadas contra la meta del período del residencial.</div>
-              {% endif %}
             </div>
             <div class="progress mb-3" style="height: 12px;">
               <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
@@ -303,28 +289,10 @@
                   <td>
                     <strong>{{ detail.activity_code }}</strong>
                     <div class="small text-muted">{{ detail.activity_description or '-' }}</div>
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div class="small text-info">Acumulada por período</div>
-                    {% endif %}
                   </td>
-                  <td>
-                    {{ detail.goal_label }}
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div class="small text-muted">Meta del período por residencial</div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {{ detail.executed }}
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div class="small text-muted">Acumulado del período</div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span>
-                    {% if detail.goal_type == 'per_residential_period_fixed' and detail.goal %}
-                    <div class="small text-muted mt-1">Avance: {{ ((detail.executed / detail.goal) * 100) | round(2) }}%</div>
-                    {% endif %}
-                  </td>
+                  <td>{{ detail.goal_label }}</td>
+                  <td>{{ detail.executed }}</td>
+                  <td><span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span></td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -344,7 +312,6 @@
   <div class="card-header">
     <strong>{% if selected_period_type == 'custom' %}Resumen del período{% else %}Resumen mensual{% endif %}</strong>
     {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
-    {% if has_period_accumulated_goals %}<div class="small text-muted mt-1">Las actividades acumuladas por período se muestran con avance acumulado y sin interpretación de incumplimiento mensual.</div>{% endif %}
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
@@ -368,20 +335,10 @@
             <td>
               <strong>{{ row.activity_code }}</strong>
               <div class="small text-muted">{{ row.activity_description or '-' }}</div>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
-              {% endif %}
             </td>
             <td>{{ row.goal_label }}</td>
             <td>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-                {{ row.period_executed }}
-                <div class="small text-muted">Meta residencial período: {{ row.goal if row.goal is not none else '-' }}</div>
-                <div class="small text-muted">Ejecutado global acumulado: {{ row.period_executed }}</div>
-                <div class="small text-muted">Meta global período: {{ row.period_goal if row.period_goal is not none else '-' }}</div>
-                <div class="small text-muted">Faltante global: {{ row.period_missing if row.period_missing is not none else '-' }}</div>
-                <div class="small text-muted">Avance período: {{ row.period_percentage if row.period_percentage is not none else 0 }}%</div>
-              {% elif is_global and row.period_goal is not none %}
+              {% if is_global and row.period_goal is not none %}
                 {{ row.period_executed }}
                 <div class="small text-muted">Meta período: {{ row.period_goal }}</div>
                 <div class="small text-muted">Faltante: {{ row.period_missing }}</div>
@@ -394,10 +351,7 @@
               {% endif %}
             </td>
             <td>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-                <span class="badge bg-{{ row.period_compliance_badge if row.period_compliance_badge else row.compliance_badge }}">{{ row.period_compliance_label if row.period_compliance_label else row.compliance_label }}</span>
-                <div class="small text-muted mt-1">Cumplimiento acumulado del período</div>
-              {% elif is_global and row.period_goal is not none %}
+              {% if is_global and row.period_goal is not none %}
                 <span class="badge bg-{{ row.period_compliance_badge }}">{{ row.period_compliance_label }}</span>
               {% else %}
                 <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
@@ -418,7 +372,6 @@
 <div class="card shadow-sm">
   <div class="card-header">
     <strong>Desglose por residencial</strong>
-    {% if has_period_accumulated_goals %}<div class="small text-muted mt-1">En modalidad acumulada por período, este desglose refleja el avance acumulado del período completo.</div>{% endif %}
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
@@ -438,26 +391,11 @@
           {% for row in rows %}
           <tr>
             <td>{{ row.proposal_code }}</td>
-            <td>
-              {{ row.activity_code }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Acumulada por período</div>
-              {% endif %}
-            </td>
+            <td>{{ row.activity_code }}</td>
             <td>{{ row.residential_name }}</td>
             <td>{{ row.month_label }}</td>
-            <td>
-              {{ row.executed }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Acumulado del período</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ row.goal if row.goal is not none else '-' }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Meta residencial del período</div>
-              {% endif %}
-            </td>
+            <td>{{ row.executed }}</td>
+            <td>{{ row.goal if row.goal is not none else '-' }}</td>
             <td><span class="badge bg-{{ row.status_badge }}">{{ row.status }}</span></td>
           </tr>
           {% endfor %}
