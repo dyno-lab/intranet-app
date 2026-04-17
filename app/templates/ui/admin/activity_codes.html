@@ -188,7 +188,7 @@
                   {% endfor %}
                 </select>
               </div>
-              {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'global_fixed', 'per_residential_period_fixed'] %}
+              {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'per_residential_period_fixed'] %}
               <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
                 <label class="form-label small js-productivity-goal-value-label">Meta mensual</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-goal-value" name="productivity_goal_value" value="{{ productivity_goal.goal_value if productivity_goal and productivity_goal.goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
@@ -303,7 +303,7 @@
       return;
     }
 
-    if (goalType === 'per_residential_fixed' || goalType === 'global_fixed') {
+    if (goalType === 'per_residential_fixed') {
       if (goalValueInput) {
         goalValueInput.disabled = false;
         goalValueInput.required = true;

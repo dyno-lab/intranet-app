@@ -62,7 +62,6 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
     ("none", "Sin meta productiva"),
     ("per_residential_min_1", "Según Necesidad"),
     ("per_residential_fixed", "Cantidad fija por residencial por mes"),
-    ("global_fixed", "Cantidad global mensual entre residenciales"),
     ("per_residential_period_fixed", "Acumulada por período"),
 ]
 
