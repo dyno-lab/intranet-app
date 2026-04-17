@@ -45,11 +45,11 @@
         </select>
       </div>
       <div class="col-md-2 js-productivity-fields d-none" id="create-productivity-value-container">
-        <label for="create_productivity_goal_value" class="form-label">Meta mensual</label>
+        <label for="create_productivity_goal_value" class="form-label js-productivity-goal-value-label">Meta mensual</label>
         <input type="number" min="1" class="form-control js-productivity-goal-value" name="productivity_goal_value" id="create_productivity_goal_value" data-target-prefix="create-productivity">
       </div>
       <div class="col-md-2 js-productivity-fields d-none" id="create-productivity-period-value-container">
-        <label for="create_productivity_period_goal_value" class="form-label">Meta período</label>
+        <label for="create_productivity_period_goal_value" class="form-label js-productivity-period-goal-value-label">Meta período</label>
         <input type="number" min="1" class="form-control js-productivity-period-goal-value" name="productivity_period_goal_value" id="create_productivity_period_goal_value" data-target-prefix="create-productivity">
       </div>
       <div class="col-md-1 js-productivity-fields d-none" id="create-productivity-active-container">
@@ -60,7 +60,7 @@
       </div>
       <div class="col-md-12">
         <div class="small text-muted js-productivity-help d-none" id="create-productivity-help">
-          La configuración productiva solo aplica a actividades asociadas a una propuesta.
+          La configuración productiva solo aplica a actividades asociadas a una propuesta. Si la modalidad es Acumulada por período, el rango aplicable se toma de la propuesta y no se exige meta mensual.
         </div>
       </div>
       <div class="col-md-2">
@@ -161,13 +161,13 @@
                   {% endfor %}
                 </select>
               </div>
-              {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'global_fixed'] %}
+              {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'global_fixed', 'per_residential_period_fixed'] %}
               <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
-                <label class="form-label small">Meta mensual</label>
+                <label class="form-label small js-productivity-goal-value-label">Meta mensual</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-goal-value" name="productivity_goal_value" value="{{ productivity_goal.goal_value if productivity_goal and productivity_goal.goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
               </div>
               <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-period-value-container">
-                <label class="form-label small">Meta período</label>
+                <label class="form-label small js-productivity-period-goal-value-label">Meta período</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-period-goal-value" name="productivity_period_goal_value" value="{{ productivity_goal.period_goal_value if productivity_goal and productivity_goal.period_goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
               </div>
               <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-active-container">
@@ -185,7 +185,7 @@
                 </div>
               </div>
               <div class="col-md-12 js-productivity-help {{ 'd-none' if ac.proposal_id else '' }}" id="edit-productivity-{{ ac.activity_code_id }}-help">
-                <div class="small text-muted">La configuración productiva solo aplica a actividades asociadas a una propuesta.</div>
+                <div class="small text-muted">La configuración productiva solo aplica a actividades asociadas a una propuesta. En Acumulada por período, el período aplicable se toma de la propuesta y no se exige meta mensual.</div>
               </div>
               <div class="col-md-2">
                 <button type="submit" class="btn btn-sm btn-success">Guardar</button>
@@ -213,6 +213,8 @@
     const periodValueContainer = document.getElementById(prefix + '-period-value-container');
     const activeContainer = document.getElementById(prefix + '-active-container');
     const help = document.getElementById(prefix + '-help');
+    const goalValueLabel = container?.parentElement?.querySelector('[data-target-prefix="' + prefix + '"]') ? document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-goal-value')?.closest('div')?.querySelector('.js-productivity-goal-value-label') : null;
+    const periodGoalValueLabel = container?.parentElement?.querySelector('[data-target-prefix="' + prefix + '"]') ? document.querySelector('[data-target-prefix="' + prefix + '"]' + '.js-productivity-period-goal-value')?.closest('div')?.querySelector('.js-productivity-period-goal-value-label') : null;
 
     if (!proposalSelect || !goalTypeSelect || !container || !help) {
       return;
@@ -255,6 +257,12 @@
     if (periodValueContainer) {
       periodValueContainer.classList.remove('d-none');
     }
+    if (goalValueLabel) {
+      goalValueLabel.textContent = 'Meta mensual';
+    }
+    if (periodGoalValueLabel) {
+      periodGoalValueLabel.textContent = 'Meta período';
+    }
 
     if (goalType === 'per_residential_min_1') {
       if (goalValueInput) {
@@ -275,6 +283,30 @@
       }
       if (valueContainer) {
         valueContainer.classList.remove('d-none');
+      }
+      return;
+    }
+
+    if (goalType === 'per_residential_period_fixed') {
+      if (goalValueInput) {
+        goalValueInput.disabled = false;
+        goalValueInput.required = true;
+      }
+      if (periodGoalValueInput) {
+        periodGoalValueInput.disabled = false;
+        periodGoalValueInput.required = true;
+      }
+      if (goalValueLabel) {
+        goalValueLabel.textContent = 'Meta por residencial del período';
+      }
+      if (periodGoalValueLabel) {
+        periodGoalValueLabel.textContent = 'Meta global del período';
+      }
+      if (valueContainer) {
+        valueContainer.classList.remove('d-none');
+      }
+      if (periodValueContainer) {
+        periodValueContainer.classList.remove('d-none');
       }
       return;
     }

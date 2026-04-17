@@ -1179,13 +1179,13 @@ BEGIN TRY
 
     UPDATE dbo.activity_productivity_goals
     SET goal_type = CASE
-        WHEN goal_type IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed') THEN goal_type
+        WHEN goal_type IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed', 'per_residential_period_fixed') THEN goal_type
         ELSE 'none'
     END,
         goal_value = CASE
             WHEN goal_type = 'none' THEN NULL
             WHEN goal_type = 'per_residential_min_1' THEN 1
-            WHEN goal_type IN ('per_residential_fixed', 'global_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
+            WHEN goal_type IN ('per_residential_fixed', 'global_fixed', 'per_residential_period_fixed') AND goal_value IS NOT NULL AND goal_value >= 1 THEN goal_value
             ELSE NULL
         END,
         period_goal_value = CASE
@@ -1193,10 +1193,11 @@ BEGIN TRY
             WHEN period_goal_value IS NOT NULL AND period_goal_value >= 1 THEN period_goal_value
             ELSE NULL
         END
-    WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed')
+    WHERE goal_type NOT IN ('none', 'per_residential_min_1', 'per_residential_fixed', 'global_fixed', 'per_residential_period_fixed')
        OR (goal_type = 'none' AND (goal_value IS NOT NULL OR period_goal_value IS NOT NULL))
        OR (goal_type = 'per_residential_min_1' AND ISNULL(goal_value, 0) <> 1)
-       OR (goal_type IN ('per_residential_fixed', 'global_fixed') AND (goal_value IS NULL OR goal_value < 1))
+       OR (goal_type IN ('per_residential_fixed', 'global_fixed', 'per_residential_period_fixed') AND (goal_value IS NULL OR goal_value < 1))
+       OR (goal_type = 'per_residential_period_fixed' AND (period_goal_value IS NULL OR period_goal_value < 1))
        OR (period_goal_value IS NOT NULL AND period_goal_value < 1);
 
     DELETE apg

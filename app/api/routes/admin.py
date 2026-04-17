@@ -63,6 +63,7 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
     ("per_residential_min_1", "Según Necesidad"),
     ("per_residential_fixed", "Cantidad fija por residencial por mes"),
     ("global_fixed", "Cantidad global mensual entre residenciales"),
+    ("per_residential_period_fixed", "Acumulada por período"),
 ]
 
 VALID_PRODUCTIVITY_GOAL_TYPES = {value for value, _ in PRODUCTIVITY_GOAL_TYPE_OPTIONS}
@@ -116,6 +117,9 @@ def _normalize_activity_productivity_goal(
     if normalized_goal_type == "per_residential_min_1":
         return "per_residential_min_1", 1, normalized_period_goal_value
 
+    if normalized_goal_type == "per_residential_period_fixed" and normalized_period_goal_value is None:
+        raise ValueError("Error: La meta global del período es requerida para actividades acumuladas por período.")
+
     raw_value = (goal_value_raw or "").strip()
     if not raw_value:
         raise ValueError("Error: Debe indicar un valor para la meta productiva seleccionada.")
@@ -143,6 +147,8 @@ def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | 
         parts.append(f"{goal.goal_value} / residencial / mes")
     elif goal.goal_type == "global_fixed":
         parts.append(f"{goal.goal_value} global / mes")
+    elif goal.goal_type == "per_residential_period_fixed":
+        parts.append(f"{goal.goal_value} / residencial / período")
 
     if goal.period_goal_value:
         parts.append(f"{goal.period_goal_value} global / período")
