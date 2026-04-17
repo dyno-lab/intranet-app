@@ -691,6 +691,8 @@ def _build_productivity_context(
                 elif goal_type == "global_fixed":
                     goal_label = f"{goal_value} global / mes"
                     global_goal = goal_value
+                elif goal_type == "per_residential_period_fixed":
+                    goal_label = f"{goal_value} / residencial / período"
 
                 if period_goal_value:
                     goal_label = f"{goal_label} + {period_goal_value} global / período" if goal_label != "Sin meta" else f"{period_goal_value} global / período"
@@ -721,6 +723,13 @@ def _build_productivity_context(
                         met_for_rollup = met
                         status = "Informativo"
                         status_badge = "secondary"
+                    elif goal_type == "per_residential_period_fixed":
+                        target_value = int(goal_value or 0)
+                        met = executed >= target_value
+                        met_for_rollup = met
+                        status = "Cumple" if met else "No cumple"
+                        status_badge = "success" if met else "danger"
+                        per_residential_results.append(met)
 
                     detailed_row = {
                         "proposal_code": proposal_code,
@@ -759,6 +768,7 @@ def _build_productivity_context(
                         "activity_code": activity_code,
                         "activity_description": activity_description,
                         "goal_label": goal_label,
+                        "goal_type": goal_type,
                         "executed": executed,
                         "goal": target_value if target_value is not None else global_goal,
                         "status": status,
@@ -777,6 +787,10 @@ def _build_productivity_context(
                     all_met = global_executed >= int(goal_value or 0)
                     compliance_label = "Cumple" if all_met else "No cumple"
                     compliance_badge = "success" if all_met else "danger"
+                elif goal_type == "per_residential_period_fixed":
+                    all_met = bool(per_residential_results) and all(per_residential_results)
+                    compliance_label = "Cumple" if all_met else "No cumple"
+                    compliance_badge = "success" if all_met else "danger"
 
                 if period_goal_value:
                     period_met = period_executed >= int(period_goal_value or 0)
@@ -793,6 +807,7 @@ def _build_productivity_context(
                     "month_label": month_label,
                     "goal_label": goal_label,
                     "goal_type": goal_type,
+                    "is_period_accumulated": goal_type == "per_residential_period_fixed",
                     "global_executed": global_executed,
                     "global_goal": global_goal,
                     "period_executed": period_executed,
@@ -876,7 +891,7 @@ def _build_productivity_context(
                     target = int(item["global_goal"] or 0)
                 elif item["goal_type"] == "per_residential_min_1":
                     target = len(item["residential_rows"])
-                elif item["goal_type"] == "per_residential_fixed":
+                elif item["goal_type"] in {"per_residential_fixed", "per_residential_period_fixed"}:
                     target = len(item["residential_rows"]) * max(1, int(next((goal.goal_value for goal, pc, pn, ac, ad in goal_rows if ac == item["activity_code"] and pc == item["proposal_code"]), 0) or 0))
                 else:
                     target = 0
