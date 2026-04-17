@@ -930,8 +930,35 @@ def _build_productivity_context(
                     "progress_percentage": progress_percentage,
                 })
 
-            top_activities = [item for item in sorted(ranked_activities, key=lambda item: item["progress_percentage"], reverse=True) if item["global_executed"] > 0][:5]
+            top_activities = [
+                item
+                for item in sorted(ranked_activities, key=lambda item: item["progress_percentage"], reverse=True)
+                if item["progress_percentage"] > 100
+            ][:5]
             bottom_activities = [item for item in sorted(ranked_activities, key=lambda item: (item["global_executed"], item["progress_percentage"])) if item["global_executed"] == 0][:5]
+
+            deduped_residential_summary_rows = []
+            residential_merge_map: dict[str, dict] = {}
+            for item in residential_summary_rows:
+                normalized_name = (item.get("residential_name") or "").split("=")[-1].strip().upper()
+                bucket = residential_merge_map.get(normalized_name)
+                if not bucket:
+                    bucket = {
+                        **item,
+                        "residential_name": (item.get("residential_name") or "").split("=")[-1].strip() or item.get("residential_name"),
+                        "details": list(item.get("details", [])),
+                    }
+                    residential_merge_map[normalized_name] = bucket
+                    deduped_residential_summary_rows.append(bucket)
+                else:
+                    bucket["total_activities"] += item.get("total_activities", 0)
+                    bucket["cumple"] += item.get("cumple", 0)
+                    bucket["no_cumple"] += item.get("no_cumple", 0)
+                    bucket["details"].extend(item.get("details", []))
+                    total_activities = bucket["total_activities"]
+                    bucket["percentage"] = round((bucket["cumple"] / total_activities) * 100, 2) if total_activities else 0
+
+            residential_summary_rows = sorted(deduped_residential_summary_rows, key=lambda item: item["percentage"], reverse=True)
             residential_ranking = residential_summary_rows[:5] if is_global else []
 
             if not is_global and residential_name:
