@@ -71,7 +71,7 @@ def reports_home(
     month: int | None = None,
     year: int | None = None,
     employee_id: int | None = None,
-    output: str = "html",
+    output: str = "screen",
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -94,9 +94,247 @@ def reports_home(
             "selected_start_date": start_date or "",
             "selected_end_date": end_date or "",
             "authorized_name": authorized_name or "",
+            "report_options": [
+                {"value": "bonafide", "label": "Bonafide"},
+                {"value": "no-duplicado", "label": "No Duplicado"},
+                {"value": "duplicados", "label": "Duplicados"},
+                {"value": "por-programa", "label": "Por Programa"},
+                {"value": "hoja-cotejo", "label": "Hoja de Cotejo"},
+                {"value": "vca", "label": "VCA"},
+                {"value": "adm", "label": "ADM"},
+                {"value": "visitas", "label": "Visitas"},
+                {"value": "desercion-escolar", "label": "Deserción Escolar"},
+                {"value": "embarazo", "label": "Embarazo"},
+                {"value": "notas", "label": "Notas"},
+                {"value": "productividad", "label": "Productividad"},
+                {"value": "todos", "label": "Todos"},
+            ],
+            "period_type_options": [
+                {"value": "monthly", "label": "Mensual"},
+                {"value": "custom", "label": "Personalizado"},
+            ],
+            "dashboard_period_label": "Selector general de reportes",
+            "dashboard_scope_label": "Todos los informes disponibles",
+            "dashboard_cards": [
+                {"label": "Bonafide", "value": "Disponible", "tone": "primary", "subtitle": "Listado bonafide por propuesta y residencial"},
+                {"label": "No duplicado", "value": "Disponible", "tone": "success", "subtitle": "Participantes únicos por período"},
+                {"label": "Productividad", "value": "Disponible", "tone": "info", "subtitle": "Incluye modalidad acumulada por período"},
+            ],
         }
     )
     return templates.TemplateResponse("ui/reports/index.html", context)
+
+
+@router.get("/run")
+def reports_run(
+    report_key: str,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    output: str = "screen",
+    period_type: str = "monthly",
+    authorized_name: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    month_value = int(month) if (month or "").strip() else None
+    year_value = int(year) if (year or "").strip() else None
+    period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
+
+    if report_key == "productividad":
+        return RedirectResponse(
+            f"/ui/reports/productividad?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
+            status_code=303,
+        )
+
+    if report_key == "bonafide":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "no-duplicado":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "duplicados":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "vca":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/vca/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/vca/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "adm":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/adm/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/adm/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/adm?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            status_code=303,
+        )
+
+    if report_key == "todos":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/todos/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/todos/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        employee_id_param = "" if employee_id is None else employee_id
+        return RedirectResponse(
+            f"/ui/reports/?report_key=todos&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+            status_code=303,
+        )
+
+    if report_key == "por-programa":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/por-programa/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/por-programa/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/por-programa?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "hoja-cotejo":
+        return RedirectResponse(
+            f"/ui/reports/hoja-cotejo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "desercion-escolar":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/desercion-escolar/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/desercion-escolar/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/desercion-escolar?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "embarazo":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/embarazo/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/embarazo/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/embarazo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "notas":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/notas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/notas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/notas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            status_code=303,
+        )
+
+    if report_key == "visitas":
+        if output == "excel":
+            return RedirectResponse(
+                f"/ui/reports/visitas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        if output == "pdf":
+            return RedirectResponse(
+                f"/ui/reports/visitas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                status_code=303,
+            )
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+        status_code=303,
+    )
 
 
 def _base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
