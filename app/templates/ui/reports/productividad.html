@@ -123,6 +123,9 @@
         <div class="small text-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
         {% else %}
         <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
+        {% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
+        <div class="small text-muted mt-1">Las actividades acumuladas por período se leen por avance acumulado y faltante real, no como atraso mensual.</div>
+        {% endif %}
         {% endif %}
 
         <hr>
@@ -303,6 +306,10 @@
                     {{ detail.goal_label }}
                     {% if detail.goal_type == 'per_residential_period_fixed' %}
                     <div class="small text-muted">Meta del período por residencial</div>
+                    {% elif detail.goal_type == 'per_residential_fixed' %}
+                    <div class="small text-muted">Meta mensual por residencial</div>
+                    {% elif detail.goal_type == 'per_residential_min_1' %}
+                    <div class="small text-muted">Frecuencia mínima mensual</div>
                     {% endif %}
                   </td>
                   <td>
@@ -315,6 +322,7 @@
                     <span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span>
                     {% if detail.goal_type == 'per_residential_period_fixed' and detail.goal %}
                     <div class="small text-muted">Avance: {{ ((detail.executed / detail.goal) * 100) | round(2) }}%</div>
+                    <div class="small text-muted">Faltante: {{ (detail.goal - detail.executed) if detail.executed < detail.goal else 0 }}</div>
                     {% endif %}
                   </td>
                 </tr>
@@ -363,7 +371,16 @@
               <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
               {% endif %}
             </td>
-            <td>{{ row.goal_label }}</td>
+            <td>
+              {{ row.goal_label }}
+              {% if row.goal_type == 'per_residential_period_fixed' %}
+              <div class="small text-muted">Evaluación: acumulada por período</div>
+              {% elif row.goal_type == 'per_residential_fixed' %}
+              <div class="small text-muted">Evaluación: mensual</div>
+              {% elif row.goal_type == 'per_residential_min_1' %}
+              <div class="small text-muted">Evaluación: según necesidad</div>
+              {% endif %}
+            </td>
             <td>
               {% if row.goal_type == 'per_residential_period_fixed' %}
                 {{ row.global_executed }}
