@@ -664,9 +664,36 @@ def _build_productivity_context(
 
             residential_rollup: dict[str, dict] = {}
 
+            all_residentials_for_scope = []
+            if is_global:
+                all_residentials_for_scope = [
+                    {
+                        "owner_user_id": report_user.user_id,
+                        "residential_name": user_residential_map.get(report_user.user_id, report_user.username),
+                    }
+                    for report_user in base_context.get("report_users", [])
+                ]
+            elif selected_user:
+                all_residentials_for_scope = [
+                    {
+                        "owner_user_id": selected_user.user_id,
+                        "residential_name": residential_name or user_residential_map.get(selected_user.user_id, selected_user.username),
+                    }
+                ]
+
             for goal, proposal_code, proposal_name, activity_code, activity_description in goal_rows:
                 activity_key = (goal.proposal_id, goal.activity_code_id)
                 residential_counts = counts_by_activity.get(activity_key, [])
+                if all_residentials_for_scope:
+                    existing_owner_ids = {item["owner_user_id"] for item in residential_counts if item.get("owner_user_id") is not None}
+                    for base_residential in all_residentials_for_scope:
+                        owner_user_id = base_residential.get("owner_user_id")
+                        if owner_user_id not in existing_owner_ids:
+                            residential_counts.append({
+                                "owner_user_id": owner_user_id,
+                                "residential_name": base_residential.get("residential_name") or "Sin residencial",
+                                "executed": 0,
+                            })
                 global_executed = sum(item["executed"] for item in residential_counts)
 
                 goal_type = goal.goal_type
