@@ -168,7 +168,7 @@
       <div class="card-header"><strong>{% if is_global %}Residencial destacado del filtro global{% else %}Resumen del residencial seleccionado{% endif %}</strong></div>
       <div class="card-body">
         {% if selected_residential_dashboard %}
-          {% set selected_no_aplica = selected_residential_dashboard.details | selectattr('status', 'equalto', 'No aplica') | list | length %}
+          {% set selected_no_aplica = selected_residential_dashboard.no_aplica if selected_residential_dashboard.no_aplica is defined else (selected_residential_dashboard.details | selectattr('status', 'equalto', 'No aplica') | list | length) %}
           {% if is_global %}
           <div class="small text-muted mb-2">Este bloque muestra el residencial destacado dentro del alcance global actual; no representa un residencial seleccionado manualmente.</div>
           {% endif %}
@@ -281,7 +281,7 @@
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <div>
                   <strong>{{ item.residential_name }}</strong>
-                  <div class="small text-muted">Cumple {{ item.cumple }} de {{ item.total_activities }}</div>
+                  <div class="small text-muted">Cumple {{ item.cumple }} · No cumple {{ item.no_cumple }}{% if item.no_aplica is defined and item.no_aplica %} · No aplica {{ item.no_aplica }}{% endif %} · Total {{ item.total_activities }}</div>
                 </div>
                 <span class="badge {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ item.percentage }}%</span>
               </div>
@@ -297,7 +297,7 @@
           {% if selected_residential_dashboard %}
             <div class="mb-3">
               <strong>{{ selected_residential_dashboard.residential_name }}</strong>
-              <div class="small text-muted">Cumple {{ selected_residential_dashboard.cumple }} de {{ selected_residential_dashboard.total_activities }}</div>
+              <div class="small text-muted">Cumple {{ selected_residential_dashboard.cumple }} · No cumple {{ selected_residential_dashboard.no_cumple }}{% if selected_residential_dashboard.no_aplica is defined and selected_residential_dashboard.no_aplica %} · No aplica {{ selected_residential_dashboard.no_aplica }}{% endif %} · Total {{ selected_residential_dashboard.total_activities }}</div>
             </div>
             <div class="progress mb-3" style="height: 12px;">
               <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>

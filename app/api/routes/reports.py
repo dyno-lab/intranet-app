@@ -748,8 +748,8 @@ def _build_productivity_context(
                     elif goal_type == "global_fixed":
                         met = global_executed >= int(goal_value or 0)
                         met_for_rollup = met
-                        status = "Informativo"
-                        status_badge = "secondary"
+                        status = "Cumple" if met else "No cumple"
+                        status_badge = "success" if met else "danger"
                     elif goal_type == "per_residential_period_fixed":
                         target_value = int(goal_value or 0)
                         met = executed >= target_value
@@ -781,6 +781,7 @@ def _build_productivity_context(
                             "total_activities": 0,
                             "cumple": 0,
                             "no_cumple": 0,
+                            "no_aplica": 0,
                             "details": [],
                         },
                     )
@@ -789,6 +790,8 @@ def _build_productivity_context(
                         residential_bucket["cumple"] += 1
                     elif met_for_rollup is False:
                         residential_bucket["no_cumple"] += 1
+                    else:
+                        residential_bucket["no_aplica"] += 1
                     residential_bucket["details"].append({
                         "proposal_code": proposal_code,
                         "proposal_name": proposal_name,
@@ -975,6 +978,7 @@ def _build_productivity_context(
                     bucket["total_activities"] += item.get("total_activities", 0)
                     bucket["cumple"] += item.get("cumple", 0)
                     bucket["no_cumple"] += item.get("no_cumple", 0)
+                    bucket["no_aplica"] = bucket.get("no_aplica", 0) + item.get("no_aplica", 0)
                     bucket["details"].extend(item.get("details", []))
                     total_activities = bucket["total_activities"]
                     bucket["percentage"] = round((bucket["cumple"] / total_activities) * 100, 2) if total_activities else 0
