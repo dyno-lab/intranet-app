@@ -331,6 +331,7 @@
               <span>Total actividades: {{ row.total_activities }}</span>
               <span class="text-success">Cumple: {{ row.cumple }}</span>
               <span class="text-danger">No cumple: {{ row.no_cumple }}</span>
+              <span class="text-secondary">No aplica: {{ row.no_aplica if row.no_aplica is defined else 0 }}</span>
               <span>Porcentaje: {{ row.percentage }}%</span>
             </div>
           </button>
