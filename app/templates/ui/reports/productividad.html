@@ -122,7 +122,7 @@
         {% if is_global %}
         <div class="small text-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
         {% else %}
-        <div class="small text-muted">{{ global_progress.cumple }} de {{ global_progress.total }} actividades evaluadas cumplen este mes.</div>
+        <div class="small text-muted">{{ global_progress.cumple }} cumplen, {{ global_progress.no_cumple }} no cumplen{% if global_progress.no_aplica %} y {{ global_progress.no_aplica }} no aplican{% endif %}, de {{ global_progress.total }} actividades evaluadas este mes.</div>
         {% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
         <div class="small text-muted mt-1">Las actividades acumuladas por período se leen por avance acumulado y faltante real, no como atraso mensual.</div>
         {% endif %}

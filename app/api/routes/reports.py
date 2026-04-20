@@ -877,6 +877,7 @@ def _build_productivity_context(
             compliance_metric_key = "period_compliance_label" if is_global else "compliance_label"
             total_compliant = sum(1 for item in summary_rows if item.get(compliance_metric_key) == "Cumple")
             total_non_compliant = sum(1 for item in summary_rows if item.get(compliance_metric_key) == "No cumple")
+            total_not_applicable = sum(1 for item in summary_rows if item.get(compliance_metric_key) == "No aplica")
             global_percentage = round((total_compliant / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0
             residentials_evaluated = len(residential_summary_rows)
             residentials_high = sum(1 for item in residential_summary_rows if item["percentage"] >= 80)
@@ -908,6 +909,7 @@ def _build_productivity_context(
                     {"label": "Actividades evaluadas", "value": total_activities_evaluated, "tone": "primary", "subtitle": "Metas activas evaluadas este mes"},
                     {"label": "Cumplen", "value": total_compliant, "tone": "success", "subtitle": "Actividades en cumplimiento mensual"},
                     {"label": "No cumplen", "value": total_non_compliant, "tone": "danger", "subtitle": "Actividades rezagadas este mes"},
+                    {"label": "No aplican", "value": total_not_applicable, "tone": "secondary", "subtitle": "Actividades sin meta o fuera de evaluación"},
                     {"label": "% cumplimiento global", "value": f"{global_percentage}%", "tone": "info", "subtitle": "Avance mensual del programa"},
                     {"label": "Residenciales evaluados", "value": residentials_evaluated, "tone": "secondary", "subtitle": "Residenciales con actividad evaluada"},
                     {"label": "Residenciales alto/medio/bajo", "value": f"{residentials_high}/{residentials_medium}/{residentials_low}", "tone": "dark", "subtitle": "Segmentación por desempeño"},
@@ -916,6 +918,8 @@ def _build_productivity_context(
                 global_progress = {
                     "percentage": global_percentage,
                     "cumple": total_compliant,
+                    "no_cumple": total_non_compliant,
+                    "no_aplica": total_not_applicable,
                     "total": total_activities_evaluated,
                     "mode": "monthly",
                 }
@@ -924,6 +928,10 @@ def _build_productivity_context(
                 {"label": "Cumplen", "value": total_compliant, "percentage": global_percentage, "tone": "success"},
                 {"label": "No cumplen", "value": total_non_compliant, "percentage": round((total_non_compliant / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0, "tone": "danger"},
             ]
+            if total_not_applicable:
+                compliance_distribution.append(
+                    {"label": "No aplican", "value": total_not_applicable, "percentage": round((total_not_applicable / total_activities_evaluated) * 100, 2) if total_activities_evaluated else 0, "tone": "secondary"}
+                )
 
             ranked_activities = []
             for item in summary_rows:
