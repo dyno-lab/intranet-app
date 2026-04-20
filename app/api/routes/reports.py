@@ -727,7 +727,7 @@ def _build_productivity_context(
                 for residential_row in residential_counts:
                     executed = residential_row["executed"]
                     target_value = None
-                    status = "Informativo"
+                    status = "No aplica"
                     status_badge = "secondary"
                     met_for_rollup = None
 
