@@ -1015,7 +1015,7 @@ def _build_productivity_context(
                             "progress_percentage": progress_percentage,
                         })
 
-                    top_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"], reverse=True) if int(item.get("executed") or 0) > 0][:5]
+                    top_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: item["progress_percentage"], reverse=True) if item.get("progress_percentage", 0) > 100][:5]
                     bottom_activities = [item for item in sorted(detail_rows_with_progress, key=lambda item: (int(item.get("executed") or 0), item["progress_percentage"])) if int(item.get("executed") or 0) == 0][:5]
             elif residential_summary_rows:
                 selected_residential_dashboard = residential_summary_rows[0]
