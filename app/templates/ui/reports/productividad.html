@@ -165,9 +165,12 @@
 
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Residencial priorizado{% else %}Tu residencial{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Residencial destacado del filtro global{% else %}Resumen del residencial seleccionado{% endif %}</strong></div>
       <div class="card-body">
         {% if selected_residential_dashboard %}
+          {% if is_global %}
+          <div class="small text-muted mb-2">Este bloque muestra el residencial destacado dentro del alcance global actual; no representa un residencial seleccionado manualmente.</div>
+          {% endif %}
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h5 class="mb-0">{{ selected_residential_dashboard.residential_name }}</h5>
             <span class="badge bg-primary">{{ selected_residential_dashboard.percentage }}%</span>
@@ -262,7 +265,7 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Residenciales prioritarios{% else %}Estado de tu residencial{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Residenciales prioritarios del filtro global{% else %}Estado del residencial seleccionado{% endif %}</strong></div>
       <div class="card-body">
         {% if is_global %}
           {% if residential_ranking %}
