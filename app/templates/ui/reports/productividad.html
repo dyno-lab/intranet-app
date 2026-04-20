@@ -93,6 +93,24 @@
 {% endif %}
 
 {% if dashboard_cards %}
+<div class="alert alert-light border shadow-sm mb-4" role="alert">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+      <strong>Lectura rápida para supervisión</strong>
+      <div class="small text-muted mt-1">
+        {% if is_global %}
+          Usa este panel para identificar residenciales con menor avance, actividades rezagadas y oportunidades de seguimiento inmediato.
+        {% else %}
+          Usa este panel para validar el desempeño del residencial, detectar actividades rezagadas y confirmar prioridades de seguimiento.
+        {% endif %}
+      </div>
+    </div>
+    {% if period_label %}
+    <span class="badge bg-dark">{{ period_label }}</span>
+    {% endif %}
+  </div>
+</div>
+
 <div class="row g-3 mb-4">
   {% for card in dashboard_cards %}
   <div class="col-md-4 col-xl-2">
@@ -187,8 +205,39 @@
 
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
+    <div class="card shadow-sm h-100 border-danger-subtle">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>{% if is_global %}Atención prioritaria{% else %}Atención prioritaria del residencial{% endif %}</strong>
+        <span class="badge bg-danger">Seguimiento</span>
+      </div>
+      <div class="card-body">
+        {% if bottom_activities %}
+          <div class="small text-muted mb-3">Estas actividades requieren revisión inmediata porque no presentan ejecución o están en mayor rezago.</div>
+          {% for item in bottom_activities %}
+          <div class="border rounded p-3 mb-3 bg-light">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <strong>{{ item.activity_code }}</strong>
+                <div class="small text-muted">{{ item.activity_description or '-' }}</div>
+              </div>
+              <span class="badge bg-danger">{{ item.status if item.status is defined else 'Revisar' }}</span>
+            </div>
+            <div class="row g-2 mt-2 small">
+              <div class="col-sm-4"><span class="text-muted">Realizadas:</span> {{ item.executed if item.executed is defined else item.global_executed }}</div>
+              <div class="col-sm-4"><span class="text-muted">Meta:</span> {{ item.goal if item.goal is not none else item.target if item.target is defined else '-' }}</div>
+              <div class="col-sm-4"><span class="text-muted">Avance:</span> {{ item.progress_percentage }}%</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">No se identificaron actividades críticas para los filtros seleccionados.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades que superan la meta{% else %}Tus actividades que superan la meta{% endif %}</strong></div>
+      <div class="card-header"><strong>{% if is_global %}Actividades con avance mayor a 100%{% else %}Tus actividades con avance mayor a 100%{% endif %}</strong></div>
       <div class="card-body">
         {% if top_activities %}
           {% for item in top_activities %}
@@ -206,7 +255,7 @@
           </div>
           {% endfor %}
         {% else %}
-          <div class="text-muted">Sin resultados para mostrar.</div>
+          <div class="text-muted">No hay actividades con avance mayor a 100% para los filtros seleccionados. Cumplir la meta (100%) no implica necesariamente superarla.</div>
         {% endif %}
       </div>
     </div>
@@ -346,8 +395,9 @@
     {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
   </div>
   <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead class="table-light">
+    <div class="small text-muted px-3 pt-3">Lee primero las filas con <span class="badge bg-danger">No cumple</span> para priorizar seguimiento. Las filas <span class="badge bg-secondary">No aplica</span> no deben contarse como atraso.</div>
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light sticky-top">
         <tr>
           <th>Propuesta</th>
           <th>Actividad</th>
@@ -427,8 +477,9 @@
     <strong>Desglose por residencial</strong>
   </div>
   <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead class="table-light">
+    <div class="small text-muted px-3 pt-3">Úsalo para comparar residenciales rápidamente y detectar dónde el cumplimiento cae más.</div>
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light sticky-top">
         <tr>
           <th>Propuesta</th>
           <th>Actividad</th>
