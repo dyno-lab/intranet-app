@@ -1,5 +1,14 @@
 # Contexto del proyecto
 
+> Nota transicional: la fuente de verdad documental del proyecto en adelante es:
+> - `OPENCLAW_CONTEXT.md`
+> - `docs/project_context.md`
+> - `docs/implementation_status.md`
+> - `docs/pending_tasks.md`
+>
+> Este archivo debe mantenerse como contexto vivo de arquitectura, decisiones y framing técnico del trabajo actual.
+
+
 ## Estado actual del desarrollo
 
 ### Reporte Hoja de Cotejo

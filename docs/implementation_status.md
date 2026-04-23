@@ -1,8 +1,7 @@
 # IMPLEMENTATION_STATUS.md
 
-> Archivo legado/transicional.
-> La fuente de verdad operativa en adelante debe mantenerse en `docs/implementation_status.md`.
-> No borrar este archivo todavía hasta validar que no existan referencias activas.
+> Nota transicional: este archivo en `docs/` pasa a ser la fuente de verdad operativa para el historial de implementaciones.
+> El archivo `IMPLEMENTATION_STATUS.md` en la raíz se conserva temporalmente como legado/transicional hasta validar que ya no exista ninguna referencia activa.
 
 
 ## Objetivo
