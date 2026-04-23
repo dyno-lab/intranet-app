@@ -1090,6 +1090,38 @@ async def save_attendance(
     return _redirect_with_msg(f"/ui/listado/{session_id}", "Asistencia guardada exitosamente.")
 
 
+@router.post("/listado/{session_id}/clear-attendance")
+def clear_attendance(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    if not is_admin_or_supervisor(current_user):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    _check_session_access(s, current_user)
+
+    try:
+        require_session_proposal_not_finalized(
+            db,
+            s,
+            message="Error: La propuesta de esta sesión está finalizada y no permite eliminar asistencias.",
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
+
+    db.execute(
+        delete(Attendance).where(Attendance.session_id == session_id)
+    )
+    db.commit()
+
+    return _redirect_with_msg(f"/ui/listado/{session_id}", "Asistencias eliminadas exitosamente.")
+
+
 @router.post("/listado/{session_id}/edit")
 def edit_session(
     session_id: int,

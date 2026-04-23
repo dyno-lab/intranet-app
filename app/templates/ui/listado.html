@@ -21,6 +21,12 @@
     {% endif %}
     {% if current_user and current_user.role in ["admin", "supervisor"] and not proposal_is_finalized %}
     <form method="post"
+          action="/ui/listado/{{ session.session_id }}/clear-attendance"
+          style="display:inline;"
+          onsubmit="return confirm('¿Eliminar todas las asistencias marcadas de esta sesión?');">
+      <button class="btn btn-outline-warning">Eliminar Asistencias</button>
+    </form>
+    <form method="post"
           action="/ui/listado/{{ session.session_id }}/delete"
           style="display:inline;"
           onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
