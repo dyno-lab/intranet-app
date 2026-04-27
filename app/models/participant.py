@@ -46,6 +46,7 @@ class Participant(Base):
     # Campos extra “New List”
     vca: Mapped[str | None] = mapped_column(String(5), nullable=True)  # SI / NO
     primera_vez: Mapped[str | None] = mapped_column(String(5), nullable=True)  # SI / NO
+    escolaridad_participante: Mapped[str | None] = mapped_column(String(150), nullable=True)
     composicion_familiar: Mapped[str | None] = mapped_column(String(100), nullable=True)
     estatus: Mapped[str | None] = mapped_column(String(50), nullable=True)
     grupo_familiar: Mapped[str | None] = mapped_column(String(20), nullable=True)

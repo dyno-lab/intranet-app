@@ -101,6 +101,12 @@ BEGIN
     ADD is_active BIT NOT NULL CONSTRAINT DF_participants_is_active DEFAULT 1;
 END;
 
+IF COL_LENGTH('dbo.participants', 'escolaridad_participante') IS NULL
+BEGIN
+    ALTER TABLE dbo.participants
+    ADD escolaridad_participante VARCHAR(150) NULL;
+END;
+
 UPDATE dbo.participants
 SET is_active = CASE
     WHEN LTRIM(RTRIM(LOWER(ISNULL(estatus, '')))) IN ('activo', 'active') THEN 1
@@ -202,6 +208,12 @@ IF NOT EXISTS (SELECT 1 FROM dbo.catalog_types WHERE [key] = 'estatus_participan
 BEGIN
     INSERT INTO dbo.catalog_types ([key], [name], [description])
     VALUES ('estatus_participante', 'Estatus del Participante', 'Opciones del campo estatus');
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.catalog_types WHERE [key] = 'escolaridad_participante')
+BEGIN
+    INSERT INTO dbo.catalog_types ([key], [name], [description])
+    VALUES ('escolaridad_participante', 'Escolaridad del Participante', 'Opciones del campo escolaridad del participante');
 END;
 
 IF NOT EXISTS (

@@ -21,17 +21,18 @@ Sirve para:
 
 ## Estado actual validado
 
-### Actualización 2026-04-27 — Catálogo de composición familiar en expedientes
+### Actualización 2026-04-27 — Catálogo de escolaridad del participante en expedientes
 Implementado / validado técnicamente:
-- se reforzó el uso del catálogo administrable de `composicion_familiar` en los formularios `/ui/new-list` y `/ui/new-list/{participant_id}/edit`.
+- corrección de alcance: el catálogo requerido es `escolaridad_participante`, no `composicion_familiar`.
+- se agregó `participants.escolaridad_participante` al modelo/migración.
+- se conectó `escolaridad_participante` a `/ui/new-list` y `/ui/new-list/{participant_id}/edit`.
 - se agregó normalización de claves de catálogo para tolerar variantes con/sin acento, espacios o guiones.
-- se normalizan nuevas claves creadas desde Admin para evitar duplicados semánticos.
 - fuente operativa detallada: `docs/implementation_status.md`.
 
 Pendiente de validación manual:
 - reiniciar FastAPI/uvicorn si estaba corriendo.
-- confirmar opciones activas en `/ui/admin/catalogs`.
-- validar crear/editar participante con composición familiar.
+- confirmar opciones activas en `/ui/admin/catalogs` para `escolaridad_participante`.
+- validar crear/editar participante con escolaridad.
 
 ### Actualización 2026-04-24 — Power BI ejecutivo, PAD y migración de trabajo a PBIP
 Implementado / validado hoy:

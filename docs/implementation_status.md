@@ -18,25 +18,31 @@ Sirve para:
 
 ## Estado actual validado
 
-### Actualización 2026-04-27 — Catálogo de composición familiar en expedientes
+### Actualización 2026-04-27 — Catálogo de escolaridad del participante en expedientes
 Implementado / validado técnicamente:
-- se revisó el flujo de participantes en:
+- corrección de alcance: el catálogo requerido por Christian es `escolaridad_participante`, no `composicion_familiar`.
+- se agregó el campo `participants.escolaridad_participante` al modelo `Participant` y al script de inicialización/migración.
+- se conectó el catálogo administrable `escolaridad_participante` a los formularios:
   - `/ui/new-list`
   - `/ui/new-list/{participant_id}/edit`
-- se confirmó que ambos formularios ya guardan `participants.composicion_familiar` vía el campo `composicion_familiar`.
-- se reforzó la carga de opciones de catálogos para que `Composición Familiar` funcione aunque la clave haya sido creada con variaciones de acento, espacios o guiones, por ejemplo:
-  - `composicion_familiar`
-  - `composición_familiar`
-  - `composicion familiar`
-  - `composición familiar`
-- se agregó normalización de claves en la administración de catálogos para evitar nuevos duplicados semánticos por acentos/espacios/guiones.
+- crear participante ahora guarda `escolaridad_participante`.
+- editar participante ahora muestra la opción seleccionada y permite modificar `escolaridad_participante`.
+- se agregó `escolaridad_participante` al CSV de participantes.
+- se agregó `escolaridad_participante` a la vista Power BI `dbo.bi_dim_participant` en `scripts/power_bi_views.sql`.
+- se mantuvo la normalización de claves de catálogos para tolerar variantes de acento, espacios o guiones y evitar duplicados semánticos nuevos.
 - archivos de app modificados:
+  - `app/models/participant.py`
+  - `app/db/schema.py`
   - `app/api/routes/ui.py`
   - `app/api/routes/catalogs.py`
+  - `app/templates/ui/new_list.html`
+  - `app/templates/ui/edit_participant.html`
+  - `scripts/power_bi_views.sql`
 
 Pendiente de validación manual:
-- reiniciar FastAPI/uvicorn si el servidor estaba corriendo.
-- entrar a `/ui/admin/catalogs`, confirmar que el catálogo activo de composición familiar tenga opciones activas.
+- reiniciar FastAPI/uvicorn si el servidor estaba corriendo para aplicar modelo/rutas/templates.
+- asegurar que la migración agregue `participants.escolaridad_participante` en SQL Server local.
+- entrar a `/ui/admin/catalogs`, confirmar que el catálogo activo `escolaridad_participante` tenga opciones activas.
 - abrir `/ui/new-list` y `/ui/new-list/{ID}/edit` para verificar que las opciones aparecen en el selector y se guardan correctamente.
 
 ## Fase actual del proyecto — Power BI ejecutivo

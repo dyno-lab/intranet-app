@@ -131,6 +131,7 @@ def _load_catalog_options(db: Session, key: str):
 
 def _participant_form_catalogs(db: Session):
     return {
+        "escolaridad_participante_options": _load_catalog_options(db, "escolaridad_participante"),
         "composicion_familiar_options": _load_catalog_options(db, "composicion_familiar"),
         "grupo_familiar_options": _load_catalog_options(db, "grupo_familiar"),
         "fuente_ingreso_principal_options": _load_catalog_options(db, "fuente_ingreso_principal"),
@@ -341,6 +342,7 @@ def create_participant(
     estatus: str | None = Form(default=None),
     vca: str | None = Form(default=None),
     primera_vez: str | None = Form(default=None),
+    escolaridad_participante: str | None = Form(default=None),
     composicion_familiar: str | None = Form(default=None),
     grupo_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
@@ -400,6 +402,7 @@ def create_participant(
         estatus=normalized_estatus or None,
         vca=vca,
         primera_vez=primera_vez,
+        escolaridad_participante=escolaridad_participante,
         composicion_familiar=composicion_familiar,
         grupo_familiar=grupo_familiar,
         fuente_ingreso_principal=fuente_ingreso_principal,
@@ -467,6 +470,7 @@ def export_participants_csv(
             "Activo" if _is_participant_active(p) else "Inactivo",
             p.vca or "",
             p.primera_vez or "",
+            p.escolaridad_participante or "",
             p.composicion_familiar or "",
             p.grupo_familiar or "",
             p.fuente_ingreso_principal or "",
@@ -491,6 +495,7 @@ def export_participants_csv(
             "estado",
             "vca",
             "primera_vez",
+            "escolaridad_participante",
             "composicion_familiar",
             "grupo_familiar",
             "fuente_ingreso_principal",
@@ -553,6 +558,7 @@ def edit_participant_save(
     estatus: str | None = Form(default=None),
     vca: str | None = Form(default=None),
     primera_vez: str | None = Form(default=None),
+    escolaridad_participante: str | None = Form(default=None),
     composicion_familiar: str | None = Form(default=None),
     grupo_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
@@ -624,6 +630,7 @@ def edit_participant_save(
     p.is_active = participant_is_active
     p.vca = vca
     p.primera_vez = primera_vez
+    p.escolaridad_participante = escolaridad_participante
     p.composicion_familiar = composicion_familiar
     p.grupo_familiar = grupo_familiar
     p.fuente_ingreso_principal = fuente_ingreso_principal

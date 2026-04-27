@@ -106,6 +106,16 @@
       </div>
 
       <div class="col-md-4">
+        <label class="form-label">Escolaridad del participante</label>
+        <select class="form-select" name="escolaridad_participante">
+          <option value="">Selecciona</option>
+          {% for opt in escolaridad_participante_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
         <label class="form-label">Composición Familiar</label>
         <select class="form-select" name="composicion_familiar">
           <option value="">Selecciona</option>

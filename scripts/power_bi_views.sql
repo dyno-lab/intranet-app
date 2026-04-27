@@ -94,6 +94,7 @@ SELECT
     pt.apart,
     pt.vca,
     pt.primera_vez,
+    pt.escolaridad_participante,
     pt.composicion_familiar,
     pt.estatus,
     pt.grupo_familiar,
