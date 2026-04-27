@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import unicodedata
 from datetime import date, datetime
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
@@ -97,17 +98,31 @@ def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str
     return None
 
 
+def _normalize_catalog_key(value: str | None) -> str:
+    text = (value or "").strip().lower().replace(" ", "_").replace("-", "_")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return "_".join(part for part in text.split("_") if part)
+
+
 def _load_catalog_options(db: Session, key: str):
-    catalog_type = db.execute(
-        select(CatalogType).where(CatalogType.key == key, CatalogType.is_active == True)  # noqa: E712
-    ).scalar_one_or_none()
-    if not catalog_type:
+    normalized_key = _normalize_catalog_key(key)
+    catalog_types = db.execute(
+        select(CatalogType).where(CatalogType.is_active == True)  # noqa: E712
+    ).scalars().all()
+
+    matching_type_ids = [
+        ct.catalog_type_id
+        for ct in catalog_types
+        if _normalize_catalog_key(ct.key) == normalized_key
+    ]
+    if not matching_type_ids:
         return []
 
     return db.execute(
         select(CatalogOption)
         .where(
-            CatalogOption.catalog_type_id == catalog_type.catalog_type_id,
+            CatalogOption.catalog_type_id.in_(matching_type_ids),
             CatalogOption.is_active == True,  # noqa: E712
         )
         .order_by(CatalogOption.sort_order, CatalogOption.label)

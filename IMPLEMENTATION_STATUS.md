@@ -4,6 +4,8 @@
 > La fuente de verdad operativa en adelante debe mantenerse en `docs/implementation_status.md`.
 > No borrar este archivo todavía hasta validar que no existan referencias activas.
 
+> Nota 2026-04-26: el proyecto se encuentra ahora en la **fase Power BI ejecutivo**. Para el estado actualizado, pendientes y reglas de trabajo actuales, consultar `docs/implementation_status.md`. El contenido largo debajo se conserva solo como historial/transición y puede estar atrasado frente al documento en `docs/`.
+
 
 ## Objetivo
 Documento de estabilización para `intranet-app`.
@@ -18,6 +20,55 @@ Sirve para:
 ---
 
 ## Estado actual validado
+
+### Actualización 2026-04-27 — Catálogo de composición familiar en expedientes
+Implementado / validado técnicamente:
+- se reforzó el uso del catálogo administrable de `composicion_familiar` en los formularios `/ui/new-list` y `/ui/new-list/{participant_id}/edit`.
+- se agregó normalización de claves de catálogo para tolerar variantes con/sin acento, espacios o guiones.
+- se normalizan nuevas claves creadas desde Admin para evitar duplicados semánticos.
+- fuente operativa detallada: `docs/implementation_status.md`.
+
+Pendiente de validación manual:
+- reiniciar FastAPI/uvicorn si estaba corriendo.
+- confirmar opciones activas en `/ui/admin/catalogs`.
+- validar crear/editar participante con composición familiar.
+
+### Actualización 2026-04-24 — Power BI ejecutivo, PAD y migración de trabajo a PBIP
+Implementado / validado hoy:
+- se confirmó que el archivo principal del reporte existe tanto en formato `PBIX` como en formato proyecto `PBIP`:
+  - `Z:\FARO-Complete\PowerBiFaro\FaroPowerBi.pbix`
+  - `Z:\FARO-Complete\PowerBiFaro\FaroPowerBi.pbip`
+- se verificó la estructura editable del proyecto PBIP:
+  - `FaroPowerBi.Report\definition\report.json`
+  - `FaroPowerBi.Report\definition\pages\pages.json`
+  - `FaroPowerBi.Report\definition\pages\27ae18fcd01c27bcd7a3\page.json`
+  - `FaroPowerBi.SemanticModel\definition\relationships.tmdl`
+  - `FaroPowerBi.SemanticModel\definition\tables\*.tmdl`
+- se confirmó que la página ejecutiva ya existe en el proyecto con nombre:
+  - `Dashboard Ejecutivo`
+- se confirmó que el modelo semántico PBIP contiene ya:
+  - relaciones del modelo BI
+  - tabla `Dim_Fecha`
+  - tablas `bi_*`
+  - medidas de productividad en `bi_fact_productivity_compliance`
+- se validó en PBIP la presencia de medidas clave ya construidas, incluyendo:
+  - `% Cumplimiento`
+  - `Cumplimiento por Residencial %`
+  - `Meta Total`
+  - `Ejecutado Total`
+  - `Estado Cumplimiento`
+- se creó theme ejecutivo para acelerar el formato visual del dashboard:
+  - `C:\Users\Admin\.openclaw\workspace\intranet-app\powerbi\powerbi-executive-theme.json`
+- se evaluó `Power Automate Desktop` como vía de automatización, pero se confirmó que en esta sesión no existe puente nativo PAD ↔ OpenClaw para que el agente controle PAD por sí solo.
+- decisión operativa tomada:
+  - dejar de depender de automatización manual vía PAD para layout fino
+  - mover el trabajo principal a edición/inspección del proyecto `PBIP`, que sí es editable por archivos
+
+Estado operativo al cierre de hoy:
+- el dashboard ejecutivo ya tiene base semántica y página creada
+- el siguiente frente recomendado es editar/ajustar directamente el layout del reporte en `PBIP`
+- el theme JSON ya está listo para importar si se desea uniformar estilo mientras se termina el layout
+
 
 ### Fase 1 — Propuestas
 Implementado y validado:

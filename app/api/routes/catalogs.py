@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import unicodedata
+
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -14,6 +16,13 @@ from app.models.user import User
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+
+def _normalize_catalog_key(value: str | None) -> str:
+    text = (value or "").strip().lower().replace(" ", "_").replace("-", "_")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return "_".join(part for part in text.split("_") if part)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -61,10 +70,15 @@ def create_catalog_type(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    normalized_key = key.strip().lower().replace(" ", "_")
-    existing = db.execute(
-        select(CatalogType).where(CatalogType.key == normalized_key)
-    ).scalar_one_or_none()
+    normalized_key = _normalize_catalog_key(key)
+    existing = next(
+        (
+            ct
+            for ct in db.execute(select(CatalogType)).scalars().all()
+            if _normalize_catalog_key(ct.key) == normalized_key
+        ),
+        None,
+    )
     if existing:
         return RedirectResponse("/ui/admin/catalogs?msg=Error: La clave del catálogo ya existe.", status_code=303)
 
@@ -92,10 +106,16 @@ def edit_catalog_type(
     if not catalog_type:
         return RedirectResponse("/ui/admin/catalogs?msg=Error: Catálogo no encontrado.", status_code=303)
 
-    normalized_key = key.strip().lower().replace(" ", "_")
-    existing = db.execute(
-        select(CatalogType).where(CatalogType.key == normalized_key, CatalogType.catalog_type_id != catalog_type_id)
-    ).scalar_one_or_none()
+    normalized_key = _normalize_catalog_key(key)
+    existing = next(
+        (
+            ct
+            for ct in db.execute(select(CatalogType)).scalars().all()
+            if ct.catalog_type_id != catalog_type_id
+            and _normalize_catalog_key(ct.key) == normalized_key
+        ),
+        None,
+    )
     if existing:
         return RedirectResponse(
             f"/ui/admin/catalogs?selected_type_id={catalog_type_id}&msg=Error: La clave del catálogo ya existe.",

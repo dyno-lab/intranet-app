@@ -18,6 +18,165 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualización 2026-04-27 — Catálogo de composición familiar en expedientes
+Implementado / validado técnicamente:
+- se revisó el flujo de participantes en:
+  - `/ui/new-list`
+  - `/ui/new-list/{participant_id}/edit`
+- se confirmó que ambos formularios ya guardan `participants.composicion_familiar` vía el campo `composicion_familiar`.
+- se reforzó la carga de opciones de catálogos para que `Composición Familiar` funcione aunque la clave haya sido creada con variaciones de acento, espacios o guiones, por ejemplo:
+  - `composicion_familiar`
+  - `composición_familiar`
+  - `composicion familiar`
+  - `composición familiar`
+- se agregó normalización de claves en la administración de catálogos para evitar nuevos duplicados semánticos por acentos/espacios/guiones.
+- archivos de app modificados:
+  - `app/api/routes/ui.py`
+  - `app/api/routes/catalogs.py`
+
+Pendiente de validación manual:
+- reiniciar FastAPI/uvicorn si el servidor estaba corriendo.
+- entrar a `/ui/admin/catalogs`, confirmar que el catálogo activo de composición familiar tenga opciones activas.
+- abrir `/ui/new-list` y `/ui/new-list/{ID}/edit` para verificar que las opciones aparecen en el selector y se guardan correctamente.
+
+## Fase actual del proyecto — Power BI ejecutivo
+
+> Estado: **en curso**.
+> Prioridad operativa actual: cerrar el dashboard ejecutivo de Power BI sobre el archivo oficial `FaroPowerBi.pbix` / `FaroPowerBi.pbip`, sin crear un PBIX paralelo.
+
+### Objetivo de la fase actual
+Convertir la data operativa ya estabilizada de `intranet-app` en un dashboard ejecutivo confiable para seguimiento de:
+- participación
+- personas únicas
+- actividades realizadas
+- residenciales impactados
+- programas/propuestas
+- distribución por género/población
+- tendencia mensual
+- productividad y cumplimiento por residencial
+
+### Alcance confirmado
+- Power BI debe trabajar sobre el archivo oficial:
+  - `Z:\FARO-Complete\PowerBiFaro\FaroPowerBi.pbix`
+  - `Z:\FARO-Complete\PowerBiFaro\FaroPowerBi.pbip`
+- El modelo analítico debe consumir vistas/capas `bi_*` documentadas y versionadas en:
+  - `scripts/power_bi_views.sql`
+- La fase Power BI **no debe romper**:
+  - Fase 1 productiva de la app
+  - reportes existentes
+  - asistencia
+  - participantes por propuesta
+  - VCA
+  - permisos por rol
+- Cambios visuales al PBIP deben hacerse con backup previo cuando se editen archivos del reporte directamente.
+- No crear visuales JSON desde cero si no existe plantilla validada dentro del PBIP; preferir modificar visuales existentes para evitar corrupción del proyecto.
+
+### Estado funcional actual de Power BI
+- El PBIP abre correctamente en Power BI Desktop.
+- Existe página `Dashboard Ejecutivo`.
+- El modelo contiene tablas `bi_*`, `Dim_Fecha` y medidas ejecutivas ya creadas.
+- Se corrigieron errores técnicos importantes de PBIP/TMDL/encoding.
+- Se normalizaron nombres visibles para reducir labels técnicos en el dashboard.
+- El filtro temporal principal quedó basado en `Dim_Fecha[Periodo]`.
+- Los slicers categóricos principales están en modo `Dropdown`.
+- Se aplicaron varias rondas de layout seguro usando visuales existentes.
+
+### Pendiente inmediato de esta fase
+1. Validar visualmente en Power BI Desktop que los dos visuales inferiores ya rendericen correctamente:
+   - `Top Actividades`
+   - `Cumplimiento por Residencial`
+2. Limpiar la tendencia mensual para evitar categoría `(Blank)` y títulos automáticos largos.
+3. Terminar acabado visual fino del dashboard ejecutivo siguiendo el mockup esperado por Christian.
+4. Sembrar desde Power BI Desktop, si se desea, plantillas reales para:
+   - header
+   - sidebar
+   - botón limpiar filtros
+   - bookmarks/navegación
+5. Guardar PBIP/PBIX, reabrir, validar que no haya visuales rotos y documentar el cierre.
+6. Recién después, hacer commit local de los cambios Power BI/documentación/scripts.
+
+### Regla de trabajo para esta fase
+Mientras el frente actual sea Power BI, evitar mezclar cambios de backend/app salvo que sean estrictamente necesarios para corregir una fuente de datos BI. Si aparece una necesidad nueva de app, documentarla como pendiente separado y no mezclarla con el cierre del dashboard.
+
+### Actualización 2026-04-25 — Power BI ejecutivo, saneamiento PBIP y filtros de periodo
+Implementado / validado hoy:
+- se corrigió la carga del proyecto `PBIP` tras varios problemas introducidos durante la edición de archivos:
+  - ambigüedad de relaciones al activar `bi_bridge_program_activity.program_id -> bi_dim_program.program_id`
+  - archivos `visual.json` guardados con `UTF-8 BOM`
+  - error de sintaxis TMDL en `Dim_Fecha.tmdl`
+- decisión de modelo confirmada:
+  - la relación `bi_bridge_program_activity.program_id -> bi_dim_program.program_id` debe permanecer **inactiva**
+  - el cruce de programa/propuesta debe resolverse por **DAX** con `TREATAS`, no por relación activa
+- se auditó y corrigió el bloque de medidas sensibles por programa:
+  - `Participaciones por Programa`
+  - `Personas Únicas por Programa`
+  - `Actividades por Programa`
+- se saneó medida legacy en `Dim_Fecha` dejándola oculta como referencia histórica
+- se limpiaron nombres técnicos visibles del modelo/reporte para evitar labels tipo `KPI_`, `Chart_` y `Measure X`
+- se renombraron medidas visibles a nombres de negocio más claros, incluyendo:
+  - `Total Personas Únicas`
+  - `Total Participaciones`
+  - `Total Actividades Realizadas`
+  - `Total Programas Activos`
+  - `Total Residenciales Impactados`
+  - `Cumplimiento General`
+  - `Cumplimiento Residencial`
+- se limpiaron nombres visibles de campos usados en slicers para evitar labels técnicos:
+  - `Propuesta`
+  - `Programa`
+  - `Residencial`
+  - `Poblacion`
+  - `Actividad`
+  - `Empleado`
+  - `Usuario`
+- se agregó en `Dim_Fecha` una columna `Periodo` para soportar filtro de rango mensual real
+- el slicer de mes fue reemplazado funcionalmente por un slicer `Between` sobre `Dim_Fecha[Periodo]`, permitiendo filtros tipo enero-marzo o cualquier rango mensual dentro del periodo con datos
+- el filtro de fecha diaria quedó separado inicialmente del filtro de periodo mensual para reducir confusión visual y funcional
+- ajuste posterior de simplificación visual:
+  - se removieron del canvas los slicers redundantes de `Año` y `Fecha`
+  - se dejó `Periodo` como filtro temporal principal del dashboard ejecutivo
+  - se respaldaron los slicers removidos en `Z:\FARO-Complete\PowerBiFaro\_backups\disabled_slicers_20260425_1146`
+- los slicers categóricos principales del dashboard ejecutivo fueron cambiados a modo `Dropdown` para que el panel se vea menos básico
+- se ajustó el layout del lienzo ejecutivo:
+  - mayor altura de página
+  - redistribución de visuales inferiores
+  - reorganización de banda superior de filtros
+  - ajuste visual posterior de tarjetas KPI: mayor altura, mejor distribución horizontal, mayor jerarquía tipográfica en theme y separación más clara frente a gráficos
+  - corrección posterior de visuales rotos por encoding/nombres acentuados: se normalizaron referencias de `Únicas`/`Género` a `Unicas`/`Genero` en modelo y reporte para evitar errores de campos en PBIP
+  - validación cruzada posterior: se compararon todas las referencias de visuales contra los objetos reales del modelo TMDL y quedó `NO_ISSUES`
+- el gráfico de cumplimiento por residencial se reamarró al fact de productividad (`bi_fact_productivity_compliance`) para reflejar residenciales con datos del bloque de cumplimiento
+- las medidas `Cumplimiento General` y `Cumplimiento Residencial` quedaron formateadas como porcentaje (`0.0%`) y con retorno seguro a `0` cuando aplique
+- ajuste posterior de KPI vacías:
+  - `Total Actividades Realizadas` se cambió primero a cálculo directo sobre `DISTINCTCOUNT(bi_fact_sessions[session_id])` con `COALESCE`, evitando dependencia indirecta de otra medida
+  - ajuste adicional: `Actividades Realizadas`, `Residenciales Impactados`, `Total Actividades Realizadas` y `Total Residenciales Impactados` quedaron con `COUNTROWS(VALUES(...))` / `COUNTROWS(FILTER(VALUES(...)))` para evitar tarjetas en blanco y forzar retorno numérico seguro
+  - `Cumplimiento General` se cambió a fórmula ejecutiva directa `Ejecutado Total / Meta Total`
+  - `Cumplimiento Residencial` se cambió a `Ejecutado Residencial Total / Meta Total` para reflejar avance porcentual por residencial
+
+Estado operativo al cierre de esta actualización:
+- el `PBIP` vuelve a abrir correctamente en Power BI Desktop
+- el dashboard ejecutivo ya tiene saneamiento técnico base y una primera ronda de limpieza visual/funcional
+- tras cerrar y reabrir Power BI Desktop, se recuperaron visuales que estaban rotos por referencias `Unicas`/`Genero`; validación cruzada de referencias quedó `NO_ISSUES`
+- estado visual observado por Christian al 2026-04-25 12:11:
+  - gráfico de participación por programa ya renderiza
+  - donut de género ya renderiza
+  - tendencia mensual renderiza, pero muestra categoría `(Blank)` y título automático largo; requiere limpieza visual/nombres más ejecutivos
+  - `ab1c2d3e4f5a66778899` — visual inferior central asociado a Top Actividades / Total Actividades Realizadas quedó vacío; correcciones aplicadas: se agregó categoría inicialmente con `bi_fact_sessions[activity_code]`, luego se cambió a `bi_fact_sessions[activity_description]` para evitar categorías en blanco y depender menos de relaciones inactivas; finalmente se convirtió de `clusteredBarChart` a `clusteredColumnChart` usando roles `Category` + `Y`, estructura que sí renderiza en el PBIP actual
+  - `bb22cc33dd44ee55ff66` — visual inferior derecho `Cumplimiento Residencial` quedó vacío; correcciones aplicadas: se removió `filterConfig` interno obsoleto, se volvió a usar `bi_dim_residential[Residencial]` como eje para aprovechar la relación activa con `bi_fact_productivity_compliance`; finalmente se convirtió de `clusteredBarChart` a `clusteredColumnChart` usando roles `Category` + `Y`
+- prioridad inmediata pendiente: corregir los dos visuales inferiores vacíos antes de seguir con acabado fino general
+- actualización visual posterior bajo nueva regla de trabajo: sin tocar SQL/backend/relaciones/medidas, se agregaron títulos explícitos a slicers y visuales principales del Dashboard Ejecutivo para mejorar jerarquía y reducir dependencia de títulos automáticos; validación técnica posterior `JSON_OK`, `NO_ISSUES`, sin BOM
+- ronda visual PBIP posterior: se creó backup de la página en `Z:\FARO-Complete\PowerBiFaro\_backups\DashboardEjecutivo_visual_round_20260425_133018`; se reorganizó layout con filtros superiores más compactos, KPIs alineados, primer bloque analítico más amplio para `Participacion por Programa`, bloque derecho para distribución y segunda fila de tendencia/top/cumplimiento; se cambió fondo de página a `#F5F7FB`; se ajustaron etiquetas visibles de KPIs/series sin cambiar medidas ni relaciones; validación `PBIP_PAGE_JSON_OK`, `NO_ISSUES`, sin BOM
+- sidebar/header con objetos nuevos no se implementó en esta ronda porque no hay visual tipo shape/textbox validado en este PBIP; se decidió no crear objetos no validados para evitar romper la carga del proyecto
+- ronda 3 visual segura: se inspeccionó el PBIP completo buscando plantillas existentes de `textbox`, `shape`, `button`, `image`, `group`, `bookmarkNavigator` y `pageNavigator`; no se encontró ninguna plantilla validada. Se creó backup en `Z:\FARO-Complete\PowerBiFaro\_backups\DashboardEjecutivo_visual_round3_20260425_133802`. Por seguridad, no se creó header/sidebar/botón desde cero ni se tocaron bookmarks/navegación.
+- ronda visual solo con visuales existentes: se creó backup `Z:\FARO-Complete\PowerBiFaro\_backups\DashboardEjecutivo_visual_existing_only_20260425_134305`; se compactaron filtros superiores, se aumentó ligeramente presencia de KPIs, se amplió `Participacion por Programa` como visual principal, se ajustó `Distribucion por Genero` a bloque derecho y se balanceó la fila inferior (`Tendencia Mensual`, `Top Actividades`, `Cumplimiento por Residencial`). No se tocaron modelo, medidas, relaciones, SQL, backend ni otras páginas. Validación: `PBIP_PAGE_JSON_OK`, `NO_ISSUES`, sin BOM.
+- intento de usar plantillas manuales para header/sidebar/botón: se buscó únicamente dentro de la página `27ae18fcd01c27bcd7a3` por `TPL_HEADER_TITLE`, `TPL_HEADER_SUBTITLE`, `TPL_SIDEBAR_BG`, `TPL_SIDEBAR_ITEMS`, `TPL_CLEAR_FILTERS_BUTTON` y `BM_CLEAR_FILTERS`; no aparecieron en `visuals/*.json` ni otros archivos de esa página. No se crearon objetos JSON desde cero. Pendiente: guardar/sembrar esas plantillas en Power BI Desktop y guardar el PBIP antes de retomar.
+- sigue pendiente terminar el acabado visual fino para alinearlo mejor con el mockup ejecutivo esperado por Christian
+
+
+## Historial de fases funcionales ya cerradas o estabilizadas
+
+> Estas fases pertenecen principalmente a la app `intranet-app` y sirven como base operativa para la fase actual de Power BI. No son la fase activa actual, salvo que se detecte un bug que impacte directamente los datos del dashboard.
+
+
 ### Fase 1 — Propuestas
 Implementado y validado:
 - modelo `Proposal`
@@ -488,12 +647,18 @@ python -m uvicorn app.main:app --reload
 
 ---
 
-## Consideraciones para futura integración con Power BI
+## Power BI — fuente de verdad actual
 
 ### Objetivo
-Dejar claro qué entidades son fuente confiable para reportería y paneles.
+Dejar claro qué entidades y capas son fuente confiable para reportería y paneles durante la fase actual de Power BI.
 
-### Tablas principales para Power BI
+### Regla actual
+- La fuente preferida para el dashboard ejecutivo son las vistas/tablas analíticas `bi_*`.
+- No usar tablas operativas crudas en visuales ejecutivos si la lógica ya existe o puede estabilizarse en una vista BI.
+- Mantener versionado cualquier cambio SQL BI en `scripts/power_bi_views.sql`.
+- El archivo de trabajo sigue siendo el PBIX/PBIP oficial de FARO; no crear un reporte paralelo.
+
+### Tablas operativas base que alimentan BI
 - `participants`
 - `attendance`
 - `activity_sessions`
@@ -538,16 +703,8 @@ Dejar claro qué entidades son fuente confiable para reportería y paneles.
   - `No Duplicado` = personas únicas
   - `Duplicado` = participaciones
 
-### Siguiente mejora sugerida para BI
-Crear más adelante vistas SQL estables para consumo analítico, por ejemplo:
-- `vw_attendance_fact`
-- `vw_participant_dimension`
-- `vw_session_fact`
-- `vw_reporting_residentials`
-
-Esto ayudaría a separar:
-- lógica operativa de la app
-- lógica analítica para Power BI
+### Siguiente mejora de BI
+Consolidar y cerrar las vistas `bi_*` actuales como contrato analítico estable antes de expandir nuevos reportes o páginas. Cualquier vista nueva debe responder a una necesidad concreta del dashboard o del modelo ejecutivo, no duplicar lógica ya disponible.
 
 ---
 
@@ -610,11 +767,17 @@ python -m uvicorn app.main:app --reload
 ---
 
 ## Próximos pasos recomendados
-1. Endurecer permisos sensibles de supervisor en todo Admin
-2. Migrar el resto del hardcode operativo a `residentials`
-3. Crear vistas SQL para futura integración con Power BI
-4. Exportación a Excel/CSV más amplia
-5. Flash messages amigables en UI
-6. Paginación en listados
-7. Evaluar si `género`, `VCA` y `primera_vez` pasan a catálogo
-8. Limpieza de archivos sueltos del repo
+1. Cerrar la fase actual de Power BI:
+   - validar visuales inferiores
+   - limpiar tendencia mensual
+   - terminar acabado ejecutivo del dashboard
+   - guardar/reabrir PBIP/PBIX y confirmar que no haya visuales rotos
+2. Commit local de la fase Power BI cuando quede validada.
+3. Luego retomar mejoras de app no críticas:
+   - endurecer permisos sensibles de supervisor en todo Admin
+   - migrar el resto del hardcode operativo a `residentials`
+   - exportación a Excel/CSV más amplia
+   - flash messages amigables en UI
+   - paginación en listados
+   - evaluar si `género`, `VCA` y `primera_vez` pasan a catálogo
+   - limpieza de archivos sueltos del repo
