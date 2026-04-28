@@ -120,7 +120,7 @@ def _automation_user(db: Session, run_as_user_id: int | None = None) -> User:
         select(User)
         .where(User.is_active == True, User.role.in_(["admin", "supervisor"]))  # noqa: E712
         .order_by(User.user_id)
-    ).scalar_one_or_none()
+    ).scalars().first()
     if user:
         return user
 
@@ -128,7 +128,7 @@ def _automation_user(db: Session, run_as_user_id: int | None = None) -> User:
         select(User)
         .where(User.is_active == True)  # noqa: E712
         .order_by(User.user_id)
-    ).scalar_one_or_none()
+    ).scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="No hay usuarios activos para ejecutar reportes.")
     return user
