@@ -24,5 +24,9 @@ class Settings(BaseSettings):
     # Optional explicit path for wkhtmltopdf. If omitted, the app will try PATH.
     WKHTMLTOPDF_PATH: str | None = None
 
+    # Optional token for n8n/automation endpoints.
+    # If set, clients must send it in X-Automation-Token.
+    AUTOMATION_API_KEY: str | None = None
+
 
 settings = Settings()

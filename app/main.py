@@ -14,6 +14,7 @@ from app.api.routes.school_grades import router as school_grades_router
 from app.api.routes.school_dropout import router as school_dropout_router
 from app.api.routes.pregnancy import router as pregnancy_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.automation_reports import router as automation_reports_router
 
 # ✅ API routers (no rompen FASE 1 porque van bajo /api)
 from app.api.routes.sessions import router as sessions_router
@@ -55,6 +56,7 @@ app.include_router(school_grades_router, prefix="/ui/school-grades")
 app.include_router(school_dropout_router, prefix="/ui/school-dropout")
 app.include_router(pregnancy_router, prefix="/ui/pregnancy")
 app.include_router(reports_router, prefix="/ui/reports")
+app.include_router(automation_reports_router, prefix="/api/automation", tags=["automation"])
 
 # ✅ API (para Postman / integraciones)
 app.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
