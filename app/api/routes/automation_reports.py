@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.models.user import User
 from app.models.proposal import Proposal
+from app.models.employee import Employee
 from app.api.routes.reports import (
     _build_no_duplicado_context,
     _build_por_programa_context,
@@ -21,6 +23,22 @@ from app.api.routes.reports import (
     _build_notes_context,
     _build_visits_context,
     _build_hoja_cotejo_context,
+    _build_bonafide_context,
+    _build_adm_context,
+)
+from app.services.report_excel_builders import (
+    make_workbook,
+    build_adm_sheet,
+    build_bonafide_sheet,
+    build_desercion_sheet,
+    build_embarazo_sheet,
+    build_hoja_cotejo_sheet,
+    build_no_duplicado_sheet,
+    build_notas_sheet,
+    build_por_programa_sheet,
+    build_vca_sheet,
+    build_visitas_sheet,
+    workbook_to_bytes,
 )
 
 router = APIRouter()
@@ -340,6 +358,77 @@ def monthly_package(
             end_date,
         )
     return payload
+
+
+@router.get("/reports/todos/excel")
+def automation_all_reports_excel(
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    run_as_user_id: int | None = None,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_automation_token),
+):
+    user = _automation_user(db, run_as_user_id)
+    if period_type not in {"monthly", "custom"}:
+        raise HTTPException(status_code=400, detail="period_type debe ser monthly o custom.")
+
+    bundle = {
+        "bonafide": _build_bonafide_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "no_duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date),
+        "visitas": _build_visits_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "por_programa": _build_por_programa_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "hoja_cotejo": _build_hoja_cotejo_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "desercion": _build_school_dropout_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "embarazo": _build_pregnancy_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "notas": _build_notes_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "vca": _build_vca_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "adm": _build_adm_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+    }
+
+    employee_records = db.execute(
+        select(Employee)
+        .where(Employee.is_active == True)  # noqa: E712
+        .order_by(Employee.full_name)
+    ).scalars().all()
+    visible_employee_names = [employee.full_name.strip() for employee in employee_records]
+    existing_by_name = {row.get("employee_name", ""): row for row in bundle["visitas"].get("rows", [])}
+    visit_rows = [
+        {
+            "employee_name": employee_name,
+            "visits": existing_by_name.get(employee_name, {}).get("visits", 0),
+            "attendances": existing_by_name.get(employee_name, {}).get("attendances", 0),
+            "hours": existing_by_name.get(employee_name, {}).get("hours", 0),
+        }
+        for employee_name in visible_employee_names
+    ] or bundle["visitas"].get("rows", [])
+
+    wb = make_workbook()
+    build_bonafide_sheet(wb, bundle["bonafide"], title="Bonafide")
+    build_no_duplicado_sheet(wb, bundle["no_duplicado"], title="No Duplicado")
+    build_no_duplicado_sheet(wb, bundle["duplicado"], title="Duplicado", duplicated=True)
+    build_visitas_sheet(wb, bundle["visitas"], title="Visitas", rows=visit_rows, include_totals_when_empty=True)
+    build_por_programa_sheet(wb, bundle["por_programa"], title="Por Programa")
+    build_hoja_cotejo_sheet(wb, bundle["hoja_cotejo"], title="Hoja Cotejo")
+    build_desercion_sheet(wb, bundle["desercion"], title="Desercion")
+    build_embarazo_sheet(wb, bundle["embarazo"], title="Embarazo")
+    build_notas_sheet(wb, bundle["notas"], title="Notas")
+    build_vca_sheet(wb, bundle["vca"], title="VCA")
+    build_adm_sheet(wb, bundle["adm"], title="ADM")
+
+    output = workbook_to_bytes(wb)
+    filename = f"todos_los_reportes_{year or 'periodo'}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/reports/{report_key}")
