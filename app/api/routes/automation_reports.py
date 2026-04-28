@@ -40,6 +40,8 @@ from app.services.report_excel_builders import (
     build_visitas_sheet,
     workbook_to_bytes,
 )
+from app.services.report_pdf import PDFBackendUnavailableError, PDFRenderError, render_template_to_pdf_bytes, build_zip_bytes
+from app.api.routes.reports import templates, build_notes_pdf_chart_images, _pdf_download_filename
 
 router = APIRouter()
 
@@ -428,6 +430,70 @@ def automation_all_reports_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/todos/pdf")
+def automation_all_reports_pdf(
+    proposal_id: int | None = None,
+    month: int | None = None,
+    year: int | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    run_as_user_id: int | None = None,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_automation_token),
+):
+    user = _automation_user(db, run_as_user_id)
+    if period_type not in {"monthly", "custom"}:
+        raise HTTPException(status_code=400, detail="period_type debe ser monthly o custom.")
+
+    bundle = {
+        "bonafide": _build_bonafide_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "no_duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date),
+        "visitas": _build_visits_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "por_programa": _build_por_programa_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+        "hoja_cotejo": _build_hoja_cotejo_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "desercion": _build_school_dropout_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "embarazo": _build_pregnancy_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "notas": _build_notes_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "vca": _build_vca_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
+        "adm": _build_adm_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
+    }
+    shared_context = {"current_user": user, "authorized_name": authorized_name or ""}
+    request = None
+    pdf_specs = [
+        ("bonafide", "ui/reports/bonafide_pdf.html", {**bundle["bonafide"], **shared_context}, _pdf_download_filename("bonafide", bundle["bonafide"])),
+        ("no_duplicado", "ui/reports/no_duplicado_pdf.html", {**bundle["no_duplicado"], **shared_context}, _pdf_download_filename("no_duplicado", bundle["no_duplicado"])),
+        ("duplicado", "ui/reports/duplicado_pdf.html", {**bundle["duplicado"], **shared_context}, _pdf_download_filename("duplicado", bundle["duplicado"])),
+        ("visitas", "ui/reports/visitas_pdf.html", {**bundle["visitas"], **shared_context}, _pdf_download_filename("visitas", bundle["visitas"])),
+        ("por_programa", "ui/reports/por_programa_pdf.html", {**bundle["por_programa"], **shared_context}, _pdf_download_filename("por_programa", bundle["por_programa"])),
+        ("hoja_cotejo", "ui/reports/hoja_cotejo_pdf.html", {**bundle["hoja_cotejo"], **shared_context}, _pdf_download_filename("hoja_cotejo", bundle["hoja_cotejo"])),
+        ("desercion", "ui/reports/desercion_escolar_pdf.html", {**bundle["desercion"], **shared_context}, _pdf_download_filename("desercion_escolar", bundle["desercion"])),
+        ("embarazo", "ui/reports/embarazo_pdf.html", {**bundle["embarazo"], **shared_context}, _pdf_download_filename("embarazo", bundle["embarazo"])),
+        ("notas", "ui/reports/notas_pdf.html", {**bundle["notas"], **shared_context, **build_notes_pdf_chart_images(bundle["notas"])}, _pdf_download_filename("notas", bundle["notas"])),
+        ("vca", "ui/reports/vca_pdf.html", {**bundle["vca"], **shared_context}, _pdf_download_filename("vca", bundle["vca"])),
+        ("adm", "ui/reports/adm_pdf.html", {**bundle["adm"], **shared_context}, _pdf_download_filename("adm", bundle["adm"])),
+    ]
+    files = []
+    try:
+        for _, template_name, context, filename in pdf_specs:
+            files.append((filename, render_template_to_pdf_bytes(templates=templates, template_name=template_name, context={**context, "request": request}, request=request)))
+    except PDFBackendUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    zip_filename = _pdf_download_filename("todos_los_reportes", bundle["bonafide"], extension="zip")
+    zip_bytes = build_zip_bytes(files)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
     )
 
 
