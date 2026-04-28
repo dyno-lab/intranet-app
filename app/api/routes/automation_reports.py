@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -435,6 +435,7 @@ def automation_all_reports_excel(
 
 @router.get("/reports/todos/pdf")
 def automation_all_reports_pdf(
+    request: Request,
     proposal_id: int | None = None,
     month: int | None = None,
     year: int | None = None,
@@ -465,7 +466,6 @@ def automation_all_reports_pdf(
         "adm": _build_adm_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
     }
     shared_context = {"current_user": user, "authorized_name": authorized_name or ""}
-    request = None
     pdf_specs = [
         ("bonafide", "ui/reports/bonafide_pdf.html", {**bundle["bonafide"], **shared_context}, _pdf_download_filename("bonafide", bundle["bonafide"])),
         ("no_duplicado", "ui/reports/no_duplicado_pdf.html", {**bundle["no_duplicado"], **shared_context}, _pdf_download_filename("no_duplicado", bundle["no_duplicado"])),
