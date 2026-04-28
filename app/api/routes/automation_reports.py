@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import settings
 from app.models.user import User
+from app.models.proposal import Proposal
 from app.api.routes.reports import (
     _build_no_duplicado_context,
     _build_por_programa_context,
@@ -258,6 +259,48 @@ def list_automation_reports(_: None = Depends(require_automation_token)):
     return {
         "reports": sorted(REPORT_BUILDERS.keys()),
         "usage": "/api/automation/reports/{report_key}?month=3&year=2026&proposal_id=1",
+    }
+
+
+@router.get("/options")
+def automation_options(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_automation_token),
+):
+    proposals = db.execute(
+        select(Proposal)
+        .where(Proposal.is_active == True)  # noqa: E712
+        .order_by(Proposal.code)
+    ).scalars().all()
+    users = db.execute(
+        select(User)
+        .where(User.is_active == True, User.role == "user")  # noqa: E712
+        .order_by(User.username)
+    ).scalars().all()
+    return {
+        "proposals": [
+            {
+                "proposal_id": proposal.proposal_id,
+                "code": proposal.code,
+                "name": proposal.name,
+                "label": f"{proposal.proposal_id} | {proposal.code} - {proposal.name}",
+            }
+            for proposal in proposals
+        ],
+        "residentials": [
+            {"employee_id": 0, "name": "Global", "label": "0 | Global"},
+            *[
+                {
+                    "employee_id": user.user_id,
+                    "username": user.username,
+                    "name": _json_safe(getattr(user.residential, "name", None) or user.username),
+                    "label": f"{user.user_id} | {_json_safe(getattr(user.residential, 'name', None) or user.username)}",
+                }
+                for user in users
+            ],
+        ],
+        "months": [{"value": value, "name": name, "label": f"{value} | {name}"} for value, name in MONTH_NAMES.items()],
+        "reports": sorted(REPORT_BUILDERS.keys()),
     }
 
 
