@@ -25,6 +25,7 @@ from app.api.routes.reports import (
     _build_hoja_cotejo_context,
     _build_bonafide_context,
     _build_adm_context,
+    _build_all_reports_bundle_context,
 )
 from app.services.report_excel_builders import (
     make_workbook,
@@ -452,19 +453,18 @@ def automation_all_reports_pdf(
     if period_type not in {"monthly", "custom"}:
         raise HTTPException(status_code=400, detail="period_type debe ser monthly o custom.")
 
-    bundle = {
-        "bonafide": _build_bonafide_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-        "no_duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-        "duplicado": _build_no_duplicado_context(db, user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date),
-        "visitas": _build_visits_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-        "por_programa": _build_por_programa_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-        "hoja_cotejo": _build_hoja_cotejo_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
-        "desercion": _build_school_dropout_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
-        "embarazo": _build_pregnancy_summary_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
-        "notas": _build_notes_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
-        "vca": _build_vca_context(db, user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date),
-        "adm": _build_adm_context(db, user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date),
-    }
+    bundle = _build_all_reports_bundle_context(
+        db,
+        user,
+        proposal_id,
+        month,
+        year,
+        employee_id,
+        authorized_name,
+        period_type,
+        start_date,
+        end_date,
+    )
     shared_context = {"current_user": user, "authorized_name": authorized_name or ""}
     pdf_specs = [
         ("bonafide", "ui/reports/bonafide_pdf.html", {**bundle["bonafide"], **shared_context}, _pdf_download_filename("bonafide", bundle["bonafide"])),
