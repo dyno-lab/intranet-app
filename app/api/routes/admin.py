@@ -1409,6 +1409,12 @@ def admin_proposal_participants(
 
             if source_participant:
                 comparisons = [
+                    ("nombre", person.nombre, source_participant.nombre),
+                    ("inicial", person.inicial, source_participant.inicial),
+                    ("apellido_paterno", person.apellido_paterno, source_participant.apellido_paterno),
+                    ("apellido_materno", person.apellido_materno, source_participant.apellido_materno),
+                    ("genero", person.genero, source_participant.genero),
+                    ("fecha_nacimiento", person.fecha_nacimiento, source_participant.fecha_nacimiento),
                     ("expediente", proposal_participant.expediente_num, source_participant.expediente_num),
                     ("edificio", proposal_participant.edificio, source_participant.edificio),
                     ("apartamento", proposal_participant.apart, source_participant.apart),
