@@ -18,6 +18,25 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualización 2026-04-30 — Sync de datos personales en participantes por propuesta
+Implementado / validado manualmente:
+- se corrigió `/ui/admin/proposal-participants` para detectar cambios pendientes cuando un participante asociado cambia en `/ui/new-list`.
+- antes, la pantalla marcaba `Pendiente sync` para campos operativos como expediente, edificio, apartamento, VCA, estatus, grupo familiar, ingresos y activo/inactivo, pero no para datos personales almacenados en `Person`.
+- ahora también se comparan contra el participante fuente de New-list:
+  - nombre
+  - inicial
+  - apellido paterno
+  - apellido materno
+  - género
+  - fecha de nacimiento
+- el botón individual `Sync` y `Sincronizar todos desde New-list` ya tenían lógica para copiar esos campos a `Person`; el cambio fue completar la detección visual de desfase.
+- validación manual de Christian: cambiar el nombre en `/ui/new-list` hizo que el participante apareciera como pendiente de sincronización en `/ui/admin/proposal-participants`.
+- commit local realizado:
+  - `39a98eb Detect personal data changes in proposal participant sync`
+
+Pendiente:
+- push remoto si se va a mover el cambio a otro entorno.
+
 ### Actualización 2026-04-27 — Catálogo de escolaridad del participante en expedientes
 Implementado / validado técnicamente:
 - corrección de alcance: el catálogo requerido por Christian es `escolaridad_participante`, no `composicion_familiar`.
