@@ -14,10 +14,10 @@
 <div class="card shadow-sm mb-4">
   <div class="card-header fw-semibold">Filtros y salida</div>
   <div class="card-body">
-    <form method="get" action="/ui/admin/consolidado-mensual-global" class="row g-3 align-items-end mb-3">
+    <form id="consolidadoFiltersForm" method="get" action="/ui/admin/consolidado-mensual-global" class="row g-3 align-items-end mb-3">
       <div class="col-md-2">
         <label class="form-label">Tipo de periodo</label>
-        <select class="form-select" name="period_type">
+        <select class="form-select" name="period_type" id="periodTypeSelect">
           {% for option in period_type_options %}
             <option value="{{ option.value }}" {{ 'selected' if selected_period_type == option.value }}>{{ option.label }}</option>
           {% endfor %}
@@ -25,7 +25,7 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">Mes</label>
-        <select class="form-select" name="month">
+        <select class="form-select" name="month" id="monthSelect" data-month-current="{{ month or '' }}">
           {% for value, label in month_options %}
             <option value="{{ value }}" {{ 'selected' if value == month }}>{{ label }}</option>
           {% endfor %}
@@ -33,15 +33,15 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">Año</label>
-        <input type="number" class="form-control" name="year" value="{{ year or '' }}" min="2000" max="2100">
+        <input type="number" class="form-control" name="year" id="yearInput" value="{{ year or '' }}" min="2000" max="2100" data-year-current="{{ year or '' }}">
       </div>
       <div class="col-md-2">
         <label class="form-label">Desde</label>
-        <input type="date" class="form-control" name="start_date" value="{{ selected_start_date }}">
+        <input type="date" class="form-control" name="start_date" id="startDateInput" value="{{ selected_start_date }}" data-start-current="{{ selected_start_date }}">
       </div>
       <div class="col-md-2">
         <label class="form-label">Hasta</label>
-        <input type="date" class="form-control" name="end_date" value="{{ selected_end_date }}">
+        <input type="date" class="form-control" name="end_date" id="endDateInput" value="{{ selected_end_date }}" data-end-current="{{ selected_end_date }}">
       </div>
       <div class="col-md-3">
         <label class="form-label">Propuesta</label>
@@ -61,8 +61,9 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-2 d-grid gap-2">
         <button class="btn btn-primary w-100">Consultar</button>
+        <a class="btn btn-outline-secondary w-100" href="/ui/admin/consolidado-mensual-global">Limpiar</a>
       </div>
     </form>
 
@@ -157,4 +158,39 @@
     </table>
   </div>
 </div>
+<script>
+  (function () {
+    const periodType = document.getElementById('periodTypeSelect');
+    const month = document.getElementById('monthSelect');
+    const year = document.getElementById('yearInput');
+    const start = document.getElementById('startDateInput');
+    const end = document.getElementById('endDateInput');
+    if (!periodType || !month || !year || !start || !end) return;
+
+    function setDisabled(el, disabled) {
+      el.disabled = disabled;
+      el.classList.toggle('bg-light', disabled);
+    }
+
+    function syncPeriodControls() {
+      const isCustom = periodType.value === 'custom';
+      setDisabled(month, isCustom);
+      setDisabled(year, isCustom);
+      setDisabled(start, !isCustom);
+      setDisabled(end, !isCustom);
+      if (isCustom) {
+        month.value = '';
+        year.value = '';
+      } else {
+        start.value = '';
+        end.value = '';
+        if (!month.value && month.dataset.monthCurrent) month.value = month.dataset.monthCurrent;
+        if (!year.value && year.dataset.yearCurrent) year.value = year.dataset.yearCurrent;
+      }
+    }
+
+    periodType.addEventListener('change', syncPeriodControls);
+    syncPeriodControls();
+  })();
+</script>
 {% endblock %}
