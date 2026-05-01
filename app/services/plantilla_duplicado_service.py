@@ -3,18 +3,20 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.proposal_report_program import ProposalReportProgram
 from app.models.user import User
 from app.services.consolidado_mensual_service import build_consolidado_mensual_global
+from app.services.report_programs import program_display_name
 
-PROGRAM_CODES = ["1-A", "2-B", "3-C", "4-D"]
-PROGRAM_LABELS = {
-    "1-A": "Programa 1-A",
-    "2-B": "Programa 2-B",
-    "3-C": "Programa 3-C",
-    "4-D": "Programa 4-D",
-}
+FALLBACK_PROGRAM_COLUMNS = [
+    {"code": "1-A", "label": "Programa 1-A"},
+    {"code": "2-B", "label": "Programa 2-B"},
+    {"code": "3-C", "label": "Programa 3-C"},
+    {"code": "4-D", "label": "Programa 4-D"},
+]
 CHART_COLORS = [
     "#5B9BD5", "#ED7D31", "#A5A5A5", "#FFC000", "#4472C4", "#70AD47",
     "#264478", "#9E480E", "#636363", "#997300", "#255E91", "#43682B",
@@ -63,6 +65,34 @@ def _chart_segments(rows: list[dict[str, Any]], total: int) -> list[dict[str, An
     return segments
 
 
+def _program_columns(db: Session, proposal_id: int | None, base: dict[str, Any]) -> list[dict[str, str]]:
+    if proposal_id:
+        programs = db.execute(
+            select(ProposalReportProgram)
+            .where(
+                ProposalReportProgram.proposal_id == proposal_id,
+                ProposalReportProgram.is_active == True,  # noqa: E712
+            )
+            .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
+        ).scalars().all()
+        if programs:
+            return [
+                {"code": program.code, "label": program_display_name(program) or program.code}
+                for program in programs
+            ]
+
+    labels = base.get("program_labels") or {}
+    discovered_codes: list[str] = []
+    for row in base.get("rows", []):
+        for program in row.get("programs", []):
+            code = program.get("code")
+            if code and code != "SIN_PROGRAMA" and code not in discovered_codes:
+                discovered_codes.append(code)
+    if discovered_codes:
+        return [{"code": code, "label": labels.get(code, code)} for code in discovered_codes]
+    return FALLBACK_PROGRAM_COLUMNS.copy()
+
+
 def build_plantilla_duplicado_context(
     db: Session,
     *,
@@ -86,10 +116,12 @@ def build_plantilla_duplicado_context(
         residential_id=residential_id,
         current_user=current_user,
     )
+    program_columns = _program_columns(db, proposal_id, base)
+    program_codes = [column["code"] for column in program_columns]
 
     rows = []
     totals = {
-        "programs": {code: 0 for code in PROGRAM_CODES},
+        "programs": {code: 0 for code in program_codes},
         "total_participation": 0,
         "unique_participants": 0,
         "total_services": 0,
@@ -99,7 +131,7 @@ def build_plantilla_duplicado_context(
         program_by_code = {program.get("code"): program for program in item.get("programs", [])}
         program_values = {
             code: int(program_by_code.get(code, {}).get("unique_participants") or 0)
-            for code in PROGRAM_CODES
+            for code in program_codes
         }
         total_participation = sum(program_values.values())
         row = {
@@ -112,7 +144,7 @@ def build_plantilla_duplicado_context(
             "total_services": int(item.get("attendances") or 0),
         }
         rows.append(row)
-        for code in PROGRAM_CODES:
+        for code in program_codes:
             totals["programs"][code] += program_values[code]
         totals["total_participation"] += total_participation
         totals["unique_participants"] += row["unique_participants"]
@@ -123,8 +155,9 @@ def build_plantilla_duplicado_context(
         "title": "Plantilla Duplicado",
         "rows": rows,
         "duplicado_totals": totals,
-        "program_codes": PROGRAM_CODES,
-        "program_labels": PROGRAM_LABELS,
+        "program_columns": program_columns,
+        "program_codes": program_codes,
+        "program_labels": {column["code"]: column["label"] for column in program_columns},
         "chart_segments": _chart_segments(rows, totals["total_participation"]),
         "page_table_number": 31,
         "page_chart_number": 33,

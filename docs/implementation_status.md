@@ -45,8 +45,9 @@ Implementado:
 - Excel generado como salida, no como motor de cálculo.
 
 Mapeo de datos desde SQL/intranet:
-- columnas `Programa 1-A` a `Programa 4-D` se toman de los totales por programa calculados desde sesiones/asistencias.
-- `Total Participación` = suma de Programas 1-A, 2-B, 3-C y 4-D.
+- las columnas de programas salen de la configuración real de `/ui/admin/report-programs` para la propuesta seleccionada, ordenadas por `sort_order` / `code`.
+- no deben asumirse como fijas `Programa 1-A` a `Programa 4-D`; esos códigos solo quedan como fallback histórico si no hay propuesta/configuración disponible.
+- `Total Participación` = suma de los programas configurados para la propuesta/filtro activo.
 - `Participantes No Duplicados` = participantes únicos por residencial.
 - `Total de Servicios` = asistencias/servicios acumulados por residencial.
 - gráfica de porcentaje usa `Total Participación`, igual que la plantilla histórica.

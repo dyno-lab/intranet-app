@@ -94,10 +94,9 @@
       <thead class="table-light">
         <tr>
           <th>Residencial</th>
-          <th class="text-center">Programa 1-A</th>
-          <th class="text-center">Programa 2-B</th>
-          <th class="text-center">Programa 3-C</th>
-          <th class="text-center">Programa 4-D</th>
+          {% for program in program_columns %}
+          <th class="text-center">{{ program.label }}</th>
+          {% endfor %}
           <th class="text-center">Total Participación</th>
           <th class="text-center">Participantes No Duplicados</th>
           <th class="text-center">Total de Servicios</th>
@@ -107,10 +106,9 @@
         {% for row in rows %}
         <tr>
           <td>{{ row.residential_name }}</td>
-          <td class="text-center">{{ row.programs['1-A'] }}</td>
-          <td class="text-center">{{ row.programs['2-B'] }}</td>
-          <td class="text-center">{{ row.programs['3-C'] }}</td>
-          <td class="text-center">{{ row.programs['4-D'] }}</td>
+          {% for program in program_columns %}
+          <td class="text-center">{{ row.programs[program.code] }}</td>
+          {% endfor %}
           <td class="text-center">{{ row.total_participation }}</td>
           <td class="text-center">{{ row.unique_participants }}</td>
           <td class="text-center">{{ row.total_services }}</td>
@@ -118,10 +116,9 @@
         {% endfor %}
         <tr class="fw-bold table-secondary">
           <td>Total</td>
-          <td class="text-center">{{ duplicado_totals.programs['1-A'] }}</td>
-          <td class="text-center">{{ duplicado_totals.programs['2-B'] }}</td>
-          <td class="text-center">{{ duplicado_totals.programs['3-C'] }}</td>
-          <td class="text-center">{{ duplicado_totals.programs['4-D'] }}</td>
+          {% for program in program_columns %}
+          <td class="text-center">{{ duplicado_totals.programs[program.code] }}</td>
+          {% endfor %}
           <td class="text-center">{{ duplicado_totals.total_participation }}</td>
           <td class="text-center">{{ duplicado_totals.unique_participants }}</td>
           <td class="text-center">{{ duplicado_totals.total_services }}</td>

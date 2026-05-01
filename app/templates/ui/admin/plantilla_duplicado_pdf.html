@@ -53,23 +53,20 @@
       <thead>
         <tr>
           <th rowspan="2" style="width:24%;">RESIDENCIAL</th>
-          <th colspan="4" class="group">Total Participación en el Programa de</th>
+          <th colspan="{{ program_columns|length }}" class="group">Total Participación en el Programa de</th>
           <th rowspan="2" style="width:10%;">Total<br>Participación</th>
           <th rowspan="2" style="width:12%;">Participantes No<br>Duplicados</th>
           <th rowspan="2" style="width:10%;">Total de<br>Servicios</th>
         </tr>
         <tr>
-          <th>Programa 1-A</th><th>Programa 2-B</th><th>Programa 3-C</th><th>Programa 4-D</th>
+          {% for program in program_columns %}<th>{{ program.label }}</th>{% endfor %}
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
         <tr>
           <td class="name">{{ row.residential_name }}</td>
-          <td class="num">{{ '{:,}'.format(row.programs['1-A']) }}</td>
-          <td class="num">{{ '{:,}'.format(row.programs['2-B']) }}</td>
-          <td class="num">{{ '{:,}'.format(row.programs['3-C']) }}</td>
-          <td class="num">{{ '{:,}'.format(row.programs['4-D']) }}</td>
+          {% for program in program_columns %}<td class="num">{{ '{:,}'.format(row.programs[program.code]) }}</td>{% endfor %}
           <td class="num">{{ '{:,}'.format(row.total_participation) }}</td>
           <td class="num">{{ '{:,}'.format(row.unique_participants) }}</td>
           <td class="num">{{ '{:,}'.format(row.total_services) }}</td>
@@ -77,10 +74,7 @@
         {% endfor %}
         <tr class="total">
           <td>Total</td>
-          <td>{{ '{:,}'.format(duplicado_totals.programs['1-A']) }}</td>
-          <td>{{ '{:,}'.format(duplicado_totals.programs['2-B']) }}</td>
-          <td>{{ '{:,}'.format(duplicado_totals.programs['3-C']) }}</td>
-          <td>{{ '{:,}'.format(duplicado_totals.programs['4-D']) }}</td>
+          {% for program in program_columns %}<td>{{ '{:,}'.format(duplicado_totals.programs[program.code]) }}</td>{% endfor %}
           <td>{{ '{:,}'.format(duplicado_totals.total_participation) }}</td>
           <td>{{ '{:,}'.format(duplicado_totals.unique_participants) }}</td>
           <td>{{ '{:,}'.format(duplicado_totals.total_services) }}</td>

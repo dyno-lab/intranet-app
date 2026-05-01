@@ -234,7 +234,8 @@ def _build_excel_bytes(context: dict) -> bytes:
     left = Alignment(horizontal="left", vertical="center")
     ws["B1"] = "COMPAÑIA: Centros Sor Isolina Ferré, Inc."
     ws["B2"] = f"MES REPORTADO: {context['period_label']}"
-    headers = ["RESIDENCIAL", "Programa 1-A", "Programa 2-B", "Programa 3-C", "Programa 4-D", "Total Participación", "Participantes No Duplicados", "Total de Servicios"]
+    program_columns = context.get("program_columns", [])
+    headers = ["RESIDENCIAL"] + [program["label"] for program in program_columns] + ["Total Participación", "Participantes No Duplicados", "Total de Servicios"]
     for col, header in enumerate(headers, start=2):
         cell = ws.cell(row=4, column=col, value=header)
         cell.font = Font(bold=True)
@@ -243,7 +244,7 @@ def _build_excel_bytes(context: dict) -> bytes:
         cell.alignment = center
     row_index = 5
     for row in context.get("rows", []):
-        values = [row["residential_name"], row["programs"]["1-A"], row["programs"]["2-B"], row["programs"]["3-C"], row["programs"]["4-D"], row["total_participation"], row["unique_participants"], row["total_services"]]
+        values = [row["residential_name"]] + [row["programs"].get(program["code"], 0) for program in program_columns] + [row["total_participation"], row["unique_participants"], row["total_services"]]
         for col, value in enumerate(values, start=2):
             cell = ws.cell(row=row_index, column=col, value=value)
             cell.font = Font(bold=True)
@@ -251,7 +252,7 @@ def _build_excel_bytes(context: dict) -> bytes:
             cell.alignment = left if col == 2 else center
         row_index += 1
     totals = context["duplicado_totals"]
-    values = ["Total", totals["programs"]["1-A"], totals["programs"]["2-B"], totals["programs"]["3-C"], totals["programs"]["4-D"], totals["total_participation"], totals["unique_participants"], totals["total_services"]]
+    values = ["Total"] + [totals["programs"].get(program["code"], 0) for program in program_columns] + [totals["total_participation"], totals["unique_participants"], totals["total_services"]]
     for col, value in enumerate(values, start=2):
         cell = ws.cell(row=row_index, column=col, value=value)
         cell.font = Font(bold=True)
