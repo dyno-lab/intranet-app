@@ -18,6 +18,105 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualización 2026-05-01 — Consolidado Mensual Global Admin-only
+Estado: **cerrado como Fase 1 funcional/documentada**.
+
+Implementado / validado técnicamente:
+- se creó el nuevo módulo **Consolidado Mensual Global** exclusivo para usuarios con rol `admin`.
+- la opción aparece en el menú Admin como `Consolidado Mensual Global` y queda oculta para roles no Admin.
+- todas las rutas del módulo están protegidas en backend con `require_admin`; no depende solo de ocultar botones en Jinja.
+- rutas creadas bajo `/ui/admin`:
+  - `GET /ui/admin/consolidado-mensual-global`
+  - `POST /ui/admin/consolidado-mensual-global/generar`
+  - `GET /ui/admin/consolidado-mensual-global/pdf`
+  - `GET /ui/admin/consolidado-mensual-global/excel`
+  - `GET /ui/admin/consolidado-mensual-global/validacion`
+- se creó el servicio de cálculo `app/services/consolidado_mensual_service.py` para mantener la lógica fuera del router.
+- el cálculo sale desde SQL Server/intranet, usando sesiones, asistencias, participantes, usuarios/residenciales, propuestas y programas configurados.
+- no se leen archivos `.xlsm` ni se usa Excel como motor de cálculo.
+- el Excel viejo queda solo como referencia visual/especificación histórica.
+- se creó exportación Excel como salida generada por la intranet, no como fuente.
+- se creó pantalla inicial de validación/auditoría para comparar en una fase posterior `Excel anterior vs intranet`.
+
+Formato PDF implementado:
+- se replicó el formato oficial de las hojas trabajadas del informe mensual histórico:
+  - header AVP.
+  - bloque institucional del informe.
+  - tabla por edad/sexo con encabezado verde.
+  - campos `RESIDENCIAL`, `MUNICIPIO`, `RQ`, `MES REPORTADO`.
+  - certificación con funcionario autorizado.
+  - firma y fecha alineadas como formulario oficial.
+- se eliminó del nuevo PDF el texto fijo `Rev.15/agosto/2019 CRM` por instrucción de Christian.
+- se ajustó la firma/fecha para que no dependa de `CSS grid`, usando tabla HTML compatible con `wkhtmltopdf`.
+- se forzó el PDF del módulo a tamaño **Letter** con márgenes propios para parecerse al informe oficial.
+
+Orden de hojas confirmado contra `F:\FARO\1PDF INFORMES\PDF\marzo2026\informemarzo2026.pdf`:
+1. No duplicado consolidado.
+2. No duplicado por residencial.
+3. Participación / servicios ofrecidos consolidado.
+4. Servicios ofrecidos por residencial.
+
+Orden oficial de residenciales aplicado para estas hojas:
+- Arístides Chavier
+- Pedro J. Rosaly
+- Juan Ponce de León
+- Ernesto Ramos Antonini
+- Rafael López Nussa
+- La Ceiba
+- Leonardo Santiago
+- Villa del Parque
+- Brisas del Mar
+- Bella Vista
+- Valles de Guayama
+- Jardines de Guamaní
+- Fernando Calimano
+- San Antonio Carioca
+- El Carmen
+- Manuel Hernández Rosa
+- Rafael Hernández
+- Columbus Landing
+
+Preparado para futuro:
+- se dejó `report_format_key` y `pdf_template_name` en el contexto del servicio para permitir formatos distintos por propuesta en una fase posterior.
+- por ahora el formato activo es `avp_2025_2026`.
+- si una propuesta futura requiere otra hoja/formato, debe agregarse otra plantilla PDF sin mezclar la lógica de cálculo SQL.
+
+Archivos creados/modificados principales:
+- `app/api/routes/consolidado_mensual_global.py`
+- `app/services/consolidado_mensual_service.py`
+- `app/templates/ui/admin/consolidado_mensual_global.html`
+- `app/templates/ui/admin/consolidado_mensual_global_pdf.html`
+- `app/templates/ui/admin/consolidado_mensual_global_validacion.html`
+- `app/templates/ui/_base.html`
+- `app/main.py`
+- `app/services/report_pdf.py`
+- `requirements.txt`
+
+Validación técnica realizada:
+- `.venv` creado con Python 3.12 local.
+- `pip install -r requirements.txt` ejecutado correctamente.
+- se agregaron dependencias faltantes reales del proyecto: `itsdangerous`, `jinja2`, `python-multipart`, `openpyxl`.
+- `compileall` de app/rutas/servicios relevantes pasó.
+- `import app.main` pasó.
+- rutas del módulo confirmadas registradas en FastAPI.
+- render Jinja básico de la plantilla PDF pasó.
+- `git diff --check` pasó en cada bloque antes de commit.
+
+Commits locales realizados:
+- `03b38a1 Add admin monthly global consolidated report`
+- `c56e73d Match residential consolidated PDF layout`
+- `de2062b Align consolidated PDF with official form`
+- `ebcc4f1 Refine official PDF signature fields`
+- `c32a4d0 Fix PDF signature date layout`
+- `f4d0229 Match official signature date spacing`
+- `e2d1888 Order consolidated PDF by official pages`
+
+Pendiente si se retoma este módulo:
+- comparar los totales de marzo 2026 calculados por intranet contra el Excel/PDF histórico y ajustar reglas si aparecen diferencias.
+- decidir cómo persistir/administrar `report_format_key` por propuesta si una propuesta futura requiere formato distinto.
+- hacer prueba manual completa en navegador con usuario Admin y usuario no Admin.
+- push remoto cuando Christian decida subir estos commits.
+
 ### Actualización 2026-04-30 — Sync de datos personales en participantes por propuesta
 Implementado / validado manualmente:
 - se corrigió `/ui/admin/proposal-participants` para detectar cambios pendientes cuando un participante asociado cambia en `/ui/new-list`.

@@ -31,6 +31,55 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 
 ---
 
+## 2026-05-01
+
+### Bloque cerrado — Consolidado Mensual Global Admin-only
+- **Tipo:** `feature`, `reports`, `security`, `pdf`, `excel`, `admin`
+- **Estado:** cerrado como primera versión funcional/documentada.
+- **Qué se hizo:**
+  - Se creó el módulo `Consolidado Mensual Global` bajo `/ui/admin`.
+  - Se protegieron todas las rutas con `require_admin` en backend.
+  - Se agregó la opción al menú solo dentro del bloque visible para `admin`.
+  - Se creó `app/services/consolidado_mensual_service.py` para calcular el reporte desde SQL Server, sin depender de `.xlsm`.
+  - Se creó vista HTML del módulo, exportación Excel generada y endpoint PDF.
+  - Se creó una pantalla inicial de validación/auditoría para comparación futura `Excel anterior vs intranet`.
+  - Se ajustó el PDF para seguir el formato oficial de las hojas del informe mensual histórico: header AVP, tabla por edad/sexo, bloque de certificación, firma y fecha.
+  - Se eliminó `Rev.15/agosto/2019 CRM` del nuevo PDF por instrucción de Christian.
+  - Se corrigió el bloque firma/fecha para compatibilidad con `wkhtmltopdf` usando tabla HTML en lugar de `CSS grid`.
+  - Se aplicó el orden oficial de residenciales observado en `F:\FARO\1PDF INFORMES\PDF\marzo2026\informemarzo2026.pdf`.
+- **Por qué se hizo:**
+  - Para reemplazar el flujo frágil `archivos .xlsm -> plantilla consolidada.xlsx -> PDF` por generación directa desde `intranet / SQL Server -> PDF/Excel`.
+  - Para eliminar dependencias a enlaces externos rotos, fórmulas heredadas y rangos `#REF!` en la plantilla de Excel.
+  - Para mantener la seguridad del módulo como Admin-only real, no solo visual.
+- **Decisiones clave:**
+  - El Excel viejo queda como referencia visual/especificación, no como motor de cálculo.
+  - El cálculo vive en servicio dedicado; el router solo orquesta request/response.
+  - El formato PDF actual se marca como `avp_2025_2026` y el contexto ya incluye `report_format_key` / `pdf_template_name` para soportar formatos futuros por propuesta.
+  - Los residenciales se ordenan por el orden oficial del informe, no alfabéticamente.
+- **Validación técnica:**
+  - `.venv` funcional con Python 3.12.
+  - dependencias instaladas desde `requirements.txt`.
+  - `compileall` pasó.
+  - `import app.main` pasó.
+  - rutas del módulo confirmadas registradas en FastAPI.
+  - render Jinja básico del PDF pasó.
+  - `git diff --check` pasó.
+- **Commits locales:**
+  - `03b38a1 Add admin monthly global consolidated report`
+  - `c56e73d Match residential consolidated PDF layout`
+  - `de2062b Align consolidated PDF with official form`
+  - `ebcc4f1 Refine official PDF signature fields`
+  - `c32a4d0 Fix PDF signature date layout`
+  - `f4d0229 Match official signature date spacing`
+  - `e2d1888 Order consolidated PDF by official pages`
+- **Pendiente recomendado:**
+  - Validar manualmente en navegador con usuario Admin/no Admin.
+  - Comparar marzo 2026 intranet vs Excel/PDF histórico si se va a cerrar la fase de exactitud numérica.
+  - Definir persistencia/admin de formatos por propuesta antes de soportar una propuesta futura con hoja distinta.
+  - Push remoto cuando Christian decida subir el bloque.
+
+---
+
 ## 2026-03-28
 
 ### Commit `8fc8dca` — `docs: add rigidity and dynamism matrix`

@@ -21,6 +21,22 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualización 2026-05-01 — Consolidado Mensual Global Admin-only
+Resumen operativo:
+- módulo `Consolidado Mensual Global` creado bajo `/ui/admin` y protegido con `require_admin` en todas sus rutas.
+- cálculo desde SQL Server/intranet; no usa `.xlsm` ni Excel como motor.
+- incluye pantalla, generación PDF, exportación Excel y vista inicial de validación/auditoría.
+- PDF ajustado al formato oficial de las hojas trabajadas del informe mensual histórico, incluyendo orden de hojas/residenciales, header AVP, tabla por edad/sexo y bloque de firma/fecha.
+- se dejó base para formatos futuros por propuesta mediante `report_format_key` / `pdf_template_name`.
+- commits locales del bloque: `03b38a1`, `c56e73d`, `de2062b`, `ebcc4f1`, `c32a4d0`, `f4d0229`, `e2d1888`.
+
+Fuente operativa detallada: `docs/implementation_status.md` y `IMPLEMENTATION_LOG.md`.
+
+Pendiente:
+- validación manual final Admin/no Admin en navegador.
+- comparación numérica marzo 2026 intranet vs Excel/PDF histórico si se requiere exactitud certificada.
+- push remoto cuando Christian decida subir los commits.
+
 ### Actualización 2026-04-30 — Sync de datos personales en participantes por propuesta
 Implementado / validado manualmente:
 - se corrigió `/ui/admin/proposal-participants` para detectar cambios pendientes en datos personales cuando el participante fuente cambia en `/ui/new-list`.
