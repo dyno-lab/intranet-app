@@ -10,6 +10,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.catalogs import router as catalogs_router
+from app.api.routes.consolidado_mensual_global import router as consolidado_mensual_global_router
 from app.api.routes.school_grades import router as school_grades_router
 from app.api.routes.school_dropout import router as school_dropout_router
 from app.api.routes.pregnancy import router as pregnancy_router
@@ -52,6 +53,7 @@ app.include_router(auth_router)               # /login, /logout
 app.include_router(ui_router, prefix="/ui")   # /ui/...
 app.include_router(admin_router, prefix="/ui/admin")  # /ui/admin/...
 app.include_router(catalogs_router, prefix="/ui/admin/catalogs")  # /ui/admin/catalogs/...
+app.include_router(consolidado_mensual_global_router, prefix="/ui/admin")  # /ui/admin/consolidado-mensual-global/...
 app.include_router(school_grades_router, prefix="/ui/school-grades")
 app.include_router(school_dropout_router, prefix="/ui/school-dropout")
 app.include_router(pregnancy_router, prefix="/ui/pregnancy")

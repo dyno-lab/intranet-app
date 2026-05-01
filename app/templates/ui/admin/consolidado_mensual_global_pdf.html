@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Consolidado Mensual Global</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
+    h1, h2, h3 { margin: 0; }
+    .page { page-break-after: always; }
+    .title { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 8px; }
+    .subtitle { text-align: center; font-size: 12px; margin-bottom: 12px; }
+    .meta { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
+    .meta td { padding: 4px; }
+    .box { border: 1px solid #333; padding: 6px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th, td { border: 1px solid #333; padding: 4px; }
+    th { background: #e8eef7; text-align: center; }
+    td.num { text-align: center; }
+    .section { background: #d9eaf7; font-weight: bold; padding: 5px; border: 1px solid #333; margin-top: 8px; }
+    .total-row td { background: #e2f0d9; font-weight: bold; }
+    .note { font-size: 9px; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="title">CONSOLIDACIÓN DE INFORMES PARTE A</div>
+  <div class="subtitle">Consolidado Mensual Global — {{ period_label|capitalize }}</div>
+
+  <table class="meta">
+    <tr>
+      <td><strong>COMPAÑÍA:</strong> Centros Sor Isolina Ferré, Inc.</td>
+      <td><strong>ÁREA:</strong> Servicios al Residente</td>
+    </tr>
+    <tr>
+      <td><strong>RESIDENCIAL:</strong> {% if is_all_residentials %}Todos{% else %}{{ rows[0].residential_name if rows else '' }}{% endif %}</td>
+      <td><strong>MES REPORTADO:</strong> {{ period_label }}</td>
+    </tr>
+    <tr>
+      <td><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% else %}Todas{% endif %}</td>
+      <td><strong>GENERADO POR:</strong> {{ generated_by }}</td>
+    </tr>
+  </table>
+
+  <div class="box note">{{ legacy_reference_note }}</div>
+
+  <div class="section">Resumen global por programa</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Programa</th>
+        <th>F</th>
+        <th>M</th>
+        <th>Total part.</th>
+        <th>Duplicados / asistencias</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for program in totals.programs %}
+      <tr>
+        <td>{{ program.label }}</td>
+        <td class="num">{{ program.gender.F }}</td>
+        <td class="num">{{ program.gender.M }}</td>
+        <td class="num">{{ program.unique_participants }}</td>
+        <td class="num">{{ program.attendances }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="total-row">
+        <td>TOTAL</td>
+        <td class="num">{{ totals.gender.F }}</td>
+        <td class="num">{{ totals.gender.M }}</td>
+        <td class="num">{{ totals.unique_participants }}</td>
+        <td class="num">{{ totals.attendances }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section">Informe de participación mensual por edad y sexo</div>
+  <table>
+    <thead><tr><th>Clasificación</th><th>F</th><th>M</th><th>Total de servicios</th></tr></thead>
+    <tbody>
+      {% for row in totals.age_rows %}
+      <tr><td>{{ row.label }}</td><td class="num">{{ row.F }}</td><td class="num">{{ row.M }}</td><td class="num">{{ row.total }}</td></tr>
+      {% endfor %}
+      <tr class="total-row"><td>TOTAL</td><td class="num">{{ totals.gender.F }}</td><td class="num">{{ totals.gender.M }}</td><td class="num">{{ totals.unique_participants }}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section">Consolidado por residencial</div>
+  <table>
+    <thead>
+      <tr><th>Residencial</th><th>Municipio</th><th>RQ</th><th>Participantes únicos</th><th>Duplicados / asistencias</th><th>F</th><th>M</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.residential_name }}</td>
+        <td>{{ row.municipality }}</td>
+        <td>{{ row.rq_code }}</td>
+        <td class="num">{{ row.unique_participants }}</td>
+        <td class="num">{{ row.attendances }}</td>
+        <td class="num">{{ row.gender.F }}</td>
+        <td class="num">{{ row.gender.M }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% for row in rows %}
+  <div class="page">
+    <div class="title">CONSOLIDACIÓN DE INFORMES PARTE A</div>
+    <div class="subtitle">{{ row.residential_name }} — {{ period_label|capitalize }}</div>
+    <table class="meta">
+      <tr><td><strong>RESIDENCIAL:</strong> {{ row.residential_name }}</td><td><strong>MUNICIPIO:</strong> {{ row.municipality }}</td></tr>
+      <tr><td><strong>RQ:</strong> {{ row.rq_code }}</td><td><strong>MES REPORTADO:</strong> {{ period_label }}</td></tr>
+    </table>
+
+    <table>
+      <thead><tr><th>Programa</th><th>F</th><th>M</th><th>Total part.</th><th>Duplicados</th></tr></thead>
+      <tbody>
+        {% for program in row.programs %}
+        <tr><td>{{ program.label }}</td><td class="num">{{ program.gender.F }}</td><td class="num">{{ program.gender.M }}</td><td class="num">{{ program.unique_participants }}</td><td class="num">{{ program.attendances }}</td></tr>
+        {% endfor %}
+        <tr class="total-row"><td>TOTAL</td><td class="num">{{ row.gender.F }}</td><td class="num">{{ row.gender.M }}</td><td class="num">{{ row.unique_participants }}</td><td class="num">{{ row.attendances }}</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead><tr><th>Clasificación</th><th>F</th><th>M</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for age_row in row.age_rows %}
+        <tr><td>{{ age_row.label }}</td><td class="num">{{ age_row.F }}</td><td class="num">{{ age_row.M }}</td><td class="num">{{ age_row.total }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p>Yo, ______________________________ funcionario autorizado del programa Faro de Esperanza certifico que la información presentada en este informe es correcta.</p>
+  </div>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,51 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Validación Consolidado Mensual Global{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h3 class="mb-1">Validación / Auditoría</h3>
+    <p class="text-muted mb-0">Comparación inicial Excel anterior vs cálculo de intranet. Solo Admin.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="/ui/admin/consolidado-mensual-global?month={{ month }}&year={{ year }}{% if selected_proposal_id %}&proposal_id={{ selected_proposal_id }}{% endif %}{% if selected_residential_id %}&residential_id={{ selected_residential_id }}{% endif %}">Volver</a>
+</div>
+
+<div class="alert alert-warning">
+  Esta fase no lee el Excel anterior automáticamente. El módulo deja preparada la tabla de auditoría para cargar valores históricos luego sin volver a depender de `.xlsm` como motor de cálculo.
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header fw-semibold">{{ period_label|capitalize }}</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Residencial</th>
+          <th>Municipio</th>
+          <th>RQ</th>
+          <th class="text-center">Total anterior</th>
+          <th class="text-center">Total intranet</th>
+          <th class="text-center">Diferencia</th>
+          <th>Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in validation_rows %}
+        <tr>
+          <td>{{ row.residential_name }}</td>
+          <td>{{ row.municipality }}</td>
+          <td>{{ row.rq_code }}</td>
+          <td class="text-center">{{ row.legacy_total if row.legacy_total is not none else 'Pendiente' }}</td>
+          <td class="text-center">{{ row.intranet_total }}</td>
+          <td class="text-center">{{ row.difference if row.difference is not none else '—' }}</td>
+          <td>{{ row.observations }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted">No hay datos para validar.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

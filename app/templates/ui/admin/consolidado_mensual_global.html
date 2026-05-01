@@ -1,0 +1,141 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Consolidado Mensual Global{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h3 class="mb-1">Consolidado Mensual Global</h3>
+    <p class="text-muted mb-0">Reporte Admin-only calculado directamente desde SQL Server. No usa archivos .xlsm.</p>
+  </div>
+  <span class="badge bg-warning text-dark">Solo Admin</span>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold">Filtros y salida</div>
+  <div class="card-body">
+    <form method="get" action="/ui/admin/consolidado-mensual-global" class="row g-3 align-items-end mb-3">
+      <div class="col-md-2">
+        <label class="form-label">Mes</label>
+        <select class="form-select" name="month" required>
+          {% for value, label in month_options %}
+            <option value="{{ value }}" {{ 'selected' if value == month }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año</label>
+        <input type="number" class="form-control" name="year" value="{{ year }}" min="2000" max="2100" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id">
+          <option value="">Todas</option>
+          {% for proposal in proposals %}
+            <option value="{{ proposal.proposal_id }}" {{ 'selected' if selected_proposal_id == proposal.proposal_id }}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Residencial</label>
+        <select class="form-select" name="residential_id">
+          <option value="">Todos los residenciales</option>
+          {% for residential in residentials %}
+            <option value="{{ residential.residential_id }}" {{ 'selected' if selected_residential_id == residential.residential_id }}>{{ residential.name }} — {{ residential.municipality }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100">Consultar</button>
+      </div>
+    </form>
+
+    <form method="post" action="/ui/admin/consolidado-mensual-global/generar" class="d-flex flex-wrap gap-2">
+      <input type="hidden" name="month" value="{{ month }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal_id or '' }}">
+      <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+      <button class="btn btn-danger" name="output" value="pdf">Generar PDF</button>
+      <button class="btn btn-success" name="output" value="excel">Exportar Excel</button>
+      <button class="btn btn-outline-secondary" name="output" value="validacion">Validación/Auditoría</button>
+    </form>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>Periodo:</strong> {{ period_label|capitalize }} ·
+  <strong>Propuesta:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% else %}Todas{% endif %} ·
+  <strong>Fuente:</strong> SQL Server / Intranet
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Participantes únicos</div><div class="fs-3 fw-bold">{{ totals.unique_participants }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Asistencias / duplicados</div><div class="fs-3 fw-bold">{{ totals.attendances }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Femenino</div><div class="fs-3 fw-bold">{{ totals.gender.F }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="text-muted small">Masculino</div><div class="fs-3 fw-bold">{{ totals.gender.M }}</div></div></div></div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold">Totales por programa</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Programa</th><th class="text-center">F</th><th class="text-center">M</th><th class="text-center">Participantes únicos</th><th class="text-center">Asistencias/Duplicados</th></tr>
+      </thead>
+      <tbody>
+        {% for program in totals.programs %}
+        <tr>
+          <td>{{ program.label }}</td>
+          <td class="text-center">{{ program.gender.F }}</td>
+          <td class="text-center">{{ program.gender.M }}</td>
+          <td class="text-center">{{ program.unique_participants }}</td>
+          <td class="text-center">{{ program.attendances }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold">Desglose global por edad y sexo</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light"><tr><th>Clasificación</th><th class="text-center">F</th><th class="text-center">M</th><th class="text-center">Total</th></tr></thead>
+      <tbody>
+        {% for row in totals.age_rows %}
+        <tr><td>{{ row.label }}</td><td class="text-center">{{ row.F }}</td><td class="text-center">{{ row.M }}</td><td class="text-center">{{ row.total }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header fw-semibold">Consolidado por residencial</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Residencial</th><th>Municipio</th><th>RQ</th><th class="text-center">Participantes únicos</th><th class="text-center">Asistencias/Duplicados</th><th class="text-center">F</th><th class="text-center">M</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.residential_name }}</td>
+          <td>{{ row.municipality }}</td>
+          <td>{{ row.rq_code }}</td>
+          <td class="text-center">{{ row.unique_participants }}</td>
+          <td class="text-center">{{ row.attendances }}</td>
+          <td class="text-center">{{ row.gender.F }}</td>
+          <td class="text-center">{{ row.gender.M }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-muted text-center">No hay residenciales activos para este filtro.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
