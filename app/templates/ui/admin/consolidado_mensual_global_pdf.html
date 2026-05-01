@@ -26,13 +26,15 @@
     .total td { font-weight: bold; }
     .certification { margin: 0.22in auto 0; width: 6.65in; text-align: center; line-height: 1.45; font-size: 10.7px; font-style: italic; font-weight: bold; }
     .cert-name { display: inline-block; min-width: 2.15in; border-bottom: 1px solid #000; line-height: 1.05; }
-    .signature-date { margin: 0.38in auto 0; width: 5.9in; display: grid; grid-template-columns: 2.45in 1.05in 2.4in; align-items: end; }
-    .signature-block .line { border-bottom: 1px solid #000; height: 0.28in; }
-    .signature-block .label { text-align: center; font-size: 9px; font-weight: bold; margin-top: 2px; }
-    .date-block { display: grid; grid-template-columns: 0.56in 0.12in 0.56in 0.12in 0.74in; align-items: end; justify-content: end; column-gap: 0.02in; }
-    .date-segment { border-bottom: 1px solid #000; height: 0.28in; text-align: center; }
-    .date-slash { text-align: center; padding-bottom: 1px; }
-    .date-labels { display: grid; grid-template-columns: 0.56in 0.12in 0.56in 0.12in 0.74in; column-gap: 0.02in; font-size: 9px; font-weight: bold; text-align: center; margin-top: 2px; }
+    .signature-date-table { margin: 0.38in auto 0; width: 5.9in; border-collapse: collapse; }
+    .signature-date-table td { border: none; padding: 0; vertical-align: bottom; }
+    .signature-line-cell { width: 2.45in; border-bottom: 1px solid #000 !important; height: 0.28in; }
+    .signature-spacer-cell { width: 1.05in; }
+    .date-segment-cell { width: 0.56in; border-bottom: 1px solid #000 !important; height: 0.28in; text-align: center; }
+    .date-year-cell { width: 0.74in; border-bottom: 1px solid #000 !important; height: 0.28in; text-align: center; }
+    .date-slash-cell { width: 0.12in; text-align: center; font-weight: bold; }
+    .signature-label-table { margin: 2px auto 0; width: 5.9in; border-collapse: collapse; font-size: 9px; font-weight: bold; }
+    .signature-label-table td { border: none; padding: 0; text-align: center; vertical-align: top; }
     .page-number { position: absolute; left: 0; right: 0; bottom: 0.04in; text-align: center; font-size: 9px; }
   </style>
 </head>
@@ -91,21 +93,28 @@
       Yo,&nbsp;&nbsp;<span class="cert-name">{{ authorized_name }}</span>&nbsp;&nbsp; funcionario autorizado del programa Faro de Esperanza<br>
       certifico que la información presentada en este informe es correcta.
     </div>
-    <div class="signature-date">
-      <div class="signature-block">
-        <div class="line"></div>
-        <div class="label">Firma</div>
-      </div>
-      <div></div>
-      <div>
-        <div class="date-block">
-          <div class="date-segment"></div><div class="date-slash">/</div><div class="date-segment"></div><div class="date-slash">/</div><div class="date-segment"></div>
-        </div>
-        <div class="date-labels">
-          <div>(D)</div><div></div><div>(M)</div><div></div><div>(A)</div>
-        </div>
-      </div>
-    </div>
+    <table class="signature-date-table">
+      <tr>
+        <td class="signature-line-cell"></td>
+        <td class="signature-spacer-cell"></td>
+        <td class="date-segment-cell"></td>
+        <td class="date-slash-cell">/</td>
+        <td class="date-segment-cell"></td>
+        <td class="date-slash-cell">/</td>
+        <td class="date-year-cell"></td>
+      </tr>
+    </table>
+    <table class="signature-label-table">
+      <tr>
+        <td style="width:2.45in;">Firma</td>
+        <td style="width:1.05in;"></td>
+        <td style="width:0.56in;">(D)</td>
+        <td style="width:0.12in;"></td>
+        <td style="width:0.56in;">(M)</td>
+        <td style="width:0.12in;"></td>
+        <td style="width:0.74in;">(A)</td>
+      </tr>
+    </table>
   </div>
   <div class="page-number">{{ page_number }}</div>
 </div>
