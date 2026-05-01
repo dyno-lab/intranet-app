@@ -37,6 +37,23 @@ def _validate_month_year(month: int, year: int) -> None:
         raise HTTPException(status_code=400, detail="Año inválido.")
 
 
+def _validate_period(period_type: str, month: int | None, year: int | None, start_date: str | None, end_date: str | None) -> None:
+    if period_type == "custom":
+        if not start_date or not end_date:
+            raise HTTPException(status_code=400, detail="Debe indicar fecha inicial y fecha final.")
+        try:
+            parsed_start = date.fromisoformat(start_date)
+            parsed_end = date.fromisoformat(end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de fecha inválido.")
+        if parsed_start > parsed_end:
+            raise HTTPException(status_code=400, detail="La fecha inicial no puede ser mayor que la fecha final.")
+        return
+    if month is None or year is None:
+        raise HTTPException(status_code=400, detail="Debe indicar mes y año.")
+    _validate_month_year(month, year)
+
+
 def _parse_optional_int(value: str | int | None) -> int | None:
     if value is None or value == "":
         return None
@@ -57,6 +74,10 @@ def _base_context(db: Session) -> dict:
         "proposals": proposals,
         "residentials": residentials,
         "month_options": MONTH_OPTIONS,
+        "period_type_options": [
+            {"value": "monthly", "label": "Mensual"},
+            {"value": "custom", "label": "Personalizado"},
+        ],
         "year_options": list(range(date.today().year - 2, date.today().year + 3)),
     }
 
@@ -64,16 +85,22 @@ def _base_context(db: Session) -> dict:
 def _build_context(
     db: Session,
     current_user: User,
-    month: int,
-    year: int,
+    month: int | None,
+    year: int | None,
     proposal_id: int | None,
     residential_id: int | None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> dict:
-    _validate_month_year(month, year)
+    _validate_period(period_type, month, year, start_date, end_date)
     report = build_consolidado_mensual_global(
         db,
         month=month,
         year=year,
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
         proposal_id=proposal_id,
         residential_id=residential_id,
         current_user=current_user,
@@ -86,8 +113,24 @@ def _build_context(
     }
 
 
-def _query_params(month: int, year: int, proposal_id: int | None, residential_id: int | None) -> str:
-    params = {"month": month, "year": year}
+def _query_params(
+    month: int | None,
+    year: int | None,
+    proposal_id: int | None,
+    residential_id: int | None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    params = {"period_type": period_type}
+    if month:
+        params["month"] = month
+    if year:
+        params["year"] = year
+    if start_date:
+        params["start_date"] = start_date
+    if end_date:
+        params["end_date"] = end_date
     if proposal_id:
         params["proposal_id"] = proposal_id
     if residential_id:
@@ -98,7 +141,11 @@ def _query_params(month: int, year: int, proposal_id: int | None, residential_id
 def _download_filename(prefix: str, context: dict, extension: str) -> str:
     proposal_code = getattr(context.get("proposal"), "code", None)
     proposal_part = f"_{proposal_code}" if proposal_code else ""
-    return f"{prefix}{proposal_part}_{context['month']:02d}_{context['year']}.{extension}"
+    if context.get("selected_period_type") == "custom":
+        suffix = f"{context.get('selected_start_date')}_a_{context.get('selected_end_date')}"
+    else:
+        suffix = f"{context['month']:02d}_{context['year']}"
+    return f"{prefix}{proposal_part}_{suffix}.{extension}"
 
 
 @router.get("/consolidado-mensual-global")
@@ -106,6 +153,9 @@ def consolidado_mensual_global_index(
     request: Request,
     month: int | None = Query(None),
     year: int | None = Query(None),
+    period_type: str = Query("monthly"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
     db: Session = Depends(get_db),
@@ -113,28 +163,41 @@ def consolidado_mensual_global_index(
 ):
     selected_month = month or date.today().month
     selected_year = year or date.today().year
-    context = _build_context(db, current_user, selected_month, selected_year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id))
+    context = _build_context(
+        db,
+        current_user,
+        selected_month,
+        selected_year,
+        _parse_optional_int(proposal_id),
+        _parse_optional_int(residential_id),
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
     context["request"] = request
     return templates.TemplateResponse("ui/admin/consolidado_mensual_global.html", context)
 
 
 @router.post("/consolidado-mensual-global/generar")
 def consolidado_mensual_global_generar(
-    month: int = Form(...),
-    year: int = Form(...),
+    month: int | None = Form(None),
+    year: int | None = Form(None),
+    period_type: str = Form("monthly"),
+    start_date: str | None = Form(None),
+    end_date: str | None = Form(None),
     proposal_id: str | None = Form(None),
     residential_id: str | None = Form(None),
     output: str = Form("pdf"),
     current_user: User = Depends(require_admin),
 ):
-    _validate_month_year(month, year)
+    _validate_period(period_type, month, year, start_date, end_date)
     proposal_id_int = _parse_optional_int(proposal_id)
     residential_id_int = _parse_optional_int(residential_id)
     target = "pdf" if output == "pdf" else "excel" if output == "excel" else "validacion" if output == "validacion" else ""
     if not target:
         raise HTTPException(status_code=400, detail="Salida inválida.")
     return RedirectResponse(
-        f"/ui/admin/consolidado-mensual-global/{target}?{_query_params(month, year, proposal_id_int, residential_id_int)}",
+        f"/ui/admin/consolidado-mensual-global/{target}?{_query_params(month, year, proposal_id_int, residential_id_int, period_type, start_date, end_date)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -142,14 +205,27 @@ def consolidado_mensual_global_generar(
 @router.get("/consolidado-mensual-global/pdf")
 def consolidado_mensual_global_pdf(
     request: Request,
-    month: int = Query(...),
-    year: int = Query(...),
+    month: int | None = Query(None),
+    year: int | None = Query(None),
+    period_type: str = Query("monthly"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id))
+    context = _build_context(
+        db,
+        current_user,
+        month,
+        year,
+        _parse_optional_int(proposal_id),
+        _parse_optional_int(residential_id),
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
     context["request"] = request
     try:
         pdf_bytes = render_template_to_pdf_bytes(
@@ -251,14 +327,27 @@ def _build_excel_bytes(context: dict) -> bytes:
 
 @router.get("/consolidado-mensual-global/excel")
 def consolidado_mensual_global_excel(
-    month: int = Query(...),
-    year: int = Query(...),
+    month: int | None = Query(None),
+    year: int | None = Query(None),
+    period_type: str = Query("monthly"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id))
+    context = _build_context(
+        db,
+        current_user,
+        month,
+        year,
+        _parse_optional_int(proposal_id),
+        _parse_optional_int(residential_id),
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
     filename = _download_filename("consolidado_mensual_global", context, "xlsx")
     return StreamingResponse(
         BytesIO(_build_excel_bytes(context)),
@@ -270,14 +359,27 @@ def consolidado_mensual_global_excel(
 @router.get("/consolidado-mensual-global/validacion")
 def consolidado_mensual_global_validacion(
     request: Request,
-    month: int = Query(...),
-    year: int = Query(...),
+    month: int | None = Query(None),
+    year: int | None = Query(None),
+    period_type: str = Query("monthly"),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id))
+    context = _build_context(
+        db,
+        current_user,
+        month,
+        year,
+        _parse_optional_int(proposal_id),
+        _parse_optional_int(residential_id),
+        period_type=period_type,
+        start_date=start_date,
+        end_date=end_date,
+    )
     context["request"] = request
     context["validation_rows"] = build_validation_rows(context)
     return templates.TemplateResponse("ui/admin/consolidado_mensual_global_validacion.html", context)

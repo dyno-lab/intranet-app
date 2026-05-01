@@ -78,6 +78,16 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - Definir persistencia/admin de formatos por propuesta antes de soportar una propuesta futura con hoja distinta.
   - Push remoto cuando Christian decida subir el bloque.
 
+### Ajuste posterior — soporte de periodo personalizado
+- **Tipo:** `feature`, `reports`, `filters`
+- **Qué se hizo:**
+  - Se agregó al `Consolidado Mensual Global` la posibilidad de consultar por periodo mensual o por periodo personalizado (`start_date` / `end_date`).
+  - La pantalla principal, POST de generación, PDF, Excel y validación/auditoría conservan y respetan el periodo seleccionado.
+  - El servicio usa el mismo helper base de reportes (`build_period_filter` / `describe_period`) para mantener consistencia con los reportes existentes.
+  - Los nombres de archivo cambian a `fecha_inicio_a_fecha_fin` cuando el periodo es personalizado.
+- **Por qué se hizo:**
+  - Christian verificó que el consolidado no podía limitarse solo a mes/año; debe comportarse como los reportes existentes que permiten periodo personalizado.
+
 ---
 
 ## 2026-03-28

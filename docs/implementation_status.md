@@ -117,6 +117,13 @@ Pendiente si se retoma este módulo:
 - hacer prueba manual completa en navegador con usuario Admin y usuario no Admin.
 - push remoto cuando Christian decida subir estos commits.
 
+Actualización complementaria 2026-05-01:
+- el módulo ahora soporta el mismo concepto de periodo de los reportes existentes:
+  - periodo mensual por `month` / `year`.
+  - periodo personalizado por `start_date` / `end_date`.
+- PDF, Excel, pantalla principal y validación/auditoría respetan el filtro seleccionado.
+- los nombres de archivo usan el rango cuando el periodo es personalizado.
+
 ### Actualización 2026-04-30 — Sync de datos personales en participantes por propuesta
 Implementado / validado manualmente:
 - se corrigió `/ui/admin/proposal-participants` para detectar cambios pendientes cuando un participante asociado cambia en `/ui/new-list`.

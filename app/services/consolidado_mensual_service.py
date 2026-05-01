@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
+from app.helpers.reports import build_period_filter, describe_period
 from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
@@ -198,8 +199,11 @@ def _selected_residentials(db: Session, residential_id: int | None) -> list[Resi
 def build_consolidado_mensual_global(
     db: Session,
     *,
-    month: int,
-    year: int,
+    month: int | None,
+    year: int | None,
+    period_type: str = "monthly",
+    start_date: date | str | None = None,
+    end_date: date | str | None = None,
     proposal_id: int | None = None,
     residential_id: int | None = None,
     current_user: User | None = None,
@@ -209,6 +213,7 @@ def build_consolidado_mensual_global(
     The legacy Excel/PDF is intentionally not read here; it is only a visual
     reference for templates and future audit comparisons.
     """
+    period = build_period_filter(period_type, month, year, start_date, end_date)
     proposal = db.get(Proposal, proposal_id) if proposal_id else None
     # Preparado para formatos futuros por propuesta sin cambiar el contrato del reporte.
     # Si más adelante se agrega una columna/atributo en Proposal, este valor podrá
@@ -259,10 +264,18 @@ def build_consolidado_mensual_global(
         .outerjoin(Residential, Residential.residential_id == User.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
-            extract("month", ActivitySession.session_date) == month,
-            extract("year", ActivitySession.session_date) == year,
         )
     )
+    if period["is_custom"]:
+        stmt = stmt.where(
+            ActivitySession.session_date >= period["start_date"],
+            ActivitySession.session_date <= period["end_date"],
+        )
+    else:
+        stmt = stmt.where(
+            extract("month", ActivitySession.session_date) == period["month"],
+            extract("year", ActivitySession.session_date) == period["year"],
+        )
     if proposal_id:
         stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
     if residential_id:
@@ -390,10 +403,13 @@ def build_consolidado_mensual_global(
 
     return {
         "title": "Consolidado Mensual Global",
-        "month": month,
-        "year": year,
-        "month_label": MONTH_NAMES.get(month, str(month)),
-        "period_label": f"{MONTH_NAMES.get(month, str(month))} {year}",
+        "month": period["month"],
+        "year": period["year"],
+        "month_label": MONTH_NAMES.get(period["month"], str(period["month"] or "")),
+        "period_label": describe_period(period, MONTH_NAMES),
+        "selected_period_type": period["period_type"],
+        "selected_start_date": period["start_date"].isoformat() if period["start_date"] else "",
+        "selected_end_date": period["end_date"].isoformat() if period["end_date"] else "",
         "proposal": proposal,
         "report_format_key": report_format_key,
         "pdf_template_name": "ui/admin/consolidado_mensual_global_pdf.html",

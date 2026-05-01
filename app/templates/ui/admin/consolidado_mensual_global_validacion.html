@@ -8,7 +8,7 @@
     <h3 class="mb-1">Validación / Auditoría</h3>
     <p class="text-muted mb-0">Comparación inicial Excel anterior vs cálculo de intranet. Solo Admin.</p>
   </div>
-  <a class="btn btn-outline-secondary" href="/ui/admin/consolidado-mensual-global?month={{ month }}&year={{ year }}{% if selected_proposal_id %}&proposal_id={{ selected_proposal_id }}{% endif %}{% if selected_residential_id %}&residential_id={{ selected_residential_id }}{% endif %}">Volver</a>
+  <a class="btn btn-outline-secondary" href="/ui/admin/consolidado-mensual-global?period_type={{ selected_period_type }}&month={{ month or '' }}&year={{ year or '' }}&start_date={{ selected_start_date }}&end_date={{ selected_end_date }}{% if selected_proposal_id %}&proposal_id={{ selected_proposal_id }}{% endif %}{% if selected_residential_id %}&residential_id={{ selected_residential_id }}{% endif %}">Volver</a>
 </div>
 
 <div class="alert alert-warning">

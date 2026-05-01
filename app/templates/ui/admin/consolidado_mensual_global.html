@@ -16,8 +16,16 @@
   <div class="card-body">
     <form method="get" action="/ui/admin/consolidado-mensual-global" class="row g-3 align-items-end mb-3">
       <div class="col-md-2">
+        <label class="form-label">Tipo de periodo</label>
+        <select class="form-select" name="period_type">
+          {% for option in period_type_options %}
+            <option value="{{ option.value }}" {{ 'selected' if selected_period_type == option.value }}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
         <label class="form-label">Mes</label>
-        <select class="form-select" name="month" required>
+        <select class="form-select" name="month">
           {% for value, label in month_options %}
             <option value="{{ value }}" {{ 'selected' if value == month }}>{{ label }}</option>
           {% endfor %}
@@ -25,7 +33,15 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">Año</label>
-        <input type="number" class="form-control" name="year" value="{{ year }}" min="2000" max="2100" required>
+        <input type="number" class="form-control" name="year" value="{{ year or '' }}" min="2000" max="2100">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-control" name="start_date" value="{{ selected_start_date }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-control" name="end_date" value="{{ selected_end_date }}">
       </div>
       <div class="col-md-3">
         <label class="form-label">Propuesta</label>
@@ -36,7 +52,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label">Residencial</label>
         <select class="form-select" name="residential_id">
           <option value="">Todos los residenciales</option>
@@ -53,6 +69,9 @@
     <form method="post" action="/ui/admin/consolidado-mensual-global/generar" class="d-flex flex-wrap gap-2">
       <input type="hidden" name="month" value="{{ month }}">
       <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="period_type" value="{{ selected_period_type }}">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
       <input type="hidden" name="proposal_id" value="{{ selected_proposal_id or '' }}">
       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
       <button class="btn btn-danger" name="output" value="pdf">Generar PDF</button>
