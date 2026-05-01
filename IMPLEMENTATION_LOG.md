@@ -88,6 +88,20 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 - **Por qué se hizo:**
   - Christian verificó que el consolidado no podía limitarse solo a mes/año; debe comportarse como los reportes existentes que permiten periodo personalizado.
 
+### Cierre de tarea — filtros de periodo y documentación final
+- **Tipo:** `ux`, `docs`, `closure`
+- **Qué se hizo:**
+  - Se mejoró la UX del selector de periodo del módulo.
+  - Cuando el usuario selecciona `Mensual`, quedan habilitados `Mes` y `Año`, y se deshabilitan/limpian `Desde` y `Hasta`.
+  - Cuando el usuario selecciona `Personalizado`, quedan habilitados `Desde` y `Hasta`, y se deshabilitan/limpian `Mes` y `Año`.
+  - Se agregó botón `Limpiar` para volver al estado inicial del módulo.
+  - Christian indicó que la tarea puede darse por cerrada/trancada y que avisará si encuentra algún detalle adicional.
+- **Commit local:**
+  - `827ed9f Improve consolidated period filter UX`
+- **Estado final:**
+  - cerrado como entregable funcional base.
+  - futuros hallazgos visuales/numéricos deben manejarse como ajustes posteriores.
+
 ---
 
 ## 2026-03-28

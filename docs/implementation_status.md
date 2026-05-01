@@ -124,6 +124,19 @@ Actualización complementaria 2026-05-01:
 - PDF, Excel, pantalla principal y validación/auditoría respetan el filtro seleccionado.
 - los nombres de archivo usan el rango cuando el periodo es personalizado.
 
+Cierre de tarea 2026-05-01:
+- Christian pidió trancar/cerrar esta tarea y dejarla documentada.
+- se agregó mejora UX a filtros de periodo:
+  - si `Mensual` está seleccionado, se habilitan `Mes`/`Año` y se deshabilitan/limpian `Desde`/`Hasta`.
+  - si `Personalizado` está seleccionado, se habilitan `Desde`/`Hasta` y se deshabilitan/limpian `Mes`/`Año`.
+  - se agregó botón `Limpiar` para volver al estado inicial del módulo.
+- commit local de esta mejora UX:
+  - `827ed9f Improve consolidated period filter UX`
+- estado de cierre:
+  - módulo cerrado como entregable funcional base.
+  - documentación actualizada.
+  - si Christian encuentra detalles nuevos, deben tratarse como ajustes posteriores sobre este módulo.
+
 ### Actualización 2026-04-30 — Sync de datos personales en participantes por propuesta
 Implementado / validado manualmente:
 - se corrigió `/ui/admin/proposal-participants` para detectar cambios pendientes cuando un participante asociado cambia en `/ui/new-list`.
