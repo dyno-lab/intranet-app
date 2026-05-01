@@ -18,6 +18,50 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualización 2026-05-01 — Plantilla Duplicado Admin-only
+Estado: **primera implementación funcional**.
+
+Contexto:
+- Christian solicitó replicar `C:\Users\Admin\OneDrive\DOCUMENTOS PARA INFORME 2025-2026\9_Duplicados\Plantilla Para Duplicado 2020.xlsx` / PDF como módulo nuevo llamado **Plantilla Duplicado**.
+- Regla principal: minimizar errores, conservar estructura/orden/header/footer del documento histórico, y permitir acceso solo Admin.
+
+Implementado:
+- módulo Admin-only bajo `/ui/admin/plantilla-duplicado`.
+- rutas protegidas con `require_admin`:
+  - `GET /ui/admin/plantilla-duplicado`
+  - `POST /ui/admin/plantilla-duplicado/generar`
+  - `GET /ui/admin/plantilla-duplicado/pdf`
+  - `GET /ui/admin/plantilla-duplicado/excel`
+- menú Admin actualizado con opción `Plantilla Duplicado`.
+- filtros iguales al consolidado mensual global:
+  - mensual por mes/año.
+  - personalizado por fecha desde/hasta.
+  - propuesta opcional.
+  - residencial opcional.
+  - botón `Limpiar`.
+  - UX de bloqueo de campos según tipo de periodo.
+- servicio nuevo `app/services/plantilla_duplicado_service.py` que reutiliza el cálculo SQL del consolidado mensual global.
+- PDF nuevo `app/templates/ui/admin/plantilla_duplicado_pdf.html` en orientación landscape, con header AVP, tabla principal y página de gráfica.
+- Excel generado como salida, no como motor de cálculo.
+
+Mapeo de datos desde SQL/intranet:
+- columnas `Programa 1-A` a `Programa 4-D` se toman de los totales por programa calculados desde sesiones/asistencias.
+- `Total Participación` = suma de Programas 1-A, 2-B, 3-C y 4-D.
+- `Participantes No Duplicados` = participantes únicos por residencial.
+- `Total de Servicios` = asistencias/servicios acumulados por residencial.
+- gráfica de porcentaje usa `Total Participación`, igual que la plantilla histórica.
+
+Validación técnica realizada:
+- `compileall` de servicio/ruta/main pasó.
+- `import app.main` pasó.
+- rutas del módulo confirmadas registradas en FastAPI.
+- render Jinja básico de pantalla y PDF pasó.
+- `git diff --check` pasó.
+
+Pendiente recomendado:
+- comparar manualmente marzo 2026 contra la plantilla Excel/PDF histórica para certificar exactitud numérica.
+- revisar visualmente PDF generado contra `Plantilla Para Duplicado 2020.pdf`, especialmente la gráfica circular, porque se recrea dinámicamente desde SQL y no como imagen fija de Excel.
+
 ### Actualización 2026-05-01 — Consolidado Mensual Global Admin-only
 Estado: **cerrado como Fase 1 funcional/documentada**.
 

@@ -1,0 +1,152 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Plantilla Duplicado{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h3 class="mb-1">Plantilla Duplicado</h3>
+    <p class="text-muted mb-0">Reporte Admin-only basado en la plantilla histórica de duplicados. Calculado desde SQL Server.</p>
+  </div>
+  <span class="badge bg-warning text-dark">Solo Admin</span>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold">Filtros y salida</div>
+  <div class="card-body">
+    <form id="plantillaDuplicadoFiltersForm" method="get" action="/ui/admin/plantilla-duplicado" class="row g-3 align-items-end mb-3">
+      <div class="col-md-2">
+        <label class="form-label">Tipo de periodo</label>
+        <select class="form-select" name="period_type" id="periodTypeSelect">
+          {% for option in period_type_options %}
+            <option value="{{ option.value }}" {{ 'selected' if selected_period_type == option.value }}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Mes</label>
+        <select class="form-select" name="month" id="monthSelect" data-month-current="{{ month or '' }}">
+          {% for value, label in month_options %}
+            <option value="{{ value }}" {{ 'selected' if value == month }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Año</label>
+        <input type="number" class="form-control" name="year" id="yearInput" value="{{ year or '' }}" min="2000" max="2100" data-year-current="{{ year or '' }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-control" name="start_date" id="startDateInput" value="{{ selected_start_date }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-control" name="end_date" id="endDateInput" value="{{ selected_end_date }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Propuesta</label>
+        <select class="form-select" name="proposal_id">
+          <option value="">Todas</option>
+          {% for proposal in proposals %}
+            <option value="{{ proposal.proposal_id }}" {{ 'selected' if selected_proposal_id == proposal.proposal_id }}>{{ proposal.code }} - {{ proposal.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Residencial</label>
+        <select class="form-select" name="residential_id">
+          <option value="">Todos los residenciales</option>
+          {% for residential in residentials %}
+            <option value="{{ residential.residential_id }}" {{ 'selected' if selected_residential_id == residential.residential_id }}>{{ residential.name }} — {{ residential.municipality }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid gap-2">
+        <button class="btn btn-primary w-100">Consultar</button>
+        <a class="btn btn-outline-secondary w-100" href="/ui/admin/plantilla-duplicado">Limpiar</a>
+      </div>
+    </form>
+
+    <form method="post" action="/ui/admin/plantilla-duplicado/generar" class="d-flex flex-wrap gap-2">
+      <input type="hidden" name="month" value="{{ month }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="period_type" value="{{ selected_period_type }}">
+      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
+      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
+      <input type="hidden" name="proposal_id" value="{{ selected_proposal_id or '' }}">
+      <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+      <button class="btn btn-danger" name="output" value="pdf">Generar PDF</button>
+      <button class="btn btn-success" name="output" value="excel">Exportar Excel</button>
+    </form>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>Periodo:</strong> {{ period_label|capitalize }} ·
+  <strong>Propuesta:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% else %}Todas{% endif %} ·
+  <strong>Fuente:</strong> SQL Server / Intranet
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header fw-semibold">Vista previa de datos</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Residencial</th>
+          <th class="text-center">Programa 1-A</th>
+          <th class="text-center">Programa 2-B</th>
+          <th class="text-center">Programa 3-C</th>
+          <th class="text-center">Programa 4-D</th>
+          <th class="text-center">Total Participación</th>
+          <th class="text-center">Participantes No Duplicados</th>
+          <th class="text-center">Total de Servicios</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.residential_name }}</td>
+          <td class="text-center">{{ row.programs['1-A'] }}</td>
+          <td class="text-center">{{ row.programs['2-B'] }}</td>
+          <td class="text-center">{{ row.programs['3-C'] }}</td>
+          <td class="text-center">{{ row.programs['4-D'] }}</td>
+          <td class="text-center">{{ row.total_participation }}</td>
+          <td class="text-center">{{ row.unique_participants }}</td>
+          <td class="text-center">{{ row.total_services }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="fw-bold table-secondary">
+          <td>Total</td>
+          <td class="text-center">{{ duplicado_totals.programs['1-A'] }}</td>
+          <td class="text-center">{{ duplicado_totals.programs['2-B'] }}</td>
+          <td class="text-center">{{ duplicado_totals.programs['3-C'] }}</td>
+          <td class="text-center">{{ duplicado_totals.programs['4-D'] }}</td>
+          <td class="text-center">{{ duplicado_totals.total_participation }}</td>
+          <td class="text-center">{{ duplicado_totals.unique_participants }}</td>
+          <td class="text-center">{{ duplicado_totals.total_services }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const periodType = document.getElementById('periodTypeSelect');
+    const month = document.getElementById('monthSelect');
+    const year = document.getElementById('yearInput');
+    const start = document.getElementById('startDateInput');
+    const end = document.getElementById('endDateInput');
+    if (!periodType || !month || !year || !start || !end) return;
+    function setDisabled(el, disabled) { el.disabled = disabled; el.classList.toggle('bg-light', disabled); }
+    function syncPeriodControls() {
+      const isCustom = periodType.value === 'custom';
+      setDisabled(month, isCustom); setDisabled(year, isCustom); setDisabled(start, !isCustom); setDisabled(end, !isCustom);
+      if (isCustom) { month.value = ''; year.value = ''; } else { start.value = ''; end.value = ''; if (!month.value && month.dataset.monthCurrent) month.value = month.dataset.monthCurrent; if (!year.value && year.dataset.yearCurrent) year.value = year.dataset.yearCurrent; }
+    }
+    periodType.addEventListener('change', syncPeriodControls);
+    syncPeriodControls();
+  })();
+</script>
+{% endblock %}

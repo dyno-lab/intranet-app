@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Plantilla Duplicado</title>
+  <style>
+    @page { size: letter landscape; margin: 0.35in 0.45in 0.28in 0.45in; }
+    body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 13px; }
+    .page { page-break-after: always; min-height: 7.25in; position: relative; }
+    .logo { position: absolute; left: 0.05in; top: 0.0in; }
+    .logo img { width: 3.45in; max-height: 0.85in; object-fit: contain; }
+    .header { text-align: center; padding-top: 0.55in; line-height: 1.15; }
+    .header .title { font-weight: bold; font-size: 15px; }
+    .header .subtitle { font-weight: bold; font-size: 15px; margin-top: 6px; }
+    .header .small { font-size: 13px; }
+    .meta { width: 100%; margin: 0.18in auto 0.04in; border-collapse: collapse; font-size: 14px; }
+    .meta td { border: none; padding: 2px 0; }
+    .meta .value { font-weight: bold; font-style: italic; text-decoration: underline; }
+    .review { position: absolute; right: 0.05in; top: 0.86in; font-size: 10px; font-weight: bold; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 0.02in; font-size: 12.5px; }
+    table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; font-weight: bold; vertical-align: middle; }
+    table.data th { background: #F2F2F2; text-align: center; }
+    table.data th.group { background: #F4CDAE; }
+    table.data td.name { text-align: left; white-space: nowrap; }
+    table.data td.num { text-align: center; }
+    table.data tr.total td { background: #D9D9D9; text-align: center; }
+    .page-number { text-align: center; font-size: 14px; margin-top: 0.04in; }
+    .chart-wrap { width: 9.0in; height: 5.1in; margin: 0.05in auto 0; position: relative; }
+    .chart-title { text-align: center; font-size: 18px; margin-bottom: 0.03in; }
+    svg { width: 9.0in; height: 4.65in; display: block; margin: 0 auto; }
+    .chart-label { font-size: 12px; font-family: "Times New Roman", Times, serif; fill: #000; }
+    .caption { position: absolute; left: 0.25in; bottom: 0.28in; font-size: 12px; }
+    .revision { position: absolute; left: 0.25in; bottom: 0.08in; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
+    <div class="header">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle">INFORME DE PARTICIPACION MENSUAL DE SERVICIOS OFRECIDOS</div>
+      <div class="small">Por edad y sexo en los proyectos impactados</div>
+    </div>
+    <div class="review">**REVISADO 1 OCTUBRE 2019**</div>
+    <table class="meta">
+      <tr>
+        <td style="width:70%;"><strong>COMPAÑIA:</strong> <span class="value">Centros Sor Isolina Ferré, Inc.</span></td>
+        <td style="width:30%;"><strong>ÁREA:</strong> <span class="value">Servicios al Residente</span></td>
+      </tr>
+      <tr><td colspan="2"><strong>MES REPORTADO:</strong> <span class="value">{{ period_label }}</span></td></tr>
+    </table>
+    <table class="data">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:24%;">RESIDENCIAL</th>
+          <th colspan="4" class="group">Total Participación en el Programa de</th>
+          <th rowspan="2" style="width:10%;">Total<br>Participación</th>
+          <th rowspan="2" style="width:12%;">Participantes No<br>Duplicados</th>
+          <th rowspan="2" style="width:10%;">Total de<br>Servicios</th>
+        </tr>
+        <tr>
+          <th>Programa 1-A</th><th>Programa 2-B</th><th>Programa 3-C</th><th>Programa 4-D</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="name">{{ row.residential_name }}</td>
+          <td class="num">{{ '{:,}'.format(row.programs['1-A']) }}</td>
+          <td class="num">{{ '{:,}'.format(row.programs['2-B']) }}</td>
+          <td class="num">{{ '{:,}'.format(row.programs['3-C']) }}</td>
+          <td class="num">{{ '{:,}'.format(row.programs['4-D']) }}</td>
+          <td class="num">{{ '{:,}'.format(row.total_participation) }}</td>
+          <td class="num">{{ '{:,}'.format(row.unique_participants) }}</td>
+          <td class="num">{{ '{:,}'.format(row.total_services) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+          <td>Total</td>
+          <td>{{ '{:,}'.format(duplicado_totals.programs['1-A']) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.programs['2-B']) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.programs['3-C']) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.programs['4-D']) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.total_participation) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.unique_participants) }}</td>
+          <td>{{ '{:,}'.format(duplicado_totals.total_services) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="page-number">{{ page_table_number }}</div>
+  </div>
+
+  <div class="page">
+    <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
+    <div class="header">
+      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="subtitle">INFORME DE PARTICIPACION MENSUAL DE SERVICIOS OFRECIDOS</div>
+      <div class="small">Por edad y sexo en los proyectos impactados</div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Por ciento de Participación de {{ period_label }}</div>
+      <svg viewBox="0 0 860 430" role="img" aria-label="Por ciento de participación por residencial">
+        {% for segment in chart_segments %}
+          <path d="{{ segment.path }}" fill="{{ segment.color }}" stroke="#fff" stroke-width="2"></path>
+        {% endfor %}
+        {% for segment in chart_segments %}
+          <text class="chart-label" x="{{ '%.1f'|format(segment.label_x) }}" y="{{ '%.1f'|format(segment.label_y) }}" text-anchor="{{ segment.anchor }}">
+            <tspan x="{{ '%.1f'|format(segment.label_x) }}">{{ segment.name }}</tspan>
+            <tspan x="{{ '%.1f'|format(segment.label_x) }}" dy="14">{{ segment.percent }}%</tspan>
+          </text>
+        {% endfor %}
+      </svg>
+    </div>
+    <div class="caption">Gráfica 3: Muestra el % de participación por residencial del programa de servicios.</div>
+    <div class="revision">{{ revision_label }}</div>
+    <div class="page-number" style="position:absolute;left:0;right:0;bottom:0.02in;">{{ page_chart_number }}</div>
+  </div>
+</body>
+</html>
