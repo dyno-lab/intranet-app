@@ -198,6 +198,8 @@ def build_consolidado_mensual_global(
             },
             "age_rows": _empty_bucket_rows(),
             "gender": _empty_gender_counts(),
+            "attendance_age_rows": _empty_bucket_rows(),
+            "attendance_gender": _empty_gender_counts(),
             "unique_participants": 0,
             "attendances": 0,
             "_unique_ids": set(),
@@ -245,6 +247,12 @@ def build_consolidado_mensual_global(
 
         residential_row["attendances"] += 1
         program_row["attendances"] += 1
+        if gender:
+            residential_row["attendance_gender"][gender] += 1
+            residential_row["attendance_gender"]["total"] += 1
+        if bucket_key and gender:
+            residential_row["attendance_age_rows"][bucket_key][gender] += 1
+            residential_row["attendance_age_rows"][bucket_key]["total"] += 1
 
         if participant.participant_id not in residential_row["_unique_ids"]:
             residential_row["_unique_ids"].add(participant.participant_id)
@@ -270,7 +278,9 @@ def build_consolidado_mensual_global(
         "unique_participants": 0,
         "attendances": 0,
         "gender": _empty_gender_counts(),
+        "attendance_gender": _empty_gender_counts(),
         "age_rows": _empty_bucket_rows(),
+        "attendance_age_rows": _empty_bucket_rows(),
         "programs": {
             code: {
                 "code": code,
@@ -289,6 +299,7 @@ def build_consolidado_mensual_global(
         for program in row["programs"]:
             program.pop("_unique_ids", None)
         row["age_rows"] = list(row["age_rows"].values())
+        row["attendance_age_rows"] = list(row["attendance_age_rows"].values())
         row.pop("_unique_ids", None)
         report_rows.append(row)
 
@@ -296,8 +307,14 @@ def build_consolidado_mensual_global(
         global_totals["attendances"] += row["attendances"]
         for gender in ("F", "M", "total"):
             global_totals["gender"][gender] += row["gender"].get(gender, 0)
+            global_totals["attendance_gender"][gender] += row["attendance_gender"].get(gender, 0)
         for age_row in row["age_rows"]:
             global_age_row = global_totals["age_rows"][age_row["key"]]
+            global_age_row["F"] += age_row["F"]
+            global_age_row["M"] += age_row["M"]
+            global_age_row["total"] += age_row["total"]
+        for age_row in row["attendance_age_rows"]:
+            global_age_row = global_totals["attendance_age_rows"][age_row["key"]]
             global_age_row["F"] += age_row["F"]
             global_age_row["M"] += age_row["M"]
             global_age_row["total"] += age_row["total"]
@@ -318,6 +335,7 @@ def build_consolidado_mensual_global(
                 total_program["gender"][gender] += program["gender"].get(gender, 0)
 
     global_totals["age_rows"] = list(global_totals["age_rows"].values())
+    global_totals["attendance_age_rows"] = list(global_totals["attendance_age_rows"].values())
     global_totals["programs"] = list(global_totals["programs"].values())
 
     return {
@@ -332,6 +350,8 @@ def build_consolidado_mensual_global(
         "is_all_residentials": residential_id is None,
         "generated_on": date.today(),
         "generated_by": current_user.username if current_user else "",
+        "authorized_name": "Christian X. Ramírez Morales",
+        "revision_label": "Rev.15/agosto/2019 CRM",
         "rows": report_rows,
         "totals": global_totals,
         "program_labels": program_labels,
