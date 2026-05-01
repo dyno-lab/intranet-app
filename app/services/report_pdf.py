@@ -90,6 +90,7 @@ def render_template_to_pdf_bytes(
     template_name: str,
     context: dict,
     request: Request | None = None,
+    wkhtmltopdf_args: list[str] | None = None,
 ) -> bytes:
     env: Environment = templates.env
     template = env.get_template(template_name)
@@ -108,9 +109,10 @@ def render_template_to_pdf_bytes(
             "--allow", str(STATIC_DIR.resolve()),
             "--encoding", "utf-8",
             "--quiet",
-            str(html_path),
-            "-",
         ]
+        if wkhtmltopdf_args:
+            command.extend(wkhtmltopdf_args)
+        command.extend([str(html_path), "-"])
         result = subprocess.run(command, capture_output=True, check=False)
         if result.returncode != 0:
             stderr = (result.stderr or b"").decode("utf-8", errors="replace").strip()

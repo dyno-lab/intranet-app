@@ -6,78 +6,78 @@
   <style>
     @page { size: letter portrait; margin: 0.35in 0.45in; }
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; }
     .page { page-break-after: always; min-height: 9.85in; position: relative; }
-    .report { width: 7.25in; margin: 0 auto; }
-    .official-title { text-align: center; font-weight: bold; font-size: 12px; margin-top: 0.18in; }
-    .official-subtitle { text-align: center; font-weight: bold; font-size: 11px; white-space: pre-line; margin-top: 4px; margin-bottom: 0.22in; }
+    .report { width: 7.05in; margin: 0 auto; padding-top: 0.12in; }
+    .avp-logo { text-align: center; margin-bottom: 0.08in; }
+    .avp-logo img { width: 4.35in; max-height: 0.78in; object-fit: contain; }
+    .official-title { text-align: center; font-weight: bold; font-size: 12px; margin-top: 0.03in; }
+    .official-subtitle { text-align: center; font-weight: bold; font-size: 11px; white-space: pre-line; line-height: 1.16; margin-top: 4px; margin-bottom: 0.18in; }
     table { border-collapse: collapse; width: 100%; }
-    .meta td { border: none; padding: 2px 3px; font-size: 10px; height: 18px; }
-    .data th, .data td { border: 1px solid #000; padding: 3px 4px; height: 19px; }
-    .data th { text-align: center; font-weight: bold; }
+    .meta { margin-bottom: 0.10in; }
+    .meta td { border: none; padding: 2px 3px; font-size: 10.8px; height: 19px; vertical-align: bottom; }
+    .meta .value { font-style: italic; font-weight: bold; text-decoration: underline; }
+    .data { font-size: 11px; }
+    .data th, .data td { border: 1.15px solid #000; padding: 4px 5px; height: 23px; vertical-align: middle; font-weight: bold; }
+    .data th { text-align: center; background: #b6d7a8; }
+    .data .subhead th { background: #76a5af; }
     .left { text-align: left; }
     .center, .num { text-align: center; }
-    .bold { font-weight: bold; }
     .total td { font-weight: bold; }
-    .revision { margin-top: 4px; font-size: 9px; }
-    .certification { margin-top: 10px; line-height: 1.45; font-size: 10px; }
-    .signature-row { margin-top: 0.42in; display: grid; grid-template-columns: 2.6in 1fr 2.2in; align-items: end; }
-    .signature-line, .date-line { border-top: 1px solid #000; height: 18px; text-align: center; }
-    .signature-label { display: grid; grid-template-columns: 2.6in 1fr 2.2in; font-size: 9px; margin-top: 1px; }
-    .page-number { position: absolute; left: 0; right: 0; bottom: 0.1in; text-align: left; font-size: 9px; }
-    .summary-title { text-align: center; font-size: 14px; font-weight: bold; margin: 10px 0; }
-    .summary-note { border: 1px solid #000; padding: 6px; margin: 8px 0 12px; font-size: 10px; }
+    .revision { margin-top: 5px; font-size: 9px; }
+    .certification { margin: 0.18in auto 0; width: 6.65in; text-align: center; line-height: 1.45; font-size: 10.7px; font-style: italic; font-weight: bold; }
+    .signature-row { margin: 0.38in auto 0; width: 5.9in; display: grid; grid-template-columns: 2.25in 1.35in 2.3in; align-items: end; }
+    .signature-line, .date-line { border-top: 1px solid #000; height: 17px; text-align: center; }
+    .signature-label { margin: 0 auto; width: 5.9in; display: grid; grid-template-columns: 2.25in 1.35in 2.3in; font-size: 9px; font-weight: bold; }
+    .page-number { position: absolute; left: 0; right: 0; bottom: 0.04in; text-align: center; font-size: 9px; }
   </style>
 </head>
 <body>
-{% macro official_residential_report(row, report_title, total_label, age_rows, gender, total_value, page_number) %}
+{% macro official_report(row, report_title, total_label, age_rows, gender, total_value, page_number, no_duplicado=False) %}
 <div class="page">
   <div class="report">
-    <div class="official-title">AREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-    <div class="official-subtitle">{{ report_title }}</div>
+    <div class="avp-logo"><img src="/static/img/bonafide-header-avp.png" alt="Administración de Vivienda Pública"></div>
+    <div class="official-title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+    <div class="official-subtitle">{{ report_title }}{% if no_duplicado %}
+(NO DUPLICADO){% endif %}</div>
 
     <table class="meta">
       <tr>
-        <td style="width:50%;"><strong>COMPAÑIA:</strong> Centros Sor Isolina Ferré, Inc.</td>
-        <td style="width:50%;"><strong>AREA:</strong> Servicios al Residente</td>
+        <td style="width:50%;"><strong>COMPAÑÍA:</strong> <span class="value">Centros Sor Isolina Ferré, Inc.</span></td>
+        <td style="width:50%;"><strong>ÁREA:</strong> <span class="value">Servicios al Residente</span></td>
       </tr>
       <tr>
-        <td><strong>RESIDENCIAL:</strong> {{ row.residential_name }}</td>
-        <td><strong>MUNICIPIO:</strong> {{ row.municipality }}</td>
+        <td><strong>RESIDENCIAL:</strong> <span class="value">{{ row.residential_name }}</span></td>
+        <td><strong>MUNICIPIO:</strong> <span class="value">{{ row.municipality }}</span></td>
       </tr>
       <tr>
-        <td><strong>RQ:</strong> {{ row.rq_code }}</td>
-        <td><strong>MES REPORTADO:</strong> {{ period_label }}</td>
+        <td><strong>RQ:</strong> <span class="value">{{ row.rq_code }}</span></td>
+        <td><strong>MES REPORTADO:</strong> <span class="value">{{ period_label }}</span></td>
       </tr>
     </table>
 
     <table class="data">
       <thead>
         <tr>
-          <th style="width: 30%;">CLASIFICACION</th>
-          <th colspan="4">NUMERO DE PARTICIPANTES POR EDAD Y SEXO</th>
-          <th style="width: 25%;">{{ total_label }}</th>
+          <th rowspan="2" style="width:31%;">CLASIFICACIÓN</th>
+          <th colspan="2" style="width:38%;">NÚMERO DE PARTICIPANTES POR<br>EDAD Y SEXO</th>
+          <th rowspan="2" style="width:31%;">{{ total_label|replace(' ', '<br>', 2)|safe }}</th>
         </tr>
-        <tr>
-          <th></th>
-          <th colspan="2">F</th>
-          <th colspan="2">M</th>
-          <th></th>
-        </tr>
+        <tr class="subhead"><th>F</th><th>M</th></tr>
       </thead>
       <tbody>
         {% for age_row in age_rows %}
         <tr>
           <td class="left">{{ age_row.label }}</td>
-          <td colspan="2" class="num">{{ age_row.F }}</td>
-          <td colspan="2" class="num">{{ age_row.M }}</td>
+          <td class="num">{{ age_row.F }}</td>
+          <td class="num">{{ age_row.M }}</td>
           <td class="num">{{ age_row.total }}</td>
         </tr>
         {% endfor %}
         <tr class="total">
           <td class="left">TOTAL</td>
-          <td colspan="2" class="num">{{ gender.F }}</td>
-          <td colspan="2" class="num">{{ gender.M }}</td>
+          <td class="num">{{ gender.F }}</td>
+          <td class="num">{{ gender.M }}</td>
           <td class="num">{{ total_value }}</td>
         </tr>
       </tbody>
@@ -85,70 +85,64 @@
 
     <div class="revision">{{ revision_label }}</div>
     <div class="certification">
-      Yo,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ authorized_name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; funcionario autorizado del programa Faro de Esperanza certifico que la información presentada en este informe es correcta.
+      Yo,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ authorized_name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; funcionario autorizado del programa Faro de Esperanza<br>
+      certifico que la información presentada en este informe es correcta.
     </div>
-    <div class="signature-row">
-      <div class="signature-line"></div>
-      <div></div>
-      <div class="date-line">_____/_____/______</div>
-    </div>
-    <div class="signature-label">
-      <div class="center">Firma</div>
-      <div></div>
-      <div class="center">(D)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(M)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(A)</div>
-    </div>
+    <div class="signature-row"><div class="signature-line"></div><div></div><div class="date-line">_____/_____/______</div></div>
+    <div class="signature-label"><div class="center">Firma</div><div></div><div class="center">(D)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(M)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(A)</div></div>
   </div>
   <div class="page-number">{{ page_number }}</div>
 </div>
 {% endmacro %}
 
-<div class="page">
-  <div class="report">
-    <div class="summary-title">CONSOLIDACIÓN DE INFORMES PARTE A</div>
-    <table class="meta">
-      <tr><td><strong>PERIODO:</strong> {{ period_label }}</td><td><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% else %}Todas{% endif %}</td></tr>
-      <tr><td><strong>RESIDENCIAL:</strong> {% if is_all_residentials %}Todos{% else %}{{ rows[0].residential_name if rows else '' }}{% endif %}</td><td><strong>GENERADO POR:</strong> {{ generated_by }}</td></tr>
-    </table>
-    <div class="summary-note">{{ legacy_reference_note }}</div>
+{% set global_row = {'residential_name': global_residential_names or 'Todos', 'municipality': global_municipalities or 'Todos', 'rq_code': ''} %}
 
-    <table class="data">
-      <thead><tr><th>Residencial</th><th>Municipio</th><th>RQ</th><th>Participantes</th><th>Servicios / duplicados</th><th>F</th><th>M</th></tr></thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          <td>{{ row.residential_name }}</td><td>{{ row.municipality }}</td><td>{{ row.rq_code }}</td>
-          <td class="num">{{ row.unique_participants }}</td><td class="num">{{ row.attendances }}</td>
-          <td class="num">{{ row.gender.F }}</td><td class="num">{{ row.gender.M }}</td>
-        </tr>
-        {% endfor %}
-        <tr class="total"><td colspan="3">TOTAL</td><td class="num">{{ totals.unique_participants }}</td><td class="num">{{ totals.attendances }}</td><td class="num">{{ totals.gender.F }}</td><td class="num">{{ totals.gender.M }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+{{ official_report(
+    global_row,
+    'INFORME MENSUAL DE PARTICIPANTES\nPor edad y sexo en los proyectos impactados',
+    'TOTAL DE PARTICIPANTES',
+    totals.age_rows,
+    totals.gender,
+    totals.unique_participants,
+    1,
+    True
+) }}
 
 {% for row in rows %}
-  {{ official_residential_report(
-      row,
-      'INFORME DE PARTICIPACION MENSUAL DE SERVICIOS OFRECIDOS\nPor edad y sexo en los proyectos impactados',
-      'TOTAL DE SERVICIOS',
-      row.attendance_age_rows,
-      row.attendance_gender,
-      row.attendances,
-      loop.index
-  ) }}
-{% endfor %}
-
-{% set participant_start = rows|length + 1 %}
-{% for row in rows %}
-  {{ official_residential_report(
+  {{ official_report(
       row,
       'INFORME MENSUAL DE PARTICIPANTES\nPor edad y sexo en los proyectos impactados',
       'TOTAL DE PARTICIPANTES',
       row.age_rows,
       row.gender,
       row.unique_participants,
-      participant_start + loop.index0
+      loop.index + 1,
+      False
+  ) }}
+{% endfor %}
+
+{% set service_start = rows|length + 2 %}
+{{ official_report(
+    global_row,
+    'INFORME DE PARTICIPACIÓN MENSUAL DE SERVICIOS OFRECIDOS\nPor edad y sexo en los proyectos impactados',
+    'TOTAL DE SERVICIOS',
+    totals.attendance_age_rows,
+    totals.attendance_gender,
+    totals.attendances,
+    service_start,
+    False
+) }}
+
+{% for row in rows %}
+  {{ official_report(
+      row,
+      'INFORME DE PARTICIPACIÓN MENSUAL DE SERVICIOS OFRECIDOS\nPor edad y sexo en los proyectos impactados',
+      'TOTAL DE SERVICIOS',
+      row.attendance_age_rows,
+      row.attendance_gender,
+      row.attendances,
+      service_start + loop.index,
+      False
   ) }}
 {% endfor %}
 </body>

@@ -157,6 +157,14 @@ def consolidado_mensual_global_pdf(
             template_name="ui/admin/consolidado_mensual_global_pdf.html",
             context=context,
             request=request,
+            wkhtmltopdf_args=[
+                "--page-size", "Letter",
+                "--orientation", "Portrait",
+                "--margin-top", "0.35in",
+                "--margin-right", "0.45in",
+                "--margin-bottom", "0.35in",
+                "--margin-left", "0.45in",
+            ],
         )
     except PDFBackendUnavailableError as exc:
         return Response(str(exc), status_code=503, media_type="text/plain; charset=utf-8")

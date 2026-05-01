@@ -147,6 +147,11 @@ def _resolve_program_key(
     return "SIN_PROGRAMA"
 
 
+def _display_rq_code(value: str | None) -> str:
+    text = (value or "").strip()
+    return text[2:].strip() if text.upper().startswith("RQ") else text
+
+
 def _selected_residentials(db: Session, residential_id: int | None) -> list[Residential]:
     stmt = select(Residential).where(Residential.is_active == True).order_by(Residential.municipality, Residential.name)  # noqa: E712
     if residential_id:
@@ -183,7 +188,7 @@ def build_consolidado_mensual_global(
             "code": residential.code,
             "residential_name": residential.name,
             "municipality": residential.municipality,
-            "rq_code": residential.rq_code,
+            "rq_code": _display_rq_code(residential.rq_code),
             "programs": {
                 code: {
                     "code": code,
@@ -338,6 +343,9 @@ def build_consolidado_mensual_global(
     global_totals["attendance_age_rows"] = list(global_totals["attendance_age_rows"].values())
     global_totals["programs"] = list(global_totals["programs"].values())
 
+    municipality_names = sorted({row["municipality"] for row in report_rows if row.get("municipality")})
+    residential_names = [row["residential_name"] for row in report_rows if row.get("residential_name")]
+
     return {
         "title": "Consolidado Mensual Global",
         "month": month,
@@ -351,6 +359,8 @@ def build_consolidado_mensual_global(
         "generated_on": date.today(),
         "generated_by": current_user.username if current_user else "",
         "authorized_name": "Christian X. Ramírez Morales",
+        "global_residential_names": ", ".join(residential_names),
+        "global_municipalities": ", ".join(municipality_names),
         "revision_label": "Rev.15/agosto/2019 CRM",
         "rows": report_rows,
         "totals": global_totals,
