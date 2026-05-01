@@ -174,6 +174,10 @@ def build_consolidado_mensual_global(
     reference for templates and future audit comparisons.
     """
     proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    # Preparado para formatos futuros por propuesta sin cambiar el contrato del reporte.
+    # Si más adelante se agrega una columna/atributo en Proposal, este valor podrá
+    # seleccionar otra plantilla PDF sin reescribir el cálculo SQL.
+    report_format_key = getattr(proposal, "consolidado_format_key", None) or "avp_2025_2026"
     residentials = _selected_residentials(db, residential_id)
     residential_by_id = {residential.residential_id: residential for residential in residentials}
     programs = _program_definitions(db, proposal_id)
@@ -353,6 +357,8 @@ def build_consolidado_mensual_global(
         "month_label": MONTH_NAMES.get(month, str(month)),
         "period_label": f"{MONTH_NAMES.get(month, str(month))} {year}",
         "proposal": proposal,
+        "report_format_key": report_format_key,
+        "pdf_template_name": "ui/admin/consolidado_mensual_global_pdf.html",
         "selected_proposal_id": proposal_id,
         "selected_residential_id": residential_id,
         "is_all_residentials": residential_id is None,

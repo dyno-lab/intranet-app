@@ -154,7 +154,7 @@ def consolidado_mensual_global_pdf(
     try:
         pdf_bytes = render_template_to_pdf_bytes(
             templates=templates,
-            template_name="ui/admin/consolidado_mensual_global_pdf.html",
+            template_name=context.get("pdf_template_name", "ui/admin/consolidado_mensual_global_pdf.html"),
             context=context,
             request=request,
             wkhtmltopdf_args=[

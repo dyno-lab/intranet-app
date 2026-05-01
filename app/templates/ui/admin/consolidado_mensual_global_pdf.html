@@ -24,11 +24,15 @@
     .left { text-align: left; }
     .center, .num { text-align: center; }
     .total td { font-weight: bold; }
-    .revision { margin-top: 5px; font-size: 9px; }
-    .certification { margin: 0.18in auto 0; width: 6.65in; text-align: center; line-height: 1.45; font-size: 10.7px; font-style: italic; font-weight: bold; }
-    .signature-row { margin: 0.38in auto 0; width: 5.9in; display: grid; grid-template-columns: 2.25in 1.35in 2.3in; align-items: end; }
-    .signature-line, .date-line { border-top: 1px solid #000; height: 17px; text-align: center; }
-    .signature-label { margin: 0 auto; width: 5.9in; display: grid; grid-template-columns: 2.25in 1.35in 2.3in; font-size: 9px; font-weight: bold; }
+    .certification { margin: 0.22in auto 0; width: 6.65in; text-align: center; line-height: 1.45; font-size: 10.7px; font-style: italic; font-weight: bold; }
+    .cert-name { display: inline-block; min-width: 2.15in; border-bottom: 1px solid #000; line-height: 1.05; }
+    .signature-date { margin: 0.38in auto 0; width: 5.9in; display: grid; grid-template-columns: 2.45in 1.05in 2.4in; align-items: end; }
+    .signature-block .line { border-bottom: 1px solid #000; height: 0.28in; }
+    .signature-block .label { text-align: center; font-size: 9px; font-weight: bold; margin-top: 2px; }
+    .date-block { display: grid; grid-template-columns: 0.56in 0.12in 0.56in 0.12in 0.74in; align-items: end; justify-content: end; column-gap: 0.02in; }
+    .date-segment { border-bottom: 1px solid #000; height: 0.28in; text-align: center; }
+    .date-slash { text-align: center; padding-bottom: 1px; }
+    .date-labels { display: grid; grid-template-columns: 0.56in 0.12in 0.56in 0.12in 0.74in; column-gap: 0.02in; font-size: 9px; font-weight: bold; text-align: center; margin-top: 2px; }
     .page-number { position: absolute; left: 0; right: 0; bottom: 0.04in; text-align: center; font-size: 9px; }
   </style>
 </head>
@@ -83,13 +87,25 @@
       </tbody>
     </table>
 
-    <div class="revision">{{ revision_label }}</div>
     <div class="certification">
-      Yo,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ authorized_name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; funcionario autorizado del programa Faro de Esperanza<br>
+      Yo,&nbsp;&nbsp;<span class="cert-name">{{ authorized_name }}</span>&nbsp;&nbsp; funcionario autorizado del programa Faro de Esperanza<br>
       certifico que la información presentada en este informe es correcta.
     </div>
-    <div class="signature-row"><div class="signature-line"></div><div></div><div class="date-line">_____/_____/______</div></div>
-    <div class="signature-label"><div class="center">Firma</div><div></div><div class="center">(D)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(M)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(A)</div></div>
+    <div class="signature-date">
+      <div class="signature-block">
+        <div class="line"></div>
+        <div class="label">Firma</div>
+      </div>
+      <div></div>
+      <div>
+        <div class="date-block">
+          <div class="date-segment"></div><div class="date-slash">/</div><div class="date-segment"></div><div class="date-slash">/</div><div class="date-segment"></div>
+        </div>
+        <div class="date-labels">
+          <div>(D)</div><div></div><div>(M)</div><div></div><div>(A)</div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="page-number">{{ page_number }}</div>
 </div>
