@@ -38,6 +38,29 @@ DEFAULT_PROGRAMS = [
     {"code": "4-D", "label": "Programa 4-D", "tokens": ("4D", "4-D")},
 ]
 
+OFFICIAL_RESIDENTIAL_ORDER = [
+    "aristides chavier",
+    "pedro j. rosaly",
+    "juan ponce de leon",
+    "ernesto ramos antonini",
+    "rafael lopez nussa",
+    "la ceiba",
+    "leonardo santiago",
+    "villa del parque",
+    "brisas del mar",
+    "bella vista",
+    "valles de guayama",
+    "jardines de guamani",
+    "fernando calimano",
+    "san antonio carioca",
+    "el carmen",
+    "manuel hernandez rosa",
+    "rafael hernandez",
+    "columbus landing",
+]
+
+OFFICIAL_MUNICIPALITY_ORDER = ["Ponce", "Juana Díaz", "Salinas", "Guayama", "Mayaguez"]
+
 MONTH_NAMES = {
     1: "enero",
     2: "febrero",
@@ -93,6 +116,19 @@ def _normalize_gender(value: str | None) -> str:
     if normalized.startswith("M"):
         return "M"
     return ""
+
+
+def _sort_key_text(value: str | None) -> str:
+    replacements = str.maketrans("áéíóúÁÉÍÓÚñÑ", "aeiouAEIOUnN")
+    return (value or "").translate(replacements).strip().lower()
+
+
+def _official_residential_sort_key(residential: Residential) -> tuple[int, str]:
+    normalized_name = _sort_key_text(residential.name)
+    try:
+        return (OFFICIAL_RESIDENTIAL_ORDER.index(normalized_name), normalized_name)
+    except ValueError:
+        return (999, normalized_name)
 
 
 def _program_definitions(db: Session, proposal_id: int | None) -> list[ProgramDefinition]:
@@ -156,7 +192,7 @@ def _selected_residentials(db: Session, residential_id: int | None) -> list[Resi
     stmt = select(Residential).where(Residential.is_active == True).order_by(Residential.municipality, Residential.name)  # noqa: E712
     if residential_id:
         stmt = stmt.where(Residential.residential_id == residential_id)
-    return db.execute(stmt).scalars().all()
+    return sorted(db.execute(stmt).scalars().all(), key=_official_residential_sort_key)
 
 
 def build_consolidado_mensual_global(
@@ -347,7 +383,9 @@ def build_consolidado_mensual_global(
     global_totals["attendance_age_rows"] = list(global_totals["attendance_age_rows"].values())
     global_totals["programs"] = list(global_totals["programs"].values())
 
-    municipality_names = sorted({row["municipality"] for row in report_rows if row.get("municipality")})
+    municipality_names_raw = {row["municipality"] for row in report_rows if row.get("municipality")}
+    municipality_names = [name for name in OFFICIAL_MUNICIPALITY_ORDER if name in municipality_names_raw]
+    municipality_names.extend(sorted(municipality_names_raw - set(municipality_names)))
     residential_names = [row["residential_name"] for row in report_rows if row.get("residential_name")]
 
     return {

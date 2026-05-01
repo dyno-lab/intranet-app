@@ -17,6 +17,11 @@
     .meta { margin-bottom: 0.10in; }
     .meta td { border: none; padding: 2px 3px; font-size: 10.8px; height: 19px; vertical-align: bottom; }
     .meta .value { font-style: italic; font-weight: bold; text-decoration: underline; }
+    .global-meta { margin-bottom: 0.10in; font-family: "Times New Roman", serif; font-size: 13px; line-height: 1.35; }
+    .global-residential-line { margin-bottom: 0.07in; }
+    .global-meta-table { width: 100%; border-collapse: collapse; }
+    .global-meta-table td { border: none; padding: 0; vertical-align: top; font-size: 13px; }
+    .global-meta .value { font-style: italic; font-weight: bold; text-decoration: underline; }
     .data { font-size: 11px; }
     .data th, .data td { border: 1.15px solid #000; padding: 4px 5px; height: 23px; vertical-align: middle; font-weight: bold; }
     .data th { text-align: center; background: #b6d7a8; }
@@ -47,6 +52,17 @@
     <div class="official-subtitle">{{ report_title }}{% if no_duplicado %}
 (NO DUPLICADO){% endif %}</div>
 
+    {% if row.is_global %}
+    <div class="global-meta">
+      <div class="global-residential-line"><strong>RESIDENCIAL:</strong>&nbsp; {{ row.residential_name }}</div>
+      <table class="global-meta-table">
+        <tr>
+          <td style="width:52%;"><strong>MUNICIPIO:</strong> <span class="value">{{ row.municipality }}</span></td>
+          <td style="width:48%;"><strong>MES REPORTADO:</strong> {{ period_label }}</td>
+        </tr>
+      </table>
+    </div>
+    {% else %}
     <table class="meta">
       <tr>
         <td style="width:50%;"><strong>COMPAÑÍA:</strong> <span class="value">Centros Sor Isolina Ferré, Inc.</span></td>
@@ -61,6 +77,7 @@
         <td><strong>MES REPORTADO:</strong> <span class="value">{{ period_label }}</span></td>
       </tr>
     </table>
+    {% endif %}
 
     <table class="data">
       <thead>
@@ -120,7 +137,7 @@
 </div>
 {% endmacro %}
 
-{% set global_row = {'residential_name': global_residential_names or 'Todos', 'municipality': global_municipalities or 'Todos', 'rq_code': ''} %}
+{% set global_row = {'is_global': True, 'residential_name': global_residential_names or 'Todos', 'municipality': global_municipalities or 'Todos', 'rq_code': ''} %}
 
 {{ official_report(
     global_row,
