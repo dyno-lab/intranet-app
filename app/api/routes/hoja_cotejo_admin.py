@@ -216,7 +216,7 @@ def _build_excel_bytes(context: dict) -> bytes:
     ws["A2"] = f"PERÍODO: {context['period_label']}"
     ws["A3"] = f"PROPUESTA: {context['proposal'].code} - {context['proposal'].name}" if context.get("proposal") else "PROPUESTA:"
     row_index = 5
-    headers = ["Programa", "Actividad", "Descripción", "Realizadas", "Duplicados / Personas impactadas", "Sí", "No", "Cumplimiento", "Actividades logradas por periodo propuesta", "% Cumplimiento acumulado"]
+    headers = ["Programa", "Actividad", "Descripción", "Realizadas", "Duplicados / Personas impactadas", "Sí", "No", "Cumplimiento", "% Cumplimiento mensual", "Actividades logradas por periodo propuesta", "% Cumplimiento acumulado"]
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(row=row_index, column=col, value=header)
         cell.font = Font(bold=True)
@@ -226,13 +226,13 @@ def _build_excel_bytes(context: dict) -> bytes:
     row_index += 1
     for program in context.get("program_blocks", []):
         for item in program.get("rows", []):
-            values = [program["program_display_name"], item["activity_code"], item["activity_description"], item["activities_count"], item["duplicados"], "X" if item["met"] else "", "" if item["met"] else "X", item["goal_summary"], item["cumulative_ratio"], f"{item['percent']}%" if item["percent"] is not None else "N/A"]
+            values = [program["program_display_name"], item["activity_code"], item["activity_description"], item["activities_count"], item["duplicados"], "X" if item["met"] else "", "" if item["met"] else "X", item["goal_summary"], f"{item['monthly_percent']}%" if item["monthly_percent"] is not None else "N/A", item["cumulative_ratio"], f"{item['percent']}%" if item["percent"] is not None else "N/A"]
             for col, value in enumerate(values, start=1):
                 cell = ws.cell(row=row_index, column=col, value=value)
                 cell.border = border
                 cell.alignment = left if col <= 3 or col == 8 else center
             row_index += 1
-    for col, width in {"A": 22, "B": 16, "C": 54, "D": 14, "E": 22, "F": 8, "G": 8, "H": 28, "I": 24, "J": 20}.items():
+    for col, width in {"A": 22, "B": 16, "C": 54, "D": 14, "E": 22, "F": 8, "G": 8, "H": 28, "I": 20, "J": 24, "K": 20}.items():
         ws.column_dimensions[col].width = width
     buffer = BytesIO()
     wb.save(buffer)

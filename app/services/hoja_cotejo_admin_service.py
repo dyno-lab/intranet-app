@@ -272,6 +272,7 @@ def build_hoja_cotejo_admin_context(
                     target = _target_for_goal(goal, active_residential_count)
                     cumulative_activities = cumulative_sessions_by_activity.get(activity_id, 0)
                     cumulative_target = _cumulative_target_for_goal(goal, active_residential_count, elapsed_months)
+                    monthly_percent = _percent(activities_count, target)
                     percent = _percent(cumulative_activities, cumulative_target)
                     met = bool(cumulative_target is not None and cumulative_activities >= cumulative_target)
                     rows.append({
@@ -284,6 +285,7 @@ def build_hoja_cotejo_admin_context(
                         "unique_participants": unique_participants,
                         "goal_summary": _goal_summary(goal),
                         "goal_target": target,
+                        "monthly_percent": monthly_percent,
                         "cumulative_activities": cumulative_activities,
                         "cumulative_target": cumulative_target,
                         "cumulative_ratio": _format_cumulative_ratio(cumulative_activities, cumulative_target),
