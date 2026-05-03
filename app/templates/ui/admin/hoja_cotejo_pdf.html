@@ -5,7 +5,7 @@
   <title>Hoja de Cotejo</title>
   <style>
     @page { size: letter landscape; margin: 0.25in; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9.5px; }
+    body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 9.5px; }
     .page { page-break-after: always; min-height: 7.35in; position: relative; }
     .page:last-child { page-break-after: auto; }
     .header { position: relative; min-height: 0.74in; }
@@ -20,15 +20,15 @@
     .meta .residentials { line-height: 1.2; }
     table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; }
     table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; }
-    table.data th { background: #D9EAD3; text-align: center; font-weight: bold; font-size: 8.6px; }
-    table.data td { font-size: 8.5px; }
-    .program-row td { background: #FCE4D6; font-weight: bold; text-align: left; }
+    table.data th { background: #C6D9F1; text-align: center; font-weight: bold; font-size: 7.4px; }
+    table.data td { font-size: 8px; }
+    .program-row td { background: #8DB3E2; font-weight: bold; text-align: left; }
     .activity { font-weight: bold; }
     .desc { font-size: 8px; line-height: 1.12; }
     .center { text-align: center; }
-    .signature { position: absolute; left: 0.15in; right: 0.15in; bottom: 0.14in; font-size: 10px; }
-    .cert { text-align: center; margin-bottom: 0.16in; }
-    .sig-table { width: 5.2in; margin: 0 auto; border-collapse: collapse; }
+    .signature { position: absolute; left: 0.15in; right: 0.15in; bottom: 0.10in; font-size: 9.5px; }
+    .cert { text-align: left; margin-bottom: 0.14in; }
+    .sig-table { width: 100%; border-collapse: collapse; }
     .sig-table td { border: none; text-align: center; padding: 0; }
     .line { border-bottom: 1px solid #000 !important; height: 0.22in; }
     .small-label { font-size: 9px; padding-top: 3px; }
@@ -58,51 +58,54 @@
 
   <table class="data">
     <colgroup>
-      <col style="width: 37%;">
+      <col style="width: 36%;">
+      <col style="width: 7%;">
       <col style="width: 10%;">
-      <col style="width: 12%;">
+      <col style="width: 7%;">
+      <col style="width: 4%;">
+      <col style="width: 4%;">
       <col style="width: 15%;">
-      <col style="width: 10%;">
+      <col style="width: 9%;">
       <col style="width: 8%;">
-      <col style="width: 4%;">
-      <col style="width: 4%;">
     </colgroup>
     <thead>
       <tr>
         <th>PROGRAMA POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
         <th>ACTIVIDAD REALIZADA</th>
         <th>DUPLICADOS / PERSONAS IMPACTADAS</th>
-        <th>CUMPLIMIENTO CONFIGURADO</th>
-        <th>POR CIENTO (%) DE CUMPLIMIENTO</th>
         <th>SE LOGRÓ EL 100%</th>
         <th>SÍ</th>
         <th>NO</th>
+        <th>FRECUENCIA / CUMPLIMIENTO</th>
+        <th>ACTIVIDADES LOGRADAS POR PERIODO PROPUESTA</th>
+        <th>POR CIENTO (%) DE LOGROS ALCANZADOS PERIODO PROPUESTA</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="program-row"><td colspan="8">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</td></tr>
+      <tr class="program-row"><td colspan="9">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</td></tr>
       {% for row in program.rows %}
       <tr>
         <td><div class="activity">{{ row.activity_code }}</div><div class="desc">{{ row.activity_description }}<br>{{ row.achievement_text }}</div></td>
         <td class="center">{{ row.activities_count }}</td>
         <td class="center">{{ row.duplicados }}</td>
-        <td class="center">{{ row.goal_summary }}</td>
-        <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
         <td class="center">{{ 'SI' if row.met else 'NO' }}</td>
         <td class="center">{{ 'X' if row.met }}</td>
         <td class="center">{{ '' if row.met else 'X' }}</td>
+        <td class="center">{{ row.goal_summary }}</td>
+        <td class="center">{{ row.cumulative_ratio }}</td>
+        <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
   <div class="signature">
-    <div class="cert">Yo, <strong>{{ authorized_name or '______________________________' }}</strong> persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.</div>
+    <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.</div>
     <table class="sig-table">
       <tr>
-        <td style="width:2.4in;" class="line"></td>
-        <td style="width:0.4in;"></td>
-        <td style="width:2.4in;" class="line"></td>
+        <td style="width:3.0in;" class="line"></td>
+        <td style="width:4.2in;"></td>
+        <td style="width:2.2in;" class="line"></td>
       </tr>
       <tr>
         <td class="small-label">Firma del Representante Autorizado</td>

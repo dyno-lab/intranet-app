@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 from typing import Any
 
@@ -64,6 +65,20 @@ def _apply_period(stmt, *, period_type: str, month: int | None, year: int | None
     return stmt
 
 
+def _report_end_date(*, period_type: str, month: int | None, year: int | None, end_date: str | None) -> date | None:
+    if period_type == "custom" and end_date:
+        return date.fromisoformat(end_date)
+    if month and year:
+        return date(year, month, monthrange(year, month)[1])
+    return None
+
+
+def _inclusive_months(start: date | None, end: date | None) -> int:
+    if not start or not end or start > end:
+        return 1
+    return max(((end.year - start.year) * 12) + (end.month - start.month) + 1, 1)
+
+
 def _goal_summary(goal: ActivityProductivityGoal | None) -> str:
     if not goal or not goal.is_active or goal.goal_type == "none":
         return "Sin meta productiva"
@@ -97,6 +112,21 @@ def _target_for_goal(goal: ActivityProductivityGoal | None, active_residential_c
     return None
 
 
+def _cumulative_target_for_goal(goal: ActivityProductivityGoal | None, active_residential_count: int, elapsed_months: int) -> int | None:
+    if not goal or not goal.is_active or goal.goal_type == "none":
+        return None
+
+    if goal.period_goal_value:
+        if goal.goal_type == "per_residential_period_fixed":
+            return int(goal.period_goal_value)
+        return int(goal.period_goal_value) * max(elapsed_months, 1)
+
+    base_target = _target_for_goal(goal, active_residential_count)
+    if base_target is None:
+        return None
+    return int(base_target) * max(elapsed_months, 1)
+
+
 def _percent(executed: int, target: int | None) -> int | None:
     if target is None:
         return None
@@ -109,6 +139,12 @@ def _format_achievement_text(activities_count: int, duplicados: int) -> str:
     if activities_count == 1:
         return f"Se realizó 1 actividad con una asistencia global de {duplicados} participantes."
     return f"Se realizaron {activities_count} actividades con una asistencia global de {duplicados} participantes."
+
+
+def _format_cumulative_ratio(numerator: int, denominator: int | None) -> str:
+    if denominator is None:
+        return f"{numerator}"
+    return f"{numerator}/{denominator}"
 
 
 def build_hoja_cotejo_admin_context(
@@ -134,6 +170,9 @@ def build_hoja_cotejo_admin_context(
 
     program_blocks: list[dict[str, Any]] = []
     totals = {"activities_count": 0, "duplicados": 0, "met": 0, "not_met": 0, "rows": 0}
+    report_end = _report_end_date(period_type=period_type, month=month, year=year, end_date=end_date)
+    first_attendance_date: date | None = None
+    elapsed_months = 1
 
     if proposal:
         structure_blocks = resolve_effective_program_population_blocks(db, proposal.proposal_id)
@@ -147,9 +186,23 @@ def build_hoja_cotejo_admin_context(
         sessions_by_activity: dict[int, int] = {}
         attendance_by_activity: dict[int, int] = {}
         unique_by_activity: dict[int, int] = {}
+        cumulative_sessions_by_activity: dict[int, int] = {}
         goals_by_activity: dict[int, ActivityProductivityGoal] = {}
 
         if activity_ids:
+            first_attendance_stmt = (
+                select(func.min(ActivitySession.session_date))
+                .join(Attendance, Attendance.session_id == ActivitySession.session_id)
+                .where(
+                    ActivitySession.proposal_id == proposal.proposal_id,
+                    Attendance.attended == True,  # noqa: E712
+                )
+            )
+            if report_end:
+                first_attendance_stmt = first_attendance_stmt.where(ActivitySession.session_date <= report_end)
+            first_attendance_date = db.execute(first_attendance_stmt).scalar_one_or_none()
+            elapsed_months = _inclusive_months(first_attendance_date, report_end)
+
             session_stmt = (
                 select(ActivitySession.activity_code_id, func.count(distinct(ActivitySession.session_id)))
                 .where(ActivitySession.proposal_id == proposal.proposal_id, ActivitySession.activity_code_id.in_(activity_ids))
@@ -177,6 +230,22 @@ def build_hoja_cotejo_admin_context(
                 attendance_by_activity[activity_id] = int(duplicados or 0)
                 unique_by_activity[activity_id] = int(unique_count or 0)
 
+            cumulative_stmt = (
+                select(ActivitySession.activity_code_id, func.count(distinct(ActivitySession.session_id)))
+                .join(Attendance, Attendance.session_id == ActivitySession.session_id)
+                .where(
+                    ActivitySession.proposal_id == proposal.proposal_id,
+                    ActivitySession.activity_code_id.in_(activity_ids),
+                    Attendance.attended == True,  # noqa: E712
+                )
+                .group_by(ActivitySession.activity_code_id)
+            )
+            if first_attendance_date:
+                cumulative_stmt = cumulative_stmt.where(ActivitySession.session_date >= first_attendance_date)
+            if report_end:
+                cumulative_stmt = cumulative_stmt.where(ActivitySession.session_date <= report_end)
+            cumulative_sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in db.execute(cumulative_stmt).all()}
+
             goal_rows = db.execute(
                 select(ActivityProductivityGoal).where(
                     ActivityProductivityGoal.proposal_id == proposal.proposal_id,
@@ -201,8 +270,10 @@ def build_hoja_cotejo_admin_context(
                     unique_participants = unique_by_activity.get(activity_id, 0)
                     goal = goals_by_activity.get(activity_id)
                     target = _target_for_goal(goal, active_residential_count)
-                    percent = _percent(activities_count, target)
-                    met = bool(target is not None and activities_count >= target)
+                    cumulative_activities = cumulative_sessions_by_activity.get(activity_id, 0)
+                    cumulative_target = _cumulative_target_for_goal(goal, active_residential_count, elapsed_months)
+                    percent = _percent(cumulative_activities, cumulative_target)
+                    met = bool(cumulative_target is not None and cumulative_activities >= cumulative_target)
                     rows.append({
                         "activity_code_id": activity_id,
                         "activity_code": row.get("activity_code", ""),
@@ -213,6 +284,9 @@ def build_hoja_cotejo_admin_context(
                         "unique_participants": unique_participants,
                         "goal_summary": _goal_summary(goal),
                         "goal_target": target,
+                        "cumulative_activities": cumulative_activities,
+                        "cumulative_target": cumulative_target,
+                        "cumulative_ratio": _format_cumulative_ratio(cumulative_activities, cumulative_target),
                         "percent": percent,
                         "met": met,
                     })
@@ -251,6 +325,8 @@ def build_hoja_cotejo_admin_context(
         "program_blocks": program_blocks,
         "residential_names": residential_names,
         "active_residential_count": active_residential_count,
+        "first_attendance_date": first_attendance_date,
+        "elapsed_months": elapsed_months,
         "totals": totals,
         "pdf_template_name": "ui/admin/hoja_cotejo_pdf.html",
     }

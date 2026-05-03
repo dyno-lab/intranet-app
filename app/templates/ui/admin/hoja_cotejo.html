@@ -99,8 +99,9 @@
           <th class="text-start">Actividad</th>
           <th>Realizadas</th>
           <th>Duplicados / Personas impactadas</th>
-          <th>Cumplimiento configurado</th>
-          <th>% Cumplimiento</th>
+          <th>Cumplimiento</th>
+          <th>Actividades logradas por periodo propuesta</th>
+          <th>% Cumplimiento acumulado</th>
           <th>Sí</th>
           <th>No</th>
         </tr>
@@ -112,12 +113,13 @@
           <td class="text-center">{{ row.activities_count }}</td>
           <td class="text-center">{{ row.duplicados }}</td>
           <td>{{ row.goal_summary }}</td>
+          <td class="text-center">{{ row.cumulative_ratio }}</td>
           <td class="text-center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
           <td class="text-center">{{ 'X' if row.met }}</td>
           <td class="text-center">{{ '' if row.met else 'X' }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted">No hay actividades configuradas para este programa.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted">No hay actividades configuradas para este programa.</td></tr>
         {% endfor %}
       </tbody>
     </table>
