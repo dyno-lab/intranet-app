@@ -101,14 +101,12 @@ def _target_for_goal(goal: ActivityProductivityGoal | None, active_residential_c
         return None
     if goal.goal_type == "per_residential_min_1":
         return 1
-    if goal.period_goal_value:
-        return int(goal.period_goal_value)
     if goal.goal_type == "per_residential_fixed":
         return int(goal.goal_value or 0) * active_residential_count
     if goal.goal_type == "global_fixed":
         return int(goal.goal_value or 0)
     if goal.goal_type == "per_residential_period_fixed":
-        return int(goal.goal_value or 0) * active_residential_count
+        return int(goal.period_goal_value or goal.goal_value or 0)
     return None
 
 
@@ -120,9 +118,7 @@ def _cumulative_target_for_goal(goal: ActivityProductivityGoal | None, active_re
         return 1
 
     if goal.period_goal_value:
-        if goal.goal_type == "per_residential_period_fixed":
-            return int(goal.period_goal_value)
-        return int(goal.period_goal_value) * max(elapsed_months, 1)
+        return int(goal.period_goal_value)
 
     base_target = _target_for_goal(goal, active_residential_count)
     if base_target is None:
