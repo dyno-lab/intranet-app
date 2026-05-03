@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Hoja de Cotejo</title>
+  <style>
+    @page { size: letter landscape; margin: 0.25in; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9.5px; }
+    .page { page-break-after: always; min-height: 7.35in; position: relative; }
+    .page:last-child { page-break-after: auto; }
+    .header { position: relative; min-height: 0.74in; }
+    .logo { position: absolute; left: 0; top: 0; }
+    .logo img { width: 2.75in; max-height: 0.70in; object-fit: contain; }
+    .title-block { text-align: center; font-weight: bold; padding-top: 0.10in; line-height: 1.18; }
+    .title-block .line1 { font-size: 12px; }
+    .title-block .line2 { font-size: 11px; }
+    .title-block .line3 { font-size: 10px; margin-top: 2px; }
+    .meta { width: 100%; border-collapse: collapse; margin-top: 0.06in; font-size: 9.5px; }
+    .meta td { border: none; padding: 2px 3px; vertical-align: top; }
+    .meta .residentials { line-height: 1.2; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; }
+    table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; }
+    table.data th { background: #D9EAD3; text-align: center; font-weight: bold; font-size: 8.6px; }
+    table.data td { font-size: 8.5px; }
+    .program-row td { background: #FCE4D6; font-weight: bold; text-align: left; }
+    .activity { font-weight: bold; }
+    .desc { font-size: 8px; line-height: 1.12; }
+    .center { text-align: center; }
+    .signature { position: absolute; left: 0.15in; right: 0.15in; bottom: 0.14in; font-size: 10px; }
+    .cert { text-align: center; margin-bottom: 0.16in; }
+    .sig-table { width: 5.2in; margin: 0 auto; border-collapse: collapse; }
+    .sig-table td { border: none; text-align: center; padding: 0; }
+    .line { border-bottom: 1px solid #000 !important; height: 0.22in; }
+    .small-label { font-size: 9px; padding-top: 3px; }
+  </style>
+</head>
+<body>
+{% for program in program_blocks %}
+<div class="page">
+  <div class="header">
+    <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
+    <div class="title-block">
+      <div class="line1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+      <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO</div>
+      <div class="line3">COMPAÑÍA: Centro Sor Isolina Ferré, Inc.</div>
+    </div>
+  </div>
+
+  <table class="meta">
+    <tr>
+      <td style="width:55%;"><strong>PERÍODO DE INFORME:</strong> {{ period_title }}</td>
+      <td style="width:45%;"><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="residentials"><strong>RESIDENCIALES:</strong> {{ residential_names }}</td>
+    </tr>
+  </table>
+
+  <table class="data">
+    <colgroup>
+      <col style="width: 37%;">
+      <col style="width: 10%;">
+      <col style="width: 12%;">
+      <col style="width: 15%;">
+      <col style="width: 10%;">
+      <col style="width: 8%;">
+      <col style="width: 4%;">
+      <col style="width: 4%;">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>PROGRAMA POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
+        <th>ACTIVIDAD REALIZADA</th>
+        <th>DUPLICADOS / PERSONAS IMPACTADAS</th>
+        <th>CUMPLIMIENTO CONFIGURADO</th>
+        <th>POR CIENTO (%) DE CUMPLIMIENTO</th>
+        <th>SE LOGRÓ EL 100%</th>
+        <th>SÍ</th>
+        <th>NO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="program-row"><td colspan="8">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</td></tr>
+      {% for row in program.rows %}
+      <tr>
+        <td><div class="activity">{{ row.activity_code }}</div><div class="desc">{{ row.activity_description }}<br>{{ row.achievement_text }}</div></td>
+        <td class="center">{{ row.activities_count }}</td>
+        <td class="center">{{ row.duplicados }}</td>
+        <td class="center">{{ row.goal_summary }}</td>
+        <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
+        <td class="center">{{ 'SI' if row.met else 'NO' }}</td>
+        <td class="center">{{ 'X' if row.met }}</td>
+        <td class="center">{{ '' if row.met else 'X' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="signature">
+    <div class="cert">Yo, <strong>{{ authorized_name or '______________________________' }}</strong> persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.</div>
+    <table class="sig-table">
+      <tr>
+        <td style="width:2.4in;" class="line"></td>
+        <td style="width:0.4in;"></td>
+        <td style="width:2.4in;" class="line"></td>
+      </tr>
+      <tr>
+        <td class="small-label">Firma del Representante Autorizado</td>
+        <td></td>
+        <td class="small-label">Fecha</td>
+      </tr>
+    </table>
+  </div>
+</div>
+{% endfor %}
+</body>
+</html>
