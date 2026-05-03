@@ -51,7 +51,7 @@ Commits locales:
 
 Pendiente / cabo suelto:
 - no hubo push remoto; pendiente cuando Christian decida subir estos commits.
-- conviene una validacion visual rapida en navegador descargando ambos PDFs para confirmar que `wkhtmltopdf` ya no emite hoja final en blanco en el entorno real.
+- validacion visual final completada por Christian: ambos PDFs ya salen bien y no queda hoja final en blanco.
 
 ### Actualización 2026-05-01 — Consolidado Mensual Global Admin-only
 Resumen operativo:

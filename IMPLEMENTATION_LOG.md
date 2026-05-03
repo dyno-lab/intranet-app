@@ -57,7 +57,7 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
   - `e14336f Ajustar consolidado global para nombres cortos y autorizacion`
 - **Cabo suelto:**
   - falta push remoto si Christian quiere mover estos cambios.
-  - queda recomendada validacion visual final descargando ambos PDFs en navegador.
+  - validacion visual final completada por Christian: ambos PDFs ya salen bien y no queda hoja final en blanco.
 
 ---
 
