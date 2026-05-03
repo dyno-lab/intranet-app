@@ -16,10 +16,7 @@ from app.models.proposal import Proposal
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.residential import Residential
 from app.models.user import User
-from app.services.report_programs import (
-    program_display_name,
-    resolve_effective_program_activity_code_ids,
-)
+from app.services.report_programs import resolve_effective_program_activity_code_ids
 
 
 AGE_BUCKETS = [
@@ -148,7 +145,7 @@ def _program_definitions(db: Session, proposal_id: int | None) -> list[ProgramDe
             definitions.append(
                 ProgramDefinition(
                     code=program.code,
-                    label=program_display_name(program),
+                    label=(getattr(program, "name", None) or getattr(program, "code", "")).strip(),
                     activity_code_ids=resolve_effective_program_activity_code_ids(db, program.program_id),
                 )
             )
@@ -418,7 +415,7 @@ def build_consolidado_mensual_global(
         "is_all_residentials": residential_id is None,
         "generated_on": date.today(),
         "generated_by": current_user.username if current_user else "",
-        "authorized_name": "Christian X. Ramírez Morales",
+        "authorized_name": "",
         "global_residential_names": ", ".join(residential_names),
         "global_municipalities": ", ".join(municipality_names),
         "revision_label": "Rev.15/agosto/2019 CRM",

@@ -92,6 +92,7 @@ def _build_context(
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
+    authorized_name: str | None = None,
 ) -> dict:
     _validate_period(period_type, month, year, start_date, end_date)
     report = build_consolidado_mensual_global(
@@ -110,6 +111,7 @@ def _build_context(
         **report,
         "current_user": current_user,
         "msg": None,
+        "authorized_name": (authorized_name or "").strip(),
     }
 
 
@@ -121,6 +123,7 @@ def _query_params(
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
+    authorized_name: str | None = None,
 ) -> str:
     params = {"period_type": period_type}
     if month:
@@ -135,6 +138,8 @@ def _query_params(
         params["proposal_id"] = proposal_id
     if residential_id:
         params["residential_id"] = residential_id
+    if authorized_name:
+        params["authorized_name"] = authorized_name
     return urlencode(params)
 
 
@@ -158,6 +163,7 @@ def consolidado_mensual_global_index(
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
+    authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -173,6 +179,7 @@ def consolidado_mensual_global_index(
         period_type=period_type,
         start_date=start_date,
         end_date=end_date,
+        authorized_name=authorized_name,
     )
     context["request"] = request
     return templates.TemplateResponse("ui/admin/consolidado_mensual_global.html", context)
@@ -187,6 +194,7 @@ def consolidado_mensual_global_generar(
     end_date: str | None = Form(None),
     proposal_id: str | None = Form(None),
     residential_id: str | None = Form(None),
+    authorized_name: str | None = Form(None),
     output: str = Form("pdf"),
     current_user: User = Depends(require_admin),
 ):
@@ -197,7 +205,7 @@ def consolidado_mensual_global_generar(
     if not target:
         raise HTTPException(status_code=400, detail="Salida inválida.")
     return RedirectResponse(
-        f"/ui/admin/consolidado-mensual-global/{target}?{_query_params(month, year, proposal_id_int, residential_id_int, period_type, start_date, end_date)}",
+        f"/ui/admin/consolidado-mensual-global/{target}?{_query_params(month, year, proposal_id_int, residential_id_int, period_type, start_date, end_date, authorized_name)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -212,6 +220,7 @@ def consolidado_mensual_global_pdf(
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
+    authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -225,6 +234,7 @@ def consolidado_mensual_global_pdf(
         period_type=period_type,
         start_date=start_date,
         end_date=end_date,
+        authorized_name=authorized_name,
     )
     context["request"] = request
     try:
@@ -334,6 +344,7 @@ def consolidado_mensual_global_excel(
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
     residential_id: str | None = Query(None),
+    authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -347,6 +358,7 @@ def consolidado_mensual_global_excel(
         period_type=period_type,
         start_date=start_date,
         end_date=end_date,
+        authorized_name=authorized_name,
     )
     filename = _download_filename("consolidado_mensual_global", context, "xlsx")
     return StreamingResponse(

@@ -67,7 +67,7 @@
       </div>
     </form>
 
-    <form method="post" action="/ui/admin/consolidado-mensual-global/generar" class="d-flex flex-wrap gap-2">
+    <form method="post" action="/ui/admin/consolidado-mensual-global/generar" class="d-flex flex-wrap gap-2 align-items-end">
       <input type="hidden" name="month" value="{{ month }}">
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="period_type" value="{{ selected_period_type }}">
@@ -75,6 +75,10 @@
       <input type="hidden" name="end_date" value="{{ selected_end_date }}">
       <input type="hidden" name="proposal_id" value="{{ selected_proposal_id or '' }}">
       <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+      <div style="min-width: 280px;">
+        <label class="form-label mb-1">Funcionario autorizado</label>
+        <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
+      </div>
       <button class="btn btn-danger" name="output" value="pdf">Generar PDF</button>
       <button class="btn btn-success" name="output" value="excel">Exportar Excel</button>
       <button class="btn btn-outline-secondary" name="output" value="validacion">Validación/Auditoría</button>
