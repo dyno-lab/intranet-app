@@ -277,7 +277,8 @@ def build_hoja_cotejo_admin_context(
                     cumulative_target = _cumulative_target_for_goal(goal, active_residential_count, elapsed_months)
                     monthly_percent = _percent(activities_count, target)
                     percent = _percent(cumulative_activities, cumulative_target)
-                    met = bool(cumulative_target is not None and cumulative_activities >= cumulative_target)
+                    met = bool(target is not None and activities_count >= target)
+                    cumulative_met = bool(cumulative_target is not None and cumulative_activities >= cumulative_target)
                     rows.append({
                         "activity_code_id": activity_id,
                         "activity_code": row.get("activity_code", ""),
@@ -294,6 +295,7 @@ def build_hoja_cotejo_admin_context(
                         "cumulative_ratio": _format_cumulative_ratio(cumulative_activities, cumulative_target),
                         "percent": percent,
                         "met": met,
+                        "cumulative_met": cumulative_met,
                     })
                     totals["activities_count"] += activities_count
                     totals["duplicados"] += duplicados
