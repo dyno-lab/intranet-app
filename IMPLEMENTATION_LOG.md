@@ -33,6 +33,30 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 
 ## 2026-05-03
 
+
+### Inicio - Hoja de Cotejo Admin global
+- **Tipo:** `feature`, `reports`, `pdf`, `excel`, `admin`
+- **Estado:** primera version funcional implementada; pendiente validacion visual con datos reales.
+- **Que se hizo:**
+  - Se creo `/ui/admin/hoja-cotejo` como modulo Admin-only.
+  - Se agregaron servicio, ruta, pantalla HTML, PDF y Excel inicial.
+  - Se conecto al menu Admin.
+  - Se reutilizo la logica de Programas Reporte para agrupar por programa y usar nombres cortos.
+  - Se calcularon actividades realizadas, duplicados/personas impactadas, cumplimiento configurado y porcentaje de cumplimiento.
+- **Decision funcional:**
+  - El informe se calcula a nivel global por propuesta/periodo, no por residencial.
+  - Los residenciales activos se muestran como referencia de alcance, pero no dividen el reporte.
+- **Validacion tecnica:**
+  - `compileall` paso.
+  - import de `app.main` confirmo rutas registradas.
+  - render Jinja2 con contexto simulado paso.
+- **Cabo suelto:**
+  - falta validacion visual con datos reales y comparacion contra el archivo historico.
+  - prueba DB directa bloqueada por driver ODBC no disponible en esta sesion.
+  - falta push remoto si Christian quiere mover estos cambios.
+- **Commit local:**
+  - `a3dec49 Agregar hoja de cotejo admin global`
+
 ### Cierre de ajustes - Plantilla Duplicado y Consolidado Mensual Global
 - **Tipo:** `reports`, `pdf`, `admin`, `ux`, `closure`
 - **Estado:** cerrado/documentado como ajuste posterior.

@@ -21,6 +21,44 @@ Sirve para:
 
 ## Estado actual validado
 
+
+### Actualizacion 2026-05-03 - Hoja de Cotejo Admin global
+Estado: **primera version funcional implementada; pendiente validacion visual con datos reales**.
+
+Contexto:
+- Christian solicito crear una nueva Hoja de Cotejo usando como referencia el archivo historico de `C:\Users\Admin\OneDrive\DOCUMENTOS PARA INFORME 2025-2026\Hoja Cotejo\ACTIVIDADES LOGRADAS 22-23\abril2026`.
+- Reglas indicadas: usar los mismos campos/fotos/formato base, generar por **Programa**, tomar los programas desde `/ui/admin/report-programs`, recopilar actividades y duplicados/personas impactadas, usar el cumplimiento configurado en `/ui/admin/activity-codes`, y trabajar a nivel global, no por residencial.
+
+Implementado:
+- Nuevo modulo Admin-only: `/ui/admin/hoja-cotejo`.
+- Nuevo servicio: `app/services/hoja_cotejo_admin_service.py`.
+- Nueva ruta: `app/api/routes/hoja_cotejo_admin.py`.
+- Nuevas plantillas: `app/templates/ui/admin/hoja_cotejo.html` y `app/templates/ui/admin/hoja_cotejo_pdf.html`.
+- Filtros equivalentes al Consolidado Mensual Global: mensual/personalizado, propuesta y funcionario autorizado.
+- Menu Admin actualizado con entrada `Hoja de Cotejo`.
+- El reporte agrupa por programas configurados en `/ui/admin/report-programs` y usa nombres cortos (`ProposalReportProgram.name`).
+- Para cada actividad calcula:
+  - actividades realizadas segun sesiones filtradas por periodo/propuesta,
+  - duplicados/personas impactadas desde asistencias,
+  - participantes unicos como dato auxiliar,
+  - cumplimiento configurado desde metas productivas,
+  - porcentaje de cumplimiento y columnas Si/No.
+- Exportacion PDF y Excel iniciales disponibles.
+
+Validacion tecnica realizada:
+- `python -m compileall` paso para ruta, servicio y `app/main.py`.
+- Import de `app.main` confirmo rutas registradas para `/ui/admin/hoja-cotejo`.
+- Render Jinja2 de la pantalla y PDF paso con contexto simulado.
+
+Pendiente / cabo suelto:
+- Validacion visual con el PDF historico real y datos reales de SQL Server.
+- Prueba directa contra DB local quedo bloqueada en esta sesion por driver ODBC no disponible (`Data source name not found and no default driver specified`).
+- Ajustar textos/columnas finales si Christian confirma nombres exactos de campos del documento historico.
+- No hubo push remoto; pendiente cuando Christian decida subir estos commits.
+
+Commit local:
+- `a3dec49 Agregar hoja de cotejo admin global`
+
 ### Actualizacion 2026-05-03 - Cierre de ajustes PDF y nombres cortos en reportes Admin
 Estado: **cerrado como ajuste posterior funcional**.
 
