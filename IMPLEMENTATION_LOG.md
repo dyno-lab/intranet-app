@@ -31,6 +31,36 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 
 ---
 
+## 2026-05-03
+
+### Cierre de ajustes - Plantilla Duplicado y Consolidado Mensual Global
+- **Tipo:** `reports`, `pdf`, `admin`, `ux`, `closure`
+- **Estado:** cerrado/documentado como ajuste posterior.
+- **Que se hizo:**
+  - En `/ui/admin/plantilla-duplicado`, las columnas de programas pasaron a usar nombre corto (`ProposalReportProgram.name`) en lugar de nombre formal (`formal_name`).
+  - En el PDF de `plantilla-duplicado`, se removieron los textos de revision historica y se evito la hoja final en blanco.
+  - En `/ui/admin/consolidado-mensual-global`, los programas pasaron a usar nombre corto.
+  - Se elimino el funcionario autorizado hardcoded del consolidado global.
+  - Se agrego campo de entrada `Funcionario autorizado` antes de generar salidas del consolidado global; el PDF usa ese valor o deja linea en blanco si no se llena.
+  - Se evito la hoja final en blanco del PDF del consolidado global.
+- **Por que se hizo:**
+  - Para que los reportes usen etiquetas cortas legibles como `Programa 1A` y no nombres formales extensos de propuesta.
+  - Para que el funcionario autorizado sea un dato de ejecucion, no un valor fijo en codigo.
+  - Para limpiar artefactos del formato historico que Christian pidio remover.
+- **Validacion tecnica:**
+  - `compileall` paso en rutas/servicios modificados.
+  - prueba directa confirmo que se usa `name` sobre `formal_name`.
+  - busqueda confirmo eliminacion de textos/hardcode relevantes.
+- **Commits locales:**
+  - `0728e74 Usar nombre corto en plantilla duplicado`
+  - `377f192 Limpiar revision y pagina final en PDF duplicado`
+  - `e14336f Ajustar consolidado global para nombres cortos y autorizacion`
+- **Cabo suelto:**
+  - falta push remoto si Christian quiere mover estos cambios.
+  - queda recomendada validacion visual final descargando ambos PDFs en navegador.
+
+---
+
 ## 2026-05-01
 
 ### Bloque cerrado — Consolidado Mensual Global Admin-only

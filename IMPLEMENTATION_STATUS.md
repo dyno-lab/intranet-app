@@ -21,6 +21,38 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-03 - Cierre de ajustes PDF y nombres cortos en reportes Admin
+Estado: **cerrado como ajuste posterior funcional**.
+
+Contexto:
+- Christian solicito ajustes puntuales en `/ui/admin/plantilla-duplicado` y `/ui/admin/consolidado-mensual-global` para alinear los PDFs/admin reports con el formato esperado y evitar nombres formales largos en columnas de programas.
+
+Implementado:
+- `/ui/admin/plantilla-duplicado`:
+  - las columnas de programas/actividades ahora muestran el **nombre corto** (`ProposalReportProgram.name`) en vez del nombre formal (`formal_name`).
+  - se eliminaron del PDF los textos `**REVISADO 1 OCTUBRE 2019**` y `Rev.15/agosto/2019 CRM`.
+  - se corrigio el salto final del PDF para evitar hoja en blanco al final.
+- `/ui/admin/consolidado-mensual-global`:
+  - los programas ahora muestran el **nombre corto** (`ProposalReportProgram.name`) en vez del nombre formal.
+  - se elimino el funcionario autorizado hardcoded (`Christian X. Ramirez Morales`) del contexto base.
+  - se agrego campo `Funcionario autorizado` en la pantalla del modulo antes de generar PDF/Excel/validacion.
+  - el PDF usa el valor enviado; si queda vacio, mantiene la linea/formulario para llenarlo manualmente.
+  - se corrigio el salto final del PDF para evitar hoja en blanco al final.
+
+Validacion tecnica realizada:
+- `compileall` de servicios/rutas relevantes paso.
+- prueba directa confirmo que un programa con `formal_name` largo y `name = Programa 1A` devuelve `Programa 1A`.
+- busquedas confirmaron que ya no queda el nombre hardcoded del funcionario en `consolidado_mensual_service.py` ni los textos de revision en `plantilla_duplicado_pdf.html`.
+
+Commits locales:
+- `0728e74 Usar nombre corto en plantilla duplicado`
+- `377f192 Limpiar revision y pagina final en PDF duplicado`
+- `e14336f Ajustar consolidado global para nombres cortos y autorizacion`
+
+Pendiente / cabo suelto:
+- no hubo push remoto; pendiente cuando Christian decida subir estos commits.
+- conviene una validacion visual rapida en navegador descargando ambos PDFs para confirmar que `wkhtmltopdf` ya no emite hoja final en blanco en el entorno real.
+
 ### Actualización 2026-05-01 — Consolidado Mensual Global Admin-only
 Resumen operativo:
 - módulo `Consolidado Mensual Global` creado bajo `/ui/admin` y protegido con `require_admin` en todas sus rutas.
