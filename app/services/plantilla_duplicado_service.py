@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.user import User
 from app.services.consolidado_mensual_service import build_consolidado_mensual_global
-from app.services.report_programs import program_display_name
 
 FALLBACK_PROGRAM_COLUMNS = [
     {"code": "1-A", "label": "Programa 1-A"},
@@ -65,6 +64,10 @@ def _chart_segments(rows: list[dict[str, Any]], total: int) -> list[dict[str, An
     return segments
 
 
+def _program_short_name(program: ProposalReportProgram) -> str:
+    return (getattr(program, "name", None) or getattr(program, "code", "")).strip()
+
+
 def _program_columns(db: Session, proposal_id: int | None, base: dict[str, Any]) -> list[dict[str, str]]:
     if proposal_id:
         programs = db.execute(
@@ -77,7 +80,7 @@ def _program_columns(db: Session, proposal_id: int | None, base: dict[str, Any])
         ).scalars().all()
         if programs:
             return [
-                {"code": program.code, "label": program_display_name(program) or program.code}
+                {"code": program.code, "label": _program_short_name(program) or program.code}
                 for program in programs
             ]
 
