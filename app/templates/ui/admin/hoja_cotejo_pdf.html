@@ -63,14 +63,14 @@
           <div class="header">
             <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
             <div class="title-block">
-              <div class="line1">?REA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-              <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEG?N EL PLAN DE TRABAJO</div>
-              <div class="line3">COMPA??A: Centro Sor Isolina Ferr?, Inc.</div>
+              <div class="line1">&Aacute;REA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+              <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEG&Uacute;N EL PLAN DE TRABAJO</div>
+              <div class="line3">COMPA&Ntilde;&Iacute;A: Centro Sor Isolina Ferr&eacute;, Inc.</div>
             </div>
           </div>
           <table class="meta">
             <tr>
-              <td style="width:55%;"><strong>PER?ODO DE INFORME:</strong> {{ period_title }}</td>
+              <td style="width:55%;"><strong>PER&Iacute;ODO DE INFORME:</strong> {{ period_title }}</td>
               <td style="width:45%;"><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %}</td>
             </tr>
             <tr>
@@ -80,11 +80,11 @@
         </th>
       </tr>
       <tr>
-        <th>PROGRAMA POR ACTIVIDAD SEG?N EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
+        <th>PROGRAMA POR ACTIVIDAD SEG&Uacute;N EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
         <th>ACTIVIDAD REALIZADA</th>
         <th>DUPLICADOS / PERSONAS IMPACTADAS</th>
-        <th>SE LOGR? EL 100%</th>
-        <th>S?</th>
+        <th>SE LOGR&Oacute; EL 100%</th>
+        <th>S&Iacute;</th>
         <th>NO</th>
         <th>FRECUENCIA / CUMPLIMIENTO</th>
         <th>POR CIENTO (%) DE CUMPLIMIENTO MENSUAL</th>
@@ -94,7 +94,7 @@
     </thead>
     <tbody>
       <tr class="program-row">
-        <td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}{% if is_continuation %} (continuaci?n){% endif %}</td>
+        <td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}{% if is_continuation %} (continuaci&oacute;n){% endif %}</td>
       </tr>
       {% for row in row_batch %}
         {% if row %}
@@ -117,7 +117,7 @@
 
   {% if is_last_batch %}
   <div class="signature">
-    <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevenci?n, certifico que la informaci?n presentada en este informe es correcta.</div>
+    <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevenci&oacute;n, certifico que la informaci&oacute;n presentada en este informe es correcta.</div>
     <table class="sig-table">
       <tr>
         <td style="width:3.0in;" class="line"></td>

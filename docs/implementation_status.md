@@ -1153,3 +1153,19 @@ Validacion tecnica:
 - `compileall app` paso.
 - Carga Jinja2 paso.
 - Prueba de render HTML con 40 filas confirmo 3 bloques, 2 continuaciones y una sola firma.
+
+### Ajuste 2026-05-04 - Acentos en PDF Hoja de Cotejo Admin
+Estado: **corregido en textos estaticos de plantilla**.
+
+Contexto:
+- Christian reporto que algunos acentos aparecian como `?` en el PDF.
+
+Implementado:
+- En `app/templates/ui/admin/hoja_cotejo_pdf.html` se reemplazaron textos estaticos corruptos por entidades HTML:
+  - AREA, SEGUN, COMPANIA, Ferre, PERIODO, LOGRO, SI, continuacion, Prevencion, informacion.
+- Esto evita depender de la codificacion del archivo para esos textos en wkhtmltopdf.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Carga Jinja2 paso.
+- Render HTML simulado confirmo las entidades esperadas.
