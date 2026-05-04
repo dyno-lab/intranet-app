@@ -1028,3 +1028,29 @@ Validacion tecnica:
 - Import de `app.main` paso.
 - Carga Jinja2 de `report_templates.html` y `report_template_preview.html` paso.
 - Render simulado del preview paso.
+
+### Actualizacion 2026-05-04 - Preview editable tipo Word
+Estado: **implementado como primer editor inline de textos**.
+
+Contexto:
+- Christian pidio que la vista previa sea estilo Word: poder ver visualmente el reporte mientras se editan los textos y luego grabar.
+
+Implementado:
+- `report_template_preview.html` ahora es editable inline con `contenteditable`.
+- Campos editables directamente en la vista:
+  - nombre de version,
+  - titulo,
+  - subtitulo,
+  - notas del header,
+  - encabezados de columnas,
+  - texto footer/certificacion,
+  - firmas/titulos,
+  - fecha.
+- Los cambios se sincronizan a campos ocultos mediante JavaScript.
+- Se agrego boton `Guardar version desde preview`, que crea la version visual usando los textos editados.
+- Sigue sin modificar reportes existentes ni plantillas base; solo crea nueva version.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga Jinja2 y render simulado confirmaron contenteditable y boton de guardado.

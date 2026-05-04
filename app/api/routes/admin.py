@@ -3599,6 +3599,7 @@ def admin_report_template_versions_preview_visual(
             "request": request,
             "current_user": current_user,
             "template": template,
+            "report_template_id": report_template_id,
             "version_label": (version_label or "Vista previa sin guardar").strip(),
             "header_image": (header_image or "").strip(),
             "header_title": (header_title or (template.name if template else "Titulo del reporte")).strip(),
@@ -3617,6 +3618,7 @@ def admin_report_template_versions_preview_visual(
             "margin_left": (margin_left or "0.25in").strip(),
             "table_spacing": (table_spacing or "8px").strip(),
             "rows_per_table": (rows_per_table or "18").strip(),
+            "columns_text": (columns_text or "").strip(),
             "columns": columns,
         },
     )
