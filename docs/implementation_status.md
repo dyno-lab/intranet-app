@@ -1085,3 +1085,17 @@ Validacion tecnica realizada:
 
 Pendiente:
 - Regenerar descarga desde navegador y confirmar visualmente que la ultima hoja ya sale con header.
+
+### Correccion 2026-05-04 - Restaurar formato visual Hoja de Cotejo Admin
+Estado: **restaurado al formato visual que Christian confirmo como mejor base**.
+
+Contexto:
+- Christian indico que `hoja_cotejo_005_04_2026 (8).pdf` era el archivo que mejor se veia.
+- Los intentos posteriores para repetir header (`(9)` y `(11)`) dividieron demasiado las tablas o dañaron el header.
+
+Decision:
+- Se restaura `app/templates/ui/admin/hoja_cotejo_pdf.html` al estado previo a esos intentos, tomando como base el formato que genero el PDF `(8)`.
+- No seguir rediseñando la paginacion sin una comparacion visual controlada contra el PDF bueno.
+
+Pendiente:
+- Si se corrige el ultimo header faltante, debe ser un ajuste quirurgico sobre la version `(8)`, no una reestructuracion completa.
