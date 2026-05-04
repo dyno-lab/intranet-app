@@ -769,3 +769,28 @@ python -m uvicorn app.main:app --reload
 6. Paginación en listados
 7. Evaluar si `género`, `VCA` y `primera_vez` pasan a catálogo
 8. Limpieza de archivos sueltos del repo
+
+### Actualizacion 2026-05-04 - Base de plantillas versionadas por propuesta
+Estado: **infraestructura inicial implementada sin cambiar el formato actual por defecto**.
+
+Contexto:
+- Christian aprobo manejar reportes con plantillas/versiones por propuesta para no romper informes culminados.
+- Requisito adicional: Hoja de Cotejo debe repetir header en todas las paginas, aunque una pagina sea continuacion de una tabla.
+
+Implementado:
+- Nuevas tablas idempotentes en startup: `report_templates`, `report_template_versions`, `proposal_report_templates`.
+- Nueva plantilla base congelada: `hoja_cotejo_base_v1`, con columnas/header/footer del formato actual.
+- Nuevos modelos SQLAlchemy: `app/models/report_template.py`.
+- Nuevo servicio: `app/services/report_templates.py` para resolver configuracion por propuesta con fallback seguro al formato base.
+- `/ui/reports/hoja-cotejo` ahora carga `report_template_config` y `report_template_columns` desde la plantilla resuelta.
+- PDF de Hoja de Cotejo ahora usa columnas configurables y header fijo/repetido en cada pagina fisica.
+- Excel de Hoja de Cotejo ahora usa las columnas configuradas por plantilla.
+
+Validacion tecnica realizada:
+- `.venv\Scripts\python.exe -m compileall app` paso.
+- Carga Jinja2 de `ui/reports/hoja_cotejo_pdf.html` paso.
+
+Pendiente:
+- Crear pantalla Admin para asignar una version especifica de plantilla a una propuesta nueva.
+- Validacion visual del PDF con datos reales y tablas largas.
+- No hubo commit local ni push remoto todavia.

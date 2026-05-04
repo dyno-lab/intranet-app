@@ -17,15 +17,24 @@
       background: #fff;
     }
 
+    .cotejo-fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 0.92in;
+      text-align: center;
+      background: #fff;
+      z-index: 10;
+    }
+
     .cotejo-page {
       display: block;
       page-break-after: always;
       break-after: page;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
       margin: 0;
-      padding: 0;
-      min-height: 10.2in;
+      padding: 0.94in 0 0 0;
+      min-height: 9.25in;
     }
 
     .cotejo-page:last-child {
@@ -34,30 +43,31 @@
     }
 
     .cotejo-page-inner {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
+      display: block;
       margin: 0;
       padding: 0;
-      min-height: 10.2in;
+      min-height: 9.25in;
     }
 
     .cotejo-header,
     .cotejo-meta,
-    .cotejo-main-table,
     .cotejo-signatures,
     .cotejo-footer,
     .cotejo-total,
     .cotejo-meta-table,
-    .cotejo-main-table thead,
-    .cotejo-main-table tbody,
     .cotejo-main-table tr,
     .cotejo-signature-grid,
     .cotejo-sig {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
+    }
+
+    .cotejo-main-table thead {
+      display: table-header-group;
+    }
+
+    .cotejo-main-table tfoot {
+      display: table-footer-group;
     }
 
     .cotejo-header {
@@ -113,12 +123,6 @@
       margin: 0;
     }
 
-    .cotejo-main-table col.col-programa { width: 22%; }
-    .cotejo-main-table col.col-activity { width: 38%; }
-    .cotejo-main-table col.col-realizadas { width: 9%; }
-    .cotejo-main-table col.col-duplicados { width: 9%; }
-    .cotejo-main-table col.col-unicos { width: 9%; }
-    .cotejo-main-table col.col-horas { width: 13%; }
 
     .cotejo-main-table th,
     .cotejo-main-table td {
@@ -232,15 +236,20 @@
   </style>
 </head>
 <body>
+  {% set header_config = report_template_config.header if report_template_config and report_template_config.header else {} %}
+  {% set footer_config = report_template_config.footer if report_template_config and report_template_config.footer else {} %}
+  {% set columns = report_template_columns or [] %}
+  <div class="cotejo-fixed-header">
+    <div class="cotejo-header">
+      <img class="cotejo-header-image" src="{{ header_config.image or '/static/img/bonafide-header-avp.png' }}" alt="Header Reporte">
+      <div class="line-1">{{ header_config.line_1 or 'ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES' }}</div>
+      <div class="line-2">{{ header_config.line_2 or 'PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN' }}</div>
+    </div>
+  </div>
+
   {% for program_block in program_blocks %}
   <div class="cotejo-page">
     <div class="cotejo-page-inner">
-      <div class="cotejo-header">
-        <img class="cotejo-header-image" src="/static/img/bonafide-header-avp.png" alt="Header AVP">
-        <div class="line-1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-        <div class="line-2">PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN</div>
-      </div>
-
       <div class="cotejo-meta">
         <table class="cotejo-meta-table">
           <tr>
@@ -256,21 +265,15 @@
 
       <table class="cotejo-main-table">
         <colgroup>
-          <col class="col-programa">
-          <col class="col-activity">
-          <col class="col-realizadas">
-          <col class="col-duplicados">
-          <col class="col-unicos">
-          <col class="col-horas">
+          {% for column in columns %}
+          <col style="width: {{ column.width or 'auto' }};">
+          {% endfor %}
         </colgroup>
         <thead>
           <tr>
-            <th>PROGRAMA / CLASIFICACIÓN</th>
-            <th>ACTIVIDADES</th>
-            <th>REALIZADAS</th>
-            <th>DUPLICADOS</th>
-            <th>ÚNICOS</th>
-            <th>HORAS</th>
+            {% for column in columns %}
+            <th>{{ column.label }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
@@ -279,20 +282,24 @@
               {% for row in population_block.rows %}
               {% set activity_text = (row.activity_code ~ ' ' ~ (row.activity_description or ''))|trim %}
               <tr>
-                <td class="cotejo-program-label">{{ population_block.population_label }}</td>
-                <td class="cotejo-activity-cell">
-                  <span class="cotejo-activity-single-line">{{ activity_text }}</span>
-                </td>
-                <td class="cotejo-center">{{ row.activities_count }}</td>
-                <td class="cotejo-center">{{ row.duplicados }}</td>
-                <td class="cotejo-center">{{ row.unique_participants }}</td>
-                <td class="cotejo-center">{{ '%.2f'|format(row.contact_hours) }}</td>
+                {% for column in columns %}
+                  {% set key = column.key %}
+                  {% if key == 'population_label' %}
+                    <td class="cotejo-program-label">{{ population_block.population_label }}</td>
+                  {% elif key == 'activity_text' %}
+                    <td class="cotejo-activity-cell"><span class="cotejo-activity-single-line">{{ activity_text }}</span></td>
+                  {% elif key == 'contact_hours' %}
+                    <td class="cotejo-center">{{ '%.2f'|format(row.contact_hours) }}</td>
+                  {% else %}
+                    <td class="cotejo-center">{{ row[key] if key in row else '' }}</td>
+                  {% endif %}
+                {% endfor %}
               </tr>
               {% endfor %}
             {% else %}
               <tr class="cotejo-empty-row">
                 <td class="cotejo-program-label">{{ population_block.population_label }}</td>
-                <td colspan="5">No hay actividades asignadas a esta clasificación.</td>
+                <td colspan="{{ (columns|length - 1) if columns|length > 1 else 1 }}">No hay actividades asignadas a esta clasificación.</td>
               </tr>
             {% endif %}
           {% endfor %}
@@ -327,7 +334,7 @@
       </div>
 
       <div class="cotejo-footer">
-        <img class="cotejo-footer-image" src="/static/img/no-duplicado-footer-faro.png" alt="Footer Faro">
+        <img class="cotejo-footer-image" src="{{ footer_config.image or '/static/img/no-duplicado-footer-faro.png' }}" alt="Footer Reporte">
       </div>
     </div>
   </div>

@@ -1364,6 +1364,96 @@ WHERE a.participant_id IS NULL
 """
 
 
+PHASE9_REPORT_TEMPLATES_SQL = """
+IF OBJECT_ID(N'dbo.report_templates', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.report_templates (
+        report_template_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_key VARCHAR(80) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        description VARCHAR(500) NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_report_templates_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_report_templates_created_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF OBJECT_ID(N'dbo.report_template_versions', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.report_template_versions (
+        report_template_version_id INT IDENTITY(1,1) PRIMARY KEY,
+        report_template_id INT NOT NULL,
+        version_number INT NOT NULL,
+        version_label VARCHAR(80) NOT NULL,
+        config_json NVARCHAR(MAX) NOT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_report_template_versions_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_report_template_versions_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_report_template_versions_template FOREIGN KEY (report_template_id) REFERENCES dbo.report_templates(report_template_id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.proposal_report_templates', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_report_templates (
+        proposal_report_template_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        report_key VARCHAR(80) NOT NULL,
+        report_template_version_id INT NOT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_report_templates_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_report_templates_created_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_report_templates_proposal FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT FK_proposal_report_templates_version FOREIGN KEY (report_template_version_id) REFERENCES dbo.report_template_versions(report_template_version_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_report_templates_report_key'
+      AND object_id = OBJECT_ID('dbo.report_templates')
+)
+BEGIN
+    CREATE INDEX IX_report_templates_report_key ON dbo.report_templates(report_key);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_report_template_versions_template_id'
+      AND object_id = OBJECT_ID('dbo.report_template_versions')
+)
+BEGIN
+    CREATE INDEX IX_report_template_versions_template_id ON dbo.report_template_versions(report_template_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_proposal_report_templates_proposal_report'
+      AND object_id = OBJECT_ID('dbo.proposal_report_templates')
+)
+BEGIN
+    CREATE INDEX IX_proposal_report_templates_proposal_report ON dbo.proposal_report_templates(proposal_id, report_key, is_active);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.report_templates WHERE report_key = 'hoja_cotejo_base_v1')
+BEGIN
+    INSERT INTO dbo.report_templates (report_key, name, description)
+    VALUES ('hoja_cotejo_base_v1', 'Hoja de Cotejo - formato actual', 'Plantilla base congelada para mantener compatibilidad con informes actuales.');
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.report_template_versions rtv
+    INNER JOIN dbo.report_templates rt ON rt.report_template_id = rtv.report_template_id
+    WHERE rt.report_key = 'hoja_cotejo_base_v1'
+      AND rtv.version_number = 1
+)
+BEGIN
+    INSERT INTO dbo.report_template_versions (report_template_id, version_number, version_label, config_json)
+    SELECT report_template_id, 1, 'Base v1 - formato actual', N'{"template_key":"hoja_cotejo_base_v1","version_label":"Base v1 - formato actual","header":{"image":"/static/img/bonafide-header-avp.png","line_1":"ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES","line_2":"PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN","repeat_on_every_page":true},"footer":{"image":"/static/img/no-duplicado-footer-faro.png"},"columns":[{"key":"population_label","label":"PROGRAMA / CLASIFICACIÓN","width":"22%","align":"left"},{"key":"activity_text","label":"ACTIVIDADES","width":"38%","align":"left"},{"key":"activities_count","label":"REALIZADAS","width":"9%","align":"center"},{"key":"duplicados","label":"DUPLICADOS","width":"9%","align":"center"},{"key":"unique_participants","label":"ÚNICOS","width":"9%","align":"center"},{"key":"contact_hours","label":"HORAS","width":"13%","align":"center","format":"decimal_2"}]}'
+    FROM dbo.report_templates
+    WHERE report_key = 'hoja_cotejo_base_v1';
+END;
+"""
+
+
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
@@ -1372,6 +1462,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
+        conn.exec_driver_sql(PHASE9_REPORT_TEMPLATES_SQL)
         # PHASE8 temporalmente fuera del startup para no bloquear arranque por estados legacy de SQL Server.
         # La corrección de activity_productivity_goals debe ejecutarse de forma controlada sobre la BD real.
 

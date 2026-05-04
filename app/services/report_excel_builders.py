@@ -305,11 +305,28 @@ def build_por_programa_sheet(wb: Workbook, context: dict, title: str = "Por Prog
     return ws
 
 
+def _hoja_cotejo_cell_value(row: dict, population_label: str, column: dict):
+    key = column.get("key")
+    if key == "population_label":
+        return population_label
+    if key == "activity_text":
+        return f"{row.get('activity_code', '')} {row.get('activity_description') or ''}".strip()
+    return row.get(key, "")
+
+
 def build_hoja_cotejo_sheet(wb: Workbook, context: dict, title: str = "Hoja de Cotejo"):
     ws = make_sheet(wb, title)
+    columns = context.get("report_template_columns") or [
+        {"key": "activity_text", "label": "Actividad", "align": "left"},
+        {"key": "activities_count", "label": "Realizadas", "align": "center"},
+        {"key": "duplicados", "label": "Duplicados", "align": "center"},
+        {"key": "unique_participants", "label": "Unicos", "align": "center"},
+        {"key": "contact_hours", "label": "Horas contacto", "align": "center", "format": "decimal_2"},
+    ]
+    end_col = max(len(columns), 5)
     ws.freeze_panes = "A10"
-    style_title(ws, "A1", "Hoja de Cotejo", "E1")
-    style_subtitle(ws, "A2", "Reporte por programa, clasificación y actividad", "E2")
+    style_title(ws, "A1", "Hoja de Cotejo", ws.cell(row=1, column=end_col).coordinate)
+    style_subtitle(ws, "A2", "Reporte por programa, clasificacion y actividad", ws.cell(row=2, column=end_col).coordinate)
     meta = [
         ("Residencial", context["residential_name"] or ""),
         ("Municipio", context["municipality"] or ""),
@@ -323,34 +340,35 @@ def build_hoja_cotejo_sheet(wb: Workbook, context: dict, title: str = "Hoja de C
     row_index = 10
     for program_block in context.get("program_blocks", []):
         style_section(ws.cell(row=row_index, column=1, value=f"Programa: {program_block['program_display_name']}"))
-        ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=5)
+        ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=len(columns))
         row_index += 1
         for population_block in program_block.get("population_blocks", []):
-            style_meta_label(ws.cell(row=row_index, column=1, value=f"Clasificación / población: {population_block['population_label']}"))
-            ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=5)
+            style_meta_label(ws.cell(row=row_index, column=1, value=f"Clasificacion / poblacion: {population_block['population_label']}"))
+            ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=len(columns))
             row_index += 1
-            for col_index, header in enumerate(["Actividad", "Realizadas", "Duplicados", "Únicos", "Horas contacto"], start=1):
-                style_header(ws.cell(row=row_index, column=col_index, value=header))
+            for col_index, column in enumerate(columns, start=1):
+                style_header(ws.cell(row=row_index, column=col_index, value=column.get("label", "")))
             header_row = row_index
             row_index += 1
 
-            start_data_row = row_index
             if population_block.get("rows"):
                 for row in population_block["rows"]:
-                    ws.cell(row=row_index, column=1, value=f"{row['activity_code']} {row['activity_description'] or ''}".strip()).alignment = LEFT
-                    ws.cell(row=row_index, column=2, value=row["activities_count"]).alignment = CENTER
-                    ws.cell(row=row_index, column=3, value=row["duplicados"]).alignment = CENTER
-                    ws.cell(row=row_index, column=4, value=row["unique_participants"]).alignment = CENTER
-                    hours_cell = ws.cell(row=row_index, column=5, value=row["contact_hours"])
-                    hours_cell.alignment = CENTER
-                    hours_cell.number_format = "0.00"
+                    for col_index, column in enumerate(columns, start=1):
+                        cell = ws.cell(
+                            row=row_index,
+                            column=col_index,
+                            value=_hoja_cotejo_cell_value(row, population_block["population_label"], column),
+                        )
+                        cell.alignment = LEFT if column.get("align") == "left" or col_index == 1 else CENTER
+                        if column.get("format") == "decimal_2":
+                            cell.number_format = "0.00"
                     row_index += 1
             else:
-                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificación.")
-                ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=5)
+                ws.cell(row=row_index, column=1, value="No hay actividades asignadas a esta clasificacion.")
+                ws.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=len(columns))
                 ws.cell(row=row_index, column=1).alignment = CENTER
                 row_index += 1
-            apply_table_border(ws, header_row, row_index - 1, 1, 5)
+            apply_table_border(ws, header_row, row_index - 1, 1, len(columns))
             row_index += 1
         row_index += 1
 
@@ -358,10 +376,14 @@ def build_hoja_cotejo_sheet(wb: Workbook, context: dict, title: str = "Hoja de C
     total_cell = ws.cell(row=row_index, column=2, value=context["total_contact_hours"])
     style_total(total_cell)
     total_cell.number_format = "0.00"
-    for col, width in {"A": 55, "B": 14, "C": 14, "D": 14, "E": 16}.items():
-        ws.column_dimensions[col].width = width
+    for col_index, column in enumerate(columns, start=1):
+        letter = ws.cell(row=1, column=col_index).column_letter
+        width_hint = str(column.get("width", "")).strip().replace("%", "")
+        try:
+            ws.column_dimensions[letter].width = max(12, min(60, float(width_hint) * 1.4))
+        except ValueError:
+            ws.column_dimensions[letter].width = 16 if col_index > 1 else 32
     return ws
-
 
 def build_desercion_sheet(wb: Workbook, context: dict, title: str = "Desercion"):
     ws = make_sheet(wb, title)

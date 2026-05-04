@@ -82,6 +82,10 @@ from app.services.report_programs import (
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
     resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks,
 )
+from app.services.report_templates import (
+    report_template_columns as _report_template_columns,
+    resolve_report_template_config as _resolve_report_template_config,
+)
 from app.services.report_pdf import (
     PDFBackendUnavailableError,
     PDFRenderError,
@@ -3172,6 +3176,9 @@ def _build_hoja_cotejo_context(
     municipality = location["municipality"]
     rq_code = location["rq_code"]
 
+    report_template_config = _resolve_report_template_config(db, proposal_id, "hoja_cotejo")
+    report_template_columns = _report_template_columns(report_template_config)
+
     program_blocks = []
     total_contact_hours = 0.0
 
@@ -3293,6 +3300,8 @@ def _build_hoja_cotejo_context(
         "rq_code": rq_code,
         "program_blocks": program_blocks,
         "total_contact_hours": total_contact_hours,
+        "report_template_config": report_template_config,
+        "report_template_columns": report_template_columns,
     }
 
 
