@@ -6,7 +6,7 @@
   <style>
     @page { size: letter landscape; margin: 0.25in; }
     body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 9.5px; }
-    .page { page-break-after: always; position: relative; }
+    .page { page-break-after: always; position: relative; page-break-inside: avoid; }
     .page:last-child { page-break-after: auto; }
     .header { position: relative; min-height: 0.74in; }
     .logo { position: absolute; left: 0; top: 0; }
@@ -18,7 +18,7 @@
     .meta { width: 100%; border-collapse: collapse; margin-top: 0.06in; font-size: 9.5px; }
     .meta td { border: none; padding: 2px 3px; vertical-align: top; }
     .meta .residentials { line-height: 1.2; }
-    table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; page-break-inside: avoid; }
     table.data thead { display: table-header-group; }
     table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; page-break-inside: avoid; }
     table.data th { background: #C6D9F1; text-align: center; font-weight: bold; font-size: 7.4px; }
@@ -38,7 +38,11 @@
   </style>
 </head>
 <body>
+{% set rows_per_table = 18 %}
 {% for program in program_blocks %}
+  {% for row_batch in program.rows|batch(rows_per_table, none) %}
+  {% set is_continuation = not loop.first %}
+  {% set is_last_batch = loop.last %}
 <div class="page">
   <table class="data">
     <colgroup>
@@ -59,14 +63,14 @@
           <div class="header">
             <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
             <div class="title-block">
-              <div class="line1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-              <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO</div>
-              <div class="line3">COMPAÑÍA: Centro Sor Isolina Ferré, Inc.</div>
+              <div class="line1">?REA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+              <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEG?N EL PLAN DE TRABAJO</div>
+              <div class="line3">COMPA??A: Centro Sor Isolina Ferr?, Inc.</div>
             </div>
           </div>
           <table class="meta">
             <tr>
-              <td style="width:55%;"><strong>PERÍODO DE INFORME:</strong> {{ period_title }}</td>
+              <td style="width:55%;"><strong>PER?ODO DE INFORME:</strong> {{ period_title }}</td>
               <td style="width:45%;"><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %}</td>
             </tr>
             <tr>
@@ -76,11 +80,11 @@
         </th>
       </tr>
       <tr>
-        <th>PROGRAMA POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
+        <th>PROGRAMA POR ACTIVIDAD SEG?N EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
         <th>ACTIVIDAD REALIZADA</th>
         <th>DUPLICADOS / PERSONAS IMPACTADAS</th>
-        <th>SE LOGRÓ EL 100%</th>
-        <th>SÍ</th>
+        <th>SE LOGR? EL 100%</th>
+        <th>S?</th>
         <th>NO</th>
         <th>FRECUENCIA / CUMPLIMIENTO</th>
         <th>POR CIENTO (%) DE CUMPLIMIENTO MENSUAL</th>
@@ -89,8 +93,11 @@
       </tr>
     </thead>
     <tbody>
-      <tr class="program-row"><td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</td></tr>
-      {% for row in program.rows %}
+      <tr class="program-row">
+        <td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}{% if is_continuation %} (continuaci?n){% endif %}</td>
+      </tr>
+      {% for row in row_batch %}
+        {% if row %}
       <tr>
         <td><div class="activity">{{ row.activity_code }}</div><div class="desc">{{ row.activity_description }}<br>{{ row.achievement_text }}</div></td>
         <td class="center">{{ row.activities_count }}</td>
@@ -103,12 +110,14 @@
         <td class="center">{{ row.cumulative_ratio }}</td>
         <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
       </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
 
+  {% if is_last_batch %}
   <div class="signature">
-    <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.</div>
+    <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevenci?n, certifico que la informaci?n presentada en este informe es correcta.</div>
     <table class="sig-table">
       <tr>
         <td style="width:3.0in;" class="line"></td>
@@ -122,7 +131,9 @@
       </tr>
     </table>
   </div>
+  {% endif %}
 </div>
+  {% endfor %}
 {% endfor %}
 </body>
 </html>

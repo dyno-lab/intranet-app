@@ -1134,3 +1134,22 @@ Implementado:
 Validacion tecnica:
 - `compileall app` paso.
 - Carga Jinja2 de `ui/admin/hoja_cotejo_pdf.html` paso.
+
+### Ajuste exacto 2026-05-04 - Hoja de Cotejo Admin 18 actividades por tabla
+Estado: **implementado; pendiente validar descarga nueva**.
+
+Contexto:
+- Christian pidio, tras revisar `hoja_cotejo_005_04_2026 (14).pdf`, que si la tabla es muy grande se limite a **18 actividades por tabla**.
+- Tambien pidio evitar que el footer/firma se pierda cuando una tabla se divide y marcar `(continuación)` cuando sigue el mismo programa.
+
+Implementado:
+- La plantilla PDF Admin de Hoja de Cotejo ahora divide cada programa en bloques de 18 actividades usando `batch(18)`.
+- Cada bloque genera su propia tabla/pagina con el mismo header y columnas.
+- Si el bloque no es el primero del programa, la fila del programa agrega `(continuación)`.
+- La firma/footer se muestra solo en el ultimo bloque del programa, evitando cierres prematuros cuando el programa continua.
+- Se mantiene el header en `thead` y se evita partir la tabla/bloque con `page-break-inside: avoid`.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Carga Jinja2 paso.
+- Prueba de render HTML con 40 filas confirmo 3 bloques, 2 continuaciones y una sola firma.
