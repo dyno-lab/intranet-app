@@ -3323,6 +3323,12 @@ def admin_report_templates(
         .order_by(ProposalReportTemplate.proposal_id, ProposalReportTemplate.report_key)
     ).all()
 
+    versions_by_report: dict[str, list[tuple[ReportTemplateVersion, ReportTemplate]]] = {
+        report_key: [] for report_key, _ in REPORT_TEMPLATE_REPORT_OPTIONS
+    }
+    for version, template in versions:
+        versions_by_report.setdefault(template.report_key, []).append((version, template))
+
     assignment_map: dict[tuple[int, str], dict] = {}
     for assignment, version, template in active_assignments:
         assignment_map[(assignment.proposal_id, assignment.report_key)] = {
@@ -3341,6 +3347,7 @@ def admin_report_templates(
             "selected_proposal_id": proposal_id,
             "templates_list": templates_list,
             "versions": versions,
+            "versions_by_report": versions_by_report,
             "assignment_map": assignment_map,
             "report_options": REPORT_TEMPLATE_REPORT_OPTIONS,
         },
@@ -3366,6 +3373,10 @@ def admin_report_templates_assign(
     version = db.get(ReportTemplateVersion, report_template_version_id)
     if not version or not version.is_active:
         return _report_template_redirect("Error: Version de plantilla no encontrada o inactiva.", proposal_id)
+
+    template = db.get(ReportTemplate, version.report_template_id)
+    if not template or template.report_key != report_key:
+        return _report_template_redirect("Error: La version seleccionada pertenece a otro reporte.", proposal_id)
 
     existing = db.execute(
         select(ProposalReportTemplate).where(

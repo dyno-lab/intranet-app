@@ -951,3 +951,22 @@ Validacion tecnica:
 - `compileall app` paso.
 - Import de `app.main` paso.
 - Carga y render simulado de `report_templates.html` paso.
+
+### Correccion 2026-05-04 - Cada reporte conserva su propio formato base
+Estado: **implementado**.
+
+Contexto:
+- Christian aclaro que Report Templates no significa usar el formato de Hoja de Cotejo para todos los reportes.
+- Cada reporte debe conservar su propio formato actual: Bonafide con Bonafide, Hoja de Cotejo con Hoja de Cotejo, Consolidado con Consolidado, etc.
+
+Implementado:
+- Se agrego siembra idempotente de plantilla base/version base para cada reporte principal en `PHASE9_REPORT_TEMPLATES_SQL`.
+- Cada `report_key` tiene su propia plantilla `- formato actual` y version `Base v1 - formato actual`.
+- La pantalla Admin ahora filtra las versiones disponibles por reporte, evitando asignar por error una version de Hoja de Cotejo a Bonafide u otro reporte.
+- Backend valida que la version seleccionada pertenezca al mismo `report_key` antes de asignarla.
+- Help actualizado para aclarar que no hay formato unico compartido y que los reportes sin asignacion usan su propio formato base.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Render simulado de `report_templates.html` paso con Bonafide y Hoja de Cotejo mostrando sus bases separadas.

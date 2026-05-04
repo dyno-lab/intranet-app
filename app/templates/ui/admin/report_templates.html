@@ -21,13 +21,17 @@
   </div>
   <div class="card-body">
     <p class="mb-2">
-      <strong>Report Templates es un requisito transversal:</strong> no pertenece solo a Hoja de Cotejo. Todo reporte actual o futuro debe evaluarse contra este registro antes de cambiar headers, fotos, columnas o estructura.
+      <strong>Report Templates es un requisito transversal:</strong> no pertenece solo a Hoja de Cotejo ni comparte un formato unico. Cada reporte conserva su propio formato actual: Bonafide usa su formato Bonafide, Hoja de Cotejo usa su formato Hoja de Cotejo, Consolidado usa su formato Consolidado, etc.
+    </p>
+    <p class="mb-2">
+      Esta pantalla sirve para asignar versiones por propuesta y evitar que un cambio nuevo afecte informes culminados.
     </p>
     <ul class="mb-3">
       <li><strong>No editar una plantilla base para resolver una propuesta nueva.</strong> Crear una version nueva.</li>
       <li><strong>No romper informes culminados:</strong> cada propuesta puede quedar amarrada a una version especifica.</li>
-      <li><strong>Reportes sin asignacion:</strong> usan el comportamiento base por defecto.</li>
-      <li><strong>Reportes futuros:</strong> deben agregarse a este catalogo y resolver su configuracion por <code>report_key</code>.</li>
+      <li><strong>Reportes sin asignacion:</strong> usan su propio formato base por defecto, no el formato de otro reporte.</li>
+      <li><strong>Propuestas actuales:</strong> deben quedar asociadas al formato base actual de cada reporte cuando se requiera congelar/versionar.</li>
+      <li><strong>Reportes futuros:</strong> deben agregarse a este catalogo y resolver su configuracion por <code>report_key</code> desde el inicio.</li>
       <li><strong>Cambios permitidos por version:</strong> header, logos/fotos, footer, columnas, etiquetas, orden y reglas visuales.</li>
     </ul>
     <div class="small text-muted">
@@ -107,7 +111,7 @@
                     <input type="hidden" name="report_key" value="{{ report_key }}">
                     <div class="col-md-8">
                       <select name="report_template_version_id" class="form-select form-select-sm" required>
-                        {% for version, template in versions %}
+                        {% for version, template in versions_by_report.get(report_key, []) %}
                           <option value="{{ version.report_template_version_id }}" {{ 'selected' if current and current.version.report_template_version_id == version.report_template_version_id }}>
                             {{ template.name }} — {{ version.version_label }} (v{{ version.version_number }})
                           </option>

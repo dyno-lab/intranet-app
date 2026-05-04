@@ -1451,6 +1451,49 @@ BEGIN
     FROM dbo.report_templates
     WHERE report_key = 'hoja_cotejo_base_v1';
 END;
+
+DECLARE @ReportTemplateSeeds TABLE (
+    report_key VARCHAR(80),
+    name VARCHAR(150),
+    description VARCHAR(500)
+);
+
+INSERT INTO @ReportTemplateSeeds (report_key, name, description)
+VALUES
+    ('bonafide', 'Bonafide - formato actual', 'Plantilla base del formato actual de Bonafide.'),
+    ('no_duplicado', 'No Duplicado - formato actual', 'Plantilla base del formato actual de No Duplicado.'),
+    ('duplicado', 'Duplicado - formato actual', 'Plantilla base del formato actual de Duplicado.'),
+    ('por_programa', 'Por Programa - formato actual', 'Plantilla base del formato actual de Por Programa.'),
+    ('hoja_cotejo', 'Hoja de Cotejo - formato actual', 'Plantilla base del formato actual de Hoja de Cotejo.'),
+    ('vca', 'VCA - formato actual', 'Plantilla base del formato actual de VCA.'),
+    ('adm', 'ADM - formato actual', 'Plantilla base del formato actual de ADM.'),
+    ('visitas', 'Visitas - formato actual', 'Plantilla base del formato actual de Visitas.'),
+    ('desercion', 'Desercion Escolar - formato actual', 'Plantilla base del formato actual de Desercion Escolar.'),
+    ('embarazo', 'Embarazo - formato actual', 'Plantilla base del formato actual de Embarazo.'),
+    ('notas', 'Notas - formato actual', 'Plantilla base del formato actual de Notas.'),
+    ('consolidado_mensual_global', 'Consolidado Mensual Global - formato actual', 'Plantilla base del formato actual de Consolidado Mensual Global.'),
+    ('plantilla_duplicado', 'Plantilla Duplicado - formato actual', 'Plantilla base del formato actual de Plantilla Duplicado.'),
+    ('hoja_cotejo_admin', 'Hoja de Cotejo Admin - formato actual', 'Plantilla base del formato actual de Hoja de Cotejo Admin.');
+
+INSERT INTO dbo.report_templates (report_key, name, description)
+SELECT seeds.report_key, seeds.name, seeds.description
+FROM @ReportTemplateSeeds seeds
+WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.report_templates rt WHERE rt.report_key = seeds.report_key
+);
+
+INSERT INTO dbo.report_template_versions (report_template_id, version_number, version_label, config_json)
+SELECT rt.report_template_id, 1, 'Base v1 - formato actual',
+       N'{"template_key":"' + seeds.report_key + N'_base_v1","version_label":"Base v1 - formato actual","preserve_current_format":true,"header":{},"footer":{},"columns":[]}'
+FROM @ReportTemplateSeeds seeds
+INNER JOIN dbo.report_templates rt ON rt.report_key = seeds.report_key
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.report_template_versions rtv
+    WHERE rtv.report_template_id = rt.report_template_id
+      AND rtv.version_number = 1
+);
+
 """
 
 
