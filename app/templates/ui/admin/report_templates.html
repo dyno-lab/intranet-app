@@ -139,6 +139,40 @@
   </div>
 </div>
 
+<div class="card mb-4">
+  <div class="card-header bg-success text-white">
+    <strong>Crear nueva version visual</strong>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small">Editor practico para crear una version sin escribir JSON. No modifica reportes existentes; solo crea una version nueva que luego puedes asignar a una propuesta.</p>
+    <form method="post" action="/ui/admin/report-templates/versions/create-visual" class="row g-3">
+      <div class="col-md-4"><label class="form-label">Reporte / plantilla base</label><select name="report_template_id" class="form-select" required>{% for template in templates_list %}<option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label">Nombre de version</label><input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 - Header nuevo" required></div>
+      <div class="col-12"><hr><h5>Header / titulos / fotos</h5></div>
+      <div class="col-md-4"><label class="form-label">Imagen header</label><input type="text" name="header_image" class="form-control" placeholder="/static/img/header.png"></div>
+      <div class="col-md-4"><label class="form-label">Titulo principal</label><input type="text" name="header_title" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Subtitulo</label><input type="text" name="header_subtitle" class="form-control"></div>
+      <div class="col-12"><label class="form-label">Notas/lineas adicionales del header</label><textarea name="header_notes" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><hr><h5>Footer / firmas / fechas</h5></div>
+      <div class="col-md-4"><label class="form-label">Imagen footer</label><input type="text" name="footer_image" class="form-control" placeholder="/static/img/footer.png"></div>
+      <div class="col-md-8"><label class="form-label">Texto footer/certificacion</label><input type="text" name="footer_text" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Firma 1 - etiqueta</label><input type="text" name="signature_1_label" class="form-control" placeholder="Firma del Representante Autorizado"></div>
+      <div class="col-md-3"><label class="form-label">Firma 1 - titulo/cargo</label><input type="text" name="signature_1_title" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Firma 2 - etiqueta</label><input type="text" name="signature_2_label" class="form-control" placeholder="Firma / Iniciales"></div>
+      <div class="col-md-3"><label class="form-label">Fecha - etiqueta</label><input type="text" name="date_label" class="form-control" placeholder="Fecha"></div>
+      <div class="col-12"><hr><h5>Espacios / margenes / tabla</h5></div>
+      <div class="col-md-2"><label class="form-label">Margen arriba</label><input type="text" name="margin_top" class="form-control" placeholder="0.25in"></div>
+      <div class="col-md-2"><label class="form-label">Margen derecha</label><input type="text" name="margin_right" class="form-control" placeholder="0.25in"></div>
+      <div class="col-md-2"><label class="form-label">Margen abajo</label><input type="text" name="margin_bottom" class="form-control" placeholder="0.25in"></div>
+      <div class="col-md-2"><label class="form-label">Margen izquierda</label><input type="text" name="margin_left" class="form-control" placeholder="0.25in"></div>
+      <div class="col-md-2"><label class="form-label">Espacio header/tabla</label><input type="text" name="table_spacing" class="form-control" placeholder="8px"></div>
+      <div class="col-md-2"><label class="form-label">Filas por tabla</label><input type="text" name="rows_per_table" class="form-control" placeholder="18"></div>
+      <div class="col-12"><label class="form-label">Columnas visibles / etiquetas</label><textarea name="columns_text" class="form-control font-monospace" rows="5" placeholder="codigo|Codigo&#10;nombre|Nombre&#10;fecha|Fecha"></textarea><div class="form-text">Una columna por linea. Formato: <code>clave|Etiqueta visible</code>. Si se deja vacio, conserva columnas base del reporte.</div></div>
+      <div class="col-12"><button class="btn btn-success" type="submit">Crear version visual</button></div>
+    </form>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header bg-light">
     <strong>Crear nueva versión técnica</strong>

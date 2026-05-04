@@ -1241,3 +1241,36 @@ Validacion tecnica:
 - `compileall app` paso.
 - Import de `app.main` paso.
 - Render simulado de `report_templates.html` paso con Bonafide y Hoja de Cotejo mostrando sus bases separadas.
+
+### Actualizacion 2026-05-04 - Editor visual de versiones de reporte
+Estado: **implementado como creador de versiones visuales genericas**.
+
+Contexto:
+- Christian pidio considerar todos los reportes ya trabajados: firmas, fechas, espacios, titulos, fotos, header y footer, sin tocar reportes ya creados.
+
+Implementado:
+- Nueva accion POST: `/ui/admin/report-templates/versions/create-visual`.
+- En `/ui/admin/report-templates` se agrego `Crear nueva version visual`.
+- Campos visuales incluidos:
+  - reporte/plantilla base,
+  - nombre de version,
+  - imagen header,
+  - titulo principal,
+  - subtitulo,
+  - notas/lineas del header,
+  - imagen footer,
+  - texto footer/certificacion,
+  - firma 1 etiqueta/titulo,
+  - firma 2 etiqueta,
+  - etiqueta de fecha,
+  - margenes arriba/derecha/abajo/izquierda,
+  - espacio header/tabla,
+  - filas por tabla,
+  - columnas visibles/etiquetas.
+- El editor genera `config_json` internamente con `source=visual_editor` y `preserve_current_format=true`.
+- No modifica plantillas base ni reportes existentes; solo crea versiones nuevas que luego pueden asignarse por propuesta.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga y render simulado de `report_templates.html` paso.

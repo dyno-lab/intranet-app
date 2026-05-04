@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Form
 from datetime import date
@@ -54,17 +54,17 @@ templates = Jinja2Templates(directory="app/templates")
 
 VALID_USER_ROLES = {"admin", "supervisor", "user"}
 DEFAULT_POPULATION_GROUP_OPTIONS = [
-    ("ninos", "Niños", 0, 12, 1),
-    ("jovenes", "Jóvenes", 13, 17, 2),
+    ("ninos", "NiÃ±os", 0, 12, 1),
+    ("jovenes", "JÃ³venes", 13, 17, 2),
     ("adultos", "Adultos", 18, 59, 3),
     ("adulto_mayor", "Adulto Mayor", 60, None, 4),
 ]
 
 PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
     ("none", "Sin meta productiva"),
-    ("per_residential_min_1", "Según Necesidad"),
+    ("per_residential_min_1", "SegÃºn Necesidad"),
     ("per_residential_fixed", "Cantidad fija por residencial por mes"),
-    ("per_residential_period_fixed", "Acumulada por período"),
+    ("per_residential_period_fixed", "Acumulada por perÃ­odo"),
 ]
 
 VALID_PRODUCTIVITY_GOAL_TYPES = {value for value, _ in PRODUCTIVITY_GOAL_TYPE_OPTIONS}
@@ -96,7 +96,7 @@ def _normalize_activity_productivity_goal(
 ) -> tuple[str, int | None, int | None]:
     normalized_goal_type = (goal_type or "none").strip()
     if normalized_goal_type not in VALID_PRODUCTIVITY_GOAL_TYPES:
-        raise ValueError("Error: Tipo de meta productiva inválido.")
+        raise ValueError("Error: Tipo de meta productiva invÃ¡lido.")
 
     if proposal_id is None:
         return "none", None, None
@@ -110,16 +110,16 @@ def _normalize_activity_productivity_goal(
         try:
             normalized_period_goal_value = int(raw_period_value)
         except ValueError as exc:
-            raise ValueError("Error: La meta global del período debe ser un número entero.") from exc
+            raise ValueError("Error: La meta global del perÃ­odo debe ser un nÃºmero entero.") from exc
 
         if normalized_period_goal_value < 1:
-            raise ValueError("Error: La meta global del período debe ser mayor o igual a 1.")
+            raise ValueError("Error: La meta global del perÃ­odo debe ser mayor o igual a 1.")
 
     if normalized_goal_type == "per_residential_min_1":
         return "per_residential_min_1", 1, normalized_period_goal_value
 
     if normalized_goal_type == "per_residential_period_fixed" and normalized_period_goal_value is None:
-        raise ValueError("Error: La meta global del período es requerida para actividades acumuladas por período.")
+        raise ValueError("Error: La meta global del perÃ­odo es requerida para actividades acumuladas por perÃ­odo.")
 
     raw_value = (goal_value_raw or "").strip()
     if not raw_value:
@@ -128,7 +128,7 @@ def _normalize_activity_productivity_goal(
     try:
         goal_value = int(raw_value)
     except ValueError as exc:
-        raise ValueError("Error: El valor de la meta productiva debe ser un número entero.") from exc
+        raise ValueError("Error: El valor de la meta productiva debe ser un nÃºmero entero.") from exc
 
     if goal_value < 1:
         raise ValueError("Error: El valor de la meta productiva debe ser mayor o igual a 1.")
@@ -143,16 +143,16 @@ def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | 
     parts: list[str] = []
 
     if goal.goal_type == "per_residential_min_1":
-        parts.append("Según Necesidad")
+        parts.append("SegÃºn Necesidad")
     elif goal.goal_type == "per_residential_fixed":
         parts.append(f"{goal.goal_value} / residencial / mes")
     elif goal.goal_type == "global_fixed":
         parts.append(f"{goal.goal_value} global / mes")
     elif goal.goal_type == "per_residential_period_fixed":
-        parts.append(f"{goal.goal_value} / residencial / período")
+        parts.append(f"{goal.goal_value} / residencial / perÃ­odo")
 
     if goal.period_goal_value:
-        parts.append(f"{goal.period_goal_value} global / período")
+        parts.append(f"{goal.period_goal_value} global / perÃ­odo")
 
     return " + ".join(parts) if parts else "Sin meta productiva"
 
@@ -311,7 +311,7 @@ def admin_edit_user(
         select(User).where(User.username == username, User.user_id != user_id)
     ).scalar_one_or_none()
     if existing:
-        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario ya está en uso.")
+        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario ya estÃ¡ en uso.")
 
     normalized_role = role if role in VALID_USER_ROLES else "user"
     if normalized_role == "user" and not residential_id:
@@ -388,7 +388,7 @@ def admin_create_residential(
     code = code.strip().upper()
     existing = db.execute(select(Residential).where(Residential.code == code)).scalar_one_or_none()
     if existing:
-        return _redirect_with_msg("/ui/admin/residentials", "Error: El código ya existe.")
+        return _redirect_with_msg("/ui/admin/residentials", "Error: El cÃ³digo ya existe.")
 
     residential = Residential(
         code=code,
@@ -422,7 +422,7 @@ def admin_edit_residential(
         select(Residential).where(Residential.code == code, Residential.residential_id != residential_id)
     ).scalar_one_or_none()
     if existing:
-        return _redirect_with_msg("/ui/admin/residentials", "Error: El código ya está en uso.")
+        return _redirect_with_msg("/ui/admin/residentials", "Error: El cÃ³digo ya estÃ¡ en uso.")
 
     residential.code = code
     residential.name = name.strip()
@@ -437,7 +437,7 @@ def admin_edit_residential(
 
 # ============================================================
 # VISITS MANAGEMENT
-# Configura qué actividades por propuesta cuentan como visitas.
+# Configura quÃ© actividades por propuesta cuentan como visitas.
 # Esta pantalla alimenta el futuro reporte de visitas en ui/reports.
 # ============================================================
 
@@ -502,7 +502,7 @@ def admin_create_visit_mapping(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/visits?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -518,7 +518,7 @@ def admin_create_visit_mapping(
     ).scalar_one_or_none()
     if existing:
         return RedirectResponse(
-            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Esa actividad ya está marcada como visita.",
+            f"/ui/admin/visits?proposal_id={proposal_id}&msg=Error: Esa actividad ya estÃ¡ marcada como visita.",
             status_code=303,
         )
 
@@ -545,13 +545,13 @@ def admin_delete_visit_mapping(
 ):
     mapping = db.get(VisitActivityMapping, mapping_id)
     if not mapping:
-        return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: Configuración no encontrada.")
+        return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: ConfiguraciÃ³n no encontrada.")
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/visits?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -637,7 +637,7 @@ def admin_create_adm_service_type(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/adm?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -665,7 +665,7 @@ def admin_edit_adm_service_type(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/adm?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -693,7 +693,7 @@ def admin_delete_adm_service_type(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/adm?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -718,7 +718,7 @@ def admin_assign_activity_to_adm_service_type(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/adm?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -736,7 +736,7 @@ def admin_assign_activity_to_adm_service_type(
         )
     ).scalar_one_or_none()
     if existing_assignment:
-        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Esa actividad ya está asignada a un tipo de servicio ADM.", status_code=303)
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Esa actividad ya estÃ¡ asignada a un tipo de servicio ADM.", status_code=303)
 
     db.add(ADMServiceTypeActivityCode(adm_service_type_id=adm_service_type_id, activity_code_id=activity_code_id))
     db.commit()
@@ -752,18 +752,18 @@ def admin_unassign_activity_from_adm_service_type(
 ):
     mapping = db.get(ADMServiceTypeActivityCode, mapping_id)
     if not mapping:
-        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Asignación no encontrada.", status_code=303)
+        return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: AsignaciÃ³n no encontrada.", status_code=303)
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/adm?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
     db.delete(mapping)
     db.commit()
-    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Asignación removida exitosamente.", status_code=303)
+    return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=AsignaciÃ³n removida exitosamente.", status_code=303)
 
 
 # ============================================================
@@ -839,7 +839,7 @@ def admin_create_vca_column(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/vca?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -865,7 +865,7 @@ def admin_delete_vca_column(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/vca?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -899,7 +899,7 @@ def admin_edit_vca_column(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/vca?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -926,7 +926,7 @@ def admin_assign_activity_to_vca_column(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/vca?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -944,7 +944,7 @@ def admin_assign_activity_to_vca_column(
         )
     ).scalar_one_or_none()
     if existing_assignment:
-        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Esa actividad ya está asignada a una columna VCA.", status_code=303)
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Esa actividad ya estÃ¡ asignada a una columna VCA.", status_code=303)
 
     db.add(VCAColumnActivityCode(vca_column_id=vca_column_id, activity_code_id=activity_code_id))
     db.commit()
@@ -960,18 +960,18 @@ def admin_unassign_activity_from_vca_column(
 ):
     mapping = db.get(VCAColumnActivityCode, mapping_id)
     if not mapping:
-        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Asignación no encontrada.", status_code=303)
+        return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: AsignaciÃ³n no encontrada.", status_code=303)
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/vca?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
     db.delete(mapping)
     db.commit()
-    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Asignación removida exitosamente.", status_code=303)
+    return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=AsignaciÃ³n removida exitosamente.", status_code=303)
 
 
 # ============================================================
@@ -1042,7 +1042,7 @@ def admin_create_activity_code(
         select(ActivityCode).where(ActivityCode.code == code)
     ).scalar_one_or_none()
     if existing:
-        return _redirect_with_msg("/ui/admin/activity-codes", "Error: El código ya existe.")
+        return _redirect_with_msg("/ui/admin/activity-codes", "Error: El cÃ³digo ya existe.")
 
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
@@ -1080,7 +1080,7 @@ def admin_create_activity_code(
 
     db.commit()
 
-    return _redirect_with_msg("/ui/admin/activity-codes", "Código de actividad creado exitosamente.")
+    return _redirect_with_msg("/ui/admin/activity-codes", "CÃ³digo de actividad creado exitosamente.")
 
 
 @router.post("/activity-codes/{activity_code_id}/edit")
@@ -1100,7 +1100,7 @@ def admin_edit_activity_code(
     ac = db.get(ActivityCode, activity_code_id)
     if not ac:
         return RedirectResponse(
-            "/ui/admin/activity-codes?msg=Error: Código no encontrado.",
+            "/ui/admin/activity-codes?msg=Error: CÃ³digo no encontrado.",
             status_code=303,
         )
 
@@ -1112,7 +1112,7 @@ def admin_edit_activity_code(
     ).scalar_one_or_none()
     if existing:
         return RedirectResponse(
-            "/ui/admin/activity-codes?msg=Error: El código ya está en uso.",
+            "/ui/admin/activity-codes?msg=Error: El cÃ³digo ya estÃ¡ en uso.",
             status_code=303,
         )
 
@@ -1159,7 +1159,7 @@ def admin_edit_activity_code(
     db.commit()
 
     return RedirectResponse(
-        "/ui/admin/activity-codes?msg=Código de actividad actualizado exitosamente.",
+        "/ui/admin/activity-codes?msg=CÃ³digo de actividad actualizado exitosamente.",
         status_code=303,
     )
 
@@ -1178,14 +1178,14 @@ def admin_delete_activity_code(
 
     if session_count and session_count > 0:
         return RedirectResponse(
-            "/ui/admin/activity-codes?msg=Error: No se puede eliminar, tiene sesiones asociadas. Desactívelo en su lugar.",
+            "/ui/admin/activity-codes?msg=Error: No se puede eliminar, tiene sesiones asociadas. DesactÃ­velo en su lugar.",
             status_code=303,
         )
 
     ac = db.get(ActivityCode, activity_code_id)
     if not ac:
         return RedirectResponse(
-            "/ui/admin/activity-codes?msg=Error: Código no encontrado.",
+            "/ui/admin/activity-codes?msg=Error: CÃ³digo no encontrado.",
             status_code=303,
         )
 
@@ -1198,7 +1198,7 @@ def admin_delete_activity_code(
     db.commit()
 
     return RedirectResponse(
-        "/ui/admin/activity-codes?msg=Código de actividad eliminado exitosamente.",
+        "/ui/admin/activity-codes?msg=CÃ³digo de actividad eliminado exitosamente.",
         status_code=303,
     )
 
@@ -1241,7 +1241,7 @@ def admin_create_employee(
             select(Employee).where(Employee.employee_code == employee_code)
         ).scalar_one_or_none()
         if existing:
-            return _redirect_with_msg("/ui/admin/employees", "Error: El código de empleado ya existe.")
+            return _redirect_with_msg("/ui/admin/employees", "Error: El cÃ³digo de empleado ya existe.")
 
     emp = Employee(
         full_name=full_name,
@@ -1278,7 +1278,7 @@ def admin_edit_employee(
         ).scalar_one_or_none()
         if existing:
             return RedirectResponse(
-                "/ui/admin/employees?msg=Error: El código de empleado ya está en uso.",
+                "/ui/admin/employees?msg=Error: El cÃ³digo de empleado ya estÃ¡ en uso.",
                 status_code=303,
             )
 
@@ -1309,7 +1309,7 @@ def admin_delete_employee(
 
     if session_count and session_count > 0:
         return RedirectResponse(
-            "/ui/admin/employees?msg=Error: No se puede eliminar, tiene sesiones asociadas. Desactívelo en su lugar.",
+            "/ui/admin/employees?msg=Error: No se puede eliminar, tiene sesiones asociadas. DesactÃ­velo en su lugar.",
             status_code=303,
         )
 
@@ -1534,7 +1534,7 @@ def admin_add_participants_to_proposal(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y no permite asociar participantes.",
+        "Error: La propuesta estÃ¡ finalizada y no permite asociar participantes.",
     )
     if redirect:
         return redirect
@@ -1637,7 +1637,7 @@ def admin_sync_proposal_participant(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
+        "Error: La propuesta estÃ¡ finalizada y no permite sincronizar participantes.",
     )
     if redirect:
         return redirect
@@ -1653,7 +1653,7 @@ def admin_sync_proposal_participant(
     if not person or not person.legacy_participant_id:
         return _redirect_with_msg(
             f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-            "Error: Este participante asociado no está vinculado a un registro de New-list.",
+            "Error: Este participante asociado no estÃ¡ vinculado a un registro de New-list.",
         )
 
     participant = db.execute(
@@ -1662,7 +1662,7 @@ def admin_sync_proposal_participant(
     if not participant:
         return _redirect_with_msg(
             f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-            "Error: No se encontró el participante fuente en New-list.",
+            "Error: No se encontrÃ³ el participante fuente en New-list.",
         )
 
     if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
@@ -1721,7 +1721,7 @@ def admin_sync_all_proposal_participants(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
+        "Error: La propuesta estÃ¡ finalizada y no permite sincronizar participantes.",
     )
     if redirect:
         return redirect
@@ -1806,7 +1806,7 @@ def admin_sync_all_proposal_participants(
 
     return _redirect_with_msg(
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-        f"Sincronización completada. {synced_count} participante(s) actualizado(s). {skipped_count} omitido(s).",
+        f"SincronizaciÃ³n completada. {synced_count} participante(s) actualizado(s). {skipped_count} omitido(s).",
     )
 
 
@@ -1828,7 +1828,7 @@ def admin_remove_participant_from_proposal(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y no permite remover participantes.",
+        "Error: La propuesta estÃ¡ finalizada y no permite remover participantes.",
     )
     if redirect:
         return redirect
@@ -1878,7 +1878,7 @@ def admin_create_proposal(
         select(Proposal).where(Proposal.code == code)
     ).scalar_one_or_none()
     if existing:
-        return _redirect_with_msg("/ui/admin/proposals", "Error: El código de propuesta ya existe.")
+        return _redirect_with_msg("/ui/admin/proposals", "Error: El cÃ³digo de propuesta ya existe.")
 
     proposal = Proposal(code=code, name=name, description=description, status="active")
     db.add(proposal)
@@ -1915,13 +1915,13 @@ def admin_edit_proposal(
     ).scalar_one_or_none()
     if existing:
         return RedirectResponse(
-            "/ui/admin/proposals?msg=Error: El código de propuesta ya está en uso.",
+            "/ui/admin/proposals?msg=Error: El cÃ³digo de propuesta ya estÃ¡ en uso.",
             status_code=303,
         )
 
     if proposal.status == "finalized":
         return RedirectResponse(
-            "/ui/admin/proposals?msg=Error: La propuesta está finalizada y no permite edición.",
+            "/ui/admin/proposals?msg=Error: La propuesta estÃ¡ finalizada y no permite ediciÃ³n.",
             status_code=303,
         )
 
@@ -1953,7 +1953,7 @@ def admin_delete_proposal_visit_reports(
     if not verify_password(admin_password, current_user.password_hash):
         return _redirect_with_msg(
             "/ui/admin/proposals",
-            "Error: La contraseña de administrador no es correcta.",
+            "Error: La contraseÃ±a de administrador no es correcta.",
         )
 
     reports = db.execute(
@@ -1996,7 +1996,7 @@ def admin_delete_proposal(
     if not verify_password(admin_password, current_user.password_hash):
         return _redirect_with_msg(
             "/ui/admin/proposals",
-            "Error: La contraseña de administrador no es correcta.",
+            "Error: La contraseÃ±a de administrador no es correcta.",
         )
 
     blockers: list[str] = []
@@ -2005,7 +2005,7 @@ def admin_delete_proposal(
         select(func.count()).select_from(ActivitySession).where(ActivitySession.proposal_id == proposal_id)
     ).scalar() or 0
     if session_count > 0:
-        blockers.append(f"{session_count} sesión(es)")
+        blockers.append(f"{session_count} sesiÃ³n(es)")
 
     participant_count = db.execute(
         select(func.count()).select_from(ProposalParticipant).where(ProposalParticipant.proposal_id == proposal_id)
@@ -2023,13 +2023,13 @@ def admin_delete_proposal(
         select(func.count()).select_from(VCAColumn).where(VCAColumn.proposal_id == proposal_id)
     ).scalar() or 0
     if vca_column_count > 0:
-        blockers.append(f"{vca_column_count} configuración(es) VCA")
+        blockers.append(f"{vca_column_count} configuraciÃ³n(es) VCA")
 
     population_group_count = db.execute(
         select(func.count()).select_from(ProposalPopulationGroup).where(ProposalPopulationGroup.proposal_id == proposal_id)
     ).scalar() or 0
     if population_group_count > 0:
-        blockers.append(f"{population_group_count} grupo(s) de población")
+        blockers.append(f"{population_group_count} grupo(s) de poblaciÃ³n")
 
     report_program_count = db.execute(
         select(func.count()).select_from(ProposalReportProgram).where(ProposalReportProgram.proposal_id == proposal_id)
@@ -2068,12 +2068,12 @@ def admin_delete_proposal(
         select(func.count()).select_from(SchoolDropoutReport).where(SchoolDropoutReport.proposal_id == proposal_id)
     ).scalar() or 0
     if school_dropout_report_count > 0:
-        blockers.append(f"{school_dropout_report_count} reporte(s) de deserción")
+        blockers.append(f"{school_dropout_report_count} reporte(s) de deserciÃ³n")
 
     if blockers:
         return _redirect_with_msg(
             "/ui/admin/proposals",
-            "Error: No se puede eliminar la propuesta porque todavía tiene relaciones activas: " + ", ".join(blockers) + ".",
+            "Error: No se puede eliminar la propuesta porque todavÃ­a tiene relaciones activas: " + ", ".join(blockers) + ".",
         )
 
     db.delete(proposal)
@@ -2102,7 +2102,7 @@ def admin_reopen_proposal(
 
     return _redirect_with_msg(
         "/ui/admin/proposals",
-        "Propuesta reabierta exitosamente. Ya permite operación nuevamente.",
+        "Propuesta reabierta exitosamente. Ya permite operaciÃ³n nuevamente.",
     )
 
 
@@ -2122,7 +2122,7 @@ def admin_finalize_proposal(
 
     if proposal.status == "finalized":
         return RedirectResponse(
-            "/ui/admin/proposals?msg=Error: La propuesta ya está finalizada.",
+            "/ui/admin/proposals?msg=Error: La propuesta ya estÃ¡ finalizada.",
             status_code=303,
         )
 
@@ -2135,7 +2135,7 @@ def admin_finalize_proposal(
     db.commit()
 
     return RedirectResponse(
-        "/ui/admin/proposals?msg=Propuesta finalizada exitosamente. Quedó en modo solo lectura.",
+        "/ui/admin/proposals?msg=Propuesta finalizada exitosamente. QuedÃ³ en modo solo lectura.",
         status_code=303,
     )
 
@@ -2162,7 +2162,7 @@ def admin_create_population_group(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2177,7 +2177,7 @@ def admin_create_population_group(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe una categoría poblacional con ese código en la propuesta.",
+            "Error: Ya existe una categorÃ­a poblacional con ese cÃ³digo en la propuesta.",
         )
 
     group = ProposalPopulationGroup(
@@ -2194,7 +2194,7 @@ def admin_create_population_group(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Categoría poblacional creada exitosamente.",
+        "CategorÃ­a poblacional creada exitosamente.",
     )
 
 
@@ -2215,14 +2215,14 @@ def admin_edit_population_group(
     if not group:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Categoría poblacional no encontrada.",
+            "Error: CategorÃ­a poblacional no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2238,7 +2238,7 @@ def admin_edit_population_group(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe otra categoría poblacional con ese código en la propuesta.",
+            "Error: Ya existe otra categorÃ­a poblacional con ese cÃ³digo en la propuesta.",
         )
 
     group.code = normalized_code
@@ -2252,7 +2252,7 @@ def admin_edit_population_group(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Categoría poblacional actualizada exitosamente.",
+        "CategorÃ­a poblacional actualizada exitosamente.",
     )
 
 
@@ -2267,14 +2267,14 @@ def admin_delete_population_group(
     if not group or group.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Categoría poblacional no encontrada.",
+            "Error: CategorÃ­a poblacional no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2297,7 +2297,7 @@ def admin_delete_population_group(
     ):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar la categoría poblacional porque todavía está asociada a uno o más programas. Remuévala primero de la configuración correspondiente.",
+            "Error: No se puede eliminar la categorÃ­a poblacional porque todavÃ­a estÃ¡ asociada a uno o mÃ¡s programas. RemuÃ©vala primero de la configuraciÃ³n correspondiente.",
         )
 
     db.delete(group)
@@ -2305,7 +2305,7 @@ def admin_delete_population_group(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Categoría poblacional eliminada exitosamente.",
+        "CategorÃ­a poblacional eliminada exitosamente.",
     )
 
 
@@ -2509,7 +2509,7 @@ def admin_create_report_program(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2518,7 +2518,7 @@ def admin_create_report_program(
     if not population_group or population_group.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Debe seleccionar una categoría poblacional válida para la propuesta.",
+            "Error: Debe seleccionar una categorÃ­a poblacional vÃ¡lida para la propuesta.",
         )
 
     normalized_code = code.strip().upper()
@@ -2531,7 +2531,7 @@ def admin_create_report_program(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe un programa con ese código en la propuesta seleccionada.",
+            "Error: Ya existe un programa con ese cÃ³digo en la propuesta seleccionada.",
         )
 
     program = ProposalReportProgram(
@@ -2566,7 +2566,7 @@ def admin_create_report_program(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Programa creado exitosamente con su población inicial sincronizada.",
+        "Programa creado exitosamente con su poblaciÃ³n inicial sincronizada.",
     )
 
 
@@ -2594,7 +2594,7 @@ def admin_edit_report_program(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2603,7 +2603,7 @@ def admin_edit_report_program(
     if not population_group or population_group.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Debe seleccionar una categoría poblacional válida para la propuesta.",
+            "Error: Debe seleccionar una categorÃ­a poblacional vÃ¡lida para la propuesta.",
         )
 
     normalized_code = code.strip().upper()
@@ -2617,7 +2617,7 @@ def admin_edit_report_program(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe otro programa con ese código en la propuesta seleccionada.",
+            "Error: Ya existe otro programa con ese cÃ³digo en la propuesta seleccionada.",
         )
 
     program.code = normalized_code
@@ -2653,7 +2653,7 @@ def admin_delete_report_program(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2691,7 +2691,7 @@ def admin_delete_report_program(
     if linked_legacy_codes_count > 0 or linked_population_codes_count > 0:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar el programa porque todavía tiene actividades adjudicadas asociadas. Remuévalas primero o inactívelo.",
+            "Error: No se puede eliminar el programa porque todavÃ­a tiene actividades adjudicadas asociadas. RemuÃ©valas primero o inactÃ­velo.",
         )
 
     if program_population_ids:
@@ -2754,7 +2754,7 @@ def admin_create_report_program_activity(
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2763,7 +2763,7 @@ def admin_create_report_program_activity(
     if not normalized_code:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El código de la actividad programática es requerido.",
+            "Error: El cÃ³digo de la actividad programÃ¡tica es requerido.",
         )
 
     existing = db.execute(
@@ -2775,7 +2775,7 @@ def admin_create_report_program_activity(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe una actividad con ese código dentro del programa seleccionado.",
+            "Error: Ya existe una actividad con ese cÃ³digo dentro del programa seleccionado.",
         )
 
     activity = ProposalReportProgramActivity(
@@ -2792,7 +2792,7 @@ def admin_create_report_program_activity(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Actividad programática creada exitosamente.",
+        "Actividad programÃ¡tica creada exitosamente.",
     )
 
 
@@ -2813,14 +2813,14 @@ def admin_edit_report_program_activity(
     if not activity:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Actividad programática no encontrada.",
+            "Error: Actividad programÃ¡tica no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2829,14 +2829,14 @@ def admin_edit_report_program_activity(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+            "Error: El programa asociado a la actividad no es vÃ¡lido para esta propuesta.",
         )
 
     normalized_code = code.strip().upper()
     if not normalized_code:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El código de la actividad programática es requerido.",
+            "Error: El cÃ³digo de la actividad programÃ¡tica es requerido.",
         )
 
     existing = db.execute(
@@ -2849,7 +2849,7 @@ def admin_edit_report_program_activity(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Ya existe otra actividad con ese código dentro del programa seleccionado.",
+            "Error: Ya existe otra actividad con ese cÃ³digo dentro del programa seleccionado.",
         )
 
     activity.code = normalized_code
@@ -2863,7 +2863,7 @@ def admin_edit_report_program_activity(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Actividad programática actualizada exitosamente.",
+        "Actividad programÃ¡tica actualizada exitosamente.",
     )
 
 
@@ -2878,14 +2878,14 @@ def admin_delete_report_program_activity(
     if not activity:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Actividad programática no encontrada.",
+            "Error: Actividad programÃ¡tica no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2894,7 +2894,7 @@ def admin_delete_report_program_activity(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+            "Error: El programa asociado a la actividad no es vÃ¡lido para esta propuesta.",
         )
 
     linked_codes_count = db.execute(
@@ -2905,7 +2905,7 @@ def admin_delete_report_program_activity(
     if linked_codes_count and linked_codes_count > 0:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar la actividad programática porque tiene códigos de actividad asociados. Remuévalos primero o inactívela.",
+            "Error: No se puede eliminar la actividad programÃ¡tica porque tiene cÃ³digos de actividad asociados. RemuÃ©valos primero o inactÃ­vela.",
         )
 
     db.delete(activity)
@@ -2913,7 +2913,7 @@ def admin_delete_report_program_activity(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Actividad programática eliminada exitosamente.",
+        "Actividad programÃ¡tica eliminada exitosamente.",
     )
 
 
@@ -2929,14 +2929,14 @@ def admin_add_activity_code_to_report_program_activity(
     if not activity:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Actividad programática no encontrada.",
+            "Error: Actividad programÃ¡tica no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -2945,14 +2945,14 @@ def admin_add_activity_code_to_report_program_activity(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+            "Error: El programa asociado a la actividad no es vÃ¡lido para esta propuesta.",
         )
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code or activity_code.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Debe seleccionar un código de actividad válido de la propuesta.",
+            "Error: Debe seleccionar un cÃ³digo de actividad vÃ¡lido de la propuesta.",
         )
 
     proposal_program_ids = db.execute(
@@ -2985,7 +2985,7 @@ def admin_add_activity_code_to_report_program_activity(
     ):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Esa actividad ya está adjudicada a otro programa o población dentro de esta propuesta y no puede repetirse.",
+            "Error: Esa actividad ya estÃ¡ adjudicada a otro programa o poblaciÃ³n dentro de esta propuesta y no puede repetirse.",
         )
 
     db.add(
@@ -2998,7 +2998,7 @@ def admin_add_activity_code_to_report_program_activity(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Código de actividad asociado exitosamente.",
+        "CÃ³digo de actividad asociado exitosamente.",
     )
 
 
@@ -3014,14 +3014,14 @@ def admin_remove_activity_code_from_report_program_activity(
     if not activity:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Actividad programática no encontrada.",
+            "Error: Actividad programÃ¡tica no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -3030,7 +3030,7 @@ def admin_remove_activity_code_from_report_program_activity(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado a la actividad no es válido para esta propuesta.",
+            "Error: El programa asociado a la actividad no es vÃ¡lido para esta propuesta.",
         )
 
     mapping = db.execute(
@@ -3042,7 +3042,7 @@ def admin_remove_activity_code_from_report_program_activity(
     if not mapping:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: La asociación solicitada no existe.",
+            "Error: La asociaciÃ³n solicitada no existe.",
         )
 
     db.delete(mapping)
@@ -3050,7 +3050,7 @@ def admin_remove_activity_code_from_report_program_activity(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Código de actividad removido exitosamente.",
+        "CÃ³digo de actividad removido exitosamente.",
     )
 
 
@@ -3067,14 +3067,14 @@ def admin_create_report_program_population(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Programa no encontrado para agregar población.",
+            "Error: Programa no encontrado para agregar poblaciÃ³n.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -3083,7 +3083,7 @@ def admin_create_report_program_population(
     if not population_group or population_group.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Debe seleccionar una categoría poblacional válida.",
+            "Error: Debe seleccionar una categorÃ­a poblacional vÃ¡lida.",
         )
 
     existing = db.execute(
@@ -3095,7 +3095,7 @@ def admin_create_report_program_population(
     if existing:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Esa población ya está configurada dentro del programa.",
+            "Error: Esa poblaciÃ³n ya estÃ¡ configurada dentro del programa.",
         )
 
     db.add(
@@ -3110,7 +3110,7 @@ def admin_create_report_program_population(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Población agregada al programa exitosamente.",
+        "PoblaciÃ³n agregada al programa exitosamente.",
     )
 
 
@@ -3125,14 +3125,14 @@ def admin_delete_report_program_population(
     if not program_population:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Relación programa-población no encontrada.",
+            "Error: RelaciÃ³n programa-poblaciÃ³n no encontrada.",
         )
 
     proposal = db.get(Proposal, proposal_id)
     redirect = _redirect_if_proposal_finalized(
         proposal,
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Error: La propuesta está finalizada y esta configuración es solo lectura.",
+        "Error: La propuesta estÃ¡ finalizada y esta configuraciÃ³n es solo lectura.",
     )
     if redirect:
         return redirect
@@ -3141,7 +3141,7 @@ def admin_delete_report_program_population(
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado no es válido para esta propuesta.",
+            "Error: El programa asociado no es vÃ¡lido para esta propuesta.",
         )
 
     linked_count = db.execute(
@@ -3152,7 +3152,7 @@ def admin_delete_report_program_population(
     if linked_count > 0:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: No se puede eliminar la población del programa porque todavía tiene actividades adjudicadas. Remuévalas primero.",
+            "Error: No se puede eliminar la poblaciÃ³n del programa porque todavÃ­a tiene actividades adjudicadas. RemuÃ©valas primero.",
         )
 
     db.delete(program_population)
@@ -3160,7 +3160,7 @@ def admin_delete_report_program_population(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Población removida del programa exitosamente.",
+        "PoblaciÃ³n removida del programa exitosamente.",
     )
 
 
@@ -3176,21 +3176,21 @@ def admin_add_activity_code_to_program_population(
     if not program_population:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Configuración programa-población no encontrada.",
+            "Error: ConfiguraciÃ³n programa-poblaciÃ³n no encontrada.",
         )
 
     program = db.get(ProposalReportProgram, program_population.program_id)
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado no es válido para esta propuesta.",
+            "Error: El programa asociado no es vÃ¡lido para esta propuesta.",
         )
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code or activity_code.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Debe seleccionar un código de actividad válido de la propuesta.",
+            "Error: Debe seleccionar un cÃ³digo de actividad vÃ¡lido de la propuesta.",
         )
 
     existing_local = db.execute(
@@ -3207,7 +3207,7 @@ def admin_add_activity_code_to_program_population(
     ):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Esa actividad ya está adjudicada a otro programa o población dentro de esta propuesta y no puede repetirse.",
+            "Error: Esa actividad ya estÃ¡ adjudicada a otro programa o poblaciÃ³n dentro de esta propuesta y no puede repetirse.",
         )
 
     db.add(
@@ -3220,7 +3220,7 @@ def admin_add_activity_code_to_program_population(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Código de actividad asociado a la población del programa exitosamente.",
+        "CÃ³digo de actividad asociado a la poblaciÃ³n del programa exitosamente.",
     )
 
 
@@ -3236,14 +3236,14 @@ def admin_remove_activity_code_from_program_population(
     if not program_population:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: Configuración programa-población no encontrada.",
+            "Error: ConfiguraciÃ³n programa-poblaciÃ³n no encontrada.",
         )
 
     program = db.get(ProposalReportProgram, program_population.program_id)
     if not program or program.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: El programa asociado no es válido para esta propuesta.",
+            "Error: El programa asociado no es vÃ¡lido para esta propuesta.",
         )
 
     mapping = db.execute(
@@ -3255,7 +3255,7 @@ def admin_remove_activity_code_from_program_population(
     if not mapping:
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
-            "Error: La asociación solicitada no existe.",
+            "Error: La asociaciÃ³n solicitada no existe.",
         )
 
     db.delete(mapping)
@@ -3263,7 +3263,7 @@ def admin_remove_activity_code_from_program_population(
 
     return _redirect_with_msg(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
-        "Código de actividad removido de la población del programa exitosamente.",
+        "CÃ³digo de actividad removido de la poblaciÃ³n del programa exitosamente.",
     )
 
 
@@ -3420,6 +3420,15 @@ def admin_report_templates_unassign(
     return _report_template_redirect("Asignacion removida; el reporte usara la plantilla base por defecto.", proposal_id)
 
 
+def _next_report_template_version_number(db: Session, report_template_id: int) -> int:
+    max_version = db.execute(
+        select(func.max(ReportTemplateVersion.version_number)).where(
+            ReportTemplateVersion.report_template_id == report_template_id,
+        )
+    ).scalar()
+    return int(max_version or 0) + 1
+
+
 @router.post("/report-templates/versions/create")
 def admin_report_template_versions_create(
     report_template_id: int = Form(...),
@@ -3441,18 +3450,100 @@ def admin_report_template_versions_create(
     except json.JSONDecodeError as exc:
         return _report_template_redirect(f"Error: JSON invalido en configuracion ({exc.msg}).")
 
-    max_version = db.execute(
-        select(func.max(ReportTemplateVersion.version_number)).where(
-            ReportTemplateVersion.report_template_id == report_template_id,
-        )
-    ).scalar()
-
     db.add(ReportTemplateVersion(
         report_template_id=report_template_id,
-        version_number=int(max_version or 0) + 1,
+        version_number=_next_report_template_version_number(db, report_template_id),
         version_label=normalized_label,
         config_json=json.dumps(parsed_config, ensure_ascii=False),
         is_active=True,
     ))
     db.commit()
     return _report_template_redirect("Version de plantilla creada exitosamente.")
+
+@router.post("/report-templates/versions/create-visual")
+def admin_report_template_versions_create_visual(
+    report_template_id: int = Form(...),
+    version_label: str = Form(...),
+    header_image: str | None = Form(None),
+    header_title: str | None = Form(None),
+    header_subtitle: str | None = Form(None),
+    header_notes: str | None = Form(None),
+    footer_image: str | None = Form(None),
+    footer_text: str | None = Form(None),
+    signature_1_label: str | None = Form(None),
+    signature_1_title: str | None = Form(None),
+    signature_2_label: str | None = Form(None),
+    signature_2_title: str | None = Form(None),
+    date_label: str | None = Form(None),
+    margin_top: str | None = Form(None),
+    margin_right: str | None = Form(None),
+    margin_bottom: str | None = Form(None),
+    margin_left: str | None = Form(None),
+    table_spacing: str | None = Form(None),
+    rows_per_table: str | None = Form(None),
+    columns_text: str | None = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template = db.get(ReportTemplate, report_template_id)
+    if not template or not template.is_active:
+        return _report_template_redirect("Error: Plantilla base no encontrada o inactiva.")
+
+    normalized_label = (version_label or "").strip()
+    if not normalized_label:
+        return _report_template_redirect("Error: Debe indicar una etiqueta para la version.")
+
+    def clean(value: str | None) -> str:
+        return (value or "").strip()
+
+    columns = []
+    for line in (columns_text or "").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        if "|" in raw:
+            key, label = raw.split("|", 1)
+        else:
+            key, label = raw, raw
+        columns.append({"key": key.strip(), "label": label.strip()})
+
+    visual_config = {
+        "source": "visual_editor",
+        "preserve_current_format": True,
+        "header": {
+            "image": clean(header_image),
+            "title": clean(header_title),
+            "subtitle": clean(header_subtitle),
+            "notes": clean(header_notes),
+        },
+        "footer": {
+            "image": clean(footer_image),
+            "text": clean(footer_text),
+        },
+        "signatures": [
+            {"label": clean(signature_1_label), "title": clean(signature_1_title)},
+            {"label": clean(signature_2_label), "title": clean(signature_2_title)},
+        ],
+        "date": {
+            "label": clean(date_label),
+        },
+        "layout": {
+            "margin_top": clean(margin_top),
+            "margin_right": clean(margin_right),
+            "margin_bottom": clean(margin_bottom),
+            "margin_left": clean(margin_left),
+            "table_spacing": clean(table_spacing),
+            "rows_per_table": clean(rows_per_table),
+        },
+        "columns": columns,
+    }
+
+    db.add(ReportTemplateVersion(
+        report_template_id=report_template_id,
+        version_number=_next_report_template_version_number(db, report_template_id),
+        version_label=normalized_label,
+        config_json=json.dumps(visual_config, ensure_ascii=False),
+        is_active=True,
+    ))
+    db.commit()
+    return _report_template_redirect("Version visual creada exitosamente.")
