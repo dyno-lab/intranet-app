@@ -26,6 +26,7 @@
 
 <div class="alert alert-info">
   <strong>Modo tipo Word:</strong> los textos con borde azul al pasar el mouse son editables. Esto no modifica reportes existentes; solo guarda una version nueva si presionas <strong>Guardar version desde preview</strong>.
+  {% if actual_context %}<br><strong>Documento actual:</strong> esta vista usa datos reales del reporte seleccionado para {{ actual_period_title }}.{% endif %}
 </div>
 
 <form id="previewSaveForm" method="post" action="/ui/admin/report-templates/versions/create-visual">
@@ -70,6 +71,37 @@
 
         <div style="height: {{ table_spacing }};"></div>
 
+        {% if actual_program_blocks %}
+          {% for program in actual_program_blocks %}
+          <div class="fw-bold bg-primary-subtle border p-2 mt-3">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</div>
+          <table class="table table-bordered table-sm align-middle">
+            <thead class="table-primary text-center">
+              <tr>
+                {% for column in columns %}
+                  <th contenteditable="true" data-column-index="{{ loop.index0 }}">{{ column.label }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in program.rows[:18] %}
+              <tr>
+                <td><strong>{{ row.activity_code }}</strong><br><span class="small text-muted">{{ row.activity_description }}</span><br><span class="small">{{ row.achievement_text }}</span></td>
+                <td class="text-center">{{ row.activities_count }}</td>
+                <td class="text-center">{{ row.duplicados }}</td>
+                <td class="text-center">{{ 'SI' if row.met else 'NO' }}</td>
+                <td class="text-center">{{ 'X' if row.met }}</td>
+                <td class="text-center">{{ '' if row.met else 'X' }}</td>
+                <td class="text-center">{{ row.goal_summary }}</td>
+                <td class="text-center">{% if row.monthly_percent is not none %}{{ row.monthly_percent }}%{% else %}N/A{% endif %}</td>
+                <td class="text-center">{{ row.cumulative_ratio }}</td>
+                <td class="text-center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if program.rows|length > 18 %}<div class="small text-muted">Preview muestra primeras 18 filas de este programa; el reporte final mantiene continuaciones.</div>{% endif %}
+          {% endfor %}
+        {% else %}
         <table class="table table-bordered table-sm align-middle">
           <thead class="table-primary text-center">
             <tr>
@@ -90,6 +122,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% endif %}
         <div class="small text-muted mb-3">Filas por tabla configuradas: {{ rows_per_table }}</div>
 
         <div class="mt-4">

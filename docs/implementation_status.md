@@ -1325,3 +1325,31 @@ Validacion tecnica:
 - `compileall app` paso.
 - Import de `app.main` paso.
 - Carga Jinja2 y render simulado confirmaron contenteditable y boton de guardado.
+
+### Correccion 2026-05-04 - Preview debe usar documento actual
+Estado: **implementado inicialmente para Hoja de Cotejo Admin**.
+
+Contexto:
+- Christian indico que el preview con hoja de ejemplo no es factible porque no permite saber que se esta cambiando.
+
+Implementado:
+- En el editor visual de `/ui/admin/report-templates` se agregaron campos de preview desde documento actual:
+  - propuesta,
+  - mes,
+  - año,
+  - tipo periodo,
+  - desde/hasta para custom,
+  - funcionario autorizado.
+- La ruta `/ui/admin/report-templates/versions/preview-visual` ahora, cuando la plantilla base seleccionada es `hoja_cotejo_admin` y hay propuesta, construye contexto real con `build_hoja_cotejo_admin_context`.
+- `report_template_preview.html` muestra datos reales del documento actual: programas, actividades, realizadas, duplicados, cumplimiento, porcentajes, etc.
+- Si no hay contexto real o el reporte aun no esta integrado, conserva maqueta de ejemplo como fallback.
+- El preview sigue siendo editable inline para textos y encabezados.
+
+Pendiente:
+- Integrar progresivamente otros reportes para preview real: Bonafide, No Duplicado, Consolidado, etc.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga Jinja2 paso.
+- Render simulado con programa/fila real paso.

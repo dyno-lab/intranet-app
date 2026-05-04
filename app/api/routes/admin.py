@@ -48,6 +48,7 @@ from app.models.report_template import ProposalReportTemplate, ReportTemplate, R
 from app.services.report_programs import (
     activity_code_is_assigned_anywhere_in_proposal as _activity_code_is_assigned_anywhere_in_proposal,
 )
+from app.services.hoja_cotejo_admin_service import build_hoja_cotejo_admin_context
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -3571,10 +3572,31 @@ def admin_report_template_versions_preview_visual(
     table_spacing: str | None = Form(None),
     rows_per_table: str | None = Form(None),
     columns_text: str | None = Form(None),
+    preview_proposal_id: int | None = Form(None),
+    preview_month: int | None = Form(None),
+    preview_year: int | None = Form(None),
+    preview_period_type: str = Form("monthly"),
+    preview_start_date: str | None = Form(None),
+    preview_end_date: str | None = Form(None),
+    preview_authorized_name: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     template = db.get(ReportTemplate, report_template_id)
+    actual_context = None
+    if template and template.report_key == "hoja_cotejo_admin" and preview_proposal_id:
+        actual_context = build_hoja_cotejo_admin_context(
+            db,
+            month=preview_month,
+            year=preview_year,
+            period_type=preview_period_type,
+            start_date=preview_start_date,
+            end_date=preview_end_date,
+            proposal_id=preview_proposal_id,
+            authorized_name=preview_authorized_name,
+            current_user=current_user,
+        )
+
     columns = []
     for line in (columns_text or "").splitlines():
         raw = line.strip()
@@ -3586,12 +3608,26 @@ def admin_report_template_versions_preview_visual(
             key, label = raw, raw
         columns.append({"key": key.strip(), "label": label.strip()})
     if not columns:
-        columns = [
-            {"key": "actividad", "label": "Actividad"},
-            {"key": "realizadas", "label": "Realizadas"},
-            {"key": "duplicados", "label": "Duplicados"},
-            {"key": "cumplimiento", "label": "Cumplimiento"},
-        ]
+        if actual_context and template and template.report_key == "hoja_cotejo_admin":
+            columns = [
+                {"key": "activity", "label": "Actividad"},
+                {"key": "activities_count", "label": "Realizadas"},
+                {"key": "duplicados", "label": "Duplicados / Personas impactadas"},
+                {"key": "met", "label": "Se logro el 100%"},
+                {"key": "yes", "label": "Si"},
+                {"key": "no", "label": "No"},
+                {"key": "goal_summary", "label": "Frecuencia / Cumplimiento"},
+                {"key": "monthly_percent", "label": "% Cumplimiento mensual"},
+                {"key": "cumulative_ratio", "label": "Actividades logradas por periodo propuesta"},
+                {"key": "percent", "label": "% Logros alcanzados periodo propuesta"},
+            ]
+        else:
+            columns = [
+                {"key": "actividad", "label": "Actividad"},
+                {"key": "realizadas", "label": "Realizadas"},
+                {"key": "duplicados", "label": "Duplicados"},
+                {"key": "cumplimiento", "label": "Cumplimiento"},
+            ]
 
     return templates.TemplateResponse(
         "ui/admin/report_template_preview.html",
@@ -3620,5 +3656,10 @@ def admin_report_template_versions_preview_visual(
             "rows_per_table": (rows_per_table or "18").strip(),
             "columns_text": (columns_text or "").strip(),
             "columns": columns,
+            "actual_context": actual_context,
+            "actual_program_blocks": actual_context.get("program_blocks", []) if actual_context else [],
+            "actual_period_title": actual_context.get("period_title", "") if actual_context else "",
+            "actual_proposal": actual_context.get("proposal") if actual_context else None,
+            "actual_residential_names": actual_context.get("residential_names", "") if actual_context else "",
         },
     )

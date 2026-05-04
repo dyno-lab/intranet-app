@@ -148,6 +148,15 @@
     <form method="post" action="/ui/admin/report-templates/versions/create-visual" class="row g-3">
       <div class="col-md-4"><label class="form-label">Reporte / plantilla base</label><select name="report_template_id" class="form-select" required>{% for template in templates_list %}<option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>{% endfor %}</select></div>
       <div class="col-md-4"><label class="form-label">Nombre de version</label><input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 - Header nuevo" required></div>
+      <div class="col-12"><hr><h5>Preview desde documento actual</h5></div>
+      <div class="col-md-4"><label class="form-label">Propuesta para preview</label><select name="preview_proposal_id" class="form-select"><option value="">Usar maqueta si no aplica</option>{% for proposal in proposals %}<option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="form-label">Mes preview</label><input type="number" name="preview_month" class="form-control" min="1" max="12" placeholder="4"></div>
+      <div class="col-md-2"><label class="form-label">Año preview</label><input type="number" name="preview_year" class="form-control" min="2000" max="2100" placeholder="2026"></div>
+      <div class="col-md-2"><label class="form-label">Periodo</label><select name="preview_period_type" class="form-select"><option value="monthly">Mensual</option><option value="custom">Personalizado</option></select></div>
+      <div class="col-md-2"><label class="form-label">Funcionario</label><input type="text" name="preview_authorized_name" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Desde custom</label><input type="date" name="preview_start_date" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Hasta custom</label><input type="date" name="preview_end_date" class="form-control"></div>
+      <div class="col-12"><div class="form-text">Para Hoja de Cotejo Admin, selecciona propuesta/periodo y la vista previa usara la hoja actual real. Otros reportes seguiran con maqueta hasta integrarlos uno por uno.</div></div>
       <div class="col-12"><hr><h5>Header / titulos / fotos</h5></div>
       <div class="col-md-4"><label class="form-label">Imagen header</label><input type="text" name="header_image" class="form-control" placeholder="/static/img/header.png"></div>
       <div class="col-md-4"><label class="form-label">Titulo principal</label><input type="text" name="header_title" class="form-control"></div>
