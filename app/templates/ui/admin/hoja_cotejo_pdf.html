@@ -4,18 +4,9 @@
   <meta charset="utf-8">
   <title>Hoja de Cotejo</title>
   <style>
-    @page { size: letter landscape; margin: 1.18in 0.25in 0.25in 0.25in; }
+    @page { size: letter landscape; margin: 0.25in; }
     body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 9.5px; margin: 0; }
-    .fixed-report-header {
-      position: fixed;
-      top: -0.96in;
-      left: 0;
-      right: 0;
-      height: 1.02in;
-      background: #fff;
-      z-index: 10;
-    }
-    .page { page-break-after: always; position: relative; }
+    .page { page-break-after: always; position: relative; page-break-inside: avoid; }
     .page:last-child { page-break-after: auto; }
     .header { position: relative; min-height: 0.74in; }
     .logo { position: absolute; left: 0; top: 0; }
@@ -28,8 +19,6 @@
     .meta td { border: none; padding: 2px 3px; vertical-align: top; }
     .meta .residentials { line-height: 1.2; }
     table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; }
-    table.data thead { display: table-header-group; }
-    table.data tfoot { display: table-footer-group; }
     table.data tr { page-break-inside: avoid; break-inside: avoid; }
     table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; page-break-inside: avoid; }
     table.data th { background: #C6D9F1; text-align: center; font-weight: bold; font-size: 7.4px; }
@@ -47,7 +36,10 @@
   </style>
 </head>
 <body>
-<div class="fixed-report-header">
+{% set rows_per_page = 10 %}
+{% for program in program_blocks %}
+  {% for row_batch in program.rows|batch(rows_per_page, none) %}
+<div class="page">
   <div class="header">
     <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
     <div class="title-block">
@@ -66,10 +58,7 @@
       <td colspan="2" class="residentials"><strong>RESIDENCIALES:</strong> {{ residential_names }}</td>
     </tr>
   </table>
-</div>
 
-{% for program in program_blocks %}
-<div class="page">
   <table class="data">
     <colgroup>
       <col style="width: 34%;">
@@ -98,24 +87,27 @@
       </tr>
     </thead>
     <tbody>
-      <tr class="program-row"><td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}</td></tr>
-      {% for row in program.rows %}
-      <tr>
-        <td><div class="activity">{{ row.activity_code }}</div><div class="desc">{{ row.activity_description }}<br>{{ row.achievement_text }}</div></td>
-        <td class="center">{{ row.activities_count }}</td>
-        <td class="center">{{ row.duplicados }}</td>
-        <td class="center">{{ 'SI' if row.met else 'NO' }}</td>
-        <td class="center">{{ 'X' if row.met }}</td>
-        <td class="center">{{ '' if row.met else 'X' }}</td>
-        <td class="center">{{ row.goal_summary }}</td>
-        <td class="center">{% if row.monthly_percent is not none %}{{ row.monthly_percent }}%{% else %}N/A{% endif %}</td>
-        <td class="center">{{ row.cumulative_ratio }}</td>
-        <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
-      </tr>
+      <tr class="program-row"><td colspan="10">PROGRAMA {{ program.program_code }}: {{ program.program_display_name }}{% if not loop.first %} (continuación){% endif %}</td></tr>
+      {% for row in row_batch %}
+        {% if row %}
+        <tr>
+          <td><div class="activity">{{ row.activity_code }}</div><div class="desc">{{ row.activity_description }}<br>{{ row.achievement_text }}</div></td>
+          <td class="center">{{ row.activities_count }}</td>
+          <td class="center">{{ row.duplicados }}</td>
+          <td class="center">{{ 'SI' if row.met else 'NO' }}</td>
+          <td class="center">{{ 'X' if row.met }}</td>
+          <td class="center">{{ '' if row.met else 'X' }}</td>
+          <td class="center">{{ row.goal_summary }}</td>
+          <td class="center">{% if row.monthly_percent is not none %}{{ row.monthly_percent }}%{% else %}N/A{% endif %}</td>
+          <td class="center">{{ row.cumulative_ratio }}</td>
+          <td class="center">{% if row.percent is not none %}{{ row.percent }}%{% else %}N/A{% endif %}</td>
+        </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
 
+  {% if loop.last %}
   <div class="signature">
     <div class="cert">Yo, <u>{{ authorized_name or '______________________________' }}</u> persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.</div>
     <table class="sig-table">
@@ -131,7 +123,9 @@
       </tr>
     </table>
   </div>
+  {% endif %}
 </div>
+  {% endfor %}
 {% endfor %}
 </body>
 </html>
