@@ -19,8 +19,11 @@
     .meta td { border: none; padding: 2px 3px; vertical-align: top; }
     .meta .residentials { line-height: 1.2; }
     table.data { width: 100%; border-collapse: collapse; margin-top: 0.07in; table-layout: fixed; }
+    table.data thead { display: table-header-group; }
     table.data th, table.data td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; page-break-inside: avoid; }
     table.data th { background: #C6D9F1; text-align: center; font-weight: bold; font-size: 7.4px; }
+    table.data .repeat-header-cell { background: #fff !important; border: none !important; padding: 0 0 2px 0 !important; }
+    table.data .repeat-header-cell .meta { text-align: left; }
     table.data td { font-size: 8px; }
     .program-row td { background: #8DB3E2; font-weight: bold; text-align: left; }
     .activity { font-weight: bold; }
@@ -37,25 +40,6 @@
 <body>
 {% for program in program_blocks %}
 <div class="page">
-  <div class="header">
-    <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
-    <div class="title-block">
-      <div class="line1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-      <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO</div>
-      <div class="line3">COMPAÑÍA: Centro Sor Isolina Ferré, Inc.</div>
-    </div>
-  </div>
-
-  <table class="meta">
-    <tr>
-      <td style="width:55%;"><strong>PERÍODO DE INFORME:</strong> {{ period_title }}</td>
-      <td style="width:45%;"><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %}</td>
-    </tr>
-    <tr>
-      <td colspan="2" class="residentials"><strong>RESIDENCIALES:</strong> {{ residential_names }}</td>
-    </tr>
-  </table>
-
   <table class="data">
     <colgroup>
       <col style="width: 34%;">
@@ -70,6 +54,27 @@
       <col style="width: 5%;">
     </colgroup>
     <thead>
+      <tr>
+        <th class="repeat-header-cell" colspan="10">
+          <div class="header">
+            <div class="logo"><img src="/static/img/bonafide-header-avp.png" alt="AVP"></div>
+            <div class="title-block">
+              <div class="line1">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
+              <div class="line2">HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO</div>
+              <div class="line3">COMPAÑÍA: Centro Sor Isolina Ferré, Inc.</div>
+            </div>
+          </div>
+          <table class="meta">
+            <tr>
+              <td style="width:55%;"><strong>PERÍODO DE INFORME:</strong> {{ period_title }}</td>
+              <td style="width:45%;"><strong>PROPUESTA:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %}</td>
+            </tr>
+            <tr>
+              <td colspan="2" class="residentials"><strong>RESIDENCIALES:</strong> {{ residential_names }}</td>
+            </tr>
+          </table>
+        </th>
+      </tr>
       <tr>
         <th>PROGRAMA POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO SOMETIDO {{ period_title }}</th>
         <th>ACTIVIDAD REALIZADA</th>

@@ -1099,3 +1099,22 @@ Decision:
 
 Pendiente:
 - Si se corrige el ultimo header faltante, debe ser un ajuste quirurgico sobre la version `(8)`, no una reestructuracion completa.
+
+### Ajuste quirurgico 2026-05-04 - Header en continuaciones de Hoja de Cotejo Admin
+Estado: **aplicado sobre la estructura visual del PDF (12), pendiente validacion visual de nueva descarga**.
+
+Contexto:
+- Christian pidio corregir solamente las hojas sin header en `hoja_cotejo_005_04_2026 (12).pdf`, sin romper la estructura funcional.
+- Verificacion del PDF (12): paginas 4, 5 y 7 continuaban la tabla sin header institucional; la tabla y columnas estaban bien.
+
+Implementado:
+- No se divide la tabla manualmente ni se cambia la cantidad de paginas desde Jinja.
+- Se movio el header institucional/meta al `thead` de la misma tabla, antes de los encabezados azules, para que `wkhtmltopdf` lo repita automaticamente en paginas de continuacion.
+- Se conserva la tabla continua y el diseño base del PDF (12) como referencia.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Carga Jinja2 de `ui/admin/hoja_cotejo_pdf.html` paso.
+
+Pendiente:
+- Regenerar PDF y confirmar que las paginas de continuacion tienen header sin dividir tablas adicionalmente.
