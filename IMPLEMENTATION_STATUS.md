@@ -794,3 +794,23 @@ Pendiente:
 - Crear pantalla Admin para asignar una version especifica de plantilla a una propuesta nueva.
 - Validacion visual del PDF con datos reales y tablas largas.
 - No hubo commit local ni push remoto todavia.
+
+### Ajuste 2026-05-04 - Header repetido en Hoja de Cotejo Admin
+Estado: **correccion aplicada; pendiente validacion visual final generando PDF en navegador**.
+
+Contexto:
+- Christian reporto que `hoja_cotejo_005_04_2026 (8).pdf` tenia la ultima hoja sin header.
+- Se verifico el PDF descargado: paginas 4, 5 y 7 eran continuaciones de tabla y no incluian el header/logo/titulo superior.
+
+Implementado:
+- `app/templates/ui/admin/hoja_cotejo_pdf.html` ahora usa un header fijo global (`position: fixed`) para repetir logo/titulo/meta en cada pagina fisica del PDF.
+- Se aumento el margen superior `@page` para reservar espacio al header repetido.
+- Se activo repeticion de encabezado de tabla con `thead { display: table-header-group; }` para continuaciones de tabla.
+
+Validacion tecnica realizada:
+- `compileall app` paso.
+- Carga Jinja2 de `ui/admin/hoja_cotejo_pdf.html` paso.
+- Validacion visual del PDF viejo confirmo que la pagina 7 no tenia header.
+
+Pendiente:
+- Regenerar descarga desde navegador y confirmar visualmente que la ultima hoja ya sale con header.
