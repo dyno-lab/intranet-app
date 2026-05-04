@@ -1,0 +1,153 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Plantillas de Reporte{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h3 class="mb-1">Plantillas de Reporte</h3>
+    <p class="text-muted mb-0">Asigna versiones de formato por propuesta sin modificar reportes pasados.</p>
+  </div>
+  <span class="badge bg-warning text-dark">Solo Admin</span>
+</div>
+
+<div class="alert alert-info">
+  <strong>Regla segura:</strong> si una propuesta no tiene asignación, usa la plantilla base actual. Para cambios futuros, crea una nueva versión y asígnala solo a la propuesta correspondiente.
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <strong>Seleccionar propuesta</strong>
+  </div>
+  <div class="card-body">
+    <form method="get" action="/ui/admin/report-templates" class="row g-3 align-items-end">
+      <div class="col-md-8">
+        <label class="form-label">Propuesta</label>
+        <select name="proposal_id" class="form-select">
+          <option value="">Todas las propuestas</option>
+          {% for proposal in proposals %}
+            <option value="{{ proposal.proposal_id }}" {{ 'selected' if selected_proposal_id == proposal.proposal_id }}>
+              {{ proposal.code }} - {{ proposal.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">Filtrar</button>
+      </div>
+      <div class="col-md-2">
+        <a class="btn btn-outline-secondary w-100" href="/ui/admin/report-templates">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <strong>Asignaciones por propuesta</strong>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Propuesta</th>
+          <th>Reporte</th>
+          <th>Asignación actual</th>
+          <th style="width: 38%;">Cambiar versión</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for proposal in proposals %}
+          {% if not selected_proposal_id or selected_proposal_id == proposal.proposal_id %}
+            {% for report_key, report_label in report_options %}
+              {% set current = assignment_map.get((proposal.proposal_id, report_key)) %}
+              <tr>
+                <td>
+                  <strong>{{ proposal.code }}</strong><br>
+                  <span class="text-muted small">{{ proposal.name }}</span>
+                </td>
+                <td>{{ report_label }}</td>
+                <td>
+                  {% if current %}
+                    <span class="badge bg-success">Asignada</span>
+                    <div class="small mt-1">
+                      {{ current.template.name }}<br>
+                      <strong>{{ current.version.version_label }}</strong>
+                      <span class="text-muted">v{{ current.version.version_number }}</span>
+                    </div>
+                  {% else %}
+                    <span class="badge bg-secondary">Base por defecto</span>
+                    <div class="small text-muted mt-1">No hay asignación específica.</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="post" action="/ui/admin/report-templates/assign" class="row g-2 align-items-end mb-2">
+                    <input type="hidden" name="proposal_id" value="{{ proposal.proposal_id }}">
+                    <input type="hidden" name="report_key" value="{{ report_key }}">
+                    <div class="col-md-8">
+                      <select name="report_template_version_id" class="form-select form-select-sm" required>
+                        {% for version, template in versions %}
+                          <option value="{{ version.report_template_version_id }}" {{ 'selected' if current and current.version.report_template_version_id == version.report_template_version_id }}>
+                            {{ template.name }} — {{ version.version_label }} (v{{ version.version_number }})
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <button type="submit" class="btn btn-sm btn-primary w-100">Asignar</button>
+                    </div>
+                  </form>
+                  {% if current %}
+                  <form method="post" action="/ui/admin/report-templates/unassign" onsubmit="return confirm('¿Remover asignación y volver a plantilla base?');">
+                    <input type="hidden" name="proposal_id" value="{{ proposal.proposal_id }}">
+                    <input type="hidden" name="report_key" value="{{ report_key }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">Usar base por defecto</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-light">
+    <strong>Crear nueva versión técnica</strong>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small">
+      Uso avanzado: pega una configuración JSON completa para crear una versión nueva. Las versiones anteriores no se modifican.
+    </p>
+    <form method="post" action="/ui/admin/report-templates/versions/create" class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Plantilla base</label>
+        <select name="report_template_id" class="form-select" required>
+          {% for template in templates_list %}
+            <option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Etiqueta de versión</label>
+        <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta nueva v1" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Configuración JSON</label>
+        <textarea name="config_json" class="form-control font-monospace" rows="8" required>{
+  "header": {},
+  "footer": {},
+  "columns": []
+}</textarea>
+        <div class="form-text">Si necesitas columnas/header/fotos nuevas, aquí se crea otra versión sin tocar la base.</div>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-outline-primary" type="submit">Crear versión</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

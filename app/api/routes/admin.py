@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Form
 from datetime import date
+import json
 from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -43,6 +44,7 @@ from app.models.proposal_report_program_activity import ProposalReportProgramAct
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.models.proposal_report_program_population import ProposalReportProgramPopulation
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
+from app.models.report_template import ProposalReportTemplate, ReportTemplate, ReportTemplateVersion
 from app.services.report_programs import (
     activity_code_is_assigned_anywhere_in_proposal as _activity_code_is_assigned_anywhere_in_proposal,
 )
@@ -3263,3 +3265,170 @@ def admin_remove_activity_code_from_program_population(
         f"/ui/admin/report-programs?proposal_id={proposal_id}",
         "Código de actividad removido de la población del programa exitosamente.",
     )
+
+
+REPORT_TEMPLATE_REPORT_OPTIONS = [
+    ("hoja_cotejo", "Hoja de Cotejo"),
+]
+
+
+def _report_template_redirect(msg: str, proposal_id: int | None = None):
+    url = "/ui/admin/report-templates"
+    if proposal_id:
+        url = f"{url}?proposal_id={proposal_id}"
+    return _redirect_with_msg(url, msg)
+
+
+@router.get("/report-templates", response_class=HTMLResponse)
+def admin_report_templates(
+    request: Request,
+    proposal_id: int | None = None,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    templates_list = db.execute(
+        select(ReportTemplate)
+        .where(ReportTemplate.is_active == True)  # noqa: E712
+        .order_by(ReportTemplate.report_key, ReportTemplate.name)
+    ).scalars().all()
+    versions = db.execute(
+        select(ReportTemplateVersion, ReportTemplate)
+        .join(ReportTemplate, ReportTemplate.report_template_id == ReportTemplateVersion.report_template_id)
+        .where(
+            ReportTemplateVersion.is_active == True,  # noqa: E712
+            ReportTemplate.is_active == True,  # noqa: E712
+        )
+        .order_by(ReportTemplate.report_key, ReportTemplateVersion.version_number.desc())
+    ).all()
+    active_assignments = db.execute(
+        select(ProposalReportTemplate, ReportTemplateVersion, ReportTemplate)
+        .join(ReportTemplateVersion, ReportTemplateVersion.report_template_version_id == ProposalReportTemplate.report_template_version_id)
+        .join(ReportTemplate, ReportTemplate.report_template_id == ReportTemplateVersion.report_template_id)
+        .where(ProposalReportTemplate.is_active == True)  # noqa: E712
+        .order_by(ProposalReportTemplate.proposal_id, ProposalReportTemplate.report_key)
+    ).all()
+
+    assignment_map: dict[tuple[int, str], dict] = {}
+    for assignment, version, template in active_assignments:
+        assignment_map[(assignment.proposal_id, assignment.report_key)] = {
+            "assignment": assignment,
+            "version": version,
+            "template": template,
+        }
+
+    return templates.TemplateResponse(
+        "ui/admin/report_templates.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "msg": msg,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id,
+            "templates_list": templates_list,
+            "versions": versions,
+            "assignment_map": assignment_map,
+            "report_options": REPORT_TEMPLATE_REPORT_OPTIONS,
+        },
+    )
+
+
+@router.post("/report-templates/assign")
+def admin_report_templates_assign(
+    proposal_id: int = Form(...),
+    report_key: str = Form(...),
+    report_template_version_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return _report_template_redirect("Error: Propuesta no encontrada.")
+
+    valid_report_keys = {key for key, _ in REPORT_TEMPLATE_REPORT_OPTIONS}
+    if report_key not in valid_report_keys:
+        return _report_template_redirect("Error: Reporte no reconocido.", proposal_id)
+
+    version = db.get(ReportTemplateVersion, report_template_version_id)
+    if not version or not version.is_active:
+        return _report_template_redirect("Error: Version de plantilla no encontrada o inactiva.", proposal_id)
+
+    existing = db.execute(
+        select(ProposalReportTemplate).where(
+            ProposalReportTemplate.proposal_id == proposal_id,
+            ProposalReportTemplate.report_key == report_key,
+            ProposalReportTemplate.is_active == True,  # noqa: E712
+        )
+    ).scalars().all()
+    for assignment in existing:
+        assignment.is_active = False
+        db.add(assignment)
+
+    db.add(ProposalReportTemplate(
+        proposal_id=proposal_id,
+        report_key=report_key,
+        report_template_version_id=report_template_version_id,
+        is_active=True,
+    ))
+    db.commit()
+    return _report_template_redirect("Plantilla asignada exitosamente.", proposal_id)
+
+
+@router.post("/report-templates/unassign")
+def admin_report_templates_unassign(
+    proposal_id: int = Form(...),
+    report_key: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    existing = db.execute(
+        select(ProposalReportTemplate).where(
+            ProposalReportTemplate.proposal_id == proposal_id,
+            ProposalReportTemplate.report_key == report_key,
+            ProposalReportTemplate.is_active == True,  # noqa: E712
+        )
+    ).scalars().all()
+    for assignment in existing:
+        assignment.is_active = False
+        db.add(assignment)
+    db.commit()
+    return _report_template_redirect("Asignacion removida; el reporte usara la plantilla base por defecto.", proposal_id)
+
+
+@router.post("/report-templates/versions/create")
+def admin_report_template_versions_create(
+    report_template_id: int = Form(...),
+    version_label: str = Form(...),
+    config_json: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template = db.get(ReportTemplate, report_template_id)
+    if not template or not template.is_active:
+        return _report_template_redirect("Error: Plantilla base no encontrada o inactiva.")
+
+    normalized_label = (version_label or "").strip()
+    if not normalized_label:
+        return _report_template_redirect("Error: Debe indicar una etiqueta para la version.")
+
+    try:
+        parsed_config = json.loads(config_json or "{}")
+    except json.JSONDecodeError as exc:
+        return _report_template_redirect(f"Error: JSON invalido en configuracion ({exc.msg}).")
+
+    max_version = db.execute(
+        select(func.max(ReportTemplateVersion.version_number)).where(
+            ReportTemplateVersion.report_template_id == report_template_id,
+        )
+    ).scalar()
+
+    db.add(ReportTemplateVersion(
+        report_template_id=report_template_id,
+        version_number=int(max_version or 0) + 1,
+        version_label=normalized_label,
+        config_json=json.dumps(parsed_config, ensure_ascii=False),
+        is_active=True,
+    ))
+    db.commit()
+    return _report_template_redirect("Version de plantilla creada exitosamente.")

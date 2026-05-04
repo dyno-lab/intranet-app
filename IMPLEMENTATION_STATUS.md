@@ -898,3 +898,32 @@ Validacion tecnica:
 - `compileall app` paso.
 - Carga Jinja2 paso.
 - Render HTML simulado confirmo las entidades esperadas.
+
+### Actualizacion 2026-05-04 - Admin Plantillas de Reporte
+Estado: **pantalla inicial implementada y validada tecnicamente**.
+
+Contexto:
+- Tras estabilizar Hoja de Cotejo, Christian aprobo continuar con la recomendacion de administrar plantillas/versiones por propuesta.
+
+Implementado:
+- Nueva pantalla Admin: `/ui/admin/report-templates`.
+- Menu Admin actualizado con `Plantillas de Reporte`.
+- Permite filtrar por propuesta.
+- Muestra asignacion actual por propuesta/reporte; si no hay asignacion, indica `Base por defecto`.
+- Permite asignar una version activa de plantilla a una propuesta y reporte.
+- Permite remover asignacion para volver a plantilla base.
+- Permite crear versiones tecnicas nuevas pegando `config_json` valido, sin modificar versiones anteriores.
+- Rutas POST agregadas:
+  - `/ui/admin/report-templates/assign`
+  - `/ui/admin/report-templates/unassign`
+  - `/ui/admin/report-templates/versions/create`
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga Jinja2 de `ui/admin/report_templates.html` y `_base.html` paso.
+- Render simulado de la pantalla paso.
+
+Pendiente:
+- Validacion en navegador contra DB local despues del startup que crea/siembra tablas de plantillas.
+- Futuro: editor visual para columnas/header/fotos, si Christian lo requiere; por ahora queda como version tecnica por JSON.
