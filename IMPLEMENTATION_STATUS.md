@@ -847,3 +847,19 @@ Validacion tecnica:
 
 Pendiente:
 - Regenerar PDF y confirmar que las paginas de continuacion tienen header sin dividir tablas adicionalmente.
+
+### Ajuste 2026-05-04 - Margen header/tabla Hoja de Cotejo Admin
+Estado: **ajuste minimo aplicado; pendiente validar nueva descarga**.
+
+Contexto:
+- Christian confirmo que en `hoja_cotejo_005_04_2026 (13).pdf` todas las paginas ya tienen header, pero el margen entre header/meta y tabla no se ve correcto.
+- Verificacion visual: la estructura ya esta bien; el problema es solo separacion vertical entre el header repetido y la fila azul de columnas.
+
+Implementado:
+- Se aumento solo el padding inferior del header repetido dentro del `thead` (`2px` -> `8px`).
+- Se agrego margen inferior pequeno a la meta (`0.05in`) antes del encabezado azul de la tabla.
+- No se modifica estructura, columnas, paginacion ni datos.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Carga Jinja2 de `ui/admin/hoja_cotejo_pdf.html` paso.
