@@ -3268,7 +3268,20 @@ def admin_remove_activity_code_from_program_population(
 
 
 REPORT_TEMPLATE_REPORT_OPTIONS = [
+    ("bonafide", "Bonafide"),
+    ("no_duplicado", "No Duplicado"),
+    ("duplicado", "Duplicado"),
+    ("por_programa", "Por Programa"),
     ("hoja_cotejo", "Hoja de Cotejo"),
+    ("vca", "VCA"),
+    ("adm", "ADM"),
+    ("visitas", "Visitas"),
+    ("desercion", "Desercion Escolar"),
+    ("embarazo", "Embarazo"),
+    ("notas", "Notas"),
+    ("consolidado_mensual_global", "Consolidado Mensual Global"),
+    ("plantilla_duplicado", "Plantilla Duplicado"),
+    ("hoja_cotejo_admin", "Hoja de Cotejo Admin"),
 ]
 
 

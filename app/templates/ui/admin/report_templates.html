@@ -12,7 +12,28 @@
 </div>
 
 <div class="alert alert-info">
-  <strong>Regla segura:</strong> si una propuesta no tiene asignación, usa la plantilla base actual. Para cambios futuros, crea una nueva versión y asígnala solo a la propuesta correspondiente.
+  <strong>Regla segura:</strong> si una propuesta no tiene asignacion, usa la plantilla base actual. Para cambios futuros, crea una nueva version y asignala solo a la propuesta correspondiente.
+</div>
+
+<div class="card mb-4 border-info">
+  <div class="card-header bg-info-subtle">
+    <strong>Help / Guia de uso</strong>
+  </div>
+  <div class="card-body">
+    <p class="mb-2">
+      <strong>Report Templates es un requisito transversal:</strong> no pertenece solo a Hoja de Cotejo. Todo reporte actual o futuro debe evaluarse contra este registro antes de cambiar headers, fotos, columnas o estructura.
+    </p>
+    <ul class="mb-3">
+      <li><strong>No editar una plantilla base para resolver una propuesta nueva.</strong> Crear una version nueva.</li>
+      <li><strong>No romper informes culminados:</strong> cada propuesta puede quedar amarrada a una version especifica.</li>
+      <li><strong>Reportes sin asignacion:</strong> usan el comportamiento base por defecto.</li>
+      <li><strong>Reportes futuros:</strong> deben agregarse a este catalogo y resolver su configuracion por <code>report_key</code>.</li>
+      <li><strong>Cambios permitidos por version:</strong> header, logos/fotos, footer, columnas, etiquetas, orden y reglas visuales.</li>
+    </ul>
+    <div class="small text-muted">
+      Nota tecnica: algunas pantallas ya pueden consultar la plantilla; otras quedan registradas aqui como requisito operativo para cuando se migren a plantillas versionadas.
+    </div>
+  </div>
 </div>
 
 <div class="card mb-4">
@@ -120,7 +141,7 @@
   </div>
   <div class="card-body">
     <p class="text-muted small">
-      Uso avanzado: pega una configuración JSON completa para crear una versión nueva. Las versiones anteriores no se modifican.
+      Uso avanzado: pega una configuracion JSON completa para crear una version nueva. Las versiones anteriores no se modifican.
     </p>
     <form method="post" action="/ui/admin/report-templates/versions/create" class="row g-3">
       <div class="col-md-4">
@@ -132,7 +153,7 @@
         </select>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Etiqueta de versión</label>
+        <label class="form-label">Etiqueta de version</label>
         <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta nueva v1" required>
       </div>
       <div class="col-12">
@@ -142,7 +163,7 @@
   "footer": {},
   "columns": []
 }</textarea>
-        <div class="form-text">Si necesitas columnas/header/fotos nuevas, aquí se crea otra versión sin tocar la base.</div>
+        <div class="form-text">Si necesitas columnas/header/fotos nuevas, aqui se crea otra version sin tocar la base.</div>
       </div>
       <div class="col-12">
         <button class="btn btn-outline-primary" type="submit">Crear versión</button>

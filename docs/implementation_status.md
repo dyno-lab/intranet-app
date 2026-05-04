@@ -1198,3 +1198,27 @@ Validacion tecnica:
 Pendiente:
 - Validacion en navegador contra DB local despues del startup que crea/siembra tablas de plantillas.
 - Futuro: editor visual para columnas/header/fotos, si Christian lo requiere; por ahora queda como version tecnica por JSON.
+
+### Ajuste 2026-05-04 - Report Templates transversal y Help
+Estado: **implementado**.
+
+Contexto:
+- Christian aclaro que `report-templates` no debe ser solo para Hoja de Cotejo, sino para todo reporte actual y futuro.
+- Tambien pidio una hoja/seccion Help dentro de `report-templates` con informacion de uso y la regla de no dañar estructuras actuales.
+
+Implementado:
+- `REPORT_TEMPLATE_REPORT_OPTIONS` ahora registra reportes actuales principales:
+  - Bonafide, No Duplicado, Duplicado, Por Programa, Hoja de Cotejo, VCA, ADM, Visitas, Desercion, Embarazo, Notas, Consolidado Mensual Global, Plantilla Duplicado y Hoja de Cotejo Admin.
+- La pantalla `/ui/admin/report-templates` ahora muestra esos reportes por propuesta.
+- Se agrego bloque `Help / Guia de uso` explicando:
+  - Report Templates es requisito transversal, no solo Hoja de Cotejo.
+  - Todo reporte futuro debe agregarse al catalogo y resolver configuracion por `report_key`.
+  - No editar plantillas base para propuestas nuevas; crear versiones.
+  - No romper informes culminados.
+  - Reportes sin asignacion usan base por defecto.
+  - Cambios por version pueden cubrir header, logos/fotos, footer, columnas, etiquetas, orden y reglas visuales.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga y render simulado de `report_templates.html` paso.
