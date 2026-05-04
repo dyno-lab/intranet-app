@@ -1,0 +1,81 @@
+{% extends "ui/_base.html" %}
+
+{% block title %}Vista previa plantilla{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h3 class="mb-1">Vista previa de version visual</h3>
+    <p class="text-muted mb-0">Esta vista no guarda cambios. Sirve para revisar estructura antes de crear/asignar una version.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="/ui/admin/report-templates">Volver</a>
+</div>
+
+<div class="alert alert-warning">
+  <strong>Preview:</strong> usa datos de ejemplo. La version real se crea solo cuando presionas <strong>Crear version visual</strong> en la pantalla anterior.
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-dark text-white d-flex justify-content-between">
+    <span>{{ template.name if template else 'Reporte' }}</span>
+    <span>{{ version_label }}</span>
+  </div>
+  <div class="card-body bg-white">
+    <div class="border mx-auto" style="max-width: 1100px; padding: {{ margin_top }} {{ margin_right }} {{ margin_bottom }} {{ margin_left }}; background: #fff;">
+      <div class="text-center mb-2">
+        {% if header_image %}
+          <img src="{{ header_image }}" alt="Header" style="max-height: 70px; max-width: 320px; object-fit: contain;" class="mb-2">
+        {% else %}
+          <div class="text-muted small border rounded py-2 mb-2">Sin imagen header</div>
+        {% endif %}
+        <div class="fw-bold text-uppercase">{{ header_title }}</div>
+        <div class="fw-semibold">{{ header_subtitle }}</div>
+        {% if header_notes %}<div class="small text-muted mt-1">{{ header_notes }}</div>{% endif %}
+      </div>
+
+      <div style="height: {{ table_spacing }};"></div>
+
+      <table class="table table-bordered table-sm align-middle">
+        <thead class="table-primary text-center">
+          <tr>
+            {% for column in columns %}
+              <th>{{ column.label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for idx in range(1, 4) %}
+          <tr>
+            {% for column in columns %}
+              <td class="{{ 'text-center' if not loop.first else '' }}">
+                {% if loop.first %}Fila ejemplo {{ idx }}{% else %}Dato{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="small text-muted mb-3">Filas por tabla configuradas: {{ rows_per_table }}</div>
+
+      <div class="mt-4">
+        {% if footer_text %}<p class="small">{{ footer_text }}</p>{% endif %}
+        {% if footer_image %}<img src="{{ footer_image }}" alt="Footer" style="max-height: 55px; max-width: 260px; object-fit: contain;">{% endif %}
+      </div>
+
+      <div class="row text-center mt-4 g-4">
+        <div class="col">
+          <div class="border-top border-dark pt-1">{{ signature_1_label }}</div>
+          {% if signature_1_title %}<div class="small fw-semibold">{{ signature_1_title }}</div>{% endif %}
+        </div>
+        <div class="col">
+          <div class="border-top border-dark pt-1">{{ signature_2_label }}</div>
+          {% if signature_2_title %}<div class="small fw-semibold">{{ signature_2_title }}</div>{% endif %}
+        </div>
+        <div class="col">
+          <div class="border-top border-dark pt-1">{{ date_label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

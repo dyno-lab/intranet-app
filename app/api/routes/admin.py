@@ -3547,3 +3547,76 @@ def admin_report_template_versions_create_visual(
     ))
     db.commit()
     return _report_template_redirect("Version visual creada exitosamente.")
+
+@router.post("/report-templates/versions/preview-visual", response_class=HTMLResponse)
+def admin_report_template_versions_preview_visual(
+    request: Request,
+    report_template_id: int = Form(...),
+    version_label: str = Form(""),
+    header_image: str | None = Form(None),
+    header_title: str | None = Form(None),
+    header_subtitle: str | None = Form(None),
+    header_notes: str | None = Form(None),
+    footer_image: str | None = Form(None),
+    footer_text: str | None = Form(None),
+    signature_1_label: str | None = Form(None),
+    signature_1_title: str | None = Form(None),
+    signature_2_label: str | None = Form(None),
+    signature_2_title: str | None = Form(None),
+    date_label: str | None = Form(None),
+    margin_top: str | None = Form(None),
+    margin_right: str | None = Form(None),
+    margin_bottom: str | None = Form(None),
+    margin_left: str | None = Form(None),
+    table_spacing: str | None = Form(None),
+    rows_per_table: str | None = Form(None),
+    columns_text: str | None = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template = db.get(ReportTemplate, report_template_id)
+    columns = []
+    for line in (columns_text or "").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        if "|" in raw:
+            key, label = raw.split("|", 1)
+        else:
+            key, label = raw, raw
+        columns.append({"key": key.strip(), "label": label.strip()})
+    if not columns:
+        columns = [
+            {"key": "actividad", "label": "Actividad"},
+            {"key": "realizadas", "label": "Realizadas"},
+            {"key": "duplicados", "label": "Duplicados"},
+            {"key": "cumplimiento", "label": "Cumplimiento"},
+        ]
+
+    return templates.TemplateResponse(
+        "ui/admin/report_template_preview.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "template": template,
+            "version_label": (version_label or "Vista previa sin guardar").strip(),
+            "header_image": (header_image or "").strip(),
+            "header_title": (header_title or (template.name if template else "Titulo del reporte")).strip(),
+            "header_subtitle": (header_subtitle or "Subtitulo / periodo / propuesta").strip(),
+            "header_notes": (header_notes or "").strip(),
+            "footer_image": (footer_image or "").strip(),
+            "footer_text": (footer_text or "Texto de certificacion o footer del reporte.").strip(),
+            "signature_1_label": (signature_1_label or "Firma del Representante Autorizado").strip(),
+            "signature_1_title": (signature_1_title or "Cargo / titulo").strip(),
+            "signature_2_label": (signature_2_label or "Firma / Iniciales").strip(),
+            "signature_2_title": (signature_2_title or "").strip(),
+            "date_label": (date_label or "Fecha").strip(),
+            "margin_top": (margin_top or "0.25in").strip(),
+            "margin_right": (margin_right or "0.25in").strip(),
+            "margin_bottom": (margin_bottom or "0.25in").strip(),
+            "margin_left": (margin_left or "0.25in").strip(),
+            "table_spacing": (table_spacing or "8px").strip(),
+            "rows_per_table": (rows_per_table or "18").strip(),
+            "columns": columns,
+        },
+    )

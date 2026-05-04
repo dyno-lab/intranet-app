@@ -168,7 +168,10 @@
       <div class="col-md-2"><label class="form-label">Espacio header/tabla</label><input type="text" name="table_spacing" class="form-control" placeholder="8px"></div>
       <div class="col-md-2"><label class="form-label">Filas por tabla</label><input type="text" name="rows_per_table" class="form-control" placeholder="18"></div>
       <div class="col-12"><label class="form-label">Columnas visibles / etiquetas</label><textarea name="columns_text" class="form-control font-monospace" rows="5" placeholder="codigo|Codigo&#10;nombre|Nombre&#10;fecha|Fecha"></textarea><div class="form-text">Una columna por linea. Formato: <code>clave|Etiqueta visible</code>. Si se deja vacio, conserva columnas base del reporte.</div></div>
-      <div class="col-12"><button class="btn btn-success" type="submit">Crear version visual</button></div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="submit" formaction="/ui/admin/report-templates/versions/preview-visual" formtarget="_blank">Vista previa</button>
+        <button class="btn btn-success" type="submit">Crear version visual</button>
+      </div>
     </form>
   </div>
 </div>

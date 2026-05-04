@@ -1274,3 +1274,28 @@ Validacion tecnica:
 - `compileall app` paso.
 - Import de `app.main` paso.
 - Carga y render simulado de `report_templates.html` paso.
+
+### Actualizacion 2026-05-04 - Preview visual antes de crear version
+Estado: **implementado**.
+
+Contexto:
+- Christian aprobo la recomendacion de agregar preview visual antes de guardar/asignar versiones.
+
+Implementado:
+- Nueva ruta POST: `/ui/admin/report-templates/versions/preview-visual`.
+- Nuevo template: `app/templates/ui/admin/report_template_preview.html`.
+- El editor visual ahora tiene boton `Vista previa` que abre una nueva pestaña sin guardar cambios.
+- El preview muestra con datos de ejemplo:
+  - header/foto/titulos/notas,
+  - espaciado y margenes,
+  - tabla con columnas configuradas,
+  - filas por tabla configuradas,
+  - footer/certificacion,
+  - firmas y fecha.
+- La creacion de version sigue separada en `Crear version visual`.
+
+Validacion tecnica:
+- `compileall app` paso.
+- Import de `app.main` paso.
+- Carga Jinja2 de `report_templates.html` y `report_template_preview.html` paso.
+- Render simulado del preview paso.
