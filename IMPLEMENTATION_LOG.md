@@ -31,6 +31,35 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 
 ---
 
+## 2026-05-05
+
+### Cierre temporal - Report Templates como punto unico para PDF/Word corregido
+- **Tipo:** `reports`, `templates`, `admin`, `workflow`, `closure`
+- **Estado:** cerrado temporalmente hasta nuevas pruebas de Christian.
+- **Decision funcional:**
+  - No agregar botones nuevos de Word/PDF en pantallas individuales de reportes.
+  - `/ui/admin/report-templates` queda como punto unico para subir y versionar formatos corregidos.
+  - Christian puede generar PDF, convertirlo manualmente a Word si hace falta, corregirlo y subir el archivo final como `.docx` o `.pdf`.
+- **Que se hizo:**
+  - Se permitio subir `.pdf` o `.docx` como nueva version en `/ui/admin/report-templates`.
+  - Se guarda el archivo en `storage/report_templates/<report_template_id>/`.
+  - La version queda asignable por propuesta/reporte desde la misma pantalla.
+  - Se agrego enlace para descargar el archivo subido desde la asignacion/version.
+  - Se revirtieron los botones Word creados temporalmente en Hoja de Cotejo regular y Hoja de Cotejo Admin.
+- **Validacion tecnica:**
+  - `py_compile` paso.
+  - `import app.main` paso.
+- **Commits locales:**
+  - `e4a113f Add Word upload flow for report templates`
+  - `6f5fb4a Revert "Add Word export for admin hoja de cotejo"`
+  - `88beadf Revert "Add Word download for hoja de cotejo report"`
+  - `f3dc265 Allow PDF or Word uploads for report templates`
+- **Cabo suelto:**
+  - pendiente nuevas pruebas de Christian.
+  - pendiente push remoto si Christian lo solicita.
+
+---
+
 ## 2026-05-03
 
 

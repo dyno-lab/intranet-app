@@ -18,6 +18,41 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-05 - Cierre temporal de Report Templates PDF/Word
+Estado: **cerrado temporalmente; pendiente nuevas pruebas de Christian**.
+
+Contexto:
+- Christian aclaro que no quiere botones nuevos de Word/PDF en pantallas de reportes individuales.
+- El flujo deseado es generar el PDF normal, convertirlo fuera de la intranet a Word si hace falta, corregirlo manualmente y luego subir el archivo corregido desde `/ui/admin/report-templates`.
+- La pantalla `/ui/admin/report-templates` queda como punto unico para versionar formatos corregidos por propuesta/reporte.
+
+Implementado:
+- En `/ui/admin/report-templates` se agrego el flujo para subir como nueva version un archivo corregido en `.pdf` o `.docx`.
+- Se guarda el archivo versionado bajo `storage/report_templates/<report_template_id>/`.
+- La version creada queda disponible para asignarse a una propuesta/reporte desde la misma pantalla.
+- Se agrego enlace para descargar el archivo subido cuando la version proviene de un upload.
+- Se revirtieron los botones Word agregados temporalmente fuera de Report Templates:
+  - Hoja de Cotejo regular.
+  - Hoja de Cotejo Admin.
+
+Decision funcional:
+- No agregar botones de Word/PDF corregido en otras areas. Todo el flujo de formatos editados vive en `/ui/admin/report-templates`.
+- El usuario puede subir PDF o Word ya corregido; la generacion automatica desde esos archivos queda para evaluar luego si Christian la necesita tras pruebas.
+
+Validacion tecnica realizada:
+- `py_compile` paso para rutas relevantes.
+- Import de `app.main` confirmo la app cargando correctamente.
+
+Commits locales:
+- `e4a113f Add Word upload flow for report templates`
+- `6f5fb4a Revert "Add Word export for admin hoja de cotejo"`
+- `88beadf Revert "Add Word download for hoja de cotejo report"`
+- `f3dc265 Allow PDF or Word uploads for report templates`
+
+Pendiente / cabo suelto:
+- Christian hara nuevas pruebas desde `/ui/admin/report-templates`.
+- No hubo push remoto; pendiente cuando Christian decida subir estos commits.
+
 
 ### Actualizacion 2026-05-03 - Hoja de Cotejo Admin global
 Estado: **primera version funcional implementada; pendiente validacion visual con datos reales**.
