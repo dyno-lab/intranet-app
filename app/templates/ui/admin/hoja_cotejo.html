@@ -70,6 +70,7 @@
         <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
       </div>
       <button class="btn btn-danger" name="output" value="pdf" {{ 'disabled' if not selected_proposal_id }}>Generar PDF</button>
+      <button class="btn btn-primary" name="output" value="word" {{ 'disabled' if not selected_proposal_id }}>Descargar Word</button>
       <button class="btn btn-success" name="output" value="excel" {{ 'disabled' if not selected_proposal_id }}>Exportar Excel</button>
     </form>
   </div>
