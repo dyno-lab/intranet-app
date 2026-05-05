@@ -3549,8 +3549,8 @@ def admin_report_template_versions_download_word(
     )
 
 
-@router.get("/report-templates/versions/{report_template_version_id}/download-uploaded-word")
-def admin_report_template_versions_download_uploaded_word(
+@router.get("/report-templates/versions/{report_template_version_id}/download-uploaded-file")
+def admin_report_template_versions_download_uploaded_file(
     report_template_version_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -3562,21 +3562,22 @@ def admin_report_template_versions_download_uploaded_word(
         config = json.loads(version.config_json or "{}")
     except json.JSONDecodeError:
         config = {}
-    file_path = Path(config.get("word_file_path") or "")
-    if not file_path.exists() or file_path.suffix.lower() != ".docx":
-        return _report_template_redirect("Error: Esta version no tiene archivo Word subido.")
+    file_path = Path(config.get("uploaded_file_path") or config.get("word_file_path") or "")
+    if not file_path.exists() or file_path.suffix.lower() not in {".docx", ".pdf"}:
+        return _report_template_redirect("Error: Esta version no tiene archivo PDF/Word subido.")
+    media_type = "application/pdf" if file_path.suffix.lower() == ".pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     return FileResponse(
         file_path,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        media_type=media_type,
         filename=config.get("original_filename") or file_path.name,
     )
 
 
-@router.post("/report-templates/versions/upload-word")
-async def admin_report_template_versions_upload_word(
+@router.post("/report-templates/versions/upload-file")
+async def admin_report_template_versions_upload_file(
     report_template_id: int = Form(...),
     version_label: str = Form(...),
-    word_file: UploadFile = File(...),
+    template_file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -3586,27 +3587,33 @@ async def admin_report_template_versions_upload_word(
 
     normalized_label = (version_label or "").strip()
     if not normalized_label:
-        return _report_template_redirect("Error: Debe indicar una etiqueta para la version Word.")
-    if not word_file.filename or not word_file.filename.lower().endswith(".docx"):
-        return _report_template_redirect("Error: Solo se permite subir archivos .docx.")
+        return _report_template_redirect("Error: Debe indicar una etiqueta para la version.")
 
-    content = await word_file.read()
-    if not content.startswith(b"PK"):
+    original_filename = template_file.filename or ""
+    extension = Path(original_filename).suffix.lower()
+    if extension not in {".docx", ".pdf"}:
+        return _report_template_redirect("Error: Solo se permite subir archivos .docx o .pdf.")
+
+    content = await template_file.read()
+    if extension == ".docx" and not content.startswith(b"PK"):
         return _report_template_redirect("Error: El archivo subido no parece ser un DOCX valido.")
+    if extension == ".pdf" and not content.startswith(b"%PDF"):
+        return _report_template_redirect("Error: El archivo subido no parece ser un PDF valido.")
 
     version_number = _next_report_template_version_number(db, report_template_id)
     upload_dir = REPORT_TEMPLATE_UPLOAD_ROOT / str(report_template_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"v{version_number:03d}-{_safe_docx_filename(normalized_label)}.docx"
+    filename = f"v{version_number:03d}-{_safe_docx_filename(normalized_label)}{extension}"
     file_path = upload_dir / filename
     file_path.write_bytes(content)
 
     config = {
-        "source": "word_upload",
-        "word_file_path": str(file_path),
-        "original_filename": word_file.filename,
+        "source": "template_file_upload",
+        "uploaded_file_path": str(file_path),
+        "uploaded_file_type": extension.lstrip("."),
+        "original_filename": original_filename,
         "preserve_current_format": True,
-        "note": "Version creada desde archivo Word subido por admin. El archivo queda versionado y asignable por propuesta.",
+        "note": "Version creada desde archivo PDF/Word subido por admin. El archivo queda versionado y asignable por propuesta.",
     }
     db.add(ReportTemplateVersion(
         report_template_id=report_template_id,
@@ -3616,7 +3623,7 @@ async def admin_report_template_versions_upload_word(
         is_active=True,
     ))
     db.commit()
-    return _report_template_redirect("Version Word subida exitosamente.")
+    return _report_template_redirect("Version PDF/Word subida exitosamente.")
 
 
 @router.post("/report-templates/versions/create")
