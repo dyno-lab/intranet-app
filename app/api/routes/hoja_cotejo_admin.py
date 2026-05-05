@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 from io import BytesIO
-import zipfile
-from xml.sax.saxutils import escape
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
@@ -157,7 +155,7 @@ def hoja_cotejo_generar(
     proposal_id_int = _parse_optional_int(proposal_id)
     if not proposal_id_int:
         raise HTTPException(status_code=400, detail="Debe seleccionar una propuesta.")
-    target = "pdf" if output == "pdf" else "excel" if output == "excel" else "word" if output == "word" else ""
+    target = "pdf" if output == "pdf" else "excel" if output == "excel" else ""
     if not target:
         raise HTTPException(status_code=400, detail="Salida inválida.")
     return RedirectResponse(
@@ -242,112 +240,6 @@ def _build_excel_bytes(context: dict) -> bytes:
     return buffer.read()
 
 
-def _w_text(value) -> str:
-    return escape("" if value is None else str(value))
-
-
-def _w_p(text: str = "", *, bold: bool = False, center: bool = False, size: int | None = None) -> str:
-    ppr = '<w:pPr><w:jc w:val="center"/></w:pPr>' if center else ""
-    rpr_parts = []
-    if bold:
-        rpr_parts.append("<w:b/>")
-    if size:
-        rpr_parts.append(f'<w:sz w:val="{size}"/>')
-    rpr = f"<w:rPr>{''.join(rpr_parts)}</w:rPr>" if rpr_parts else ""
-    return f"<w:p>{ppr}<w:r>{rpr}<w:t>{_w_text(text)}</w:t></w:r></w:p>"
-
-
-def _w_cell(text: str, width: int, *, bold: bool = False, center: bool = False, shade: str | None = None) -> str:
-    tcpr = f'<w:tcW w:w="{width}" w:type="dxa"/>'
-    if shade:
-        tcpr += f'<w:shd w:fill="{shade}"/>'
-    return f"<w:tc><w:tcPr>{tcpr}</w:tcPr>{_w_p(text, bold=bold, center=center)}</w:tc>"
-
-
-def _w_table(rows: list[str]) -> str:
-    borders = """
-      <w:tblBorders>
-        <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      </w:tblBorders>
-    """
-    return f'<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>{borders}</w:tblPr>{"".join(rows)}</w:tbl>'
-
-
-def _build_word_bytes(context: dict) -> bytes:
-    proposal = context.get("proposal")
-    body: list[str] = [
-        _w_p("ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES", bold=True, center=True, size=22),
-        _w_p("HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO", bold=True, center=True, size=20),
-        _w_p("Compañía: Centro Sor Isolina Ferré, Inc.", bold=True),
-        _w_p(f"PERÍODO DE INFORME: {context.get('period_title') or context.get('period_label') or ''}", bold=True),
-        _w_p(f"PROPUESTA: {proposal.code} - {proposal.name}" if proposal else "PROPUESTA:", bold=True),
-        _w_p(f"RESIDENCIALES: {context.get('residential_names') or ''}"),
-        _w_p(f"PROGRAMA POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO SOMETIDO {context.get('period_title') or ''}", bold=True, center=True),
-    ]
-
-    headers = [
-        ("ACTIVIDAD REALIZADA", 3600),
-        ("DUPLICADOS / PERSONAS IMPACTADAS", 1700),
-        ("SE LOGRÓ EL 100%\nSÍ", 900),
-        ("NO", 700),
-        ("FRECUENCIA / CUMPLIMIENTO", 2200),
-        ("POR CIENTO (%) DE CUMPLIMIENTO MENSUAL", 1600),
-        ("ACTIVIDADES LOGRADAS POR PERIODO PROPUESTA", 1700),
-        ("POR CIENTO (%) DE LOGROS ALCANZADOS PERIODO PROPUESTA", 1700),
-    ]
-
-    table_rows = ["<w:tr>" + "".join(_w_cell(label, width, bold=True, center=True, shade="D9EAD3") for label, width in headers) + "</w:tr>"]
-    for program in context.get("program_blocks", []):
-        table_rows.append(
-            "<w:tr>" + _w_cell(program.get("program_display_name", ""), 14100, bold=True, shade="FCE4D6") + "</w:tr>"
-        )
-        rows = program.get("rows") or []
-        if not rows:
-            table_rows.append("<w:tr>" + _w_cell("No hay actividades configuradas para este programa.", 14100, center=True) + "</w:tr>")
-            continue
-        for row in rows:
-            activity = f"{row.get('activity_code') or ''} {row.get('activity_description') or ''}".strip()
-            table_rows.append("<w:tr>" + "".join([
-                _w_cell(activity, 3600),
-                _w_cell(str(row.get("duplicados", 0)), 1700, center=True),
-                _w_cell("X" if row.get("met") else "", 900, center=True),
-                _w_cell("" if row.get("met") else "X", 700, center=True),
-                _w_cell(str(row.get("goal_summary") or ""), 2200),
-                _w_cell(f"{row.get('monthly_percent')}%" if row.get("monthly_percent") is not None else "N/A", 1600, center=True),
-                _w_cell(str(row.get("cumulative_ratio") or ""), 1700, center=True),
-                _w_cell(f"{row.get('percent')}%" if row.get("percent") is not None else "N/A", 1700, center=True),
-            ]) + "</w:tr>")
-    body.append(_w_table(table_rows))
-
-    authorized_name = context.get("authorized_name") or ""
-    body.extend([
-        _w_p(""),
-        _w_p(f"Preparado / autorizado por: {authorized_name}" if authorized_name else "Preparado / autorizado por: ________________________________"),
-        _w_p("Fecha: ____________________"),
-    ])
-
-    document_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>{''.join(body)}<w:sectPr><w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/><w:pgMar w:top="360" w:right="360" w:bottom="360" w:left="360" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr></w:body>
-</w:document>'''
-    content_types = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'''
-    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'''
-    buffer = BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as docx:
-        docx.writestr("[Content_Types].xml", content_types)
-        docx.writestr("_rels/.rels", rels)
-        docx.writestr("word/document.xml", document_xml)
-    buffer.seek(0)
-    return buffer.read()
-
-
 @router.get("/hoja-cotejo/excel")
 def hoja_cotejo_excel(
     month: int | None = Query(None),
@@ -363,20 +255,3 @@ def hoja_cotejo_excel(
     context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
     filename = _download_filename("hoja_cotejo", context, "xlsx")
     return StreamingResponse(BytesIO(_build_excel_bytes(context)), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
-
-
-@router.get("/hoja-cotejo/word")
-def hoja_cotejo_word(
-    month: int | None = Query(None),
-    year: int | None = Query(None),
-    period_type: str = Query("monthly"),
-    start_date: str | None = Query(None),
-    end_date: str | None = Query(None),
-    proposal_id: str | None = Query(None),
-    authorized_name: str | None = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
-    filename = _download_filename("hoja_cotejo", context, "docx")
-    return StreamingResponse(BytesIO(_build_word_bytes(context)), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
