@@ -1,10 +1,15 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, File, UploadFile
 from datetime import date
 import json
+import re
+import zipfile
+from io import BytesIO
+from pathlib import Path
+from xml.sax.saxutils import escape
 from urllib.parse import quote_plus
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
@@ -3428,6 +3433,190 @@ def _next_report_template_version_number(db: Session, report_template_id: int) -
         )
     ).scalar()
     return int(max_version or 0) + 1
+
+
+REPORT_TEMPLATE_UPLOAD_ROOT = Path("storage/report_templates")
+
+
+def _safe_docx_filename(value: str, fallback: str = "plantilla") -> str:
+    base = Path(value or fallback).stem
+    base = re.sub(r"[^A-Za-z0-9._-]+", "-", base).strip(".-_")
+    return (base or fallback)[:80]
+
+
+def _docx_paragraph(text: str, style: str | None = None) -> str:
+    style_xml = f'<w:pPr><w:pStyle w:val="{escape(style)}"/></w:pPr>' if style else ""
+    return f"<w:p>{style_xml}<w:r><w:t>{escape(text)}</w:t></w:r></w:p>"
+
+
+def _build_word_template_document(template: ReportTemplate, version: ReportTemplateVersion | None = None) -> bytes:
+    config: dict = {}
+    if version:
+        try:
+            config = json.loads(version.config_json or "{}")
+        except json.JSONDecodeError:
+            config = {}
+
+    header = config.get("header", {}) if isinstance(config.get("header"), dict) else {}
+    footer = config.get("footer", {}) if isinstance(config.get("footer"), dict) else {}
+    columns = config.get("columns", []) if isinstance(config.get("columns"), list) else []
+    layout = config.get("layout", {}) if isinstance(config.get("layout"), dict) else {}
+
+    body_parts = [
+        _docx_paragraph("Plantilla editable de reporte", "Title"),
+        _docx_paragraph(f"Reporte: {template.name} ({template.report_key})"),
+        _docx_paragraph(f"Versión base: {version.version_label if version else 'Nueva versión desde Word'}"),
+        _docx_paragraph("Instrucciones", "Heading1"),
+        _docx_paragraph("Edite este documento en Word y luego súbalo en la pantalla de Plantillas de Reporte como una nueva versión."),
+        _docx_paragraph("No borre los marcadores entre llaves dobles si desea que el sistema pueda reemplazarlos en una etapa posterior."),
+        _docx_paragraph("Marcadores disponibles", "Heading1"),
+        _docx_paragraph("{{proposal_code}}, {{proposal_name}}, {{period_label}}, {{residential_name}}, {{municipality}}, {{generated_at}}"),
+        _docx_paragraph("Encabezado", "Heading1"),
+        _docx_paragraph(header.get("title") or header.get("line_1") or "{{report_title}}"),
+        _docx_paragraph(header.get("subtitle") or header.get("line_2") or "{{report_subtitle}}"),
+        _docx_paragraph(header.get("notes") or ""),
+        _docx_paragraph("Tabla / columnas", "Heading1"),
+    ]
+
+    if columns:
+        for col in columns:
+            if isinstance(col, dict):
+                body_parts.append(_docx_paragraph(f"{{{{{col.get('key', 'campo')}}}}} — {col.get('label', '')}"))
+    else:
+        body_parts.append(_docx_paragraph("{{table_rows}}"))
+
+    body_parts.extend([
+        _docx_paragraph("Footer / certificación", "Heading1"),
+        _docx_paragraph(footer.get("text") or "{{footer_text}}"),
+        _docx_paragraph("Notas técnicas actuales", "Heading1"),
+        _docx_paragraph(f"Márgenes: {layout}" if layout else "Márgenes: usar configuración visual/base del reporte."),
+    ])
+
+    document_xml = "".join(body_parts)
+    document_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>{document_xml}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body>
+</w:document>'''
+
+    content_types = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>'''
+    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>'''
+    styles = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
+</w:styles>'''
+
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as docx:
+        docx.writestr("[Content_Types].xml", content_types)
+        docx.writestr("_rels/.rels", rels)
+        docx.writestr("word/document.xml", document_xml)
+        docx.writestr("word/styles.xml", styles)
+    return output.getvalue()
+
+
+@router.get("/report-templates/versions/download-word")
+def admin_report_template_versions_download_word(
+    report_template_id: int,
+    report_template_version_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template = db.get(ReportTemplate, report_template_id)
+    if not template or not template.is_active:
+        return _report_template_redirect("Error: Plantilla base no encontrada o inactiva.")
+
+    version = None
+    if report_template_version_id:
+        version = db.get(ReportTemplateVersion, report_template_version_id)
+        if not version or version.report_template_id != report_template_id:
+            return _report_template_redirect("Error: Version de plantilla no encontrada.")
+
+    filename = f"{_safe_docx_filename(template.report_key)}-{_safe_docx_filename(version.version_label if version else 'nueva-version')}.docx"
+    return Response(
+        content=_build_word_template_document(template, version),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/report-templates/versions/{report_template_version_id}/download-uploaded-word")
+def admin_report_template_versions_download_uploaded_word(
+    report_template_version_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    version = db.get(ReportTemplateVersion, report_template_version_id)
+    if not version or not version.is_active:
+        return _report_template_redirect("Error: Version de plantilla no encontrada o inactiva.")
+    try:
+        config = json.loads(version.config_json or "{}")
+    except json.JSONDecodeError:
+        config = {}
+    file_path = Path(config.get("word_file_path") or "")
+    if not file_path.exists() or file_path.suffix.lower() != ".docx":
+        return _report_template_redirect("Error: Esta version no tiene archivo Word subido.")
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=config.get("original_filename") or file_path.name,
+    )
+
+
+@router.post("/report-templates/versions/upload-word")
+async def admin_report_template_versions_upload_word(
+    report_template_id: int = Form(...),
+    version_label: str = Form(...),
+    word_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template = db.get(ReportTemplate, report_template_id)
+    if not template or not template.is_active:
+        return _report_template_redirect("Error: Plantilla base no encontrada o inactiva.")
+
+    normalized_label = (version_label or "").strip()
+    if not normalized_label:
+        return _report_template_redirect("Error: Debe indicar una etiqueta para la version Word.")
+    if not word_file.filename or not word_file.filename.lower().endswith(".docx"):
+        return _report_template_redirect("Error: Solo se permite subir archivos .docx.")
+
+    content = await word_file.read()
+    if not content.startswith(b"PK"):
+        return _report_template_redirect("Error: El archivo subido no parece ser un DOCX valido.")
+
+    version_number = _next_report_template_version_number(db, report_template_id)
+    upload_dir = REPORT_TEMPLATE_UPLOAD_ROOT / str(report_template_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"v{version_number:03d}-{_safe_docx_filename(normalized_label)}.docx"
+    file_path = upload_dir / filename
+    file_path.write_bytes(content)
+
+    config = {
+        "source": "word_upload",
+        "word_file_path": str(file_path),
+        "original_filename": word_file.filename,
+        "preserve_current_format": True,
+        "note": "Version creada desde archivo Word subido por admin. El archivo queda versionado y asignable por propuesta.",
+    }
+    db.add(ReportTemplateVersion(
+        report_template_id=report_template_id,
+        version_number=version_number,
+        version_label=normalized_label,
+        config_json=json.dumps(config, ensure_ascii=False),
+        is_active=True,
+    ))
+    db.commit()
+    return _report_template_redirect("Version Word subida exitosamente.")
 
 
 @router.post("/report-templates/versions/create")

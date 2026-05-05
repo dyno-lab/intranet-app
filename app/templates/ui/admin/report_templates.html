@@ -99,6 +99,12 @@
                       {{ current.template.name }}<br>
                       <strong>{{ current.version.version_label }}</strong>
                       <span class="text-muted">v{{ current.version.version_number }}</span>
+                      <div class="mt-1 d-flex flex-wrap gap-2">
+                        <a class="link-primary" href="/ui/admin/report-templates/versions/download-word?report_template_id={{ current.template.report_template_id }}&report_template_version_id={{ current.version.report_template_version_id }}">Descargar Word editable</a>
+                        {% if 'word_upload' in current.version.config_json %}
+                          <a class="link-secondary" href="/ui/admin/report-templates/versions/{{ current.version.report_template_version_id }}/download-uploaded-word">Archivo Word subido</a>
+                        {% endif %}
+                      </div>
                     </div>
                   {% else %}
                     <span class="badge bg-secondary">Base por defecto</span>
@@ -136,6 +142,62 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="card mb-4 border-primary">
+  <div class="card-header bg-primary-subtle">
+    <strong>Flujo Word: descargar, editar y subir nueva versión</strong>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      Usa este flujo cuando el formato sea más fácil de ajustar en Word. Descarga una plantilla editable, modifícala en Word y súbela como una versión nueva. Luego asígnala a la propuesta/reporte correspondiente arriba.
+    </p>
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <h6>1) Descargar plantilla Word editable</h6>
+        <form method="get" action="/ui/admin/report-templates/versions/download-word" class="row g-2 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label">Reporte / plantilla base</label>
+            <select name="report_template_id" class="form-select" required>
+              {% for template in templates_list %}
+                <option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <button class="btn btn-outline-primary w-100" type="submit">Descargar Word</button>
+          </div>
+        </form>
+      </div>
+      <div class="col-lg-6">
+        <h6>2) Subir Word editado como nueva versión</h6>
+        <form method="post" action="/ui/admin/report-templates/versions/upload-word" enctype="multipart/form-data" class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label">Reporte / plantilla base</label>
+            <select name="report_template_id" class="form-select" required>
+              {% for template in templates_list %}
+                <option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Nombre de versión</label>
+            <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 Word v1" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Archivo .docx</label>
+            <input type="file" name="word_file" class="form-control" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit">Subir como nueva versión</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="form-text mt-3">
+      Nota: esta primera etapa deja el archivo Word versionado y asignable por propuesta sin romper el flujo actual de reportes. La generación automática desde DOCX puede integrarse luego reporte por reporte.
+    </div>
   </div>
 </div>
 
