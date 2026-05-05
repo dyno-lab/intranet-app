@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-import zipfile
-from io import BytesIO
-from xml.sax.saxutils import escape
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -1493,142 +1490,6 @@ ALL_REPORT_KEYS = [
 def _pdf_download_filename(prefix: str, context: dict, extension: str = "pdf") -> str:
     safe_residential = (context.get("residential_name") or prefix).replace(" ", "_")
     return f"{prefix}_{safe_residential}_{_period_filename_suffix(context)}.{extension}"
-
-
-def _word_text(value) -> str:
-    return escape("" if value is None else str(value))
-
-
-def _word_paragraph(text: str = "", bold: bool = False, center: bool = False, size: int | None = None, page_break_before: bool = False) -> str:
-    ppr_parts = []
-    if center:
-        ppr_parts.append('<w:jc w:val="center"/>')
-    if page_break_before:
-        ppr_parts.append('<w:pageBreakBefore/>')
-    ppr = f"<w:pPr>{''.join(ppr_parts)}</w:pPr>" if ppr_parts else ""
-    rpr_parts = []
-    if bold:
-        rpr_parts.append("<w:b/>")
-    if size:
-        rpr_parts.append(f'<w:sz w:val="{size}"/>')
-    rpr = f"<w:rPr>{''.join(rpr_parts)}</w:rPr>" if rpr_parts else ""
-    return f"<w:p>{ppr}<w:r>{rpr}<w:t>{_word_text(text)}</w:t></w:r></w:p>"
-
-
-def _word_cell(content: str, width: int, shade: str | None = None, center: bool = False) -> str:
-    tcpr = f'<w:tcW w:w="{width}" w:type="dxa"/>'
-    if shade:
-        tcpr += f'<w:shd w:fill="{shade}"/>'
-    if center:
-        tcpr += '<w:vAlign w:val="center"/>'
-    return f"<w:tc><w:tcPr>{tcpr}</w:tcPr>{content}</w:tc>"
-
-
-def _word_row(cells: list[str]) -> str:
-    return f"<w:tr>{''.join(cells)}</w:tr>"
-
-
-def _word_table(rows: list[str]) -> str:
-    borders = """
-      <w:tblBorders>
-        <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>
-      </w:tblBorders>
-    """
-    return f'<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>{borders}</w:tblPr>{"".join(rows)}</w:tbl>'
-
-
-def _build_hoja_cotejo_word_document(context: dict) -> bytes:
-    body_parts: list[str] = []
-    program_blocks = context.get("program_blocks") or []
-
-    for idx, program_block in enumerate(program_blocks):
-        body_parts.extend([
-            _word_paragraph("ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES", bold=True, center=True, size=22, page_break_before=idx > 0),
-            _word_paragraph("PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN", bold=True, center=True, size=20),
-            _word_paragraph("HOJA DE COTEJO", bold=True, center=True, size=28),
-        ])
-
-        meta_rows = [
-            _word_row([
-                _word_cell(_word_paragraph(f"Residencial: {context.get('residential_name') or ''}", bold=True), 4200),
-                _word_cell(_word_paragraph(f"Municipio: {context.get('municipality') or ''}", bold=True), 3200),
-                _word_cell(_word_paragraph(f"RQ: {context.get('rq_code') or ''}", bold=True), 2400),
-            ]),
-            _word_row([
-                _word_cell(_word_paragraph(f"Periodo reportado: {context.get('period_label') or ''}", bold=True), 4200),
-                _word_cell(_word_paragraph(f"Programa: {program_block.get('program_display_name') or ''}", bold=True), 3200),
-                _word_cell(_word_paragraph("Tipo de reporte: Hoja de Cotejo", bold=True), 2400),
-            ]),
-        ]
-        body_parts.append(_word_table(meta_rows))
-        body_parts.append(_word_paragraph(""))
-
-        for population_block in program_block.get("population_blocks", []):
-            body_parts.append(_word_paragraph(f"Clasificación / población: {population_block.get('population_label') or ''}", bold=True, size=20))
-            table_rows = [
-                _word_row([
-                    _word_cell(_word_paragraph("ACTIVIDADES", bold=True, center=True), 6200, shade="D9EAF7", center=True),
-                    _word_cell(_word_paragraph("REALIZADAS", bold=True, center=True), 1600, shade="D9EAF7", center=True),
-                    _word_cell(_word_paragraph("DUPLICADOS", bold=True, center=True), 1600, shade="D9EAF7", center=True),
-                    _word_cell(_word_paragraph("ÚNICOS", bold=True, center=True), 1600, shade="D9EAF7", center=True),
-                    _word_cell(_word_paragraph("HORAS CONTACTO", bold=True, center=True), 1800, shade="D9EAF7", center=True),
-                ])
-            ]
-            rows = population_block.get("rows") or []
-            if rows:
-                for row in rows:
-                    activity_text = f"{row.get('activity_code') or ''}\n{row.get('activity_description') or ''}".strip()
-                    table_rows.append(_word_row([
-                        _word_cell(_word_paragraph(activity_text), 6200),
-                        _word_cell(_word_paragraph(row.get("activities_count", 0), center=True), 1600, center=True),
-                        _word_cell(_word_paragraph(row.get("duplicados", 0), center=True), 1600, center=True),
-                        _word_cell(_word_paragraph(row.get("unique_participants", 0), center=True), 1600, center=True),
-                        _word_cell(_word_paragraph(f"{float(row.get('contact_hours') or 0):.2f}", center=True), 1800, center=True),
-                    ]))
-            else:
-                table_rows.append(_word_row([
-                    _word_cell(_word_paragraph("No hay actividades asignadas a esta clasificación.", center=True), 12800)
-                ]))
-            body_parts.append(_word_table(table_rows))
-            body_parts.append(_word_paragraph(""))
-
-        body_parts.extend([
-            _word_paragraph("Firma del recurso / preparado por: ________________________________      Fecha: ____________________"),
-            _word_paragraph("Firma del supervisor / revisado y aprobado: ________________________      Fecha: ____________________"),
-            _word_paragraph(f"Total Horas Contacto del programa: {float(program_block.get('program_contact_hours') or 0):.2f} HRS.", bold=True),
-        ])
-
-    if not program_blocks:
-        body_parts.append(_word_paragraph("No hay programas configurados para los filtros seleccionados.", bold=True))
-
-    document_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>{''.join(body_parts)}<w:sectPr><w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body>
-</w:document>'''
-
-    content_types = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>'''
-    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>'''
-
-    output = BytesIO()
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as docx:
-        docx.writestr("[Content_Types].xml", content_types)
-        docx.writestr("_rels/.rels", rels)
-        docx.writestr("word/document.xml", document_xml)
-    output.seek(0)
-    return output.getvalue()
 
 
 
@@ -3163,34 +3024,6 @@ def hoja_cotejo_report_excel(
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@router.get("/hoja-cotejo/word")
-def hoja_cotejo_report_word(
-    proposal_id: int | None = None,
-    month: str | None = None,
-    year: str | None = None,
-    employee_id: int | None = None,
-    period_type: str = "monthly",
-    start_date: str | None = None,
-    end_date: str | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
-
-    if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
-        return RedirectResponse("/ui/reports/hoja-cotejo", status_code=303)
-
-    output = BytesIO(_build_hoja_cotejo_word_document(context))
-    safe_residential = (context["residential_name"] or "hoja_cotejo").replace(" ", "_")
-    filename = f"hoja_cotejo_{safe_residential}_{_period_filename_suffix(context)}.docx"
-
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
