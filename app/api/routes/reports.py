@@ -120,7 +120,7 @@ FIXED_SIGNATURES = [
     {"name": "Josmary Cosme", "title": "Coordinadora Desarrollo Económico y Servicio al Residente"},
 ]
 
-ROWS_PER_BONAFIDE_PAGE = 26
+ROWS_PER_BONAFIDE_PAGE = 24
 
 def _apply_session_period_filter(stmt, period: dict):
     if period["is_custom"]:
