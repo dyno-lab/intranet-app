@@ -6,38 +6,19 @@
 <div class="d-flex justify-content-between align-items-start mb-4">
   <div>
     <h3 class="mb-1">Plantillas de Reporte</h3>
-    <p class="text-muted mb-0">Asigna versiones de formato por propuesta sin modificar reportes pasados.</p>
+    <p class="text-muted mb-0">Asigna versiones por propuesta y sube formatos PDF/Word corregidos.</p>
   </div>
   <span class="badge bg-warning text-dark">Solo Admin</span>
 </div>
 
-<div class="alert alert-info">
-  <strong>Regla segura:</strong> si una propuesta no tiene asignacion, usa la plantilla base actual. Para cambios futuros, crea una nueva version y asignala solo a la propuesta correspondiente.
+{% if msg %}
+<div class="alert {{ 'alert-danger' if msg.startswith('Error:') else 'alert-success' }}">
+  {{ msg }}
 </div>
+{% endif %}
 
-<div class="card mb-4 border-info">
-  <div class="card-header bg-info-subtle">
-    <strong>Help / Guia de uso</strong>
-  </div>
-  <div class="card-body">
-    <p class="mb-2">
-      <strong>Report Templates es un requisito transversal:</strong> no pertenece solo a Hoja de Cotejo ni comparte un formato unico. Cada reporte conserva su propio formato actual: Bonafide usa su formato Bonafide, Hoja de Cotejo usa su formato Hoja de Cotejo, Consolidado usa su formato Consolidado, etc.
-    </p>
-    <p class="mb-2">
-      Esta pantalla sirve para asignar versiones por propuesta y evitar que un cambio nuevo afecte informes culminados.
-    </p>
-    <ul class="mb-3">
-      <li><strong>No editar una plantilla base para resolver una propuesta nueva.</strong> Crear una version nueva.</li>
-      <li><strong>No romper informes culminados:</strong> cada propuesta puede quedar amarrada a una version especifica.</li>
-      <li><strong>Reportes sin asignacion:</strong> usan su propio formato base por defecto, no el formato de otro reporte.</li>
-      <li><strong>Propuestas actuales:</strong> deben quedar asociadas al formato base actual de cada reporte cuando se requiera congelar/versionar.</li>
-      <li><strong>Reportes futuros:</strong> deben agregarse a este catalogo y resolver su configuracion por <code>report_key</code> desde el inicio.</li>
-      <li><strong>Cambios permitidos por version:</strong> header, logos/fotos, footer, columnas, etiquetas, orden y reglas visuales.</li>
-    </ul>
-    <div class="small text-muted">
-      Nota tecnica: algunas pantallas ya pueden consultar la plantilla; otras quedan registradas aqui como requisito operativo para cuando se migren a plantillas versionadas.
-    </div>
-  </div>
+<div class="alert alert-info">
+  <strong>Regla segura:</strong> si una propuesta no tiene asignacion, usa la plantilla base actual. Las versiones subidas aqui solo afectan una propuesta cuando se asignan explicitamente.
 </div>
 
 <div class="card mb-4">
@@ -69,7 +50,7 @@
 
 <div class="card mb-4">
   <div class="card-header">
-    <strong>Asignaciones por propuesta</strong>
+    <strong>Asignar versiones a reportes</strong>
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0 align-middle">
@@ -77,8 +58,8 @@
         <tr>
           <th>Propuesta</th>
           <th>Reporte</th>
-          <th>Asignación actual</th>
-          <th style="width: 38%;">Cambiar versión</th>
+          <th>Asignacion actual</th>
+          <th style="width: 38%;">Version disponible</th>
         </tr>
       </thead>
       <tbody>
@@ -99,15 +80,15 @@
                       {{ current.template.name }}<br>
                       <strong>{{ current.version.version_label }}</strong>
                       <span class="text-muted">v{{ current.version.version_number }}</span>
-                      <div class="mt-1 d-flex flex-wrap gap-2">
-                        {% if 'template_file_upload' in current.version.config_json or 'word_upload' in current.version.config_json %}
+                      {% if 'template_file_upload' in current.version.config_json or 'word_upload' in current.version.config_json %}
+                        <div class="mt-1">
                           <a class="link-secondary" href="/ui/admin/report-templates/versions/{{ current.version.report_template_version_id }}/download-uploaded-file">Archivo subido</a>
-                        {% endif %}
-                      </div>
+                        </div>
+                      {% endif %}
                     </div>
                   {% else %}
                     <span class="badge bg-secondary">Base por defecto</span>
-                    <div class="small text-muted mt-1">No hay asignación específica.</div>
+                    <div class="small text-muted mt-1">No hay asignacion especifica.</div>
                   {% endif %}
                 </td>
                 <td>
@@ -128,7 +109,7 @@
                     </div>
                   </form>
                   {% if current %}
-                  <form method="post" action="/ui/admin/report-templates/unassign" onsubmit="return confirm('¿Remover asignación y volver a plantilla base?');">
+                  <form method="post" action="/ui/admin/report-templates/unassign" onsubmit="return confirm('Remover asignacion y volver a plantilla base?');">
                     <input type="hidden" name="proposal_id" value="{{ proposal.proposal_id }}">
                     <input type="hidden" name="report_key" value="{{ report_key }}">
                     <button class="btn btn-sm btn-outline-secondary" type="submit">Usar base por defecto</button>
@@ -146,100 +127,12 @@
 
 <div class="card mb-4 border-primary">
   <div class="card-header bg-primary-subtle">
-    <strong>Subir PDF o Word corregido como nueva versión</strong>
+    <strong>Subir PDF o Word como nueva version</strong>
   </div>
   <div class="card-body">
-    <p class="text-muted small mb-3">
-      Usa este flujo cuando conviertas un PDF a Word, lo corrijas, o cuando tengas un PDF ya corregido. El archivo queda versionado aquí y luego se asigna a la propuesta/reporte correspondiente arriba.
-    </p>
-    <div class="row g-4">
-      <div class="col-lg-12">
-        <form method="post" action="/ui/admin/report-templates/versions/upload-file" enctype="multipart/form-data" class="row g-2 align-items-end">
-          <div class="col-md-5">
-            <label class="form-label">Reporte / plantilla base</label>
-            <select name="report_template_id" class="form-select" required>
-              {% for template in templates_list %}
-                <option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Nombre de versión</label>
-            <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 - formato corregido v1" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Archivo .pdf o .docx</label>
-            <input type="file" name="template_file" class="form-control" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
-          </div>
-          <div class="col-12">
-            <button class="btn btn-primary" type="submit">Subir PDF/Word como nueva versión</button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <div class="form-text mt-3">
-      Nota: esta pantalla es el único punto para versionar formatos corregidos. No se agregan botones Word/PDF nuevos en las demás pantallas de reportes.
-    </div>
-  </div>
-</div>
-
-<div class="card mb-4">
-  <div class="card-header bg-success text-white">
-    <strong>Crear nueva version visual</strong>
-  </div>
-  <div class="card-body">
-    <p class="text-muted small">Editor practico para crear una version sin escribir JSON. No modifica reportes existentes; solo crea una version nueva que luego puedes asignar a una propuesta.</p>
-    <form method="post" action="/ui/admin/report-templates/versions/create-visual" class="row g-3">
-      <div class="col-md-4"><label class="form-label">Reporte / plantilla base</label><select name="report_template_id" class="form-select" required>{% for template in templates_list %}<option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>{% endfor %}</select></div>
-      <div class="col-md-4"><label class="form-label">Nombre de version</label><input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 - Header nuevo" required></div>
-      <div class="col-12"><hr><h5>Preview desde documento actual</h5></div>
-      <div class="col-md-4"><label class="form-label">Propuesta para preview</label><select name="preview_proposal_id" class="form-select"><option value="">Usar maqueta si no aplica</option>{% for proposal in proposals %}<option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>{% endfor %}</select></div>
-      <div class="col-md-2"><label class="form-label">Mes preview</label><input type="number" name="preview_month" class="form-control" min="1" max="12" placeholder="4"></div>
-      <div class="col-md-2"><label class="form-label">Año preview</label><input type="number" name="preview_year" class="form-control" min="2000" max="2100" placeholder="2026"></div>
-      <div class="col-md-2"><label class="form-label">Periodo</label><select name="preview_period_type" class="form-select"><option value="monthly">Mensual</option><option value="custom">Personalizado</option></select></div>
-      <div class="col-md-2"><label class="form-label">Funcionario</label><input type="text" name="preview_authorized_name" class="form-control"></div>
-      <div class="col-md-3"><label class="form-label">Desde custom</label><input type="date" name="preview_start_date" class="form-control"></div>
-      <div class="col-md-3"><label class="form-label">Hasta custom</label><input type="date" name="preview_end_date" class="form-control"></div>
-      <div class="col-12"><div class="form-text">Para Hoja de Cotejo Admin, selecciona propuesta/periodo y la vista previa usara la hoja actual real. Otros reportes seguiran con maqueta hasta integrarlos uno por uno.</div></div>
-      <div class="col-12"><hr><h5>Header / titulos / fotos</h5></div>
-      <div class="col-md-4"><label class="form-label">Imagen header</label><input type="text" name="header_image" class="form-control" placeholder="/static/img/header.png"></div>
-      <div class="col-md-4"><label class="form-label">Titulo principal</label><input type="text" name="header_title" class="form-control"></div>
-      <div class="col-md-4"><label class="form-label">Subtitulo</label><input type="text" name="header_subtitle" class="form-control"></div>
-      <div class="col-12"><label class="form-label">Notas/lineas adicionales del header</label><textarea name="header_notes" class="form-control" rows="2"></textarea></div>
-      <div class="col-12"><hr><h5>Footer / firmas / fechas</h5></div>
-      <div class="col-md-4"><label class="form-label">Imagen footer</label><input type="text" name="footer_image" class="form-control" placeholder="/static/img/footer.png"></div>
-      <div class="col-md-8"><label class="form-label">Texto footer/certificacion</label><input type="text" name="footer_text" class="form-control"></div>
-      <div class="col-md-3"><label class="form-label">Firma 1 - etiqueta</label><input type="text" name="signature_1_label" class="form-control" placeholder="Firma del Representante Autorizado"></div>
-      <div class="col-md-3"><label class="form-label">Firma 1 - titulo/cargo</label><input type="text" name="signature_1_title" class="form-control"></div>
-      <div class="col-md-3"><label class="form-label">Firma 2 - etiqueta</label><input type="text" name="signature_2_label" class="form-control" placeholder="Firma / Iniciales"></div>
-      <div class="col-md-3"><label class="form-label">Fecha - etiqueta</label><input type="text" name="date_label" class="form-control" placeholder="Fecha"></div>
-      <div class="col-12"><hr><h5>Espacios / margenes / tabla</h5></div>
-      <div class="col-md-2"><label class="form-label">Margen arriba</label><input type="text" name="margin_top" class="form-control" placeholder="0.25in"></div>
-      <div class="col-md-2"><label class="form-label">Margen derecha</label><input type="text" name="margin_right" class="form-control" placeholder="0.25in"></div>
-      <div class="col-md-2"><label class="form-label">Margen abajo</label><input type="text" name="margin_bottom" class="form-control" placeholder="0.25in"></div>
-      <div class="col-md-2"><label class="form-label">Margen izquierda</label><input type="text" name="margin_left" class="form-control" placeholder="0.25in"></div>
-      <div class="col-md-2"><label class="form-label">Espacio header/tabla</label><input type="text" name="table_spacing" class="form-control" placeholder="8px"></div>
-      <div class="col-md-2"><label class="form-label">Filas por tabla</label><input type="text" name="rows_per_table" class="form-control" placeholder="18"></div>
-      <div class="col-12"><label class="form-label">Columnas visibles / etiquetas</label><textarea name="columns_text" class="form-control font-monospace" rows="5" placeholder="codigo|Codigo&#10;nombre|Nombre&#10;fecha|Fecha"></textarea><div class="form-text">Una columna por linea. Formato: <code>clave|Etiqueta visible</code>. Si se deja vacio, conserva columnas base del reporte.</div></div>
-      <div class="col-12 d-flex gap-2">
-        <button class="btn btn-outline-secondary" type="submit" formaction="/ui/admin/report-templates/versions/preview-visual" formtarget="_blank">Vista previa</button>
-        <button class="btn btn-success" type="submit">Crear version visual</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header bg-light">
-    <strong>Crear nueva versión técnica</strong>
-  </div>
-  <div class="card-body">
-    <p class="text-muted small">
-      Uso avanzado: pega una configuracion JSON completa para crear una version nueva. Las versiones anteriores no se modifican.
-    </p>
-    <form method="post" action="/ui/admin/report-templates/versions/create" class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">Plantilla base</label>
+    <form method="post" action="/ui/admin/report-templates/versions/upload-file" enctype="multipart/form-data" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label">Reporte / plantilla base</label>
         <select name="report_template_id" class="form-select" required>
           {% for template in templates_list %}
             <option value="{{ template.report_template_id }}">{{ template.name }} ({{ template.report_key }})</option>
@@ -247,22 +140,83 @@
         </select>
       </div>
       <div class="col-md-4">
-        <label class="form-label">Etiqueta de version</label>
-        <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta nueva v1" required>
+        <label class="form-label">Nombre de version</label>
+        <input type="text" name="version_label" class="form-control" placeholder="Ej. Propuesta 2026 - formato corregido v1" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Archivo .pdf o .docx</label>
+        <input type="file" name="template_file" class="form-control" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
       </div>
       <div class="col-12">
-        <label class="form-label">Configuración JSON</label>
-        <textarea name="config_json" class="form-control font-monospace" rows="8" required>{
-  "header": {},
-  "footer": {},
-  "columns": []
-}</textarea>
-        <div class="form-text">Si necesitas columnas/header/fotos nuevas, aqui se crea otra version sin tocar la base.</div>
-      </div>
-      <div class="col-12">
-        <button class="btn btn-outline-primary" type="submit">Crear versión</button>
+        <button class="btn btn-primary" type="submit">Subir version</button>
       </div>
     </form>
+    <div class="form-text mt-3">
+      Las versiones subidas quedan disponibles para asignarse arriba por propuesta y reporte.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-light">
+    <strong>Versiones disponibles</strong>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Reporte</th>
+          <th>Version</th>
+          <th>Tipo</th>
+          <th>Uso</th>
+          <th style="width: 18%;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for version, template in versions %}
+          {% set usage_count = version_assignment_counts.get(version.report_template_version_id, 0) %}
+          <tr>
+            <td>
+              <strong>{{ template.name }}</strong><br>
+              <span class="text-muted small">{{ template.report_key }}</span>
+            </td>
+            <td>
+              <strong>{{ version.version_label }}</strong><br>
+              <span class="text-muted small">v{{ version.version_number }}</span>
+            </td>
+            <td>
+              {% if 'template_file_upload' in version.config_json or 'word_upload' in version.config_json %}
+                <span class="badge bg-primary">Archivo PDF/Word</span>
+              {% else %}
+                <span class="badge bg-secondary">Base / tecnica</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if usage_count %}
+                <span class="badge bg-success">Asignada a {{ usage_count }}</span>
+              {% else %}
+                <span class="text-muted small">Sin asignaciones activas</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex flex-wrap gap-2">
+                {% if 'template_file_upload' in version.config_json or 'word_upload' in version.config_json %}
+                  <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/report-templates/versions/{{ version.report_template_version_id }}/download-uploaded-file">Descargar</a>
+                {% endif %}
+                <form method="post" action="/ui/admin/report-templates/versions/{{ version.report_template_version_id }}/delete" onsubmit="return confirm('Inactivar esta version? No se puede si esta asignada.');">
+                  {% if selected_proposal_id %}<input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">{% endif %}
+                  <button class="btn btn-sm btn-outline-danger" type="submit" {{ 'disabled' if usage_count else '' }}>Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">No hay versiones disponibles.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endblock %}

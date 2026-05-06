@@ -3336,12 +3336,14 @@ def admin_report_templates(
         versions_by_report.setdefault(template.report_key, []).append((version, template))
 
     assignment_map: dict[tuple[int, str], dict] = {}
+    version_assignment_counts: dict[int, int] = {}
     for assignment, version, template in active_assignments:
         assignment_map[(assignment.proposal_id, assignment.report_key)] = {
             "assignment": assignment,
             "version": version,
             "template": template,
         }
+        version_assignment_counts[version.report_template_version_id] = version_assignment_counts.get(version.report_template_version_id, 0) + 1
 
     return templates.TemplateResponse(
         "ui/admin/report_templates.html",
@@ -3355,6 +3357,7 @@ def admin_report_templates(
             "versions": versions,
             "versions_by_report": versions_by_report,
             "assignment_map": assignment_map,
+            "version_assignment_counts": version_assignment_counts,
             "report_options": REPORT_TEMPLATE_REPORT_OPTIONS,
         },
     )
@@ -3624,6 +3627,35 @@ async def admin_report_template_versions_upload_file(
     ))
     db.commit()
     return _report_template_redirect("Version PDF/Word subida exitosamente.")
+
+
+@router.post("/report-templates/versions/{report_template_version_id}/delete")
+def admin_report_template_versions_delete(
+    report_template_version_id: int,
+    proposal_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    version = db.get(ReportTemplateVersion, report_template_version_id)
+    if not version or not version.is_active:
+        return _report_template_redirect("Error: Version de plantilla no encontrada o ya inactiva.", proposal_id)
+
+    active_assignment = db.execute(
+        select(ProposalReportTemplate).where(
+            ProposalReportTemplate.report_template_version_id == report_template_version_id,
+            ProposalReportTemplate.is_active == True,  # noqa: E712
+        )
+    ).scalars().first()
+    if active_assignment:
+        return _report_template_redirect(
+            "Error: No se puede eliminar una version asignada. Primero remueve la asignacion de la propuesta.",
+            proposal_id,
+        )
+
+    version.is_active = False
+    db.add(version)
+    db.commit()
+    return _report_template_redirect("Version inactivada exitosamente.", proposal_id)
 
 
 @router.post("/report-templates/versions/create")
