@@ -160,6 +160,8 @@ def _build_bonafide_context(
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
+    report_template_config = _resolve_report_template_config(db, proposal_id, "bonafide")
+
     rows = []
     municipality = None
     residential_name = None
@@ -225,6 +227,8 @@ def _build_bonafide_context(
         "rows": rows,
         "pages": _chunk_rows(rows, ROWS_PER_BONAFIDE_PAGE),
         "rows_per_page": ROWS_PER_BONAFIDE_PAGE,
+        "report_template_config": report_template_config,
+        "report_config": report_template_config,
         "signatures": FIXED_SIGNATURES,
     }
 

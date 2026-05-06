@@ -11,6 +11,22 @@ from app.models.report_template import ProposalReportTemplate, ReportTemplate, R
 
 
 DEFAULT_REPORT_TEMPLATE_CONFIGS: dict[str, dict[str, Any]] = {
+    "bonafide": {
+        "template_key": "bonafide_base_v1",
+        "version_label": "Base v1 - formato actual",
+        "header": {
+            "image": "/static/img/bonafide-header-avp.png",
+            "title": "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES",
+            "subtitle": "CERTIFICACIÓN DE PARTICIPACIÓN DE RESIDENTES BONAFIDE",
+            "organization": "CENTROS SOR ISOLINA FERRÉ",
+            "program": "PROGRAMA FARO DE ESPERANZA",
+            "description": "Autosuficiencia Económica y Social. Apoyo y Prevención",
+        },
+        "footer": {
+            "text": "Los residentes bonafides antes mencionados participaron de los servicios/actividades desarrolladas por el Programa Faro de Esperanza de los Centros Sor Isolina Ferré, durante el periodo indicado.",
+            "new_entry_note": "(*) Participante de nuevo ingreso.",
+        },
+    },
     "hoja_cotejo": {
         "template_key": "hoja_cotejo_base_v1",
         "version_label": "Base v1 - formato actual",
@@ -33,6 +49,17 @@ DEFAULT_REPORT_TEMPLATE_CONFIGS: dict[str, dict[str, Any]] = {
         ],
     },
 }
+
+
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Merge nested dictionaries without losing default values from partial configs."""
+    result = deepcopy(base)
+    for key, value in override.items():
+        if isinstance(result.get(key), dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = deepcopy(value)
+    return result
 
 
 def default_report_template_config(report_key: str) -> dict[str, Any]:
@@ -78,8 +105,7 @@ def resolve_report_template_config(db: Session, proposal_id: int | None, report_
     except json.JSONDecodeError:
         config = {}
 
-    merged = deepcopy(fallback)
-    merged.update(config)
+    merged = deep_merge(fallback, config)
     merged.setdefault("template_key", template.report_key)
     merged["template_name"] = template.name
     merged["template_version_id"] = version.report_template_version_id

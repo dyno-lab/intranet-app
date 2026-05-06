@@ -33,13 +33,14 @@
 <body>
   {% for page_rows in pages %}
   <div class="page">
+    {% set header_config = report_template_config.header if report_template_config and report_template_config.header else {} %}
     <div class="header">
-      <img src="/static/img/bonafide-header-avp.png" alt="Header Bonafide">
-      <div class="title">ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES</div>
-      <div class="subtitle" style="font-weight:700; color:#111;">CERTIFICACIÓN DE PARTICIPACIÓN DE RESIDENTES BONAFIDE</div>
-      <div class="subtitle">CENTROS SOR ISOLINA FERRÉ</div>
-      <div class="subtitle">PROGRAMA FARO DE ESPERANZA</div>
-      <div class="subtitle">Autosuficiencia Económica y Social. Apoyo y Prevención</div>
+      <img src="{{ header_config.image or '/static/img/bonafide-header-avp.png' }}" alt="Header Bonafide">
+      <div class="title">{{ header_config.title or 'ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES' }}</div>
+      <div class="subtitle" style="font-weight:700; color:#111;">{{ header_config.subtitle or 'CERTIFICACIÓN DE PARTICIPACIÓN DE RESIDENTES BONAFIDE' }}</div>
+      <div class="subtitle">{{ header_config.organization or 'CENTROS SOR ISOLINA FERRÉ' }}</div>
+      <div class="subtitle">{{ header_config.program or 'PROGRAMA FARO DE ESPERANZA' }}</div>
+      <div class="subtitle">{{ header_config.description or 'Autosuficiencia Económica y Social. Apoyo y Prevención' }}</div>
     </div>
 
     <div class="meta">
@@ -87,11 +88,12 @@
       </tbody>
     </table>
 
+    {% set footer_config = report_template_config.footer if report_template_config and report_template_config.footer else {} %}
     <div class="footer">
       <div class="footer-text">
-        Los residentes bonafides antes mencionados participaron de los servicios/actividades desarrolladas por el Programa Faro de Esperanza de los Centros Sor Isolina Ferré, durante el periodo indicado.
+        {{ footer_config.text or 'Los residentes bonafides antes mencionados participaron de los servicios/actividades desarrolladas por el Programa Faro de Esperanza de los Centros Sor Isolina Ferré, durante el periodo indicado.' }}
       </div>
-      <div class="new-entry-note">(*) Participante de nuevo ingreso.</div>
+      <div class="new-entry-note">{{ footer_config.new_entry_note or '(*) Participante de nuevo ingreso.' }}</div>
       <table class="signatures-table">
         <tr>
           {% for sig in signatures[:2] %}
