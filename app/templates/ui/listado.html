@@ -148,6 +148,47 @@
   </div>
 </div>
 
+{% if session.proposal_id %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+      <div>
+        <h5 class="mb-1">Filtros de participantes</h5>
+        <div class="text-muted small">Filtra visualmente por edad antes de marcar asistencia. Las selecciones ya marcadas se conservan aunque limpies o cambies el filtro.</div>
+      </div>
+      <span class="badge text-bg-secondary fs-6 px-3 py-2">
+        Mostrando: <span id="visible-participants-count">0</span>
+      </span>
+    </div>
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Rango de edad</label>
+        <select class="form-select" id="age-range-filter">
+          <option value="">Todos los rangos</option>
+          {% for option in attendance_age_range_options %}
+            <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}">{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad desde</label>
+        <input type="number" min="0" class="form-control" id="age-min-filter" placeholder="Desde">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad hasta</label>
+        <input type="number" min="0" class="form-control" id="age-max-filter" placeholder="Hasta">
+      </div>
+      <div class="col-md-2">
+        <button type="button" class="btn btn-primary w-100" id="apply-age-filter">Filtrar</button>
+      </div>
+      <div class="col-md-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="clear-age-filter">Limpiar filtros</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <form method="post">
   <div class="card shadow-sm">
     <div class="card-body table-responsive">
@@ -169,7 +210,7 @@
             {% set pp = row.proposal_participant %}
             {% set person = row.person %}
             {% set is_active = row.is_active %}
-            <tr class="{{ '' if is_active else 'table-danger' }}">
+            <tr class="{{ '' if is_active else 'table-danger' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}">
               <td>{{ pp.expediente_num or '—' }}</td>
               <td>{{ person.nombre }}</td>
               <td>{{ person.inicial or '' }}</td>
@@ -195,6 +236,13 @@
             <tr>
               <td colspan="7" class="text-muted text-center py-4">
                 Esta sesión no tiene propuesta. La nueva Fase 2 de asistencia opera solo con sesiones asociadas a propuesta.
+              </td>
+            </tr>
+          {% endif %}
+          {% if session.proposal_id %}
+            <tr id="no-age-filter-results-row" class="d-none">
+              <td colspan="7" class="text-muted text-center py-4">
+                No hay participantes que coincidan con el filtro de edad seleccionado.
               </td>
             </tr>
           {% endif %}
@@ -235,6 +283,14 @@
 
   const counterValue = document.getElementById('attendance-counter-value');
   const attendanceCheckboxes = Array.from(document.querySelectorAll('input[name="present"]:not(:disabled)'));
+  const participantRows = Array.from(document.querySelectorAll('[data-participant-row="1"]'));
+  const ageRangeFilter = document.getElementById('age-range-filter');
+  const ageMinFilter = document.getElementById('age-min-filter');
+  const ageMaxFilter = document.getElementById('age-max-filter');
+  const applyAgeFilterButton = document.getElementById('apply-age-filter');
+  const clearAgeFilterButton = document.getElementById('clear-age-filter');
+  const visibleParticipantsCount = document.getElementById('visible-participants-count');
+  const noAgeFilterResultsRow = document.getElementById('no-age-filter-results-row');
 
   function refreshAttendanceCounter() {
     if (!counterValue) return;
@@ -242,11 +298,77 @@
     counterValue.textContent = String(selectedCount);
   }
 
+  function selectedAgeBounds() {
+    let minAge = ageMinFilter && ageMinFilter.value !== '' ? Number(ageMinFilter.value) : null;
+    let maxAge = ageMaxFilter && ageMaxFilter.value !== '' ? Number(ageMaxFilter.value) : null;
+
+    if (ageRangeFilter && ageRangeFilter.value) {
+      const selectedOption = ageRangeFilter.options[ageRangeFilter.selectedIndex];
+      minAge = selectedOption.dataset.min !== '' ? Number(selectedOption.dataset.min) : null;
+      maxAge = selectedOption.dataset.max !== '' ? Number(selectedOption.dataset.max) : null;
+      if (ageMinFilter) ageMinFilter.value = minAge === null ? '' : String(minAge);
+      if (ageMaxFilter) ageMaxFilter.value = maxAge === null ? '' : String(maxAge);
+    }
+
+    return { minAge, maxAge };
+  }
+
+  function refreshAgeFilter() {
+    const { minAge, maxAge } = selectedAgeBounds();
+    let visibleCount = 0;
+
+    participantRows.forEach((row) => {
+      const rawAge = row.dataset.age || '';
+      const age = rawAge === '' ? null : Number(rawAge);
+      const hasAge = age !== null && !Number.isNaN(age);
+      const matchesMin = minAge === null || (hasAge && age >= minAge);
+      const matchesMax = maxAge === null || (hasAge && age <= maxAge);
+      const visible = matchesMin && matchesMax;
+
+      row.classList.toggle('d-none', !visible);
+      if (visible) visibleCount += 1;
+    });
+
+    if (visibleParticipantsCount) {
+      visibleParticipantsCount.textContent = String(visibleCount);
+    }
+    if (noAgeFilterResultsRow) {
+      noAgeFilterResultsRow.classList.toggle('d-none', visibleCount !== 0);
+    }
+  }
+
+  function clearAgeFilter() {
+    if (ageRangeFilter) ageRangeFilter.value = '';
+    if (ageMinFilter) ageMinFilter.value = '';
+    if (ageMaxFilter) ageMaxFilter.value = '';
+    refreshAgeFilter();
+  }
+
   attendanceCheckboxes.forEach((checkbox) => {
     checkbox.addEventListener('change', refreshAttendanceCounter);
   });
 
+  if (ageRangeFilter) {
+    ageRangeFilter.addEventListener('change', refreshAgeFilter);
+  }
+  if (applyAgeFilterButton) {
+    applyAgeFilterButton.addEventListener('click', refreshAgeFilter);
+  }
+  if (clearAgeFilterButton) {
+    clearAgeFilterButton.addEventListener('click', clearAgeFilter);
+  }
+  [ageMinFilter, ageMaxFilter].forEach((input) => {
+    if (!input) return;
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        refreshAgeFilter();
+      }
+    });
+  });
+
   refreshAttendanceCounter();
+  refreshAgeFilter();
 })();
 </script>
 {% endblock %}

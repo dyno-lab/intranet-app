@@ -140,6 +140,17 @@ def _participant_form_catalogs(db: Session):
     }
 
 
+ATTENDANCE_AGE_RANGE_OPTIONS = [
+    {"value": "lt5", "label": "Menos de 5 años", "min": None, "max": 4},
+    {"value": "6_7", "label": "6 – 7 años", "min": 6, "max": 7},
+    {"value": "8_10", "label": "8 – 10 años", "min": 8, "max": 10},
+    {"value": "11_15", "label": "11 – 15 años", "min": 11, "max": 15},
+    {"value": "16_21", "label": "16 – 21 años", "min": 16, "max": 21},
+    {"value": "22_59", "label": "22 – 59 años", "min": 22, "max": 59},
+    {"value": "60_plus", "label": "60 años en adelante", "min": 60, "max": None},
+]
+
+
 def _load_session_proposal_participants(db: Session, session: ActivitySession, current_user: User):
     if not session.proposal_id:
         return []
@@ -1000,6 +1011,7 @@ def open_session(
             "employees": employees,
             "proposals": proposals,
             "proposal_participant_rows": proposal_participant_rows,
+            "attendance_age_range_options": ATTENDANCE_AGE_RANGE_OPTIONS,
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
