@@ -80,7 +80,12 @@
         {% endif %}
       </div>
       <div class="col-md-2">
-        <strong>Horas:</strong> {{ session.hours or '—' }}
+        <strong>Minutos:</strong>
+          {% if session.hours is not none %}
+            {{ (session.hours * 60)|round(0)|int }} min
+          {% else %}
+            -
+          {% endif %}
       </div>
     </div>
 

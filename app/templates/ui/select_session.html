@@ -161,7 +161,7 @@
           <th>Actividad</th>
           <th>Empleado</th>
           {% if is_admin_or_supervisor_view %}<th>Creado por</th>{% endif %}
-          <th>Horas</th>
+          <th>Minutos</th>
           <th class="text-end">Acciones</th>
         </tr>
       </thead>
@@ -189,7 +189,7 @@
             <div class="small text-muted">{{ s.created_by_residential or '' }}</div>
           </td>
           {% endif %}
-          <td>{{ s.hours or '' }}</td>
+          <td>{% if s.hours is not none %}{{ (s.hours * 60)|round(0)|int }} min{% endif %}</td>
           <td class="text-end">
             <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
 
