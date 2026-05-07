@@ -132,7 +132,7 @@
           <label class="form-label">Minutos</label>
           <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{% if session.hours is not none %}{{ (session.hours * 60)|round(0)|int }}{% endif %}" data-hours-output="edit-hours-preview">
         </div>
-        <div class="col-md-1">
+        <div class="col-md-2">
           <label class="form-label">Equivale a</label>
           <input type="text" class="form-control bg-light" id="edit-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
           <div class="form-text">Solo visual</div>
