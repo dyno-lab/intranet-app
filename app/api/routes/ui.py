@@ -56,6 +56,12 @@ def _calc_age(dob: date | None):
     )
 
 
+def _hours_from_minutes(minutes: float | None) -> float | None:
+    if minutes is None:
+        return None
+    return round(minutes / 60, 6)
+
+
 def _check_participant_access(p: Participant, user: User):
     if is_admin_or_supervisor(user):
         return
@@ -902,7 +908,7 @@ def create_session_ui(
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
     proposal_id: int | None = Form(default=None),
-    hours: float | None = Form(default=None),
+    hours_minutes: float | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -930,7 +936,7 @@ def create_session_ui(
         activity_code_id=activity_code_id,
         employee_id=employee_id,
         proposal_id=proposal.proposal_id if proposal else None,
-        hours=hours,
+        hours=_hours_from_minutes(hours_minutes),
         created_by_user_id=current_user.user_id,
     )
 
@@ -1163,7 +1169,7 @@ def edit_session(
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
     proposal_id: int | None = Form(default=None),
-    hours: float | None = Form(default=None),
+    hours_minutes: float | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1206,7 +1212,7 @@ def edit_session(
     s.session_date = _parse_date(session_date)
     s.activity_code_id = activity_code_id
     s.employee_id = employee_id
-    s.hours = hours
+    s.hours = _hours_from_minutes(hours_minutes)
 
     db.add(s)
     db.commit()

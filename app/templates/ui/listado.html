@@ -124,8 +124,9 @@
           </select>
         </div>
         <div class="col-md-2">
-          <label class="form-label">Horas</label>
-          <input type="number" step="0.05" min="0.05" class="form-control" name="hours" value="{{ session.hours or '' }}">
+          <label class="form-label">Minutos</label>
+          <input type="number" step="5" min="5" class="form-control" name="hours_minutes" value="{% if session.hours is not none %}{{ (session.hours * 60)|round(0)|int }}{% endif %}">
+          <div class="form-text">Se guarda internamente como horas decimales.</div>
         </div>
         <div class="col-12 mt-2">
           <button class="btn btn-primary">Guardar Cambios</button>
