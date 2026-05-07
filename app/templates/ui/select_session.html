@@ -142,8 +142,8 @@
       </div>
 
       <div class="col-md-1">
-        <label class="form-label">Horas</label>
-        <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0.00" readonly tabindex="-1">
+        <label class="form-label">Equivale a</label>
+        <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
         <div class="form-text">Solo visual</div>
       </div>
 
@@ -255,7 +255,19 @@
       output.value = '';
       return;
     }
-    output.value = (minutes / 60).toFixed(2);
+    const totalMinutes = Math.round(minutes);
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    const parts = [];
+
+    if (hours > 0) {
+      parts.push(hours === 1 ? '1 hora' : `${hours} horas`);
+    }
+    if (remainingMinutes > 0 || hours === 0) {
+      parts.push(remainingMinutes === 1 ? '1 minuto' : `${remainingMinutes} minutos`);
+    }
+
+    output.value = parts.join(' y ');
   }
 
   document.querySelectorAll('.minutes-to-hours-input').forEach((input) => {

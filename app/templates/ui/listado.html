@@ -133,8 +133,8 @@
           <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{% if session.hours is not none %}{{ (session.hours * 60)|round(0)|int }}{% endif %}" data-hours-output="edit-hours-preview">
         </div>
         <div class="col-md-1">
-          <label class="form-label">Horas</label>
-          <input type="text" class="form-control bg-light" id="edit-hours-preview" value="{% if session.hours is not none %}{{ '%.2f'|format(session.hours) }}{% endif %}" placeholder="0.00" readonly tabindex="-1">
+          <label class="form-label">Equivale a</label>
+          <input type="text" class="form-control bg-light" id="edit-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
           <div class="form-text">Solo visual</div>
         </div>
         <div class="col-12 mt-2">
@@ -280,7 +280,19 @@
       output.value = '';
       return;
     }
-    output.value = (minutes / 60).toFixed(2);
+    const totalMinutes = Math.round(minutes);
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    const parts = [];
+
+    if (hours > 0) {
+      parts.push(hours === 1 ? '1 hora' : `${hours} horas`);
+    }
+    if (remainingMinutes > 0 || hours === 0) {
+      parts.push(remainingMinutes === 1 ? '1 minuto' : `${remainingMinutes} minutos`);
+    }
+
+    output.value = parts.join(' y ');
   }
 
   document.querySelectorAll('.minutes-to-hours-input').forEach((input) => {
