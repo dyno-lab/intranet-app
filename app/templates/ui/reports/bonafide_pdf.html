@@ -5,25 +5,26 @@
   <title>Bonafide PDF</title>
   <style>
     @page { size: letter; margin: 0.45in; }
-    body { font-family: Arial, sans-serif; color: #111; margin: 0; }
-    .page { position: relative; box-sizing: border-box; page-break-after: auto; break-after: auto; }
+    html, body { width: 100%; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111; }
+    .page { position: relative; box-sizing: border-box; page-break-after: auto; break-after: auto; page-break-inside: avoid; break-inside: avoid-page; overflow: hidden; }
     .page + .page { page-break-before: always; break-before: page; }
-    .header { text-align: center; margin-bottom: 12px; }
-    .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
-    .header .title { font-weight: 700; font-size: 15px; }
-    .header .subtitle { font-size: 11px; color: #444; line-height: 1.2; }
-    .meta { font-size: 12px; margin: 10px 0 12px 0; }
+    .header { text-align: center; margin-bottom: 8px; }
+    .header img { max-width: 500px; max-height: 78px; width: auto; display: block; margin: 0 auto 6px auto; object-fit: contain; }
+    .header .title { font-weight: 700; font-size: 14px; }
+    .header .subtitle { font-size: 10.5px; color: #444; line-height: 1.15; }
+    .meta { font-size: 11px; margin: 7px 0 8px 0; }
     .meta-row { display: flex; justify-content: space-between; gap: 16px; }
     .meta-row div { width: 33%; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th, td { border: 1px solid #333; padding: 4px 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    th, td { border: 1px solid #333; padding: 3px 5px; }
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
-    .footer { margin-top: 14px; font-size: 10px; }
-    .footer-text { margin: 6px 0 2px 0; line-height: 1.35; font-size: 11px; font-weight: 700; }
-    .new-entry-note { margin-bottom: 18px; font-size: 11px; font-weight: 700; }
-    .signatures-table { width: 100%; border-collapse: collapse; margin-top: 22px; table-layout: fixed; }
-    .signatures-table td { border: none; width: 50%; padding: 0 18px 26px 18px; vertical-align: top; text-align: center; }
+    .footer { margin-top: 8px; font-size: 9.5px; }
+    .footer-text { margin: 4px 0 2px 0; line-height: 1.2; font-size: 10px; font-weight: 700; }
+    .new-entry-note { margin-bottom: 10px; font-size: 10px; font-weight: 700; }
+    .signatures-table { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
+    .signatures-table td { border: none; width: 50%; padding: 0 18px 16px 18px; vertical-align: top; text-align: center; }
     .sig-line { width: 100%; margin: 0 0 8px 0; border-top: 1px solid #111; }
     .sig-name { font-size: 10px; line-height: 1.15; }
     .sig-title { margin-top: 4px; font-size: 10px; font-weight: 700; line-height: 1.2; }
