@@ -6,8 +6,8 @@
   <style>
     @page { size: letter; margin: 0.45in; }
     body { font-family: Arial, sans-serif; color: #111; margin: 0; }
-    .page { page-break-after: always; break-after: page; position: relative; box-sizing: border-box; }
-    .page:last-child { page-break-after: auto; break-after: auto; }
+    .page { position: relative; box-sizing: border-box; page-break-after: auto; break-after: auto; }
+    .page + .page { page-break-before: always; break-before: page; }
     .header { text-align: center; margin-bottom: 12px; }
     .header img { max-width: 520px; max-height: 88px; width: auto; display: block; margin: 0 auto 10px auto; object-fit: contain; }
     .header .title { font-weight: 700; font-size: 15px; }
