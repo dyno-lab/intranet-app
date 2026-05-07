@@ -18,6 +18,48 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-06 - Bonafide, Report Templates simplificado y filtros de asistencia
+Estado: **validado por Christian en pruebas manuales**.
+
+Contexto:
+- Christian solicito ajustes puntuales en `ui/reports/bonafide?proposal_id`, `/ui/admin/report-templates` y `/ui/listado/{session_id}` sin cambiar estructuras existentes ni romper compatibilidad.
+- Se uso `4134293` como backup antes de integrar Bonafide con Report Templates (`backup-before-bonafide-integration`).
+
+Implementado:
+- `/ui/reports/bonafide`:
+  - paginacion del PDF Bonafide ajustada de 26 a **24 filas por pagina**.
+  - integracion inicial con Report Templates por propuesta para header/footer mediante `report_template_config`.
+  - `resolve_report_template_config()` ahora usa **deep merge**, permitiendo configuraciones parciales sin borrar defaults.
+  - el PDF Bonafide usa header/footer configurables con fallback seguro al formato actual.
+  - se mantuvo intacta la estructura de columnas, el bloque de genero F/M y las firmas actuales.
+  - la columna `Nombre` ahora muestra `Nombre + Inicial + Apellidos` cuando existe inicial; aplica al HTML, PDF y Excel porque sale del mismo contexto.
+- `/ui/admin/report-templates`:
+  - pantalla simplificada para el flujo operativo deseado: filtrar propuesta, asignar versiones, subir PDF/Word y administrar versiones disponibles.
+  - se removio de la pantalla el help largo, editor visual, editor JSON tecnico y preview avanzado.
+  - se agrego Delete seguro para versiones: inactiva la version, pero bloquea si esta asignada activamente a una propuesta.
+- `/ui/listado/{session_id}`:
+  - filtro visual de participantes por edad antes de marcar asistencia.
+  - rangos agregados: menos de 5, 6-7, 8-10, 11-15, 16-21, 22-59 y 60+.
+  - filtro manual `Edad desde / Edad hasta`.
+  - boton `Filtrar`, boton `Limpiar filtros`, contador de participantes visibles y mensaje sin resultados.
+  - el filtro es visual; las asistencias marcadas se conservan aunque se cambie o limpie el filtro.
+
+Validacion tecnica realizada:
+- `py_compile` / `compileall` paso para `app/api/routes/reports.py`, `app/api/routes/ui.py`, `app/api/routes/admin.py` y `app/services/report_templates.py` segun cada bloque.
+- Templates Jinja2 relevantes cargaron sin error.
+- Prueba de deep merge parcial confirmo que un cambio como `header.image` conserva el resto del header/footer default.
+- Christian confirmo manualmente que las pruebas funcionan bien.
+
+Commits locales / remotos recientes:
+- `4134293 Ajustar filas por pagina en Bonafide`
+- `43c957e Integrar plantillas en Bonafide`
+- `32190ee Simplificar administracion de plantillas de reporte`
+- `5380bc7 Agregar filtros de edad en asistencia`
+- `c0b0837 Mostrar inicial en nombre Bonafide`
+
+Pendiente / cabo suelto:
+- Si Christian entrega futuras versiones corregidas en PDF/Word, Dyno debe subirlas/versionarlas desde `/ui/admin/report-templates` y asignarlas a la propuesta/reporte correspondiente.
+
 ### Actualizacion 2026-05-05 - Cierre temporal de Report Templates PDF/Word
 Estado: **cerrado temporalmente; pendiente nuevas pruebas de Christian**.
 

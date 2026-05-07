@@ -21,6 +21,28 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-06 - Bonafide, Report Templates simplificado y filtros de asistencia
+Estado: **validado por Christian en pruebas manuales**.
+
+Resumen:
+- Bonafide PDF ajustado a **24 filas por pagina**.
+- Bonafide integrado con Report Templates por propuesta para header/footer con fallback seguro y deep merge.
+- `/ui/admin/report-templates` simplificado para asignar versiones, subir PDF/Word y administrar versiones disponibles.
+- Delete de versiones inactiva de forma segura y bloquea si la version esta asignada.
+- `/ui/listado/{session_id}` ahora tiene filtro visual por edad/rango, filtro manual desde/hasta, boton filtrar, limpiar filtros y contador de visibles.
+- Bonafide ahora muestra en columna `Nombre`: `Nombre + Inicial + Apellidos`; aplica a pantalla, PDF y Excel sin cambiar estructura de columnas.
+
+Commits recientes:
+- `4134293 Ajustar filas por pagina en Bonafide`
+- `43c957e Integrar plantillas en Bonafide`
+- `32190ee Simplificar administracion de plantillas de reporte`
+- `5380bc7 Agregar filtros de edad en asistencia`
+- `c0b0837 Mostrar inicial en nombre Bonafide`
+
+Nota operativa:
+- Fuente detallada actualizada en `docs/implementation_status.md`.
+- Para futuras versiones corregidas en PDF/Word, Christian puede pasarlas a Dyno para que Dyno las suba/versione desde `/ui/admin/report-templates` y las asigne a la propuesta/reporte correspondiente.
+
 
 ### Actualizacion 2026-05-03 - Hoja de Cotejo Admin global
 Estado: **primera version funcional implementada; pendiente validacion visual con datos reales**.
