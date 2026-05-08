@@ -112,6 +112,16 @@ def _apply_age_filters(stmt, min_age: int | None, max_age: int | None):
     return stmt
 
 
+def _normalized_sync_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return str(value).strip()
+
+
 def _proposal_participant_needs_sync(
     proposal_participant: ProposalParticipant,
     person: Person,
@@ -136,7 +146,10 @@ def _proposal_participant_needs_sync(
         (proposal_participant.rango_ingreso, participant.rango_ingreso),
         (bool(getattr(proposal_participant, "is_active", False)), bool(getattr(participant, "is_active", False))),
     ]
-    return any((current_value or "") != (source_value or "") for current_value, source_value in comparisons)
+    return any(
+        _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
+        for current_value, source_value in comparisons
+    )
 
 
 def _empty_new_list_dashboard_row(label: str, residential_id: int | None = None):
@@ -192,12 +205,16 @@ def _build_new_list_dashboard(
 
     if participants_by_id:
         proposal_rows = db.execute(
-            select(ProposalParticipant, Person)
+            select(ProposalParticipant, Person, Proposal)
             .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
             .where(Person.legacy_participant_id.in_(list(participants_by_id.keys())))
         ).all()
 
-        for proposal_participant, person in proposal_rows:
+        for proposal_participant, person, proposal in proposal_rows:
+            if is_proposal_finalized(proposal):
+                continue
+
             participant_id = person.legacy_participant_id
             if not participant_id or participant_id not in participants_by_id:
                 continue
