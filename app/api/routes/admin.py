@@ -1735,7 +1735,11 @@ def admin_sync_proposal_participant(
 
     synced_count = 1
     for sibling_proposal_participant, sibling_proposal in sibling_rows:
-        if is_proposal_finalized(sibling_proposal) or not bool(getattr(sibling_proposal, "is_active", False)):
+        if (
+            is_proposal_finalized(sibling_proposal)
+            or not bool(getattr(sibling_proposal, "is_active", False))
+            or (getattr(sibling_proposal, "status", "") or "").strip().lower() != "active"
+        ):
             continue
         _sync_proposal_participant_from_source(sibling_proposal_participant, person, participant)
         db.add(sibling_proposal_participant)
