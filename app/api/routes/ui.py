@@ -112,46 +112,6 @@ def _apply_age_filters(stmt, min_age: int | None, max_age: int | None):
     return stmt
 
 
-def _normalized_sync_value(value):
-    if value is None:
-        return ""
-    if isinstance(value, bool):
-        return "1" if value else "0"
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    return str(value).strip()
-
-
-def _proposal_participant_needs_sync(
-    proposal_participant: ProposalParticipant,
-    person: Person,
-    participant: Participant,
-) -> bool:
-    comparisons = [
-        (person.nombre, participant.nombre),
-        (person.inicial, participant.inicial),
-        (person.apellido_paterno, participant.apellido_paterno),
-        (person.apellido_materno, participant.apellido_materno),
-        (person.genero, participant.genero),
-        (person.fecha_nacimiento, participant.fecha_nacimiento),
-        (proposal_participant.expediente_num, participant.expediente_num),
-        (proposal_participant.edificio, participant.edificio),
-        (proposal_participant.apart, participant.apart),
-        (proposal_participant.vca, participant.vca),
-        (proposal_participant.primera_vez, participant.primera_vez),
-        (proposal_participant.composicion_familiar, participant.composicion_familiar),
-        (proposal_participant.estatus, participant.estatus),
-        (proposal_participant.grupo_familiar, participant.grupo_familiar),
-        (proposal_participant.fuente_ingreso_principal, participant.fuente_ingreso_principal),
-        (proposal_participant.rango_ingreso, participant.rango_ingreso),
-        (bool(getattr(proposal_participant, "is_active", False)), bool(getattr(participant, "is_active", False))),
-    ]
-    return any(
-        _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
-        for current_value, source_value in comparisons
-    )
-
-
 def _empty_new_list_dashboard_row(label: str, residential_id: int | None = None):
     return {
         "residential_id": residential_id,
@@ -201,8 +161,6 @@ def _build_new_list_dashboard(
         row["registered_count"] += 1
 
     assigned_participant_ids: set[int] = set()
-    pending_sync_participant_ids: set[int] = set()
-
     if participants_by_id:
         proposal_rows = db.execute(
             select(ProposalParticipant, Person, Proposal)
@@ -220,18 +178,11 @@ def _build_new_list_dashboard(
                 continue
 
             assigned_participant_ids.add(participant_id)
-            if _proposal_participant_needs_sync(proposal_participant, person, participants_by_id[participant_id]):
-                pending_sync_participant_ids.add(participant_id)
 
     for participant_id in assigned_participant_ids:
         key = participant_residential_keys.get(participant_id)
         if key in dashboard_rows_by_key:
             dashboard_rows_by_key[key]["assigned_count"] += 1
-
-    for participant_id in pending_sync_participant_ids:
-        key = participant_residential_keys.get(participant_id)
-        if key in dashboard_rows_by_key:
-            dashboard_rows_by_key[key]["pending_sync_count"] += 1
 
     residential_rows = sorted(dashboard_rows_by_key.values(), key=lambda row: row["label"])
     totals = _empty_new_list_dashboard_row("Total")
