@@ -108,6 +108,35 @@ def _values_differ_for_sync(current_value, source_value) -> bool:
     return _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
 
 
+def _sync_proposal_participant_from_source(
+    proposal_participant: ProposalParticipant,
+    person: Person,
+    participant: Participant,
+) -> None:
+    person.nombre = participant.nombre
+    person.inicial = participant.inicial
+    person.apellido_paterno = participant.apellido_paterno
+    person.apellido_materno = participant.apellido_materno
+    person.genero = participant.genero
+    person.fecha_nacimiento = participant.fecha_nacimiento
+
+    proposal_participant.created_by_user_id = participant.created_by_user_id
+    proposal_participant.exp_year = participant.exp_year
+    proposal_participant.exp_employee_initials = participant.exp_employee_initials
+    proposal_participant.exp_seq4 = participant.exp_seq4
+    proposal_participant.expediente_num = participant.expediente_num
+    proposal_participant.edificio = participant.edificio
+    proposal_participant.apart = participant.apart
+    proposal_participant.vca = participant.vca
+    proposal_participant.primera_vez = participant.primera_vez
+    proposal_participant.composicion_familiar = participant.composicion_familiar
+    proposal_participant.estatus = participant.estatus
+    proposal_participant.grupo_familiar = participant.grupo_familiar
+    proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
+    proposal_participant.rango_ingreso = participant.rango_ingreso
+    proposal_participant.is_active = bool(getattr(participant, "is_active", False))
+
+
 def _normalize_activity_productivity_goal(
     goal_type: str | None,
     goal_value_raw: str | None,
@@ -1691,36 +1720,32 @@ def admin_sync_proposal_participant(
             "Error: No tienes permiso para sincronizar este participante.",
         )
 
-    person.nombre = participant.nombre
-    person.inicial = participant.inicial
-    person.apellido_paterno = participant.apellido_paterno
-    person.apellido_materno = participant.apellido_materno
-    person.genero = participant.genero
-    person.fecha_nacimiento = participant.fecha_nacimiento
-
-    proposal_participant.created_by_user_id = participant.created_by_user_id
-    proposal_participant.exp_year = participant.exp_year
-    proposal_participant.exp_employee_initials = participant.exp_employee_initials
-    proposal_participant.exp_seq4 = participant.exp_seq4
-    proposal_participant.expediente_num = participant.expediente_num
-    proposal_participant.edificio = participant.edificio
-    proposal_participant.apart = participant.apart
-    proposal_participant.vca = participant.vca
-    proposal_participant.primera_vez = participant.primera_vez
-    proposal_participant.composicion_familiar = participant.composicion_familiar
-    proposal_participant.estatus = participant.estatus
-    proposal_participant.grupo_familiar = participant.grupo_familiar
-    proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
-    proposal_participant.rango_ingreso = participant.rango_ingreso
-    proposal_participant.is_active = bool(getattr(participant, "is_active", False))
-
+    _sync_proposal_participant_from_source(proposal_participant, person, participant)
     db.add(person)
     db.add(proposal_participant)
+
+    sibling_rows = db.execute(
+        select(ProposalParticipant, Proposal)
+        .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
+        .where(
+            ProposalParticipant.person_id == person.person_id,
+            ProposalParticipant.proposal_participant_id != proposal_participant_id,
+        )
+    ).all()
+
+    synced_count = 1
+    for sibling_proposal_participant, sibling_proposal in sibling_rows:
+        if is_proposal_finalized(sibling_proposal):
+            continue
+        _sync_proposal_participant_from_source(sibling_proposal_participant, person, participant)
+        db.add(sibling_proposal_participant)
+        synced_count += 1
+
     db.commit()
 
     return _redirect_with_msg(
         f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-        "Participante sincronizado desde New-list exitosamente.",
+        f"Participante sincronizado desde New-list exitosamente en {synced_count} propuesta(s) activa(s).",
     )
 
 
