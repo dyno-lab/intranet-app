@@ -2,19 +2,13 @@
 {% block title %}New List{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
-  {{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 <h4 class="mb-3">New List - Registro de Participantes</h4>
 
 <div class="card shadow-sm mb-4 border-0">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
       <div>
-        <h5 class="mb-1">Resumen rápido</h5>
+        <h5 class="mb-1">Resumen de Participantes Registrados</h5>
         <div class="text-muted small">
           {% if is_admin_or_supervisor_view %}
             Métricas según el filtro de residencial seleccionado.
