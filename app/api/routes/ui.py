@@ -47,6 +47,20 @@ def _parse_date(value: str | None):
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
+def _parse_optional_int(value: str | int | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 def _calc_age(dob: date | None):
     if not dob:
         return None
@@ -54,6 +68,48 @@ def _calc_age(dob: date | None):
     return today.year - dob.year - (
         (today.month, today.day) < (dob.month, dob.day)
     )
+
+
+def _subtract_years(reference: date, years: int) -> date:
+    try:
+        return reference.replace(year=reference.year - years)
+    except ValueError:
+        # 29/feb -> 28/feb en años no bisiestos.
+        return reference.replace(month=2, day=28, year=reference.year - years)
+
+
+def _age_bounds_from_filters(
+    age_range: str | None,
+    age_min: int | None,
+    age_max: int | None,
+) -> tuple[int | None, int | None]:
+    min_age = age_min if age_min is not None and age_min >= 0 else None
+    max_age = age_max if age_max is not None and age_max >= 0 else None
+
+    if age_range:
+        selected = next((option for option in ATTENDANCE_AGE_RANGE_OPTIONS if option["value"] == age_range), None)
+        if selected:
+            min_age = selected["min"]
+            max_age = selected["max"]
+
+    if min_age is not None and max_age is not None and min_age > max_age:
+        min_age, max_age = max_age, min_age
+
+    return min_age, max_age
+
+
+def _apply_age_filters(stmt, min_age: int | None, max_age: int | None):
+    today = date.today()
+
+    # Edad >= min_age => fecha_nacimiento <= hoy - min_age años.
+    if min_age is not None:
+        stmt = stmt.where(Participant.fecha_nacimiento <= _subtract_years(today, min_age))
+
+    # Edad <= max_age => fecha_nacimiento > hoy - (max_age + 1) años.
+    if max_age is not None:
+        stmt = stmt.where(Participant.fecha_nacimiento > _subtract_years(today, max_age + 1))
+
+    return stmt
 
 
 def _hours_from_minutes(minutes: float | None) -> float | None:
@@ -300,16 +356,54 @@ def new_list(
     request: Request,
     page: int = 1,
     per_page: int = 25,
+    age_range: str | None = None,
+    age_min: str | None = None,
+    age_max: str | None = None,
+    residential_id: str | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     base_stmt = select(Participant)
+    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    selected_residential_id = _parse_optional_int(residential_id)
+    selected_age_min, selected_age_max = _age_bounds_from_filters(
+        age_range,
+        _parse_optional_int(age_min),
+        _parse_optional_int(age_max),
+    )
 
-    if not is_admin_or_supervisor(current_user):
+    if selected_age_min is not None or selected_age_max is not None:
+        base_stmt = _apply_age_filters(base_stmt, selected_age_min, selected_age_max)
+
+    if is_admin_supervisor and selected_residential_id:
+        base_stmt = base_stmt.join(User, User.user_id == Participant.created_by_user_id).where(
+            User.residential_id == selected_residential_id
+        )
+
+    if not is_admin_supervisor:
         base_stmt = base_stmt.where(
             Participant.created_by_user_id == current_user.user_id
         )
+
+    query_params = {
+        "per_page": per_page,
+        "age_range": age_range or "",
+        "age_min": "" if selected_age_min is None else selected_age_min,
+        "age_max": "" if selected_age_max is None else selected_age_max,
+    }
+    if is_admin_supervisor:
+        query_params["residential_id"] = selected_residential_id or ""
+
+    query_string = urlencode({key: value for key, value in query_params.items() if value != ""})
+
+    residentials = []
+    if is_admin_supervisor:
+        residentials = db.execute(
+            select(Residential)
+            .where(Residential.is_active == True)  # noqa: E712
+            .order_by(Residential.name)
+        ).scalars().all()
 
     total_items = db.execute(
         select(func.count()).select_from(base_stmt.subquery())
@@ -335,6 +429,14 @@ def new_list(
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
         "pagination": pagination,
+        "participant_age_range_options": ATTENDANCE_AGE_RANGE_OPTIONS,
+        "selected_age_range": age_range or "",
+        "selected_age_min": selected_age_min,
+        "selected_age_max": selected_age_max,
+        "residentials": residentials,
+        "selected_residential_id": selected_residential_id if is_admin_supervisor else None,
+        "is_admin_or_supervisor_view": is_admin_supervisor,
+        "new_list_query_string": query_string,
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
@@ -457,16 +559,36 @@ def delete_participant(
 
 @router.get("/new-list/export.csv")
 def export_participants_csv(
+    age_range: str | None = None,
+    age_min: str | None = None,
+    age_max: str | None = None,
+    residential_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    selected_residential_id = _parse_optional_int(residential_id)
+    selected_age_min, selected_age_max = _age_bounds_from_filters(
+        age_range,
+        _parse_optional_int(age_min),
+        _parse_optional_int(age_max),
+    )
+
     stmt = select(Participant).order_by(
         Participant.apellido_paterno,
         Participant.apellido_materno,
         Participant.nombre,
     )
 
-    if not is_admin_or_supervisor(current_user):
+    if selected_age_min is not None or selected_age_max is not None:
+        stmt = _apply_age_filters(stmt, selected_age_min, selected_age_max)
+
+    if is_admin_supervisor and selected_residential_id:
+        stmt = stmt.join(User, User.user_id == Participant.created_by_user_id).where(
+            User.residential_id == selected_residential_id
+        )
+
+    if not is_admin_supervisor:
         stmt = stmt.where(Participant.created_by_user_id == current_user.user_id)
 
     participants = db.execute(stmt).scalars().all()

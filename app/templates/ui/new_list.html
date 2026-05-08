@@ -186,10 +186,52 @@
 <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
   <h5 class="mb-0">Participantes Registrados</h5>
   <div class="d-flex align-items-center gap-2 flex-wrap">
-    <a class="btn btn-sm btn-outline-success" href="/ui/new-list/export.csv">Exportar CSV</a>
+    <a class="btn btn-sm btn-outline-success" href="/ui/new-list/export.csv{% if new_list_query_string %}?{{ new_list_query_string }}{% endif %}">Exportar CSV</a>
     <span class="text-muted small">
       {% if current_user %}Viendo como: {{ current_user.username }}{% endif %}
     </span>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" action="/ui/new-list" class="row g-2 align-items-end">
+      <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
+      <div class="col-md-3">
+        <label class="form-label">Rango de edad</label>
+        <select class="form-select" name="age_range" id="new-list-age-range-filter">
+          <option value="">Todos los rangos</option>
+          {% for option in participant_age_range_options %}
+            <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}" {{ 'selected' if selected_age_range == option.value }}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad desde</label>
+        <input type="number" min="0" class="form-control" name="age_min" id="new-list-age-min-filter" value="{{ selected_age_min if selected_age_min is not none else '' }}" placeholder="Desde">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Edad hasta</label>
+        <input type="number" min="0" class="form-control" name="age_max" id="new-list-age-max-filter" value="{{ selected_age_max if selected_age_max is not none else '' }}" placeholder="Hasta">
+      </div>
+      {% if is_admin_or_supervisor_view %}
+      <div class="col-md-3">
+        <label class="form-label">Residencial</label>
+        <select class="form-select" name="residential_id">
+          <option value="">Todos los residenciales</option>
+          {% for residential in residentials %}
+            <option value="{{ residential.residential_id }}" {{ 'selected' if selected_residential_id == residential.residential_id }}>{{ residential.name }}{% if residential.municipality %} - {{ residential.municipality }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-1">
+        <button class="btn btn-primary w-100" type="submit">Filtrar</button>
+      </div>
+      <div class="col-md-1">
+        <a class="btn btn-outline-secondary w-100" href="/ui/new-list?per_page={{ pagination.per_page }}">Limpiar</a>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -252,6 +294,12 @@
               {% endif %}
             </td>
           </tr>
+        {% else %}
+          <tr>
+            <td colspan="10" class="text-muted text-center py-4">
+              No hay participantes que coincidan con los filtros seleccionados.
+            </td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -262,19 +310,19 @@
 <nav aria-label="Paginación participantes" class="mt-3">
   <ul class="pagination pagination-sm justify-content-center flex-wrap">
     <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page=1&per_page={{ pagination.per_page }}">Primera</a>
+      <a class="page-link" href="/ui/new-list?page=1{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Primera</a>
     </li>
     <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.prev_page or 1 }}&per_page={{ pagination.per_page }}">Anterior</a>
+      <a class="page-link" href="/ui/new-list?page={{ pagination.prev_page or 1 }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Anterior</a>
     </li>
     <li class="page-item disabled">
       <span class="page-link">Página {{ pagination.page }} / {{ pagination.total_pages }}</span>
     </li>
     <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.next_page or pagination.total_pages }}&per_page={{ pagination.per_page }}">Siguiente</a>
+      <a class="page-link" href="/ui/new-list?page={{ pagination.next_page or pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Siguiente</a>
     </li>
     <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}">Última</a>
+      <a class="page-link" href="/ui/new-list?page={{ pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Última</a>
     </li>
   </ul>
 </nav>
@@ -298,6 +346,19 @@
   if (dobInput && ageInput) {
     dobInput.addEventListener("change", () => {
       ageInput.value = calcAge(dobInput.value);
+    });
+  }
+
+  const newListAgeRangeFilter = document.getElementById("new-list-age-range-filter");
+  const newListAgeMinFilter = document.getElementById("new-list-age-min-filter");
+  const newListAgeMaxFilter = document.getElementById("new-list-age-max-filter");
+
+  if (newListAgeRangeFilter) {
+    newListAgeRangeFilter.addEventListener("change", () => {
+      const selectedOption = newListAgeRangeFilter.options[newListAgeRangeFilter.selectedIndex];
+      if (!selectedOption || !newListAgeRangeFilter.value) return;
+      if (newListAgeMinFilter) newListAgeMinFilter.value = selectedOption.dataset.min || "";
+      if (newListAgeMaxFilter) newListAgeMaxFilter.value = selectedOption.dataset.max || "";
     });
   }
 </script>
