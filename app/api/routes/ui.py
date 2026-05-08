@@ -212,7 +212,7 @@ def _build_new_list_dashboard(
         ).all()
 
         for proposal_participant, person, proposal in proposal_rows:
-            if is_proposal_finalized(proposal):
+            if is_proposal_finalized(proposal) or not bool(getattr(proposal, "is_active", False)):
                 continue
 
             participant_id = person.legacy_participant_id
