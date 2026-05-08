@@ -112,6 +112,129 @@ def _apply_age_filters(stmt, min_age: int | None, max_age: int | None):
     return stmt
 
 
+def _proposal_participant_needs_sync(
+    proposal_participant: ProposalParticipant,
+    person: Person,
+    participant: Participant,
+) -> bool:
+    comparisons = [
+        (person.nombre, participant.nombre),
+        (person.inicial, participant.inicial),
+        (person.apellido_paterno, participant.apellido_paterno),
+        (person.apellido_materno, participant.apellido_materno),
+        (person.genero, participant.genero),
+        (person.fecha_nacimiento, participant.fecha_nacimiento),
+        (proposal_participant.expediente_num, participant.expediente_num),
+        (proposal_participant.edificio, participant.edificio),
+        (proposal_participant.apart, participant.apart),
+        (proposal_participant.vca, participant.vca),
+        (proposal_participant.primera_vez, participant.primera_vez),
+        (proposal_participant.composicion_familiar, participant.composicion_familiar),
+        (proposal_participant.estatus, participant.estatus),
+        (proposal_participant.grupo_familiar, participant.grupo_familiar),
+        (proposal_participant.fuente_ingreso_principal, participant.fuente_ingreso_principal),
+        (proposal_participant.rango_ingreso, participant.rango_ingreso),
+        (bool(getattr(proposal_participant, "is_active", False)), bool(getattr(participant, "is_active", False))),
+    ]
+    return any((current_value or "") != (source_value or "") for current_value, source_value in comparisons)
+
+
+def _empty_new_list_dashboard_row(label: str, residential_id: int | None = None):
+    return {
+        "residential_id": residential_id,
+        "label": label,
+        "registered_count": 0,
+        "assigned_count": 0,
+        "pending_sync_count": 0,
+    }
+
+
+def _build_new_list_dashboard(
+    db: Session,
+    current_user: User,
+    is_admin_supervisor: bool,
+    selected_residential_id: int | None,
+):
+    participant_stmt = (
+        select(
+            Participant,
+            User.residential_id.label("owner_residential_id"),
+            Residential.name.label("residential_name"),
+        )
+        .outerjoin(User, User.user_id == Participant.created_by_user_id)
+        .outerjoin(Residential, Residential.residential_id == User.residential_id)
+        .order_by(Residential.name, Participant.apellido_paterno, Participant.nombre)
+    )
+
+    if is_admin_supervisor and selected_residential_id:
+        participant_stmt = participant_stmt.where(User.residential_id == selected_residential_id)
+    elif not is_admin_supervisor:
+        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+
+    participant_rows = db.execute(participant_stmt).all()
+
+    participants_by_id: dict[int, Participant] = {}
+    participant_residential_keys: dict[int, int | None] = {}
+    dashboard_rows_by_key: dict[int | None, dict] = {}
+
+    for participant, owner_residential_id, residential_name in participant_rows:
+        participants_by_id[participant.participant_id] = participant
+        participant_residential_keys[participant.participant_id] = owner_residential_id
+        label = residential_name or "Sin residencial"
+        row = dashboard_rows_by_key.setdefault(
+            owner_residential_id,
+            _empty_new_list_dashboard_row(label, owner_residential_id),
+        )
+        row["registered_count"] += 1
+
+    assigned_participant_ids: set[int] = set()
+    pending_sync_participant_ids: set[int] = set()
+
+    if participants_by_id:
+        proposal_rows = db.execute(
+            select(ProposalParticipant, Person)
+            .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .where(Person.legacy_participant_id.in_(list(participants_by_id.keys())))
+        ).all()
+
+        for proposal_participant, person in proposal_rows:
+            participant_id = person.legacy_participant_id
+            if not participant_id or participant_id not in participants_by_id:
+                continue
+
+            assigned_participant_ids.add(participant_id)
+            if _proposal_participant_needs_sync(proposal_participant, person, participants_by_id[participant_id]):
+                pending_sync_participant_ids.add(participant_id)
+
+    for participant_id in assigned_participant_ids:
+        key = participant_residential_keys.get(participant_id)
+        if key in dashboard_rows_by_key:
+            dashboard_rows_by_key[key]["assigned_count"] += 1
+
+    for participant_id in pending_sync_participant_ids:
+        key = participant_residential_keys.get(participant_id)
+        if key in dashboard_rows_by_key:
+            dashboard_rows_by_key[key]["pending_sync_count"] += 1
+
+    residential_rows = sorted(dashboard_rows_by_key.values(), key=lambda row: row["label"])
+    totals = _empty_new_list_dashboard_row("Total")
+    for row in residential_rows:
+        totals["registered_count"] += row["registered_count"]
+        totals["assigned_count"] += row["assigned_count"]
+        totals["pending_sync_count"] += row["pending_sync_count"]
+
+    if not is_admin_supervisor:
+        residential_rows = []
+    elif selected_residential_id:
+        residential_rows = []
+
+    return {
+        "totals": totals,
+        "residential_rows": residential_rows,
+        "show_residential_breakdown": bool(is_admin_supervisor and not selected_residential_id),
+    }
+
+
 def _hours_from_minutes(minutes: float | None) -> float | None:
     if minutes is None:
         return None
@@ -405,6 +528,13 @@ def new_list(
             .order_by(Residential.name)
         ).scalars().all()
 
+    new_list_dashboard = _build_new_list_dashboard(
+        db=db,
+        current_user=current_user,
+        is_admin_supervisor=is_admin_supervisor,
+        selected_residential_id=selected_residential_id,
+    )
+
     total_items = db.execute(
         select(func.count()).select_from(base_stmt.subquery())
     ).scalar_one()
@@ -437,6 +567,7 @@ def new_list(
         "selected_residential_id": selected_residential_id if is_admin_supervisor else None,
         "is_admin_or_supervisor_view": is_admin_supervisor,
         "new_list_query_string": query_string,
+        "new_list_dashboard": new_list_dashboard,
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))

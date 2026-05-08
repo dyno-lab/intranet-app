@@ -10,6 +10,76 @@
 {% endif %}
 <h4 class="mb-3">New List - Registro de Participantes</h4>
 
+<div class="card shadow-sm mb-4 border-0">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+      <div>
+        <h5 class="mb-1">Resumen rápido</h5>
+        <div class="text-muted small">
+          {% if is_admin_or_supervisor_view %}
+            Métricas según el filtro de residencial seleccionado.
+          {% else %}
+            Métricas de los participantes registrados por tu cuenta.
+          {% endif %}
+        </div>
+      </div>
+      {% if is_admin_or_supervisor_view and selected_residential_id %}
+        <span class="badge text-bg-info">Residencial filtrado</span>
+      {% elif is_admin_or_supervisor_view %}
+        <span class="badge text-bg-secondary">Vista global</span>
+      {% else %}
+        <span class="badge text-bg-primary">Mi cuenta</span>
+      {% endif %}
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="p-3 rounded bg-light h-100">
+          <div class="text-muted small">Registrados</div>
+          <div class="fs-3 fw-bold">{{ new_list_dashboard.totals.registered_count }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 rounded bg-light h-100">
+          <div class="text-muted small">Asignados a propuesta</div>
+          <div class="fs-3 fw-bold">{{ new_list_dashboard.totals.assigned_count }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 rounded bg-light h-100">
+          <div class="text-muted small">Pendientes de sync</div>
+          <div class="fs-3 fw-bold {{ 'text-warning' if new_list_dashboard.totals.pending_sync_count else '' }}">{{ new_list_dashboard.totals.pending_sync_count }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if new_list_dashboard.show_residential_breakdown and new_list_dashboard.residential_rows %}
+    <div class="table-responsive mt-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Residencial</th>
+            <th class="text-end">Registrados</th>
+            <th class="text-end">Asignados</th>
+            <th class="text-end">Pendientes sync</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in new_list_dashboard.residential_rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="text-end">{{ row.registered_count }}</td>
+            <td class="text-end">{{ row.assigned_count }}</td>
+            <td class="text-end {{ 'text-warning fw-semibold' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <form method="post" action="/ui/new-list/create" class="row g-2">
