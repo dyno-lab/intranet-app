@@ -94,6 +94,20 @@ def _calc_age(dob: date | None):
     return today.year - dob.year - (((today.month, today.day) < (dob.month, dob.day)))
 
 
+def _normalized_sync_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value).strip()
+
+
+def _values_differ_for_sync(current_value, source_value) -> bool:
+    return _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
+
+
 def _normalize_activity_productivity_goal(
     goal_type: str | None,
     goal_value_raw: str | None,
@@ -1436,7 +1450,7 @@ def admin_proposal_participants(
                     ("is_active", bool(getattr(proposal_participant, "is_active", False)), bool(getattr(source_participant, "is_active", False))),
                 ]
                 for field_name, current_value, source_value in comparisons:
-                    if (current_value or "") != (source_value or ""):
+                    if _values_differ_for_sync(current_value, source_value):
                         is_outdated = True
                         outdated_fields.append(field_name)
 
