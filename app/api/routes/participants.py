@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.api.deps import get_db
+from app.core.auth import get_current_user
 from app.models.participant import Participant
+from app.models.user import User
 from app.schemas.participant import ParticipantCreate, ParticipantOut
 
 router = APIRouter()
@@ -14,12 +16,19 @@ router = APIRouter()
 # bloquear creación/edición de participantes con precisión total en esta fase.
 
 @router.post("", response_model=ParticipantOut)
-def create_participant(payload: ParticipantCreate, db: Session = Depends(get_db)):
+def create_participant(
+    payload: ParticipantCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     existing = db.execute(select(Participant).where(Participant.expediente_num == payload.expediente_num)).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="expediente_num ya existe")
 
-    p = Participant(**payload.model_dump())
+    p = Participant(
+        **payload.model_dump(),
+        created_by_user_id=current_user.user_id,
+    )
     db.add(p)
     db.commit()
     db.refresh(p)

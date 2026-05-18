@@ -31,6 +31,7 @@ from app.core.proposal_guard import (
     is_proposal_finalized,
     require_session_proposal_not_finalized,
 )
+from app.core.session_rules import activity_code_allowed_for_proposal
 from app.api.deps import get_db
 
 router = APIRouter()
@@ -277,10 +278,6 @@ def _check_session_access(s: ActivitySession, user: User):
 
 def _is_participant_active(participant: Participant) -> bool:
     return bool(getattr(participant, "is_active", False))
-
-
-def _activity_code_allowed_for_proposal(activity_code: ActivityCode, proposal_id: int | None) -> bool:
-    return activity_code.proposal_id is None or activity_code.proposal_id == proposal_id
 
 
 def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
@@ -1201,7 +1198,7 @@ def create_session_ui(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg("/ui/listado", "Error: El código de actividad seleccionado no existe.")
-    if not _activity_code_allowed_for_proposal(activity_code, proposal_id):
+    if not activity_code_allowed_for_proposal(activity_code, proposal_id):
         return _redirect_with_msg("/ui/listado", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s = ActivitySession(
@@ -1479,7 +1476,7 @@ def edit_session(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
-    if not _activity_code_allowed_for_proposal(activity_code, s.proposal_id):
+    if not activity_code_allowed_for_proposal(activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s.session_date = _parse_date(session_date)

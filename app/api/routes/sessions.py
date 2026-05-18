@@ -4,11 +4,14 @@ from sqlalchemy import select
 from datetime import date
 
 from app.api.deps import get_db
+from app.core.auth import get_current_user
 from app.core.proposal_guard import require_proposal_id_not_finalized
+from app.core.session_rules import require_activity_code_allowed_for_proposal
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
 from app.models.proposal import Proposal
+from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut
 
 router = APIRouter()
@@ -24,7 +27,11 @@ def list_sessions(from_date: date | None = None, to_date: date | None = None, db
     return list(db.execute(stmt).scalars().all())
 
 @router.post("", response_model=SessionOut)
-def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
+def create_session(
+    payload: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     # Validar FKs
     code = db.get(ActivityCode, payload.activity_code_id)
     if not code:
@@ -44,7 +51,16 @@ def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
             message="La propuesta está finalizada y no permite crear sesiones.",
         )
 
-    obj = ActivitySession(**payload.model_dump())
+    require_activity_code_allowed_for_proposal(
+        code,
+        payload.proposal_id,
+        message="La actividad no pertenece a la propuesta seleccionada",
+    )
+
+    obj = ActivitySession(
+        **payload.model_dump(),
+        created_by_user_id=current_user.user_id,
+    )
     db.add(obj)
     db.commit()
     db.refresh(obj)
