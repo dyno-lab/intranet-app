@@ -3,20 +3,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.api.deps import get_db
+from app.core.auth import get_current_user, require_admin
 from app.models.employee import Employee
+from app.models.user import User
 from app.schemas.employee import EmployeeCreate, EmployeeOut
 
 router = APIRouter()
 
 @router.get("", response_model=list[EmployeeOut])
-def list_employees(active_only: bool = True, db: Session = Depends(get_db)):
+def list_employees(
+    active_only: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     stmt = select(Employee)
     if active_only:
         stmt = stmt.where(Employee.is_active == True)  # noqa
     return list(db.execute(stmt).scalars().all())
 
 @router.post("", response_model=EmployeeOut)
-def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(
+    payload: EmployeeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     if payload.employee_code:
         existing = db.execute(select(Employee).where(Employee.employee_code == payload.employee_code)).scalar_one_or_none()
         if existing:

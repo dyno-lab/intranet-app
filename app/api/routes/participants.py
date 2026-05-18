@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, is_admin_or_supervisor
 from app.models.participant import Participant
 from app.models.user import User
 from app.schemas.participant import ParticipantCreate, ParticipantOut
@@ -35,8 +35,14 @@ def create_participant(
     return p
 
 @router.get("", response_model=list[ParticipantOut])
-def list_participants(search: str | None = None, db: Session = Depends(get_db)):
+def list_participants(
+    search: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     stmt = select(Participant)
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(Participant.created_by_user_id == current_user.user_id)
     if search:
         like = f"%{search}%"
         stmt = stmt.where(

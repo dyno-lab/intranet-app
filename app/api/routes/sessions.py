@@ -4,7 +4,7 @@ from sqlalchemy import select
 from datetime import date
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, is_admin_or_supervisor
 from app.core.proposal_guard import require_proposal_id_not_finalized
 from app.core.session_rules import require_activity_code_allowed_for_proposal
 from app.models.activity_session import ActivitySession
@@ -17,8 +17,15 @@ from app.schemas.session import SessionCreate, SessionOut
 router = APIRouter()
 
 @router.get("", response_model=list[SessionOut])
-def list_sessions(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db)):
+def list_sessions(
+    from_date: date | None = None,
+    to_date: date | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     stmt = select(ActivitySession)
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
     if from_date:
         stmt = stmt.where(ActivitySession.session_date >= from_date)
     if to_date:
