@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Callable
@@ -128,6 +129,43 @@ def require_automation_token(x_automation_token: str | None = Header(default=Non
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de automatización inválido o ausente.",
+        )
+
+
+def _session_user_or_none(request: Request, db: Session) -> User | None:
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return None
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
+
+
+def require_automation_access(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_automation_token: str | None = Header(default=None),
+) -> None:
+    expected = settings.AUTOMATION_API_KEY
+    if expected:
+        if x_automation_token and secrets.compare_digest(x_automation_token, expected):
+            return
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de automatizacion invalido o ausente.",
+        )
+
+    session_user = _session_user_or_none(request, db)
+    if not session_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Se requiere token de automatizacion o sesion autenticada.",
+        )
+    if session_user.role not in {"admin", "supervisor"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado para automatizaciones.",
         )
 
 
@@ -276,7 +314,7 @@ def _build_report_payload(
 
 
 @router.get("/reports")
-def list_automation_reports(_: None = Depends(require_automation_token)):
+def list_automation_reports(_: None = Depends(require_automation_access)):
     return {
         "reports": sorted(REPORT_BUILDERS.keys()),
         "usage": "/api/automation/reports/{report_key}?month=3&year=2026&proposal_id=1",
@@ -285,8 +323,9 @@ def list_automation_reports(_: None = Depends(require_automation_token)):
 
 @router.get("/options")
 def automation_options(
+    request: Request,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_token),
+    _: None = Depends(require_automation_access),
 ):
     proposals = db.execute(
         select(Proposal)
@@ -327,6 +366,7 @@ def automation_options(
 
 @router.get("/reports/monthly-package")
 def monthly_package(
+    request: Request,
     proposal_id: int | None = None,
     month: int | None = None,
     year: int | None = None,
@@ -337,7 +377,7 @@ def monthly_package(
     run_as_user_id: int | None = None,
     include: str = "no-duplicado,duplicado,por-programa",
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_token),
+    _: None = Depends(require_automation_access),
 ):
     user = _automation_user(db, run_as_user_id)
     requested_reports = [item.strip() for item in include.split(",") if item.strip()]
@@ -365,6 +405,7 @@ def monthly_package(
 
 @router.get("/reports/todos/excel")
 def automation_all_reports_excel(
+    request: Request,
     proposal_id: int | None = None,
     month: int | None = None,
     year: int | None = None,
@@ -375,7 +416,7 @@ def automation_all_reports_excel(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_token),
+    _: None = Depends(require_automation_access),
 ):
     user = _automation_user(db, run_as_user_id)
     if period_type not in {"monthly", "custom"}:
@@ -447,7 +488,7 @@ def automation_all_reports_pdf(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_token),
+    _: None = Depends(require_automation_access),
 ):
     user = _automation_user(db, run_as_user_id)
     if period_type not in {"monthly", "custom"}:
@@ -499,6 +540,7 @@ def automation_all_reports_pdf(
 
 @router.get("/reports/{report_key}")
 def automation_report(
+    request: Request,
     report_key: str,
     proposal_id: int | None = None,
     month: int | None = None,
@@ -509,7 +551,7 @@ def automation_report(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_token),
+    _: None = Depends(require_automation_access),
 ):
     user = _automation_user(db, run_as_user_id)
     return _build_report_payload(
