@@ -18,6 +18,91 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-18 - Cierre de endurecimiento API y automatizacion
+Estado: **validado funcionalmente en app, SQL y flujo real de n8n**.
+
+Contexto:
+- Se trabajo una ronda de endurecimiento incremental sobre la app, sin mezclar cambios de Power BI.
+- El objetivo fue cerrar huecos de acceso en API operativa, proteger automatizacion y corregir un error real detectado por n8n al generar el Excel oficial.
+
+Implementado:
+- Commit `13983c8` - `Harden API session and participant ownership`
+  - `POST /api/sessions` ahora requiere usuario autenticado.
+  - `POST /api/sessions` guarda `created_by_user_id`.
+  - `POST /api/sessions` valida que la actividad pertenezca a la propuesta seleccionada.
+  - `POST /api/participants` ahora requiere usuario autenticado.
+  - `POST /api/participants` guarda `created_by_user_id`.
+  - nueva regla compartida en `app/core/session_rules.py` reutilizada por UI y API.
+- Commit `10a3fb2` - `Protect API reads and admin writes`
+  - `GET /api/participants`, `GET /api/sessions` y `GET /api/attendance` ahora requieren sesion autenticada.
+  - usuarios normales ven solo sus propios registros operativos.
+  - `GET /api/employees` y `GET /api/activity-codes` requieren sesion autenticada.
+  - `POST /api/employees` y `POST /api/activity-codes` quedaron restringidos a `admin`.
+- Commit `08035a7` - `Protect automation endpoints`
+  - `/api/automation/*` ya no queda abierto anonimamente cuando `AUTOMATION_API_KEY` no esta configurado.
+  - si hay `AUTOMATION_API_KEY`, los endpoints aceptan acceso por header `X-Automation-Token`.
+  - si no hay token configurado, se exige sesion autenticada de `admin` o `supervisor`.
+- Commit `64610bd` - `Fix hoja cotejo excel merged cell width`
+  - se corrigio el error de Excel `MergedCell object has no attribute column_letter` en `build_hoja_cotejo_sheet`.
+  - el ajuste usa `get_column_letter(col_index)` para calcular anchos de columna sin depender de celdas combinadas.
+
+Validacion realizada:
+- validacion manual de API operativa confirmo que ownership y restricciones de lectura/escritura funcionan.
+- validacion SQL confirmo que `created_by_user_id` se guarda correctamente.
+- validacion real de n8n confirmo que:
+  - primero fallo por proteccion nueva de automatizacion,
+  - luego se configuro `AUTOMATION_API_KEY` manualmente en la maquina que sirve `C:\Users\user\intranet_app`,
+  - se agrego el header `X-Automation-Token` en n8n,
+  - aparecio un error real del builder Excel,
+  - tras aplicar `64610bd`, la extraccion Excel volvio a funcionar.
+
+Nota operativa importante:
+- el valor `AUTOMATION_API_KEY` no se propago por git; se configuro manualmente en el `.env` de la maquina servidora real:
+  - `C:\Users\user\intranet_app\.env`
+- esto es intencional porque `.env` es configuracion local del entorno.
+
+### Actualizacion 2026-05-18 - Endurecimiento inicial de API operativa
+Estado: **implementado para commit local; pendiente validacion funcional en entorno con interprete Python operativo**.
+
+Contexto:
+- Se detecto que la API operativa permitia crear participantes y sesiones sin conservar ownership del usuario autenticado.
+- Tambien existia una divergencia entre UI y API: la UI validaba que una actividad perteneciera a la propuesta seleccionada, pero la API de sesiones no lo hacia.
+- Se decidio aplicar primero el bloque de riesgo bajo, sin mezclar cambios de Power BI ni endurecimientos mayores de infraestructura.
+
+Implementado:
+- Nuevo helper compartido: `app/core/session_rules.py`.
+- La regla `actividad pertenece a la propuesta` ya no vive duplicada solo en UI; ahora queda centralizada y reutilizada por:
+  - `app/api/routes/ui.py`
+  - `app/api/routes/sessions.py`
+- `POST /api/sessions` ahora:
+  - requiere usuario autenticado,
+  - valida que la actividad corresponda a la propuesta seleccionada,
+  - guarda `created_by_user_id` con el `user_id` del usuario autenticado.
+- `POST /api/participants` ahora:
+  - requiere usuario autenticado,
+  - guarda `created_by_user_id` con el `user_id` del usuario autenticado.
+
+Impacto esperado:
+- se reduce el riesgo de sesiones inconsistentes por API frente a las reglas operativas ya vigentes en UI.
+- se evita crear participantes/sesiones huerfanos de ownership, lo que protege filtros y vistas que dependen de `created_by_user_id`.
+
+Validacion tecnica realizada:
+- revision manual de diff confirmo que el bloque quedo acotado a:
+  - `app/core/session_rules.py`
+  - `app/api/routes/ui.py`
+  - `app/api/routes/sessions.py`
+  - `app/api/routes/participants.py`
+- no se realizaron cambios de esquema SQL ni de Power BI.
+
+Limitacion de validacion en esta sesion:
+- no se pudo ejecutar `python -m compileall app` ni `py -3 -m compileall app` porque el interprete no esta resolviendo correctamente en el entorno actual de esta sesion de OpenClaw.
+- antes de push remoto conviene correr una validacion local adicional con el interprete funcional del entorno real.
+
+Pendiente / cabo suelto:
+- revisar en una segunda ronda si tambien se protegeran con autenticacion los endpoints de lectura de `/api/*`.
+- revisar si existe alguna integracion externa consumiendo `POST /api/participants` o `POST /api/sessions` sin sesion autenticada.
+
+
 ### Actualizacion 2026-05-06 - Bonafide, Report Templates simplificado y filtros de asistencia
 Estado: **validado por Christian en pruebas manuales**.
 
@@ -33,6 +118,7 @@ Implementado:
   - el PDF Bonafide usa header/footer configurables con fallback seguro al formato actual.
   - se mantuvo intacta la estructura de columnas, el bloque de genero F/M y las firmas actuales.
   - la columna `Nombre` ahora muestra `Nombre + Inicial + Apellidos` cuando existe inicial; aplica al HTML, PDF y Excel porque sale del mismo contexto.
+  - se corrigieron las paginas blancas al usar `Ctrl+P` desde `ui/reports/bonafide/pdf?proposal_id`: la causa fue desborde vertical del bloque impreso; el fix funcional fue compactar el CSS de impresion del PDF Bonafide (header, tabla, footer/firma) y evitar sobrantes invisibles con reglas de page-break/overflow.
 - `/ui/admin/report-templates`:
   - pantalla simplificada para el flujo operativo deseado: filtrar propuesta, asignar versiones, subir PDF/Word y administrar versiones disponibles.
   - se removio de la pantalla el help largo, editor visual, editor JSON tecnico y preview avanzado.
@@ -49,6 +135,7 @@ Validacion tecnica realizada:
 - Templates Jinja2 relevantes cargaron sin error.
 - Prueba de deep merge parcial confirmo que un cambio como `header.image` conserva el resto del header/footer default.
 - Christian confirmo manualmente que las pruebas funcionan bien.
+- Christian confirmo que el ajuste de compactacion resolvio las hojas blancas al imprimir Bonafide con `Ctrl+P`.
 
 Commits locales / remotos recientes:
 - `4134293 Ajustar filas por pagina en Bonafide`
@@ -56,6 +143,9 @@ Commits locales / remotos recientes:
 - `32190ee Simplificar administracion de plantillas de reporte`
 - `5380bc7 Agregar filtros de edad en asistencia`
 - `c0b0837 Mostrar inicial en nombre Bonafide`
+- `e2b6222 Corregir hojas blancas al imprimir Bonafide`
+- `bc71595 Ajustar salto de pagina en impresion Bonafide`
+- `23d5f9e Compactar impresion PDF Bonafide`
 
 Pendiente / cabo suelto:
 - Si Christian entrega futuras versiones corregidas en PDF/Word, Dyno debe subirlas/versionarlas desde `/ui/admin/report-templates` y asignarlas a la propuesta/reporte correspondiente.
@@ -1168,11 +1258,11 @@ Estado: **restaurado al formato visual que Christian confirmo como mejor base**.
 
 Contexto:
 - Christian indico que `hoja_cotejo_005_04_2026 (8).pdf` era el archivo que mejor se veia.
-- Los intentos posteriores para repetir header (`(9)` y `(11)`) dividieron demasiado las tablas o dañaron el header.
+- Los intentos posteriores para repetir header (`(9)` y `(11)`) dividieron demasiado las tablas o daï¿½aron el header.
 
 Decision:
 - Se restaura `app/templates/ui/admin/hoja_cotejo_pdf.html` al estado previo a esos intentos, tomando como base el formato que genero el PDF `(8)`.
-- No seguir rediseñando la paginacion sin una comparacion visual controlada contra el PDF bueno.
+- No seguir rediseï¿½ando la paginacion sin una comparacion visual controlada contra el PDF bueno.
 
 Pendiente:
 - Si se corrige el ultimo header faltante, debe ser un ajuste quirurgico sobre la version `(8)`, no una reestructuracion completa.
@@ -1187,7 +1277,7 @@ Contexto:
 Implementado:
 - No se divide la tabla manualmente ni se cambia la cantidad de paginas desde Jinja.
 - Se movio el header institucional/meta al `thead` de la misma tabla, antes de los encabezados azules, para que `wkhtmltopdf` lo repita automaticamente en paginas de continuacion.
-- Se conserva la tabla continua y el diseño base del PDF (12) como referencia.
+- Se conserva la tabla continua y el diseï¿½o base del PDF (12) como referencia.
 
 Validacion tecnica:
 - `compileall app` paso.
@@ -1217,12 +1307,12 @@ Estado: **implementado; pendiente validar descarga nueva**.
 
 Contexto:
 - Christian pidio, tras revisar `hoja_cotejo_005_04_2026 (14).pdf`, que si la tabla es muy grande se limite a **18 actividades por tabla**.
-- Tambien pidio evitar que el footer/firma se pierda cuando una tabla se divide y marcar `(continuación)` cuando sigue el mismo programa.
+- Tambien pidio evitar que el footer/firma se pierda cuando una tabla se divide y marcar `(continuaciï¿½n)` cuando sigue el mismo programa.
 
 Implementado:
 - La plantilla PDF Admin de Hoja de Cotejo ahora divide cada programa en bloques de 18 actividades usando `batch(18)`.
 - Cada bloque genera su propia tabla/pagina con el mismo header y columnas.
-- Si el bloque no es el primero del programa, la fila del programa agrega `(continuación)`.
+- Si el bloque no es el primero del programa, la fila del programa agrega `(continuaciï¿½n)`.
 - La firma/footer se muestra solo en el ultimo bloque del programa, evitando cierres prematuros cuando el programa continua.
 - Se mantiene el header en `thead` y se evita partir la tabla/bloque con `page-break-inside: avoid`.
 
@@ -1281,7 +1371,7 @@ Estado: **implementado**.
 
 Contexto:
 - Christian aclaro que `report-templates` no debe ser solo para Hoja de Cotejo, sino para todo reporte actual y futuro.
-- Tambien pidio una hoja/seccion Help dentro de `report-templates` con informacion de uso y la regla de no dañar estructuras actuales.
+- Tambien pidio una hoja/seccion Help dentro de `report-templates` con informacion de uso y la regla de no daï¿½ar estructuras actuales.
 
 Implementado:
 - `REPORT_TEMPLATE_REPORT_OPTIONS` ahora registra reportes actuales principales:
@@ -1361,7 +1451,7 @@ Contexto:
 Implementado:
 - Nueva ruta POST: `/ui/admin/report-templates/versions/preview-visual`.
 - Nuevo template: `app/templates/ui/admin/report_template_preview.html`.
-- El editor visual ahora tiene boton `Vista previa` que abre una nueva pestaña sin guardar cambios.
+- El editor visual ahora tiene boton `Vista previa` que abre una nueva pestaï¿½a sin guardar cambios.
 - El preview muestra con datos de ejemplo:
   - header/foto/titulos/notas,
   - espaciado y margenes,
@@ -1413,7 +1503,7 @@ Implementado:
 - En el editor visual de `/ui/admin/report-templates` se agregaron campos de preview desde documento actual:
   - propuesta,
   - mes,
-  - año,
+  - aï¿½o,
   - tipo periodo,
   - desde/hasta para custom,
   - funcionario autorizado.
