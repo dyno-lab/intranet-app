@@ -3,6 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 
 THIN_BORDER = Border(
@@ -377,7 +378,7 @@ def build_hoja_cotejo_sheet(wb: Workbook, context: dict, title: str = "Hoja de C
     style_total(total_cell)
     total_cell.number_format = "0.00"
     for col_index, column in enumerate(columns, start=1):
-        letter = ws.cell(row=1, column=col_index).column_letter
+        letter = get_column_letter(col_index)
         width_hint = str(column.get("width", "")).strip().replace("%", "")
         try:
             ws.column_dimensions[letter].width = max(12, min(60, float(width_hint) * 1.4))
