@@ -1,0 +1,44 @@
+table Dim_Empleado
+	lineageTag: cde036e2-02c4-4e25-8195-0b060abf677a
+
+	column employee_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e69a3f80-edbf-4467-a78e-3dcc92d462cb
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [employee_id]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Empleado
+		dataType: string
+		lineageTag: c9ee5080-db5f-42da-a95c-47e00bde5843
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Empleado]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dim_Empleado = calculated
+		mode: import
+		source =
+				
+				VAR Employees =
+				    FILTER(
+				        UNION(
+				            SELECTCOLUMNS('bi_fact_sessions', "employee_id", 'bi_fact_sessions'[employee_id], "Empleado", 'bi_fact_sessions'[Empleado]),
+				            SELECTCOLUMNS('bi_fact_attendance', "employee_id", 'bi_fact_attendance'[employee_id], "Empleado", 'bi_fact_attendance'[employee_name]),
+				            SELECTCOLUMNS('bi_fact_operational_detail', "employee_id", 'bi_fact_operational_detail'[employee_id], "Empleado", 'bi_fact_operational_detail'[employee_name])
+				        ),
+				        NOT ISBLANK([employee_id])
+				    )
+				RETURN
+				    ADDCOLUMNS(
+				        DISTINCT(SELECTCOLUMNS(Employees, "employee_id", [employee_id])),
+				        "Empleado",
+				            VAR CurrentEmployeeId = [employee_id]
+				            RETURN MAXX(FILTER(Employees, [employee_id] = CurrentEmployeeId), [Empleado])
+				    )
+

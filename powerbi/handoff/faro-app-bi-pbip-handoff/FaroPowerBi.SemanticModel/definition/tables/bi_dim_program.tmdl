@@ -1,0 +1,171 @@
+table bi_dim_program
+	lineageTag: b04dfb5d-d905-4f92-b4c6-b3ca86fc6594
+
+	measure 'Programas Activos' =
+			
+			VAR SelectedProposals = VALUES('bi_dim_proposal'[proposal_id])
+			RETURN
+			    CALCULATE(
+			        DISTINCTCOUNT('bi_dim_program'[program_id]),
+			        'bi_dim_program'[is_active] = TRUE(),
+			        TREATAS(SelectedProposals, 'bi_dim_program'[proposal_id])
+			    )
+		formatString: 0
+		lineageTag: a8d087d2-0b7c-4028-b9fe-44b5d6ce8101
+
+	measure 'Total Programas Activos' =
+			
+			COALESCE([Programas Activos], 0)
+		formatString: 0
+		lineageTag: a8d087d2-0b7c-4028-b9fe-201510241005
+
+	column program_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 51e69e18-5257-44a2-9bbe-bd745284d101
+		summarizeBy: none
+		sourceColumn: program_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 414f88bb-e324-4235-ae32-a3f8a47a5d43
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: 517cc719-d457-4ec4-9d0e-9ff98829ba20
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: 2cb8530e-bf17-4162-b610-468878d1dd23
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column program_code
+		dataType: string
+		isHidden
+		lineageTag: 9aa7d11f-b7af-49a3-8d1b-8a64b1e111bc
+		summarizeBy: none
+		sourceColumn: program_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column program_name
+		dataType: string
+		isHidden
+		lineageTag: f143246e-5488-4727-acd7-0bb8c69906d0
+		summarizeBy: none
+		sourceColumn: program_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column formal_name
+		dataType: string
+		isHidden
+		lineageTag: e5bf4b3c-9761-4fd0-a5ee-fa49ca611cf4
+		summarizeBy: none
+		sourceColumn: formal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Programa
+		dataType: string
+		lineageTag: 5b654f73-37fd-4d6b-becf-0887bba61145
+		summarizeBy: none
+		sourceColumn: program_display_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column default_population_group_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4629caa1-0246-46ad-9695-566cff2da5aa
+		summarizeBy: none
+		sourceColumn: default_population_group_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column default_population_code
+		dataType: string
+		isHidden
+		lineageTag: 6ab0cc0b-dc3f-4982-ba4e-449ee73d27b9
+		summarizeBy: none
+		sourceColumn: default_population_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column default_population_label
+		dataType: string
+		isHidden
+		lineageTag: 353f1c85-d057-481d-b490-b7df17b0607b
+		summarizeBy: none
+		sourceColumn: default_population_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column sort_order
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 24141bee-b6c3-47ef-b994-b2ab5d85557e
+		summarizeBy: none
+		sourceColumn: sort_order
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: a81c468c-28fb-4c4d-8d04-9ef4b358c8df
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column uses_population_structure
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: cc7fc6f7-41fb-4cad-b794-9422da8a338c
+		summarizeBy: none
+		sourceColumn: uses_population_structure
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 3905037f-8ec1-4185-b897-8e00f43e502e
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_program = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_program = Source{[Schema="dbo",Item="bi_dim_program"]}[Data]
+				in
+				    dbo_bi_dim_program
+

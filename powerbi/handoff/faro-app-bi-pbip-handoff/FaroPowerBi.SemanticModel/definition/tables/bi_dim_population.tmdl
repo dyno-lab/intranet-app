@@ -1,0 +1,125 @@
+table bi_dim_population
+	lineageTag: 41192db8-7967-4e7b-a2d3-9ecd7ab7aba0
+
+	column population_group_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c0215d8f-62e4-40c3-825d-5c1bda785372
+		summarizeBy: none
+		sourceColumn: population_group_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3a5a6133-e284-4e57-8746-52bc2be40fa5
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: b59d7b70-88d0-4e77-964e-7d3d7d7dccb5
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: 70aa74d6-f621-4422-872f-f395b0705aa3
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column population_code
+		dataType: string
+		isHidden
+		lineageTag: f47f3b7c-ea77-4131-a91a-80daa68c6864
+		summarizeBy: none
+		sourceColumn: population_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column Poblacion
+		dataType: string
+		lineageTag: 7b479b57-2e94-41c7-af57-439e23c409e5
+		summarizeBy: none
+		sourceColumn: population_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column age_min
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 238f9437-0420-4c4f-8c0a-ea1150fceae9
+		summarizeBy: none
+		sourceColumn: age_min
+
+		annotation SummarizationSetBy = Automatic
+
+	column age_max
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6f849faa-1f70-4957-99cc-0399613c651c
+		summarizeBy: none
+		sourceColumn: age_max
+
+		annotation SummarizationSetBy = Automatic
+
+	column sort_order
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4fa53182-2aae-40e1-aeb4-77d648ea4e13
+		summarizeBy: none
+		sourceColumn: sort_order
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: eb65fc55-7009-46ae-a841-bd36012406a7
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: c021d162-134c-4f0c-bc5e-0240c5a3b865
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_population_key = COMBINEVALUES("|", 'bi_dim_population'[proposal_id], 'bi_dim_population'[population_group_id])
+		dataType: string
+		isHidden
+		lineageTag: 676c7f1e-35ac-4ae1-a61f-88b7b92aa760
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_population = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_population = Source{[Schema="dbo",Item="bi_dim_population"]}[Data]
+				in
+				    dbo_bi_dim_population
+

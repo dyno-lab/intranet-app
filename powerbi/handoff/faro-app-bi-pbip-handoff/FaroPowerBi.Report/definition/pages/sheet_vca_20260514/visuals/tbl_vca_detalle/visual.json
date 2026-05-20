@@ -1,0 +1,168 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "tbl_vca_detalle",
+  "position": {
+    "x": 815,
+    "y": 710,
+    "z": 3030,
+    "height": 230,
+    "width": 640,
+    "tabOrder": 3030
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "visualContainerObjects": {
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "dropShadow": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_participant"
+                    }
+                  },
+                  "Property": "participant_full_name"
+                }
+              },
+              "queryRef": "bi_dim_participant.participant_full_name",
+              "nativeQueryRef": "Participante",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_participant"
+                    }
+                  },
+                  "Property": "Rango Edad"
+                }
+              },
+              "queryRef": "bi_dim_participant.Rango Edad",
+              "nativeQueryRef": "Rango de edad",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_participant"
+                    }
+                  },
+                  "Property": "genero"
+                }
+              },
+              "queryRef": "bi_dim_participant.genero",
+              "nativeQueryRef": "Género",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_participant"
+                    }
+                  },
+                  "Property": "residential_name"
+                }
+              },
+              "queryRef": "bi_dim_participant.residential_name",
+              "nativeQueryRef": "Residencial",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_participant"
+                    }
+                  },
+                  "Property": "escolaridad_participante"
+                }
+              },
+              "queryRef": "bi_dim_participant.escolaridad_participante",
+              "nativeQueryRef": "Escolaridad",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Participaciones VCA Si"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Participaciones VCA Si",
+              "nativeQueryRef": "Participaciones VCA",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

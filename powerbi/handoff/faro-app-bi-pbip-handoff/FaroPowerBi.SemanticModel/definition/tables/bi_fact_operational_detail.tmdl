@@ -1,0 +1,421 @@
+table bi_fact_operational_detail
+	lineageTag: 2fa22481-7e7c-498d-963f-38f6a6f20919
+
+	column attendance_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 335b8ba0-c883-4938-b6d0-356f61bc2583
+		summarizeBy: none
+		sourceColumn: attendance_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7b678a77-2456-4f9a-8d88-a37d618ebd2c
+		summarizeBy: none
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f81b2ba8-659e-4399-b8ed-b84085b85e04
+		summarizeBy: none
+		sourceColumn: session_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column session_year
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3396b5eb-f94f-4471-8ffe-fdb371a49543
+		summarizeBy: none
+		sourceColumn: session_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 47c12594-3cbb-497f-9bea-d477b277aee9
+		summarizeBy: none
+		sourceColumn: session_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_year_month
+		dataType: string
+		isHidden
+		lineageTag: e0db86c9-fea5-48e1-ac6d-c2bf5899cdea
+		summarizeBy: none
+		sourceColumn: session_year_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 0feb4981-0bc6-41d4-928c-51e28e1b2a4d
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: 012044c0-0430-438f-a551-371447f60cc9
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: fd06dac7-1c35-4b12-884a-bcf94661db4b
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6c0aa94f-4d2a-4239-978a-fdcdd168f8d3
+		summarizeBy: none
+		sourceColumn: activity_code_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code
+		dataType: string
+		isHidden
+		lineageTag: d889d082-44d1-4275-ad8d-4fefdf94491b
+		summarizeBy: none
+		sourceColumn: activity_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_description
+		dataType: string
+		isHidden
+		lineageTag: d2116e49-1187-4813-9604-cffde9e0b48c
+		summarizeBy: none
+		sourceColumn: activity_description
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: eb2fc28d-1054-4cd0-9407-702771b2b18f
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_code
+		dataType: string
+		isHidden
+		lineageTag: 74613abf-0f03-4f92-b65e-58e8f3649364
+		summarizeBy: none
+		sourceColumn: employee_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_name
+		dataType: string
+		isHidden
+		lineageTag: 32a0180b-96aa-4e4a-838a-ba45c84f517a
+		summarizeBy: none
+		sourceColumn: employee_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6010f1a1-287e-4082-a0a8-c2b35cbd5a1c
+		summarizeBy: none
+		sourceColumn: created_by_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_username
+		dataType: string
+		isHidden
+		lineageTag: 29134498-cc21-4782-88ff-9c7cc0e4cfeb
+		summarizeBy: none
+		sourceColumn: created_by_username
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_role
+		dataType: string
+		isHidden
+		lineageTag: d2bc57ac-f93a-4b4c-b2f2-20b1eb2de148
+		summarizeBy: none
+		sourceColumn: created_by_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e482580c-395e-4db2-a33d-72b2559797b6
+		summarizeBy: none
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		isHidden
+		lineageTag: d322a2c3-d70f-471f-a88c-caeba116f0e3
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_name
+		dataType: string
+		isHidden
+		lineageTag: 8641e3a7-be35-41d5-8d9e-f94aa2d750a3
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		isHidden
+		lineageTag: af340b67-2d9b-46be-9ee5-7a7bbb7fb5c5
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		isHidden
+		lineageTag: b461e02c-6377-4bd4-86b8-bd840017b3db
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c56ccd7b-8278-40bd-a076-d354ec187e94
+		summarizeBy: none
+		sourceColumn: participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 0b6449dd-faf1-46a2-b89e-cae662578ab2
+		summarizeBy: none
+		sourceColumn: proposal_participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column person_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2d0df331-9ff5-4d3e-8035-13de8f83a968
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column legacy_participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 55c9d9fb-4d1d-41bb-97f0-1fd508f316c0
+		summarizeBy: none
+		sourceColumn: legacy_participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column expediente_num
+		dataType: string
+		isHidden
+		lineageTag: f4619bc9-e2ce-4c14-a981-f7315f764ebd
+		summarizeBy: none
+		sourceColumn: expediente_num
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_full_name
+		dataType: string
+		isHidden
+		lineageTag: bc27b2c6-c4fd-47a3-863f-3878b1215e8b
+		summarizeBy: none
+		sourceColumn: participant_full_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Genero
+		dataType: string
+		isHidden
+		lineageTag: 2ffb9981-4667-4ee1-86df-e39aba889d99
+		summarizeBy: none
+		sourceColumn: participant_genero
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_birth_date
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: 02f6def5-e552-4841-90e4-2bbcf0d54ce3
+		summarizeBy: none
+		sourceColumn: participant_birth_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column proposal_participant_building
+		dataType: string
+		isHidden
+		lineageTag: fa4d307b-3ef0-428a-b62a-bc4f77155d05
+		summarizeBy: none
+		sourceColumn: proposal_participant_building
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_participant_apartment
+		dataType: string
+		isHidden
+		lineageTag: 962281b5-145a-47a5-a07b-9e9663292c0f
+		summarizeBy: none
+		sourceColumn: proposal_participant_apartment
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_building
+		dataType: string
+		isHidden
+		lineageTag: 55cfc17c-db51-413f-9f27-e0128ccfce44
+		summarizeBy: none
+		sourceColumn: participant_building
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_apartment
+		dataType: string
+		isHidden
+		lineageTag: c7d346df-0b8f-443b-b83c-f2d76bcbab92
+		summarizeBy: none
+		sourceColumn: participant_apartment
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_participant_is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 6d5af7c4-d65c-4b71-854c-fe76a51a2a03
+		summarizeBy: none
+		sourceColumn: proposal_participant_is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 4a51667f-3d38-46f1-a084-5e6f9f58a9e6
+		summarizeBy: none
+		sourceColumn: participant_is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column attended
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 63e5c54a-7969-402e-9b17-6fdf72df1541
+		summarizeBy: none
+		sourceColumn: attended
+
+		annotation SummarizationSetBy = Automatic
+
+	column marked_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 54d32664-ec42-4f4e-982c-81fa229825f6
+		summarizeBy: none
+		sourceColumn: marked_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column marked_by
+		dataType: string
+		isHidden
+		lineageTag: 62976982-2e54-4ffc-b082-7e4092866002
+		summarizeBy: none
+		sourceColumn: marked_by
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_hours
+		dataType: double
+		lineageTag: fe1ec68a-1134-40f9-8115-914682425cd1
+		summarizeBy: sum
+		sourceColumn: session_hours
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column session_created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 072b22e8-db5c-4214-ad4b-7860aaaf3c40
+		summarizeBy: none
+		sourceColumn: session_created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_activity_key = COMBINEVALUES("|", 'bi_fact_operational_detail'[proposal_id], 'bi_fact_operational_detail'[activity_code_id])
+		dataType: string
+		isHidden
+		lineageTag: 1da79864-8e1a-4803-a243-8ed6d9541cef
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_fact_operational_detail = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_fact_operational_detail = Source{[Schema="dbo",Item="bi_fact_operational_detail"]}[Data]
+				in
+				    dbo_bi_fact_operational_detail
+

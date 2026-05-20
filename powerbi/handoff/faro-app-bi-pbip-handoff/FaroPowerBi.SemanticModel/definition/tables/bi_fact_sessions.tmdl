@@ -1,0 +1,314 @@
+table bi_fact_sessions
+	lineageTag: 2570b73f-47e6-4ea9-8027-20d5cc784612
+
+	measure 'Actividades por Programa' =
+			
+			[Actividades Realizadas]
+		formatString: 0
+		lineageTag: c3d29843-306b-4b4a-a477-a5f52ec7e276
+
+	measure 'Actividades Realizadas' =
+			
+			COALESCE(
+			    CALCULATE(
+			        DISTINCTCOUNT('bi_fact_sessions'[session_id]),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE())
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 7f3b74d2-f497-4ec7-94a5-5dd5bb087101
+
+	measure 'Residenciales Impactados' =
+			
+			COALESCE(
+			    CALCULATE(
+			        DISTINCTCOUNT('bi_fact_sessions'[residential_id]),
+			        NOT ISBLANK('bi_fact_sessions'[residential_id]),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE())
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: c06c4080-f6a6-4b96-a224-aeab37af6101
+
+	measure 'Total Actividades Realizadas' =
+			
+			[Actividades Realizadas]
+		formatString: 0
+		lineageTag: 7f3b74d2-f497-4ec7-94a5-201510241003
+
+	measure 'Total Residenciales Impactados' =
+			
+			[Residenciales Impactados]
+		formatString: 0
+		lineageTag: c06c4080-f6a6-4b96-a224-201510241004
+
+	measure 'Total Horas' =
+			
+			COALESCE(
+			    CALCULATE(
+			        SUM('bi_fact_sessions'[hours]),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE())
+			    ),
+			    0
+			)
+		formatString: 0.##
+		lineageTag: 69e7f964-6cdd-4257-b007-9410461fe76a
+
+	column session_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f2095419-703c-4846-b7e8-20613b642838
+		summarizeBy: sum
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 6e99170d-643f-44a4-8235-201ca2cc3190
+		summarizeBy: none
+		sourceColumn: session_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column session_year
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f2061d45-b7a6-4bcd-bef1-53ba0c5c6d0d
+		summarizeBy: sum
+		sourceColumn: session_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f7cf7532-9407-40ba-9b5a-a7631e218f7e
+		summarizeBy: sum
+		sourceColumn: session_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_year_month
+		dataType: string
+		isHidden
+		lineageTag: a520f17c-9507-433e-b529-eb9a7183051b
+		summarizeBy: none
+		sourceColumn: session_year_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3f4ddffc-cb71-429d-a589-26d40c54a8fc
+		summarizeBy: none
+		sourceColumn: created_by_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column Usuario
+		dataType: string
+		isHidden
+		lineageTag: e9756dbe-9a99-49c4-9f35-22ff476e51ac
+		summarizeBy: none
+		sourceColumn: created_by_username
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_role
+		dataType: string
+		isHidden
+		lineageTag: 6300bcca-676e-49e4-9bf2-746e05fbb291
+		summarizeBy: none
+		sourceColumn: created_by_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 50c1068c-ba56-4938-992a-ff2e47b227f4
+		summarizeBy: none
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		isHidden
+		lineageTag: 3adf1852-90a8-440e-949b-a63c871e4ca7
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_name
+		dataType: string
+		isHidden
+		lineageTag: ae8546b2-3e1e-49d2-802c-265d2c211a87
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		isHidden
+		lineageTag: 2ca05eb5-a6ff-4e80-8b12-7c96cf061ed6
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		isHidden
+		lineageTag: 75556210-79ad-4007-bf4b-96e5fcc2a80d
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4dc229ad-ee52-4b10-a933-b2097ea6f2be
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: 934c5d18-411e-42e3-b570-c82b43037e72
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: 6ff78a52-447a-4395-9dce-2b306dfcd111
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f45b519f-d44a-46de-9b38-f4ee3743f836
+		summarizeBy: sum
+		sourceColumn: activity_code_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code
+		dataType: string
+		isHidden
+		lineageTag: feba5094-5227-4b66-8f71-f263b5c131fd
+		summarizeBy: none
+		sourceColumn: activity_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_description
+		dataType: string
+		isHidden
+		lineageTag: 656c7a57-aeb1-4c8c-9c18-b28ac03746f7
+		summarizeBy: none
+		sourceColumn: activity_description
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3e698c01-e8df-41b4-b44c-e9a240bb4921
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column Empleado
+		dataType: string
+		isHidden
+		lineageTag: bebfba58-5d50-4497-af37-a010902ac553
+		summarizeBy: none
+		sourceColumn: employee_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column hours
+		dataType: double
+		lineageTag: 3cc9a721-f415-4083-874d-f56a32308ebd
+		summarizeBy: sum
+		sourceColumn: hours
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column attendance_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 611a7e9e-b0f0-4b09-a0f4-1b1b6fbe399a
+		summarizeBy: sum
+		sourceColumn: attendance_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column distinct_participant_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 73ffc3e7-8c90-4fc3-a205-7d3125e45bd2
+		summarizeBy: sum
+		sourceColumn: distinct_participant_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 3e5c0990-48b0-4644-aff7-9bbe56371f79
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_activity_key = COMBINEVALUES("|", 'bi_fact_sessions'[proposal_id], 'bi_fact_sessions'[activity_code_id])
+		dataType: string
+		isHidden
+		lineageTag: 03aac7f5-3107-4488-9afb-e52c0c01720b
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_fact_sessions = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_fact_sessions = Source{[Schema="dbo",Item="bi_fact_sessions"]}[Data]
+				in
+				    dbo_bi_fact_sessions
+
+	annotation PBI_ResultType = Table
+

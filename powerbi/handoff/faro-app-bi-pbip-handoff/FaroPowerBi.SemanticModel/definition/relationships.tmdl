@@ -1,0 +1,121 @@
+relationship rel_fact_sessions_proposal
+	fromColumn: bi_fact_sessions.proposal_id
+	toColumn: bi_dim_proposal.proposal_id
+
+relationship rel_fact_attendance_proposal
+	fromColumn: bi_fact_attendance.proposal_id
+	toColumn: bi_dim_proposal.proposal_id
+
+relationship rel_fact_operational_proposal
+	fromColumn: bi_fact_operational_detail.proposal_id
+	toColumn: bi_dim_proposal.proposal_id
+
+relationship rel_fact_productivity_proposal
+	fromColumn: bi_fact_productivity_compliance.proposal_id
+	toColumn: bi_dim_proposal.proposal_id
+
+relationship rel_fact_sessions_residential
+	fromColumn: bi_fact_sessions.residential_id
+	toColumn: bi_dim_residential.residential_id
+
+relationship rel_fact_attendance_residential
+	fromColumn: bi_fact_attendance.residential_id
+	toColumn: bi_dim_residential.residential_id
+
+relationship rel_fact_operational_residential
+	fromColumn: bi_fact_operational_detail.residential_id
+	toColumn: bi_dim_residential.residential_id
+
+relationship rel_fact_productivity_residential
+	fromColumn: bi_fact_productivity_compliance.residential_id
+	toColumn: bi_dim_residential.residential_id
+
+relationship rel_fact_attendance_participant
+	fromColumn: bi_fact_attendance.participant_id
+	toColumn: bi_dim_participant.participant_id
+
+relationship rel_fact_operational_participant
+	fromColumn: bi_fact_operational_detail.participant_id
+	toColumn: bi_dim_participant.participant_id
+
+relationship rel_fact_sessions_fecha
+	joinOnDateBehavior: datePartOnly
+	fromColumn: bi_fact_sessions.session_date
+	toColumn: Dim_Fecha.Date
+
+relationship rel_fact_attendance_fecha
+	joinOnDateBehavior: datePartOnly
+	fromColumn: bi_fact_attendance.session_date
+	toColumn: Dim_Fecha.Date
+
+relationship rel_fact_operational_fecha
+	joinOnDateBehavior: datePartOnly
+	fromColumn: bi_fact_operational_detail.session_date
+	toColumn: Dim_Fecha.Date
+
+relationship rel_fact_productivity_fecha
+	joinOnDateBehavior: datePartOnly
+	fromColumn: bi_fact_productivity_compliance.month_start
+	toColumn: Dim_Fecha.Date
+
+relationship rel_fact_sessions_activity
+	fromColumn: bi_fact_sessions.proposal_activity_key
+	toColumn: bi_dim_activity.proposal_activity_key
+
+relationship rel_fact_attendance_activity
+	fromColumn: bi_fact_attendance.proposal_activity_key
+	toColumn: bi_dim_activity.proposal_activity_key
+
+relationship rel_fact_operational_activity
+	fromColumn: bi_fact_operational_detail.proposal_activity_key
+	toColumn: bi_dim_activity.proposal_activity_key
+
+relationship rel_fact_productivity_activity
+	fromColumn: bi_fact_productivity_compliance.proposal_activity_key
+	toColumn: bi_dim_activity.proposal_activity_key
+
+relationship rel_program_population_program
+	fromColumn: bi_bridge_program_population.program_id
+	toColumn: bi_dim_program.program_id
+
+relationship rel_program_population_population
+	fromColumn: bi_bridge_program_population.proposal_population_key
+	toColumn: bi_dim_population.proposal_population_key
+
+relationship rel_program_activity_program_population
+	fromColumn: bi_bridge_program_activity.program_population_id
+	toColumn: bi_bridge_program_population.program_population_id
+
+relationship rel_program_activity_activity
+	crossFilteringBehavior: bothDirections
+	fromColumn: bi_bridge_program_activity.proposal_activity_key
+	toColumn: bi_dim_activity.proposal_activity_key
+
+relationship rel_fact_sessions_empleado
+	fromColumn: bi_fact_sessions.employee_id
+	toColumn: Dim_Empleado.employee_id
+
+relationship rel_fact_attendance_empleado
+	fromColumn: bi_fact_attendance.employee_id
+	toColumn: Dim_Empleado.employee_id
+
+relationship rel_fact_operational_empleado
+	fromColumn: bi_fact_operational_detail.employee_id
+	toColumn: Dim_Empleado.employee_id
+
+relationship rel_fact_sessions_usuario
+	fromColumn: bi_fact_sessions.created_by_user_id
+	toColumn: Dim_Usuario.user_id
+
+relationship rel_fact_attendance_usuario
+	fromColumn: bi_fact_attendance.created_by_user_id
+	toColumn: Dim_Usuario.user_id
+
+relationship rel_fact_operational_usuario
+	fromColumn: bi_fact_operational_detail.created_by_user_id
+	toColumn: Dim_Usuario.user_id
+
+relationship rel_fact_productivity_usuario
+	fromColumn: bi_fact_productivity_compliance.owner_user_id
+	toColumn: Dim_Usuario.user_id
+

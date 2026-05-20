@@ -1,0 +1,580 @@
+table bi_fact_productivity_compliance
+	lineageTag: c3d3bd66-1bb3-4a74-a226-6735281e38b6
+
+	measure 'Ejecutado Global Total' =
+			
+			COALESCE(
+			    SUMX(
+			        SUMMARIZE(
+			            'bi_fact_productivity_compliance',
+			            'bi_fact_productivity_compliance'[goal_activity_key],
+			            'bi_fact_productivity_compliance'[month_start],
+			            "ExecGlobal", MAX('bi_fact_productivity_compliance'[executed_global_count])
+			        ),
+			        [ExecGlobal]
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: cfa569ef-8fe0-491f-ac0d-b3ba26728079
+
+	measure 'Ejecutado Residencial Total' =
+			
+			COALESCE(
+			    SUMX(
+			        SUMMARIZE(
+			            'bi_fact_productivity_compliance',
+			            'bi_fact_productivity_compliance'[goal_residential_key],
+			            'bi_fact_productivity_compliance'[month_start],
+			            "ExecResidential", MAX('bi_fact_productivity_compliance'[executed_residential_count])
+			        ),
+			        [ExecResidential]
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 53d734e5-6113-46f3-9dcf-07e5b2a60a90
+
+	measure 'Actividades Cumplen' =
+			
+			SUMX(
+			    SUMMARIZE(
+			        'bi_fact_productivity_compliance',
+			        'bi_fact_productivity_compliance'[goal_activity_key],
+			        'bi_fact_productivity_compliance'[month_start]
+			    ),
+			    CALCULATE([Indicador Cumplimiento Actividad])
+			)
+		formatString: 0
+		lineageTag: 639c57e1-c8da-46c1-ba81-ac917aed25f7
+
+	measure '% Cumplimiento' =
+			
+			DIVIDE(
+			    [Actividades Cumplen],
+			    [Actividades Evaluadas],
+			    0
+			)
+		formatString: 0.0%
+		lineageTag: 994eb04b-31ba-45ee-91da-6db8230d6458
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Indicador Cumplimiento Actividad' =
+			
+			VAR GoalType = MAX('bi_fact_productivity_compliance'[goal_type])
+			VAR GoalValue = MAX('bi_fact_productivity_compliance'[goal_value])
+			VAR PeriodGoalValue = MAX('bi_fact_productivity_compliance'[period_goal_value])
+			VAR Target =
+			    IF(
+			        NOT ISBLANK(PeriodGoalValue) && PeriodGoalValue > 0,
+			        PeriodGoalValue,
+			        GoalValue
+			    )
+			VAR ResidentialRows =
+			    SUMMARIZE(
+			        'bi_fact_productivity_compliance',
+			        'bi_fact_productivity_compliance'[goal_residential_key],
+			        'bi_fact_productivity_compliance'[month_start],
+			        "ExecutedResidential", MAX('bi_fact_productivity_compliance'[executed_residential_count])
+			    )
+			VAR AllResidentialMet =
+			    MINX(
+			        ResidentialRows,
+			        VAR ExecutedResidential = [ExecutedResidential]
+			        RETURN
+			            SWITCH(
+			                TRUE(),
+			                GoalType = "per_residential_min_1", IF(ExecutedResidential >= 1, 1, 0),
+			                GoalType IN {"per_residential_fixed", "per_residential_period_fixed"}, IF(ExecutedResidential >= Target, 1, 0),
+			                BLANK()
+			            )
+			    )
+			RETURN
+			    SWITCH(
+			        TRUE(),
+			        GoalType = "global_fixed", IF([Ejecutado Global Total] >= Target, 1, 0),
+			        GoalType IN {"per_residential_min_1", "per_residential_fixed", "per_residential_period_fixed"}, COALESCE(AllResidentialMet, 0),
+			        BLANK()
+			    )
+		formatString: 0
+		lineageTag: a049d100-5a78-4570-ab9f-59b888ea2c61
+
+	measure 'Actividades Evaluadas' =
+			
+			COUNTROWS(
+			    SUMMARIZE(
+			        'bi_fact_productivity_compliance',
+			        'bi_fact_productivity_compliance'[goal_activity_key],
+			        'bi_fact_productivity_compliance'[month_start]
+			    )
+			)
+		formatString: 0
+		lineageTag: db686bb3-f2b4-495a-8188-e83243d375e6
+
+	measure 'Estado Cumplimiento' =
+			
+			SWITCH(
+			    TRUE(),
+			    [Cumplimiento General] >= 1, "Cumplido",
+			    [Cumplimiento General] >= 0.8, "Cerca de la meta",
+			    "Bajo la meta"
+			)
+		lineageTag: eb08f422-19c4-4d04-a55b-a916bd9fe8df
+
+	measure 'Indicador Cumplimiento Actividad Residencial' =
+			
+			VAR GoalType = MAX('bi_fact_productivity_compliance'[goal_type])
+			VAR GoalValue = MAX('bi_fact_productivity_compliance'[goal_value])
+			VAR PeriodGoalValue = MAX('bi_fact_productivity_compliance'[period_goal_value])
+			VAR Target =
+			    IF(
+			        NOT ISBLANK(PeriodGoalValue) && PeriodGoalValue > 0,
+			        PeriodGoalValue,
+			        GoalValue
+			    )
+			RETURN
+			    SWITCH(
+			        TRUE(),
+			        GoalType = "global_fixed", IF([Ejecutado Global Total] >= Target, 1, 0),
+			        GoalType = "per_residential_min_1", IF([Ejecutado Residencial Total] >= 1, 1, 0),
+			        GoalType IN {"per_residential_fixed", "per_residential_period_fixed"}, IF([Ejecutado Residencial Total] >= Target, 1, 0),
+			        BLANK()
+			    )
+		formatString: 0
+		lineageTag: 3ffc0018-4bf8-4c47-8047-67a5b22d142a
+
+	measure 'Actividades Cumplen Residencial' =
+			
+			SUMX(
+			    SUMMARIZE(
+			        'bi_fact_productivity_compliance',
+			        'bi_fact_productivity_compliance'[goal_activity_key],
+			        'bi_fact_productivity_compliance'[month_start]
+			    ),
+			    CALCULATE([Indicador Cumplimiento Actividad Residencial])
+			)
+		formatString: 0
+		lineageTag: cab6e7c7-b563-4db9-813c-62ad7ef1c7ec
+
+	measure 'Cumplimiento Residencial' =
+			
+			COALESCE(
+			    DIVIDE([Ejecutado Residencial Total], [Meta Residencial Total], 0),
+			    0
+			)
+		formatString: 0.0%
+		lineageTag: 78e5415e-4103-43e5-bac7-2d5f5930816f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Meta Total' =
+			
+			COALESCE(
+			    SUMX(
+			        SUMMARIZE(
+			            'bi_fact_productivity_compliance',
+			            'bi_fact_productivity_compliance'[goal_activity_key],
+			            'bi_fact_productivity_compliance'[month_start],
+			            "GoalValue", MAX('bi_fact_productivity_compliance'[goal_value]),
+			            "PeriodGoalValue", MAX('bi_fact_productivity_compliance'[period_goal_value]),
+			            "GlobalTargetValue", MAX('bi_fact_productivity_compliance'[global_target_value])
+			        ),
+			        VAR PeriodGoalValue = [PeriodGoalValue]
+			        VAR GlobalTargetValue = [GlobalTargetValue]
+			        VAR GoalValue = [GoalValue]
+			        RETURN
+			            SWITCH(
+			                TRUE(),
+			                NOT ISBLANK(PeriodGoalValue) && PeriodGoalValue > 0, PeriodGoalValue,
+			                NOT ISBLANK(GlobalTargetValue) && GlobalTargetValue > 0, GlobalTargetValue,
+			                COALESCE(GoalValue, 0)
+			            )
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 4c1a9237-5a4b-449c-9c0f-01240e308c99
+
+	measure 'Ejecutado Total' =
+			
+			COALESCE(
+			    SUMX(
+			        SUMMARIZE(
+			            'bi_fact_productivity_compliance',
+			            'bi_fact_productivity_compliance'[goal_activity_key],
+			            'bi_fact_productivity_compliance'[month_start],
+			            "GoalType", MAX('bi_fact_productivity_compliance'[goal_type])
+			        ),
+			        VAR GoalType = [GoalType]
+			        RETURN
+			            IF(
+			                GoalType = "global_fixed",
+			                CALCULATE([Ejecutado Global Total]),
+			                CALCULATE([Ejecutado Residencial Total])
+			            )
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: e212a892-54d7-4880-8d30-ef8cddec2af6
+
+	measure 'Cumplimiento General' =
+			
+			COALESCE(
+			    DIVIDE([Ejecutado Total], [Meta Total], 0),
+			    0
+			)
+		formatString: 0.0%
+		lineageTag: 994eb04b-31ba-45ee-91da-201510241006
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Meta Residencial Total' =
+			
+			COALESCE(
+			    SUMX(
+			        SUMMARIZE(
+			            'bi_fact_productivity_compliance',
+			            'bi_fact_productivity_compliance'[goal_residential_key],
+			            'bi_fact_productivity_compliance'[month_start],
+			            "ResidentialTargetValue", MAX('bi_fact_productivity_compliance'[residential_target_value]),
+			            "GoalValue", MAX('bi_fact_productivity_compliance'[goal_value])
+			        ),
+			        VAR ResidentialTargetValue = [ResidentialTargetValue]
+			        VAR GoalValue = [GoalValue]
+			        RETURN
+			            IF(
+			                NOT ISBLANK(ResidentialTargetValue) && ResidentialTargetValue > 0,
+			                ResidentialTargetValue,
+			                COALESCE(GoalValue, 0)
+			            )
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 8003eacc-3a19-400a-9509-e1dba0de65ed
+
+	column productivity_goal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 79aff915-347e-4a96-86ab-d05059050be4
+		summarizeBy: sum
+		sourceColumn: productivity_goal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: d37591df-7636-440b-a017-182561500c62
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: f4f39278-820a-4e9c-a939-2f600511d5d0
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: 96692f65-14ab-4724-ac11-ab7a79c08a5e
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 803e6a65-f778-4eed-89fe-a9f7bd199194
+		summarizeBy: sum
+		sourceColumn: activity_code_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code
+		dataType: string
+		isHidden
+		lineageTag: 6c4975cc-6bb1-45c3-9984-c220f9a4cf2c
+		summarizeBy: none
+		sourceColumn: activity_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_description
+		dataType: string
+		isHidden
+		lineageTag: f387590f-73a1-4d36-b246-0ca1797c4ed0
+		summarizeBy: none
+		sourceColumn: activity_description
+
+		annotation SummarizationSetBy = Automatic
+
+	column owner_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 19190916-ba15-4528-a62d-c1af6fde8aa5
+		summarizeBy: none
+		sourceColumn: owner_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column owner_username
+		dataType: string
+		isHidden
+		lineageTag: f894440d-7254-4e96-a979-567632d46c96
+		summarizeBy: none
+		sourceColumn: owner_username
+
+		annotation SummarizationSetBy = Automatic
+
+	column owner_role
+		dataType: string
+		isHidden
+		lineageTag: 935152d6-e5a2-472d-a4a9-d88c726f1b50
+		summarizeBy: none
+		sourceColumn: owner_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: a799ebd7-c9e3-4c82-99f1-cc5ffe46f3d0
+		summarizeBy: none
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		isHidden
+		lineageTag: 0e090a5e-04af-4268-875b-e3d84f075b40
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column Residencial
+		dataType: string
+		isHidden
+		lineageTag: b1afe0c6-4978-4926-8cbc-3f50421317a8
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		isHidden
+		lineageTag: d728240d-5215-4192-b24b-7836ec51fe89
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		isHidden
+		lineageTag: b8475fa1-5e8e-4b73-941c-7190b3483d2f
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_start
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 6d6ca732-5414-469d-95e6-38378c7d1993
+		summarizeBy: none
+		sourceColumn: month_start
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column session_year
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: b452cc37-ac33-4c5c-86e7-f29d3050c670
+		summarizeBy: sum
+		sourceColumn: session_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c7926c4f-3458-4590-9ae1-b9bb910bebfb
+		summarizeBy: sum
+		sourceColumn: session_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_year_month
+		dataType: string
+		isHidden
+		lineageTag: a667994a-7389-4a7a-8403-0246fbca5c83
+		summarizeBy: none
+		sourceColumn: session_year_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column goal_type
+		dataType: string
+		isHidden
+		lineageTag: 39c8c590-a100-4041-bc81-a97c4b299fb9
+		summarizeBy: none
+		sourceColumn: goal_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column goal_value
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 5cfdcf70-ffc6-46b1-b2fa-5050d826a748
+		summarizeBy: sum
+		sourceColumn: goal_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column period_goal_value
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 65b06e6a-8768-4b1f-80d0-57e89fd9872a
+		summarizeBy: sum
+		sourceColumn: period_goal_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column executed_residential_count
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f4a970f8-16f5-4880-906a-962fe4289d15
+		summarizeBy: sum
+		sourceColumn: executed_residential_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column executed_global_count
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 033b09b5-70ae-4541-adc4-3d070d39a468
+		summarizeBy: sum
+		sourceColumn: executed_global_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_target_value
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 54d399f4-ee6a-40db-8ca3-2a3aed15c008
+		summarizeBy: sum
+		sourceColumn: residential_target_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column global_target_value
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 12267c9b-495a-4559-9ec3-4d3c5a4f2300
+		summarizeBy: sum
+		sourceColumn: global_target_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column monthly_met_flag
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: a748faf4-9ce0-491b-8a5e-8485f8c19d33
+		summarizeBy: sum
+		sourceColumn: monthly_met_flag
+
+		annotation SummarizationSetBy = Automatic
+
+	column monthly_compliance_label
+		dataType: string
+		isHidden
+		lineageTag: 3a505946-03be-4638-9e69-75c33997e625
+		summarizeBy: none
+		sourceColumn: monthly_compliance_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column goal_activity_key
+		dataType: string
+		isHidden
+		lineageTag: 551881e3-f39b-4723-8989-c7beb815fe8a
+		summarizeBy: none
+		sourceColumn: goal_activity_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column goal_residential_key
+		dataType: string
+		isHidden
+		lineageTag: 15ab80cb-a85a-477c-b616-9341ce7cdf84
+		summarizeBy: none
+		sourceColumn: goal_residential_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: b18c4001-5dc8-429d-bc03-a6e7e2b8c266
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column updated_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 003e97a1-087e-45a6-a821-16ee54999d7c
+		summarizeBy: none
+		sourceColumn: updated_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_activity_key = COMBINEVALUES("|", 'bi_fact_productivity_compliance'[proposal_id], 'bi_fact_productivity_compliance'[activity_code_id])
+		dataType: string
+		isHidden
+		lineageTag: eaa07400-23c7-4b59-b3e7-b65548161bce
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_fact_productivity_compliance = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_fact_productivity_compliance = Source{[Schema="dbo",Item="bi_fact_productivity_compliance"]}[Data]
+				in
+				    dbo_bi_fact_productivity_compliance
+

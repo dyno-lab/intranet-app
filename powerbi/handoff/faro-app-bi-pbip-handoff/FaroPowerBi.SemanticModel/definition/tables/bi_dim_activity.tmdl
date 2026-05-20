@@ -1,0 +1,93 @@
+table bi_dim_activity
+	lineageTag: 1047d2e6-c9ca-4cbf-9bca-4554df7f8376
+
+	column activity_code_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: da8deaee-8d33-4e46-8501-c7358ef6a5b6
+		summarizeBy: none
+		sourceColumn: activity_code_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column Actividad
+		dataType: string
+		lineageTag: b14e36d6-e5a0-4a13-995d-7853471e8415
+		summarizeBy: none
+		sourceColumn: activity_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_description
+		dataType: string
+		lineageTag: 6195a21a-f03c-4013-9a02-5519fcba59d7
+		summarizeBy: none
+		sourceColumn: activity_description
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 24a80957-3a21-4ed5-9adf-003ab628746e
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: c7942037-2478-40ea-8c81-5dfdcd6b5c6b
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: f5966b0e-ea02-410f-ac44-ca1ef4c14fae
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 4d6e81ed-d685-45e8-820d-93de5dcc9521
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_activity_key = COMBINEVALUES("|", 'bi_dim_activity'[proposal_id], 'bi_dim_activity'[activity_code_id])
+		dataType: string
+		isHidden
+		lineageTag: 3a292eb3-b498-447b-bd24-ec63d45f88ac
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_activity = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_activity = Source{[Schema="dbo",Item="bi_dim_activity"]}[Data],
+				    #"Filas activas" = Table.SelectRows(
+				        dbo_bi_dim_activity,
+				        each let
+				            activeText = if [is_active] = null then "" else Text.Lower(Text.Trim(Text.From([is_active])))
+				        in
+				            activeText = "true" or activeText = "1" or activeText = "si" or activeText = "sí" or activeText = "active" or activeText = "activo"
+				    )
+				in
+				    #"Filas activas"
+
+	annotation PBI_ResultType = Table
+

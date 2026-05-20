@@ -1,0 +1,79 @@
+table bi_dim_residential
+	lineageTag: 77e4bb53-226d-4676-8c99-c525addaf221
+
+	column residential_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: edf624b4-3443-4efc-8a7f-88049c736628
+		summarizeBy: none
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		isHidden
+		lineageTag: 55e9e7f0-18a2-4970-8a5a-0b9a6e4318ad
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column Residencial
+		dataType: string
+		lineageTag: 0d7ec832-dcb1-4245-a4ce-95be2a6c374a
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		isHidden
+		lineageTag: 2a150506-63ce-46bc-8adb-63a9a0b25cc2
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		isHidden
+		lineageTag: 996b5cfd-414a-4f4b-bdaa-428bd3109ca4
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 56108662-8988-43ee-87e1-331ae858fd71
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: c817d9f9-62b2-4fae-834e-6947d02f6e7e
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_residential = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_residential = Source{[Schema="dbo",Item="bi_dim_residential"]}[Data]
+				in
+				    dbo_bi_dim_residential
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,327 @@
+table bi_dim_participant
+	lineageTag: 65e82a55-1093-4224-85b9-2f5852ab9a36
+
+	column participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 8a7fdc1c-8e71-4c1d-befe-1d98db16a43d
+		summarizeBy: none
+		sourceColumn: participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: fa20c175-8d6a-430c-a5c3-86145c594225
+		summarizeBy: sum
+		sourceColumn: created_by_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_username
+		dataType: string
+		isHidden
+		lineageTag: 1f5c8bf5-cb74-4630-95f9-c2bfbd0ceb15
+		summarizeBy: none
+		sourceColumn: created_by_username
+
+		annotation SummarizationSetBy = Automatic
+
+	column expediente_num
+		dataType: string
+		isHidden
+		lineageTag: b5f9102a-9b4d-40a5-801d-ff42bd6f9a6d
+		summarizeBy: none
+		sourceColumn: expediente_num
+
+		annotation SummarizationSetBy = Automatic
+
+	column nombre
+		dataType: string
+		isHidden
+		lineageTag: 3a1d44fa-5a72-4a7e-96c2-456f9e44c016
+		summarizeBy: none
+		sourceColumn: nombre
+
+		annotation SummarizationSetBy = Automatic
+
+	column inicial
+		dataType: string
+		isHidden
+		lineageTag: 16f4fbda-bd59-4747-8fee-b82d311c8685
+		summarizeBy: none
+		sourceColumn: inicial
+
+		annotation SummarizationSetBy = Automatic
+
+	column apellido_paterno
+		dataType: string
+		isHidden
+		lineageTag: c9223907-6934-411e-8dde-5c98ad4d2a2c
+		summarizeBy: none
+		sourceColumn: apellido_paterno
+
+		annotation SummarizationSetBy = Automatic
+
+	column apellido_materno
+		dataType: string
+		isHidden
+		lineageTag: 032f5c75-5971-479c-8e95-7d47a8fbd501
+		summarizeBy: none
+		sourceColumn: apellido_materno
+
+		annotation SummarizationSetBy = Automatic
+
+	column genero
+		dataType: string
+		isHidden
+		lineageTag: 594f1287-523c-4ebf-b63b-391773b9c283
+		summarizeBy: none
+		sourceColumn: genero
+
+		annotation SummarizationSetBy = Automatic
+
+	column fecha_nacimiento
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: 678748f0-2dde-41b0-ae54-3ff43e99ff4e
+		summarizeBy: none
+		sourceColumn: fecha_nacimiento
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column edificio
+		dataType: string
+		isHidden
+		lineageTag: 84ee0422-c726-4451-9704-4857b54e508b
+		summarizeBy: none
+		sourceColumn: edificio
+
+		annotation SummarizationSetBy = Automatic
+
+	column apart
+		dataType: string
+		isHidden
+		lineageTag: 3119f8cd-3100-4630-aea5-7516c245239f
+		summarizeBy: none
+		sourceColumn: apart
+
+		annotation SummarizationSetBy = Automatic
+
+	column vca
+		dataType: string
+		isHidden
+		lineageTag: 3161dc50-f0cf-44d7-92a8-6e23a3f2a3e1
+		summarizeBy: none
+		sourceColumn: vca
+
+		annotation SummarizationSetBy = Automatic
+
+	column primera_vez
+		dataType: string
+		isHidden
+		lineageTag: f2907a20-9206-4d25-816a-f1920f1f7ed7
+		summarizeBy: none
+		sourceColumn: primera_vez
+
+		annotation SummarizationSetBy = Automatic
+
+	column composicion_familiar
+		dataType: string
+		isHidden
+		lineageTag: 4dc3cc35-0971-4b4c-8ed2-ecb09684a2a0
+		summarizeBy: none
+		sourceColumn: composicion_familiar
+
+		annotation SummarizationSetBy = Automatic
+
+	column estatus
+		dataType: string
+		isHidden
+		lineageTag: e0036282-b1f0-47d4-b59a-32670bb54131
+		summarizeBy: none
+		sourceColumn: estatus
+
+		annotation SummarizationSetBy = Automatic
+
+	column grupo_familiar
+		dataType: string
+		isHidden
+		lineageTag: 187fd3e9-5eb3-48c1-94b2-2e1be3e8203e
+		summarizeBy: none
+		sourceColumn: grupo_familiar
+
+		annotation SummarizationSetBy = Automatic
+
+	column fuente_ingreso_principal
+		dataType: string
+		isHidden
+		lineageTag: 6ae25c68-c555-4d74-bfb6-c54e8831dd6b
+		summarizeBy: none
+		sourceColumn: fuente_ingreso_principal
+
+		annotation SummarizationSetBy = Automatic
+
+	column rango_ingreso
+		dataType: string
+		isHidden
+		lineageTag: 3e5de1a9-0236-487d-a2e4-90de981503cf
+		summarizeBy: none
+		sourceColumn: rango_ingreso
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: bce9b2da-7224-47be-b8ea-dd4900b87513
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 67651629-c4a7-4994-9e57-12766ecc6fea
+		summarizeBy: none
+		sourceColumn: created_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column updated_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 61063b3c-fcca-488a-9cad-5ce635f18902
+		summarizeBy: none
+		sourceColumn: updated_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Rango Edad Orden' =
+			SWITCH(
+			    TRUE(),
+			    ISBLANK('bi_dim_participant'[edad_actual]), 99,
+			    'bi_dim_participant'[edad_actual] <= 12, 1,
+			    'bi_dim_participant'[edad_actual] <= 18, 2,
+			    'bi_dim_participant'[edad_actual] <= 59, 3,
+			    4
+			)
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7c11d9b0-93a5-4da4-96c9-c9af45f68f7e
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Rango Edad' =
+			SWITCH(
+			    TRUE(),
+			    ISBLANK('bi_dim_participant'[edad_actual]), "Sin edad",
+			    'bi_dim_participant'[edad_actual] <= 12, "5-12",
+			    'bi_dim_participant'[edad_actual] <= 18, "13-18",
+			    'bi_dim_participant'[edad_actual] <= 59, "19-59",
+			    "60+"
+			)
+		dataType: string
+		lineageTag: 4067360d-f14e-4a4a-bb26-db17c4c8e17d
+		summarizeBy: none
+		sortByColumn: 'Rango Edad Orden'
+
+		annotation SummarizationSetBy = Automatic
+
+	column escolaridad_participante
+		dataType: string
+		lineageTag: a3eb8d22-df26-4c11-81cc-67aa6cd6f413
+		summarizeBy: none
+		sourceColumn: escolaridad_participante
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_role
+		dataType: string
+		lineageTag: f3a54ac8-2dc4-43a6-8dec-ad04315447d7
+		summarizeBy: none
+		sourceColumn: created_by_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 41dd5e23-12fd-4776-97fe-c6d6746d8a09
+		summarizeBy: sum
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		lineageTag: d75bd890-da5e-49a4-a57b-4e16c04fb05b
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_name
+		dataType: string
+		lineageTag: 61854605-cbb9-4de5-bcdb-2300a2705062
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		lineageTag: 71895d92-c96a-4699-ae3b-aeafa69f478f
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		lineageTag: 261b1c60-e357-46fa-9dbd-ca8bb3e4adcb
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_full_name
+		dataType: string
+		lineageTag: 735ca8c3-87b7-4a27-a8bc-198d5949ec4d
+		summarizeBy: none
+		sourceColumn: participant_full_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column edad_actual
+		dataType: int64
+		formatString: 0
+		lineageTag: 2b516e62-bcf2-443d-b759-f006da353a2a
+		summarizeBy: sum
+		sourceColumn: edad_actual
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_participant = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_participant = Source{[Schema="dbo",Item="bi_dim_participant"]}[Data]
+				in
+				    dbo_bi_dim_participant
+
+	annotation PBI_ResultType = Table
+

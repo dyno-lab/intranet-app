@@ -1,0 +1,507 @@
+table bi_fact_attendance
+	lineageTag: 5d81022d-c120-402a-b8de-13ea66f63b41
+
+	measure 'Participaciones por Programa' =
+			
+			[Total Participaciones]
+		formatString: 0
+		lineageTag: 4b045e16-ccaa-4a2d-a2c0-d080697a4cbf
+
+	measure 'Participaciones Totales' =
+			
+			CALCULATE(
+			    COUNTROWS('bi_fact_attendance'),
+			    'bi_fact_attendance'[attended] = TRUE(),
+			    KEEPFILTERS('bi_dim_activity'[is_active] = TRUE())
+			)
+		formatString: 0
+		lineageTag: 9d5273d1-5d09-4bfd-b5ee-b6e4f8201001
+
+	measure 'Total Personas Unicas' =
+			
+			COALESCE(
+			    CALCULATE(
+			        DISTINCTCOUNT('bi_fact_attendance'[participant_id]),
+			        'bi_fact_attendance'[attended] = TRUE(),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE())
+			    ),
+			    0
+			)
+		formatString: 0
+		lineageTag: 4f4271f0-1c20-46fd-8b69-201510241001
+
+	measure 'Total Participaciones' =
+			
+			COALESCE([Participaciones Totales], 0)
+		formatString: 0
+		lineageTag: 79df1bd0-56c0-4c64-a26d-201510241002
+
+	measure 'Personas Unicas por Programa' =
+			
+			[Total Personas Unicas]
+		formatString: 0
+		lineageTag: 2c8e8af0-56c0-4c64-a26d-201510241101
+
+	measure 'Total Personas Unicas F' =
+			
+			CALCULATE(
+			    [Total Personas Unicas],
+			    KEEPFILTERS('bi_dim_participant'[genero] = "F")
+			)
+		formatString: 0
+		lineageTag: da2e3f40-effa-4936-a312-0cf54e39ac30
+
+	measure 'Total Personas Unicas M' =
+			
+			CALCULATE(
+			    [Total Personas Unicas],
+			    KEEPFILTERS('bi_dim_participant'[genero] = "M")
+			)
+		formatString: 0
+		lineageTag: ce9f87c5-a157-4602-bf41-72b458397a3a
+
+	measure 'Participaciones VCA Si' =
+			
+			VAR _participaciones =
+			    CALCULATE(
+			        COUNTROWS('bi_fact_attendance'),
+			        'bi_fact_attendance'[attended] = TRUE(),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE()),
+			        KEEPFILTERS('bi_dim_participant'[vca] IN { "Sí", "Si", "SÍ", "SI", "sí", "si", "YES", "Yes", "yes", "TRUE", "True", "true", "1" })
+			    )
+			RETURN
+			    IF(_participaciones > 0, _participaciones, BLANK())
+		formatString: 0
+		lineageTag: 01a438e7-62b4-45ea-9f19-201510241201
+
+	measure 'Personas Unicas VCA Si' =
+			
+			VAR _personas =
+			    CALCULATE(
+			        DISTINCTCOUNT('bi_fact_attendance'[participant_id]),
+			        'bi_fact_attendance'[attended] = TRUE(),
+			        KEEPFILTERS('bi_dim_activity'[is_active] = TRUE()),
+			        KEEPFILTERS('bi_dim_participant'[vca] IN { "Sí", "Si", "SÍ", "SI", "sí", "si", "YES", "Yes", "yes", "TRUE", "True", "true", "1" })
+			    )
+			RETURN
+			    IF(_personas > 0, _personas, BLANK())
+		formatString: 0
+		lineageTag: 02a438e7-62b4-45ea-9f19-201510241202
+
+	measure 'Personas Unicas VCA Si F' =
+			
+			CALCULATE(
+			    [Personas Unicas VCA Si],
+			    KEEPFILTERS('bi_dim_participant'[genero] = "F")
+			)
+		formatString: 0
+		lineageTag: 03a438e7-62b4-45ea-9f19-201510241203
+
+	measure 'Personas Unicas VCA Si M' =
+			
+			CALCULATE(
+			    [Personas Unicas VCA Si],
+			    KEEPFILTERS('bi_dim_participant'[genero] = "M")
+			)
+		formatString: 0
+		lineageTag: 04a438e7-62b4-45ea-9f19-201510241204
+
+	measure 'Participaciones Duplicadas' =
+			
+			[Total Participaciones]
+		formatString: 0
+		lineageTag: 10a438e7-62b4-45ea-9f19-201510241210
+
+	measure 'Grupo Edad Principal' =
+			
+			VAR _base =
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('bi_dim_participant'[Rango Edad]),
+			            "__valor", [Total Personas Unicas]
+			        ),
+			        NOT ISBLANK('bi_dim_participant'[Rango Edad]) && [__valor] > 0
+			    )
+			VAR _top = TOPN(1, _base, [__valor], DESC, 'bi_dim_participant'[Rango Edad], ASC)
+			RETURN COALESCE(MAXX(_top, 'bi_dim_participant'[Rango Edad]), "Sin datos")
+		lineageTag: 11a438e7-62b4-45ea-9f19-201510241211
+
+	measure 'Escolaridad Principal' =
+			
+			VAR _base =
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('bi_dim_participant'[escolaridad_participante]),
+			            "__valor", [Total Personas Unicas]
+			        ),
+			        NOT ISBLANK('bi_dim_participant'[escolaridad_participante]) && [__valor] > 0
+			    )
+			VAR _top = TOPN(1, _base, [__valor], DESC, 'bi_dim_participant'[escolaridad_participante], ASC)
+			RETURN COALESCE(MAXX(_top, 'bi_dim_participant'[escolaridad_participante]), "Sin datos")
+		lineageTag: 12a438e7-62b4-45ea-9f19-201510241212
+
+	measure 'Fuente Ingreso Principal' =
+			
+			VAR _base =
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('bi_dim_participant'[fuente_ingreso_principal]),
+			            "__valor", [Total Personas Unicas]
+			        ),
+			        NOT ISBLANK('bi_dim_participant'[fuente_ingreso_principal]) && [__valor] > 0
+			    )
+			VAR _top = TOPN(1, _base, [__valor], DESC, 'bi_dim_participant'[fuente_ingreso_principal], ASC)
+			RETURN COALESCE(MAXX(_top, 'bi_dim_participant'[fuente_ingreso_principal]), "Sin datos")
+		lineageTag: 13a438e7-62b4-45ea-9f19-201510241213
+
+	measure 'Tipo Familia Principal' =
+			
+			VAR _base =
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('bi_dim_participant'[composicion_familiar]),
+			            "__valor", [Total Personas Unicas]
+			        ),
+			        NOT ISBLANK('bi_dim_participant'[composicion_familiar]) && [__valor] > 0
+			    )
+			VAR _top = TOPN(1, _base, [__valor], DESC, 'bi_dim_participant'[composicion_familiar], ASC)
+			RETURN COALESCE(MAXX(_top, 'bi_dim_participant'[composicion_familiar]), "Sin datos")
+		lineageTag: 14a438e7-62b4-45ea-9f19-201510241214
+
+	measure 'Actividad Principal' =
+			
+			VAR _base =
+			    FILTER(
+			        ADDCOLUMNS(
+			            VALUES('bi_dim_activity'[Actividad]),
+			            "__valor", [Total Personas Unicas]
+			        ),
+			        NOT ISBLANK('bi_dim_activity'[Actividad]) && [__valor] > 0
+			    )
+			VAR _top = TOPN(1, _base, [__valor], DESC, 'bi_dim_activity'[Actividad], ASC)
+			RETURN COALESCE(MAXX(_top, 'bi_dim_activity'[Actividad]), "Sin datos")
+		lineageTag: 15a438e7-62b4-45ea-9f19-201510241215
+
+	column attendance_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: b2ffb819-db2d-4d61-b779-71d80bd25645
+		summarizeBy: none
+		sourceColumn: attendance_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3f1299dd-72e9-4002-8c10-8e0db7bf06e3
+		summarizeBy: none
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 252241f3-44ef-4566-b2ec-e6fe127b0777
+		summarizeBy: none
+		sourceColumn: session_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column session_year
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: a663d0c5-b994-4aea-bc73-6a80bf14aab2
+		summarizeBy: none
+		sourceColumn: session_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3999706c-2927-4b04-9db8-ba013fca99c6
+		summarizeBy: none
+		sourceColumn: session_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_year_month
+		dataType: string
+		isHidden
+		lineageTag: c934e31f-6933-486e-9fbf-13b725218c4f
+		summarizeBy: none
+		sourceColumn: session_year_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6cb3a4fa-c6aa-4639-b5f3-b172f47ac910
+		summarizeBy: none
+		sourceColumn: participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_participant_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 1c28291b-9146-45a1-a204-6532b5b8dc26
+		summarizeBy: none
+		sourceColumn: proposal_participant_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column attended
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 90d9000e-fefc-4bc9-a318-228b791e6754
+		summarizeBy: none
+		sourceColumn: attended
+
+		annotation SummarizationSetBy = Automatic
+
+	column marked_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: ff3ac4ce-5abc-42eb-9640-a490e075886f
+		summarizeBy: none
+		sourceColumn: marked_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column marked_by
+		dataType: string
+		isHidden
+		lineageTag: 94db9a7f-3670-4ecb-ae91-f785515d2cf2
+		summarizeBy: none
+		sourceColumn: marked_by
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f2982962-5294-421e-b5ff-d6c0a758149a
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		isHidden
+		lineageTag: b03aa3a0-827e-43f2-8195-52740da83aad
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_name
+		dataType: string
+		isHidden
+		lineageTag: a75e029a-0372-4773-8ea6-205c2d1b1f53
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 776d70bf-f32a-4ccc-bad8-353703712158
+		summarizeBy: none
+		sourceColumn: activity_code_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_code
+		dataType: string
+		isHidden
+		lineageTag: 670ed673-7cfd-48e9-a3b1-2538c984f090
+		summarizeBy: none
+		sourceColumn: activity_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column activity_description
+		dataType: string
+		isHidden
+		lineageTag: 987104a8-5fec-44a7-8c45-3a6c4597a8b2
+		summarizeBy: none
+		sourceColumn: activity_description
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4fecba27-7e8c-402c-94f4-4a49c1d44132
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column employee_name
+		dataType: string
+		isHidden
+		lineageTag: 43f20e83-40f2-48e8-b523-4ec4a1843819
+		summarizeBy: none
+		sourceColumn: employee_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: fdef0f3a-b48a-4b8f-aca5-1c10b2039011
+		summarizeBy: none
+		sourceColumn: created_by_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_username
+		dataType: string
+		isHidden
+		lineageTag: e2b96257-d187-4a85-8109-f6084f4ec172
+		summarizeBy: none
+		sourceColumn: created_by_username
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_by_role
+		dataType: string
+		isHidden
+		lineageTag: 6aa22331-fa12-43c5-ab4f-55f2cdd652ac
+		summarizeBy: none
+		sourceColumn: created_by_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7ba467b2-1ac5-4c64-b483-6aefc60cd44c
+		summarizeBy: none
+		sourceColumn: residential_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_code
+		dataType: string
+		isHidden
+		lineageTag: 4e8b588e-e693-4567-9872-e378a80c2834
+		summarizeBy: none
+		sourceColumn: residential_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column residential_name
+		dataType: string
+		isHidden
+		lineageTag: 2ec35c9c-6304-4bc7-aaaa-138e98de2e77
+		summarizeBy: none
+		sourceColumn: residential_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column municipality
+		dataType: string
+		isHidden
+		lineageTag: 2ca2ca0c-da99-4509-b854-dfb4a1ee997c
+		summarizeBy: none
+		sourceColumn: municipality
+
+		annotation SummarizationSetBy = Automatic
+
+	column rq_code
+		dataType: string
+		isHidden
+		lineageTag: 4a418a3f-1e73-4a34-8a27-32421bcf1cf3
+		summarizeBy: none
+		sourceColumn: rq_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_expediente
+		dataType: string
+		isHidden
+		lineageTag: 443c4e5f-a36f-4349-aa1c-08ce38567bb9
+		summarizeBy: none
+		sourceColumn: participant_expediente
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_full_name
+		dataType: string
+		isHidden
+		lineageTag: 6c375eaf-6803-4691-ac22-071e4e666a2c
+		summarizeBy: none
+		sourceColumn: participant_full_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Genero
+		dataType: string
+		isHidden
+		lineageTag: fa3b4370-6ed4-4af1-bad1-0836880e82b2
+		summarizeBy: none
+		sourceColumn: participant_genero
+
+		annotation SummarizationSetBy = Automatic
+
+	column participant_is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: bfe71fc8-c052-42e2-8206-578a1be07d4c
+		summarizeBy: none
+		sourceColumn: participant_is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_hours
+		dataType: double
+		lineageTag: 345fd904-723f-4038-bec2-0b5ac50c551a
+		summarizeBy: sum
+		sourceColumn: session_hours
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column proposal_activity_key = COMBINEVALUES("|", 'bi_fact_attendance'[proposal_id], 'bi_fact_attendance'[activity_code_id])
+		dataType: string
+		isHidden
+		lineageTag: 3f4c288d-863e-4778-b4be-9fa7c6b3c2b9
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_fact_attendance = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_fact_attendance = Source{[Schema="dbo",Item="bi_fact_attendance"]}[Data]
+				in
+				    dbo_bi_fact_attendance
+
+	annotation PBI_ResultType = Table
+

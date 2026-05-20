@@ -1,0 +1,24 @@
+table Refresh_Info
+	lineageTag: 09706c33-613c-466f-82a7-67417aec0b66
+
+	measure 'Última Actualización' =
+			
+			FORMAT(MAX('Refresh_Info'[RefreshDateTime]), "dd/mm/yyyy hh:mm AM/PM")
+		lineageTag: f0241f66-63fd-44e4-9589-95b3d6251813
+
+	column RefreshDateTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 953533da-d6cd-4c67-86b4-311900c77b1e
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [RefreshDateTime]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Refresh_Info = calculated
+		mode: import
+		source =
+				
+				ROW("RefreshDateTime", NOW())
+

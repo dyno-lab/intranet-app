@@ -18,6 +18,26 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-18 - Setup local de skills y arquitectura AI
+Estado: **estructura local creada; sin push remoto**.
+
+Contexto:
+- Christian pidio buscar, instalar y configurar capacidades avanzadas para Dyno Lab + `intranet-app`, con prioridad en estabilidad, automatizacion, Power BI, contexto persistente y reduccion de errores AI.
+- Se revisaron `docs/project_context.md` y `IMPLEMENTATION_STATUS.md` antes de modificar.
+
+Implementado:
+- Se instalaron/copiarion skills de trabajo para Git, SQL, n8n, documentacion, prompt optimization, UX, code review, Power BI y FortiGate audit.
+- Se creo estructura local reusable: `skills/`, `agents/`, `prompts/`, `workflows/`, `memory/`, `powerbi/` y docs operativos.
+- Documentos nuevos:
+  - `docs/SKILLS_INSTALLED.md`
+  - `docs/AI_WORKFLOW_ARCHITECTURE.md`
+  - `docs/OPENCLAW_SKILLS_GUIDE.md`
+- Se agregaron skills locales especificas para huecos no cubiertos oficialmente: PBIP editing, repo intelligence, SQL+DAX, documentation sync, n8n workflow design, security fields hardening y multi-agent orchestration.
+
+Pendiente:
+- No se instalaron plugins de Gateway ni herramientas externas globales; requieren confirmacion especifica porque pueden cambiar configuracion global, reiniciar servicios o requerir credenciales.
+- Para manana, usar `security-fields-hardening` y `repo-intelligence` para el frente de campos de seguridad.
+
 ### Actualizacion 2026-05-18 - Cierre de endurecimiento API y automatizacion
 Estado: **validado funcionalmente en app, SQL y flujo real de n8n**.
 
@@ -60,6 +80,9 @@ Nota operativa importante:
 - el valor `AUTOMATION_API_KEY` no se propago por git; se configuro manualmente en el `.env` de la maquina servidora real:
   - `C:\Users\user\intranet_app\.env`
 - esto es intencional porque `.env` es configuracion local del entorno.
+
+Siguiente frente acordado:
+- revisar y mejorar campos de seguridad en la intranet, manteniendo el enfoque incremental y sin mezclar cambios de Power BI.
 
 ### Actualizacion 2026-05-18 - Endurecimiento inicial de API operativa
 Estado: **implementado para commit local; pendiente validacion funcional en entorno con interprete Python operativo**.

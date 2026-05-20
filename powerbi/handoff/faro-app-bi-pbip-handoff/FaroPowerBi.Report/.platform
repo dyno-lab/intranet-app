@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "FaroPowerBi"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "686ebd4e-dc4f-49b0-b105-90c46bce2723"
+  }
+}

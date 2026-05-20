@@ -1,0 +1,109 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.2.0/schema.json",
+  "themeCollection": {
+    "baseTheme": {
+      "name": "CY26SU04",
+      "reportVersionAtImport": {
+        "visual": "2.8.0",
+        "report": "3.2.0",
+        "page": "2.3.1"
+      },
+      "type": "SharedResources"
+    }
+  },
+  "objects": {
+    "section": [
+      {
+        "properties": {
+          "verticalAlignment": {
+            "expr": {
+              "Literal": {
+                "Value": "'Top'"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "outspacePane": [
+      {
+        "properties": {
+          "expanded": {
+            "expr": {
+              "Literal": {
+                "Value": "true"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "resourcePackages": [
+    {
+      "name": "SharedResources",
+      "type": "SharedResources",
+      "items": [
+        {
+          "name": "CY26SU04",
+          "path": "BaseThemes/CY26SU04.json",
+          "type": "BaseTheme"
+        }
+      ]
+    },
+    {
+      "name": "RegisteredResources",
+      "type": "RegisteredResources",
+      "items": [
+        {
+          "name": "dashboard_operacional_canvas.svg",
+          "path": "dashboard_operacional_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "sheet_secuencia_powerbi_canvas.svg",
+          "path": "sheet_secuencia_powerbi_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "sheet_programas_actividades_canvas.svg",
+          "path": "sheet_programas_actividades_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "sheet_vca_canvas.svg",
+          "path": "sheet_vca_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "dashboard_ejecutivo_faro_canvas.svg",
+          "path": "dashboard_ejecutivo_faro_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "perfil_demografico_canvas.svg",
+          "path": "perfil_demografico_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "programas_actividades_canvas.svg",
+          "path": "programas_actividades_canvas.svg",
+          "type": "Image"
+        },
+        {
+          "name": "vca_autosuficiencia_canvas.svg",
+          "path": "vca_autosuficiencia_canvas.svg",
+          "type": "Image"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "useStylableVisualContainerHeader": true,
+    "exportDataMode": "AllowSummarized",
+    "defaultDrillFilterOtherVisuals": true,
+    "allowChangeFilterTypes": true,
+    "useEnhancedTooltips": true,
+    "useDefaultAggregateDisplayName": true
+  }
+}

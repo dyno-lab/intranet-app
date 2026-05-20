@@ -1,0 +1,153 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "tbl_act_productividad",
+  "position": {
+    "x": 1015,
+    "y": 710,
+    "z": 3030,
+    "height": 230,
+    "width": 440,
+    "tabOrder": 3030
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "visualContainerObjects": {
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "dropShadow": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_activity"
+                    }
+                  },
+                  "Property": "Actividad"
+                }
+              },
+              "queryRef": "bi_dim_activity.Actividad",
+              "nativeQueryRef": "Actividad",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_productivity_compliance"
+                    }
+                  },
+                  "Property": "Meta Total"
+                }
+              },
+              "queryRef": "bi_fact_productivity_compliance.Meta Total",
+              "nativeQueryRef": "Meta",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_productivity_compliance"
+                    }
+                  },
+                  "Property": "Ejecutado Total"
+                }
+              },
+              "queryRef": "bi_fact_productivity_compliance.Ejecutado Total",
+              "nativeQueryRef": "Ejecutado",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_productivity_compliance"
+                    }
+                  },
+                  "Property": "Cumplimiento General"
+                }
+              },
+              "queryRef": "bi_fact_productivity_compliance.Cumplimiento General",
+              "nativeQueryRef": "Cumplimiento",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_productivity_compliance"
+                    }
+                  },
+                  "Property": "Estado Cumplimiento"
+                }
+              },
+              "queryRef": "bi_fact_productivity_compliance.Estado Cumplimiento",
+              "nativeQueryRef": "Estado",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

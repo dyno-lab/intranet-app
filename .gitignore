@@ -1,8 +1,72 @@
+# Local configuration / secrets
+.env
+.env.local
+.env.*.local
+.env.windows
+.env.*
+!.env.example
+
+# Databases / local data
+*.db
+*.sqlite3
+*.sqlite
+
+# Python generated files
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Build artifacts
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+
+# Local virtual environments
 .venv/
 venv/
 env/
-.pytest_cache/
+ENV/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+*.log
+
+# Node/frontend dependencies
+node_modules/
+npm-debug.log
+
+# Local assistant/OpenClaw workspace context
+_openclaw/
+
+# Power BI local/cache files
+**/.pbi/
+**/localSettings.json
+**/cache.abf

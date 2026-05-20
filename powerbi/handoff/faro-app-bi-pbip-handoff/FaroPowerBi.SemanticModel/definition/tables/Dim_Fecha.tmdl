@@ -1,0 +1,147 @@
+table Dim_Fecha
+	lineageTag: 2e331c23-9be6-486b-8064-be3056cf8083
+
+	measure 'Personas Unicas' =
+			
+			CALCULATE(
+			    DISTINCTCOUNT('bi_fact_attendance'[participant_id]),
+			    'bi_fact_attendance'[attended] = TRUE()
+			)
+		formatString: 0
+		lineageTag: 605d605f-af59-406b-ba53-34e05fcdf346
+
+	column Date
+		formatString: General Date
+		lineageTag: c090629f-1abe-43da-87dd-9166471f8c1c
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Date]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ano
+		formatString: 0
+		lineageTag: a9e50b38-633c-4068-aee8-bd608d686b3c
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Ano]
+
+		annotation SummarizationSetBy = Automatic
+
+	column MesN
+		isHidden
+		formatString: 0
+		lineageTag: b585f911-28c5-4a7c-93ab-b2fec3f274fc
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [MesN]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Mes
+		lineageTag: 14c3de67-ef11-43fd-89cb-f0b31a58288b
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Mes]
+		sortByColumn: MesN
+
+		annotation SummarizationSetBy = Automatic
+
+	column AnoMes
+		lineageTag: 5ec66573-327e-4676-ba96-f9ce418e05e2
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [AnoMes]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Periodo
+		isHidden
+		formatString: General Date
+		lineageTag: 1b7e4d8a-4f28-4b13-9eb9-5d84c4d4b001
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Periodo]
+
+		annotation SummarizationSetBy = Automatic
+
+	column MesCorto
+		lineageTag: 538a1f6b-0542-42d9-bcf6-cbabb295336f
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [MesCorto]
+		sortByColumn: MesN
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dim_Fecha = calculated
+		mode: import
+		source =
+				
+				VAR SessionDates =
+				    SELECTCOLUMNS(
+				        FILTER('bi_fact_sessions', NOT ISBLANK('bi_fact_sessions'[session_date])),
+				        "Fecha", DATE(YEAR('bi_fact_sessions'[session_date]), MONTH('bi_fact_sessions'[session_date]), DAY('bi_fact_sessions'[session_date]))
+				    )
+				VAR AttendanceDates =
+				    SELECTCOLUMNS(
+				        FILTER('bi_fact_attendance', NOT ISBLANK('bi_fact_attendance'[session_date])),
+				        "Fecha", DATE(YEAR('bi_fact_attendance'[session_date]), MONTH('bi_fact_attendance'[session_date]), DAY('bi_fact_attendance'[session_date]))
+				    )
+				VAR OperationalDates =
+				    SELECTCOLUMNS(
+				        FILTER('bi_fact_operational_detail', NOT ISBLANK('bi_fact_operational_detail'[session_date])),
+				        "Fecha", DATE(YEAR('bi_fact_operational_detail'[session_date]), MONTH('bi_fact_operational_detail'[session_date]), DAY('bi_fact_operational_detail'[session_date]))
+				    )
+				VAR ProductivityDates =
+				    SELECTCOLUMNS(
+				        FILTER('bi_fact_productivity_compliance', NOT ISBLANK('bi_fact_productivity_compliance'[month_start])),
+				        "Fecha", DATE(YEAR('bi_fact_productivity_compliance'[month_start]), MONTH('bi_fact_productivity_compliance'[month_start]), DAY('bi_fact_productivity_compliance'[month_start]))
+				    )
+				VAR AllDates =
+				    UNION(SessionDates, AttendanceDates, OperationalDates, ProductivityDates)
+				VAR MinDate = COALESCE(MINX(AllDates, [Fecha]), DATE(YEAR(TODAY()), 1, 1))
+				VAR MaxDate = COALESCE(MAXX(AllDates, [Fecha]), TODAY())
+				RETURN
+				ADDCOLUMNS(
+				    CALENDAR(MinDate, MaxDate),
+				    "Ano", YEAR([Date]),
+				    "MesN", MONTH([Date]),
+				    "Mes",
+				        SWITCH(
+				            MONTH([Date]),
+				            1, "Enero",
+				            2, "Febrero",
+				            3, "Marzo",
+				            4, "Abril",
+				            5, "Mayo",
+				            6, "Junio",
+				            7, "Julio",
+				            8, "Agosto",
+				            9, "Septiembre",
+				            10, "Octubre",
+				            11, "Noviembre",
+				            12, "Diciembre"
+				        ),
+				    "MesCorto",
+				        SWITCH(
+				            MONTH([Date]),
+				            1, "Ene",
+				            2, "Feb",
+				            3, "Mar",
+				            4, "Abr",
+				            5, "May",
+				            6, "Jun",
+				            7, "Jul",
+				            8, "Ago",
+				            9, "Sep",
+				            10, "Oct",
+				            11, "Nov",
+				            12, "Dic"
+				        ),
+				    "AnoMes", FORMAT([Date], "YYYY-MM"),
+				    "Periodo", DATE(YEAR([Date]), MONTH([Date]), 1)
+				)
+
+	annotation PBI_Id = 294a0be4f4924b7eaaa42d9efdcb37e2
+

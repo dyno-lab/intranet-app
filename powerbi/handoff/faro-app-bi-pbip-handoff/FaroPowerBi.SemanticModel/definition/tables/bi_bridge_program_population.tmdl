@@ -1,0 +1,106 @@
+table bi_bridge_program_population
+	lineageTag: 37dcf28e-f87f-495e-9ef3-a1219452e87d
+
+	column program_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 8e6764ad-4777-4dc6-8293-d0d3787539be
+		summarizeBy: none
+		sourceColumn: program_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 5b8731d2-2d0a-46d9-9695-56d956d9a4c5
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column program_population_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: d38f9d92-2546-48d7-980a-1924d5d3ee81
+		summarizeBy: none
+		sourceColumn: program_population_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column population_group_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 34ff5d4a-b121-49ff-8331-f7756dd0e60f
+		summarizeBy: none
+		sourceColumn: population_group_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column population_code
+		dataType: string
+		isHidden
+		lineageTag: cc7ce2f6-06c2-493f-a892-bf051b077bbd
+		summarizeBy: none
+		sourceColumn: population_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column population_label
+		dataType: string
+		lineageTag: efc679fe-d390-419f-a7e3-5a7e4fcff1ca
+		summarizeBy: none
+		sourceColumn: population_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column sort_order
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 5e4f8069-51b0-4f9f-acb2-990962190e4e
+		summarizeBy: none
+		sourceColumn: sort_order
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: dd8ba1c8-be60-4e06-96c8-e773942296b5
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column mapping_source
+		dataType: string
+		isHidden
+		lineageTag: 38f3d1e1-201f-4df6-afbf-306708c13077
+		summarizeBy: none
+		sourceColumn: mapping_source
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_population_key = COMBINEVALUES("|", 'bi_bridge_program_population'[proposal_id], 'bi_bridge_program_population'[population_group_id])
+		dataType: string
+		isHidden
+		lineageTag: bd847ce2-7643-4d75-b6aa-3a2fafdf0208
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_bridge_program_population = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_bridge_program_population = Source{[Schema="dbo",Item="bi_bridge_program_population"]}[Data]
+				in
+				    dbo_bi_bridge_program_population
+

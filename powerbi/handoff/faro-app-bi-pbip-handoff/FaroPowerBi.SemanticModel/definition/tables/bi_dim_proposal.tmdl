@@ -1,0 +1,107 @@
+table bi_dim_proposal
+	lineageTag: 192ef753-2d41-4b33-a44f-40eb637a402c
+
+	column proposal_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f8a35f09-f889-4bf0-9a39-f5993014b43c
+		summarizeBy: none
+		sourceColumn: proposal_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column proposal_code
+		dataType: string
+		lineageTag: 29a5f3c0-7a02-42a9-8afe-fa5147bb1245
+		summarizeBy: none
+		sourceColumn: proposal_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column Propuesta
+		dataType: string
+		lineageTag: dfba6832-3005-4a0e-847d-fca91b768a06
+		summarizeBy: none
+		sourceColumn: proposal_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column description
+		dataType: string
+		isHidden
+		lineageTag: 0b314a4b-9438-498a-9e36-8e10519fe004
+		summarizeBy: none
+		sourceColumn: description
+
+		annotation SummarizationSetBy = Automatic
+
+	column status
+		dataType: string
+		isHidden
+		lineageTag: f6a9da31-ba37-4ae0-93a7-5ce367123d4a
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		isHidden
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 041cd5ad-897a-4704-9763-203f9a1f5eca
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	column finalized_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 8b15f34b-e40e-4bf8-8bf9-68d775e4f761
+		summarizeBy: none
+		sourceColumn: finalized_at
+
+		annotation SummarizationSetBy = Automatic
+
+	column finalized_by_user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: d193d07d-e890-4a6a-bc97-ef5a955c3162
+		summarizeBy: none
+		sourceColumn: finalized_by_user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column finalization_note
+		dataType: string
+		isHidden
+		lineageTag: 9193b97b-dbec-4e26-a687-06264f0b1490
+		summarizeBy: none
+		sourceColumn: finalization_note
+
+		annotation SummarizationSetBy = Automatic
+
+	column updated_at
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 90f6d10b-ad9a-4cfa-9256-8085293a0c88
+		summarizeBy: none
+		sourceColumn: updated_at
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bi_dim_proposal = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost\SQLEXPRESS", "IntranetApp"),
+				    dbo_bi_dim_proposal = Source{[Schema="dbo",Item="bi_dim_proposal"]}[Data]
+				in
+				    dbo_bi_dim_proposal
+
+	annotation PBI_ResultType = Table
+

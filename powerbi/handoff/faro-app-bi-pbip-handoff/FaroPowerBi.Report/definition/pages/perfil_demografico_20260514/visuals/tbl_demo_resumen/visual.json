@@ -1,0 +1,168 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "tbl_demo_resumen",
+  "position": {
+    "x": 850,
+    "y": 710,
+    "z": 3050,
+    "height": 230,
+    "width": 610,
+    "tabOrder": 3050
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "visualContainerObjects": {
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "dropShadow": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_dim_residential"
+                    }
+                  },
+                  "Property": "Residencial"
+                }
+              },
+              "queryRef": "bi_dim_residential.Residencial",
+              "nativeQueryRef": "Residencial",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Total Personas Unicas"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Total Personas Unicas",
+              "nativeQueryRef": "Participantes únicos",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Grupo Edad Principal"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Grupo Edad Principal",
+              "nativeQueryRef": "Edad principal",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Escolaridad Principal"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Escolaridad Principal",
+              "nativeQueryRef": "Escolaridad principal",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Fuente Ingreso Principal"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Fuente Ingreso Principal",
+              "nativeQueryRef": "Fuente de ingresos",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bi_fact_attendance"
+                    }
+                  },
+                  "Property": "Tipo Familia Principal"
+                }
+              },
+              "queryRef": "bi_fact_attendance.Tipo Familia Principal",
+              "nativeQueryRef": "Tipo de familia",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

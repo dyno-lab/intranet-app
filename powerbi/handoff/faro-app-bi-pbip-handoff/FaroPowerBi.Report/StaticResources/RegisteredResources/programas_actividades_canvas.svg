@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024">
+<defs><linearGradient id="hero" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#123B66"/><stop offset="1" stop-color="#1677F2"/></linearGradient></defs>
+<rect x="0" y="0" width="1536" height="1024" rx="0" fill="#F4F7FB" opacity="1"/>
+<rect x="0" y="0" width="1536" height="92" rx="0" fill="url(#hero)" opacity="1"/>
+<text x="42" y="40" font-family="Segoe UI, Arial" font-size="28" font-weight="850" fill="#fff" text-anchor="start">Programas y Actividades</text>
+<text x="42" y="68" font-family="Segoe UI, Arial" font-size="12" font-weight="500" fill="#DBEAFE" text-anchor="start">Participación, ejecución y productividad por actividad</text>
+<rect x="1322" y="28" width="160" height="38" rx="19" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.35)" stroke-width="1" opacity="1"/>
+<text x="1402" y="52" font-family="Segoe UI, Arial" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">ACTIVIDADES</text>
+<rect x="430" y="112" width="190" height="58" rx="13" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<text x="444" y="135" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">PROPUESTA</text>
+<rect x="640" y="112" width="190" height="58" rx="13" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<text x="654" y="135" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">PERÍODO</text>
+<rect x="850" y="112" width="190" height="58" rx="13" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<text x="864" y="135" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">PROGRAMA</text>
+<rect x="1060" y="112" width="190" height="58" rx="13" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<text x="1074" y="135" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">ACTIVIDAD</text>
+<rect x="1270" y="112" width="190" height="58" rx="13" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<text x="1284" y="135" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">RESIDENCIAL</text>
+<rect x="42" y="188" width="250" height="70" rx="15" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<rect x="42" y="188" width="6" height="70" rx="3" fill="#1677F2" stroke="#1677F2" stroke-width="0" opacity="1"/>
+<text x="58" y="212" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">PARTICIPACIÓN ÚNICA</text>
+<rect x="312" y="188" width="250" height="70" rx="15" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<rect x="312" y="188" width="6" height="70" rx="3" fill="#123B66" stroke="#123B66" stroke-width="0" opacity="1"/>
+<text x="328" y="212" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">PARTICIPACIONES DUPLICADAS</text>
+<rect x="582" y="188" width="250" height="70" rx="15" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<rect x="582" y="188" width="6" height="70" rx="3" fill="#F59E0B" stroke="#F59E0B" stroke-width="0" opacity="1"/>
+<text x="598" y="212" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">ACTIVIDADES REALIZADAS</text>
+<rect x="852" y="188" width="250" height="70" rx="15" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/>
+<rect x="852" y="188" width="6" height="70" rx="3" fill="#16885A" stroke="#16885A" stroke-width="0" opacity="1"/>
+<text x="868" y="212" font-family="Segoe UI, Arial" font-size="10" font-weight="800" fill="#64748B" text-anchor="start">ACTIVIDAD PRINCIPAL</text>
+<rect x="42" y="285" width="900" height="38" rx="10" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/><rect x="42" y="285" width="6" height="38" rx="3" fill="#1677F2" stroke="#1677F2" stroke-width="0" opacity="1"/><text x="60" y="309" font-family="Segoe UI, Arial" font-size="15" font-weight="800" fill="#0F172A" text-anchor="start">Tendencia mensual y ranking por programa</text>
+<rect x="990" y="285" width="500" height="38" rx="10" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/><rect x="990" y="285" width="6" height="38" rx="3" fill="#16885A" stroke="#16885A" stroke-width="0" opacity="1"/><text x="1008" y="309" font-family="Segoe UI, Arial" font-size="15" font-weight="800" fill="#0F172A" text-anchor="start">Top programas</text>
+<rect x="42" y="650" width="900" height="38" rx="10" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/><rect x="42" y="650" width="6" height="38" rx="3" fill="#123B66" stroke="#123B66" stroke-width="0" opacity="1"/><text x="60" y="674" font-family="Segoe UI, Arial" font-size="15" font-weight="800" fill="#0F172A" text-anchor="start">Resumen por programa y actividad</text>
+<rect x="990" y="650" width="500" height="38" rx="10" fill="#fff" stroke="#D9E2EF" stroke-width="1" opacity="1"/><rect x="990" y="650" width="6" height="38" rx="3" fill="#DC3545" stroke="#DC3545" stroke-width="0" opacity="1"/><text x="1008" y="674" font-family="Segoe UI, Arial" font-size="15" font-weight="800" fill="#0F172A" text-anchor="start">Productividad</text>
+</svg>

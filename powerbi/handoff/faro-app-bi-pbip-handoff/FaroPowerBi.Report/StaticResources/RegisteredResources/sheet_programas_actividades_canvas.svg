@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024">
+<defs><linearGradient id="hero" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#14345b"/><stop offset="1" stop-color="#0d6efd"/></linearGradient></defs>
+<rect x="0" y="0" width="1536" height="1024" rx="0" fill="#f6f8fb" opacity="1"/>
+<rect x="0" y="0" width="1536" height="96" rx="0" fill="url(#hero)" opacity="1"/>
+<text x="42" y="43" font-family="Segoe UI, Arial" font-size="28" font-weight="850" fill="#fff" text-anchor="start">Programas y Actividades</text>
+<text x="42" y="70" font-family="Segoe UI, Arial" font-size="12" font-weight="500" fill="#dbeafe" text-anchor="start">Tendencia, ranking y productividad por programa</text>
+<rect x="520" y="122" width="210" height="56" rx="12" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/>
+<text x="534" y="146" font-family="Segoe UI, Arial" font-size="12" font-weight="650" fill="#172033" text-anchor="start">Propuesta</text>
+<rect x="750" y="122" width="210" height="56" rx="12" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/>
+<text x="764" y="146" font-family="Segoe UI, Arial" font-size="12" font-weight="650" fill="#172033" text-anchor="start">Programa</text>
+<rect x="980" y="122" width="210" height="56" rx="12" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/>
+<text x="994" y="146" font-family="Segoe UI, Arial" font-size="12" font-weight="650" fill="#172033" text-anchor="start">Fecha</text>
+<rect x="1210" y="122" width="210" height="56" rx="12" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/>
+<text x="1224" y="146" font-family="Segoe UI, Arial" font-size="12" font-weight="650" fill="#172033" text-anchor="start">Residencial</text>
+<rect x="42" y="225" width="930" height="34" rx="9" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/><rect x="42" y="225" width="6" height="34" rx="3" fill="#0d6efd" stroke="#0d6efd" stroke-width="0" opacity="1"/><text x="60" y="247" font-family="Segoe UI, Arial" font-size="14" font-weight="800" fill="#172033" text-anchor="start">Tendencia mensual del programa</text>
+<rect x="1010" y="225" width="480" height="34" rx="9" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/><rect x="1010" y="225" width="6" height="34" rx="3" fill="#00a7c8" stroke="#00a7c8" stroke-width="0" opacity="1"/><text x="1028" y="247" font-family="Segoe UI, Arial" font-size="14" font-weight="800" fill="#172033" text-anchor="start">Programa / composición</text>
+<rect x="42" y="610" width="930" height="34" rx="9" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/><rect x="42" y="610" width="6" height="34" rx="3" fill="#198754" stroke="#198754" stroke-width="0" opacity="1"/><text x="60" y="632" font-family="Segoe UI, Arial" font-size="14" font-weight="800" fill="#172033" text-anchor="start">Ranking de actividades</text>
+<rect x="1010" y="610" width="480" height="34" rx="9" fill="#fff" stroke="#d8e2ee" stroke-width="1" opacity="1"/><rect x="1010" y="610" width="6" height="34" rx="3" fill="#dc3545" stroke="#dc3545" stroke-width="0" opacity="1"/><text x="1028" y="632" font-family="Segoe UI, Arial" font-size="14" font-weight="800" fill="#172033" text-anchor="start">Productividad</text>
+</svg>

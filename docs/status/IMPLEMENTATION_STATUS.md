@@ -31,6 +31,7 @@ Resumen:
 - Delete de versiones inactiva de forma segura y bloquea si la version esta asignada.
 - `/ui/listado/{session_id}` ahora tiene filtro visual por edad/rango, filtro manual desde/hasta, boton filtrar, limpiar filtros y contador de visibles.
 - Bonafide ahora muestra en columna `Nombre`: `Nombre + Inicial + Apellidos`; aplica a pantalla, PDF y Excel sin cambiar estructura de columnas.
+- Correccion validada de paginas blancas al usar `Ctrl+P` desde Bonafide PDF: el fix funcional fue compactar el CSS de impresion del PDF Bonafide y controlar page-break/overflow para que cada bloque quepa en hoja carta.
 
 Commits recientes:
 - `4134293 Ajustar filas por pagina en Bonafide`
@@ -38,6 +39,9 @@ Commits recientes:
 - `32190ee Simplificar administracion de plantillas de reporte`
 - `5380bc7 Agregar filtros de edad en asistencia`
 - `c0b0837 Mostrar inicial en nombre Bonafide`
+- `e2b6222 Corregir hojas blancas al imprimir Bonafide`
+- `bc71595 Ajustar salto de pagina en impresion Bonafide`
+- `23d5f9e Compactar impresion PDF Bonafide`
 
 Nota operativa:
 - Fuente detallada actualizada en `docs/implementation_status.md`.

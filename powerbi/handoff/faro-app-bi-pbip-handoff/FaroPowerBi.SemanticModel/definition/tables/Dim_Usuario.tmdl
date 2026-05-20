@@ -1,0 +1,58 @@
+table Dim_Usuario
+	lineageTag: 9ea964a5-3d07-4fe1-9fa9-2078e9a0f28f
+
+	column user_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 37036298-7ace-4717-adf1-3d77f2db636b
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [user_id]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Usuario
+		dataType: string
+		lineageTag: 43059e2e-d4d9-48a8-8c93-7de757340ac7
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Usuario]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rol
+		dataType: string
+		isHidden
+		lineageTag: a4558bb1-546d-422e-bb63-f26a0b918caf
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Rol]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dim_Usuario = calculated
+		mode: import
+		source =
+				
+				VAR Users =
+				    FILTER(
+				        UNION(
+				            SELECTCOLUMNS('bi_fact_sessions', "user_id", 'bi_fact_sessions'[created_by_user_id], "Usuario", 'bi_fact_sessions'[Usuario], "Rol", 'bi_fact_sessions'[created_by_role]),
+				            SELECTCOLUMNS('bi_fact_attendance', "user_id", 'bi_fact_attendance'[created_by_user_id], "Usuario", 'bi_fact_attendance'[created_by_username], "Rol", 'bi_fact_attendance'[created_by_role]),
+				            SELECTCOLUMNS('bi_fact_operational_detail', "user_id", 'bi_fact_operational_detail'[created_by_user_id], "Usuario", 'bi_fact_operational_detail'[created_by_username], "Rol", 'bi_fact_operational_detail'[created_by_role]),
+				            SELECTCOLUMNS('bi_fact_productivity_compliance', "user_id", 'bi_fact_productivity_compliance'[owner_user_id], "Usuario", 'bi_fact_productivity_compliance'[owner_username], "Rol", 'bi_fact_productivity_compliance'[owner_role])
+				        ),
+				        NOT ISBLANK([user_id])
+				    )
+				RETURN
+				    ADDCOLUMNS(
+				        DISTINCT(SELECTCOLUMNS(Users, "user_id", [user_id])),
+				        "Usuario",
+				            VAR CurrentUserId = [user_id]
+				            RETURN MAXX(FILTER(Users, [user_id] = CurrentUserId), [Usuario]),
+				        "Rol",
+				            VAR CurrentUserId = [user_id]
+				            RETURN MAXX(FILTER(Users, [user_id] = CurrentUserId), [Rol])
+				    )
+

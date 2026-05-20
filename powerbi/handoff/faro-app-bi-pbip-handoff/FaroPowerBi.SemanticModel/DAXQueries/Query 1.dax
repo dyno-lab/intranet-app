@@ -1,0 +1,11 @@
+Dim_Fecha =
+ADDCOLUMNS(
+    CALENDAR(
+        MIN('bi_fact_sessions'[session_date]);
+        MAX('bi_fact_sessions'[session_date])
+    );
+    "Ano"; YEAR([Date]);
+    "MesN"; MONTH([Date]);
+    "Mes"; FORMAT([Date]; "MMMM");
+    "AnoMes"; FORMAT([Date]; "YYYY-MM")
+)

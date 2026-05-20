@@ -1,0 +1,565 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Ejecutivo FARO</title>
+  <link rel="stylesheet" href="dashboard-faro.css">
+</head>
+<body>
+  <main class="dashboard-shell" aria-label="Mockup ejecutivo FARO">
+    <nav class="dashboard-tabs" aria-label="Secciones del dashboard FARO">
+      <button class="tab-button active" data-target="executive">Dashboard Ejecutivo FARO</button>
+      <button class="tab-button" data-target="demographic">Perfil Demográfico</button>
+      <button class="tab-button" data-target="activities">Programas y Actividades</button>
+      <button class="tab-button" data-target="vca">VCA y Autosuficiencia</button>
+    </nav>
+
+    <section id="executive" class="dashboard-page active" aria-labelledby="executive-title">
+      <div class="dashboard-page-inner">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Faro APP</p>
+            <h1 id="executive-title" class="dashboard-title">Dashboard Ejecutivo FARO</h1>
+            <p class="dashboard-subtitle">Resumen operacional, participación y servicios visibles en el período seleccionado</p>
+          </div>
+          <div class="header-meta">
+            <span class="status-badge status-success">Vista ejecutiva</span>
+            <span>Base visual: dashboard actual FARO · datos dinámicos del modelo</span>
+          </div>
+        </header>
+
+        <div class="filter-bar" aria-label="Filtros ejecutivos">
+          <div class="filter-item"><span>Propuesta</span><strong>Todas</strong></div>
+          <div class="filter-item"><span>Período / Mes</span><strong>Abril</strong></div>
+          <div class="filter-item"><span>Programa</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Residencial</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Población</span><strong>Todas</strong></div>
+        </div>
+
+        <div class="mockup-reference-note">Los valores son referencias visuales del dashboard actual. En Power BI deben salir del modelo y respetar filtros de propuesta, período, programa, residencial y población.</div>
+
+        <div class="metric-rule-note"><strong>Regla de métricas:</strong> Personas únicas cuenta participantes con al menos 1 asistencia en el período y propuesta seleccionados. Participaciones duplicadas cuenta todas las asistencias/participaciones. Actividades y residenciales se calculan desde los datos existentes del modelo.</div>
+
+        <div class="summary-strip" aria-label="Métricas principales">
+          <article class="metric-chip metric-people"><span>Participantes únicos</span><strong>1,068</strong></article>
+          <article class="metric-chip metric-signatures"><span>Participaciones duplicadas</span><strong>8,681</strong></article>
+          <article class="metric-chip metric-activities"><span>Actividades realizadas</span><strong>1,377</strong></article>
+          <article class="metric-chip metric-success"><span>Servicios VCA / autosuficiencia</span><strong>142</strong><small>126 social + 16 económica</small></article>
+        </div>
+
+        <div class="visual-grid executive-grid">
+          <article class="visual-panel panel-wide">
+            <div class="visual-panel-header">
+              <div>
+                <h2 class="visual-title">Resumen por programa o servicio</h2>
+                <p>Valores de referencia visual para lectura ejecutiva; no son datos fijos.</p>
+              </div>
+            </div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Área / servicio</th>
+                    <th class="numeric">Personas únicas</th>
+                    <th class="numeric">Actividades realizadas</th>
+                    <th class="numeric">Participaciones duplicadas</th>
+                    <th>Peso visual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Resumen operacional</td>
+                    <td class="numeric">1,068</td>
+                    <td class="numeric">1,377</td>
+                    <td class="numeric">8,681</td>
+                    <td><div class="progress-cell success"><span style="width:100%"></span>100%</div></td>
+                  </tr>
+                  <tr>
+                    <td>Salud y bienestar</td>
+                    <td class="numeric">696</td>
+                    <td class="numeric">66</td>
+                    <td class="numeric muted">N/D</td>
+                    <td><div class="progress-cell"><span style="width:65.2%"></span>65.2%</div></td>
+                  </tr>
+                  <tr>
+                    <td>Recreación y deporte</td>
+                    <td class="numeric">582</td>
+                    <td class="numeric muted">N/D</td>
+                    <td class="numeric muted">N/D</td>
+                    <td><div class="progress-cell"><span style="width:54.5%"></span>54.5%</div></td>
+                  </tr>
+                  <tr>
+                    <td>Tutorías</td>
+                    <td class="numeric">430</td>
+                    <td class="numeric muted">N/D</td>
+                    <td class="numeric muted">N/D</td>
+                    <td><div class="progress-cell"><span style="width:40.3%"></span>40.3%</div></td>
+                  </tr>
+                  <tr>
+                    <td>VCA / Autosuficiencia</td>
+                    <td class="numeric">10</td>
+                    <td class="numeric">142</td>
+                    <td class="numeric muted">N/D</td>
+                    <td><div class="progress-cell warning"><span style="width:9.4%"></span>10 personas</div></td>
+                  </tr>
+                </tbody>
+              </table>
+              <small class="data-note">Los valores deben venir del modelo Power BI y responder a período, propuesta, programa y residencial seleccionados.</small>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div>
+                <h2 class="visual-title">Resumen mensual</h2>
+                <p>Abril se usa como referencia visual; el período debe ser dinámico.</p>
+              </div>
+            </div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Mes</th><th class="numeric">Participantes únicos</th><th class="numeric">Actividades realizadas</th><th class="numeric">Participaciones duplicadas</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Abril</td><td class="numeric">1,068</td><td class="numeric">1,377</td><td class="numeric">8,681</td></tr>
+                </tbody>
+              </table>
+              <div class="bar-list" style="margin-top:.85rem">
+                <div class="bar-row"><span class="bar-label">Participantes únicos</span><div class="bar-track"><span class="bar-fill" style="width:72%"></span></div><strong class="bar-value">1,068</strong></div>
+                <div class="bar-row"><span class="bar-label">Actividades realizadas</span><div class="bar-track"><span class="bar-fill orange" style="width:78%"></span></div><strong class="bar-value">1,377</strong></div>
+                <div class="bar-row"><span class="bar-label">Participaciones duplicadas</span><div class="bar-track"><span class="bar-fill dark" style="width:100%"></span></div><strong class="bar-value">8,681</strong></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div>
+                <h2 class="visual-title">Residenciales visibles</h2>
+                <p>Listado referencial; el ranking real debe venir del modelo Power BI.</p>
+              </div>
+            </div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Residencial</th><th>Estado visual</th><th class="numeric">Cantidad</th></tr></thead>
+                <tbody>
+                  <tr><td>Arístides Chavier</td><td><span class="status-badge status-info">Visible en filtro</span></td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Bella Vista</td><td><span class="status-badge status-info">Visible en filtro</span></td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Brisas del Mar</td><td><span class="status-badge status-info">Visible en filtro</span></td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Columbus Landing</td><td><span class="status-badge status-info">Visible en filtro</span></td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>El Carmen</td><td><span class="status-badge status-info">Visible en filtro</span></td><td class="numeric muted">N/D</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="visual-panel insight-panel">
+            <div class="visual-panel-header">
+              <div>
+                <h2 class="visual-title">Observaciones ejecutivas</h2>
+                <p>Observaciones referenciales del dashboard actual, no valores fijos.</p>
+              </div>
+            </div>
+            <ul class="insight-list">
+              <li><span class="status-badge status-success">Fuente principal</span><span><span class="insight-value">PAN</span> concentra 915 participantes.</span></li>
+              <li><span class="status-badge status-info">Tipo de familia</span><span><span class="insight-value">Madre soltera</span> lidera con 685 registros.</span></li>
+              <li><span class="status-badge status-info">Escolaridad</span><span><span class="insight-value">Primaria</span> es la categoría mayor con 313.</span></li>
+              <li><span class="status-badge status-warning">Participaciones</span><span>Participación duplicada: <span class="insight-value">8,681</span>.</span></li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="demographic" class="dashboard-page" aria-labelledby="demographic-title">
+      <div class="dashboard-page-inner">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Dashboard Ejecutivo FARO</p>
+            <h1 id="demographic-title" class="dashboard-title">Perfil Demográfico</h1>
+            <p class="dashboard-subtitle">Participación única por edad, sexo, familia, ingresos y escolaridad</p>
+          </div>
+          <div class="header-meta">
+            <span class="status-badge status-info">Demográfico</span>
+            <span>Mes referencial: Abril</span>
+          </div>
+        </header>
+
+        <div class="filter-bar" aria-label="Filtros demográficos">
+          <div class="filter-item"><span>Propuesta</span><strong>Todas</strong></div>
+          <div class="filter-item"><span>Mes / Período</span><strong>Abril</strong></div>
+          <div class="filter-item"><span>Residencial</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Población</span><strong>Todas</strong></div>
+        </div>
+
+        <div class="summary-strip">
+          <article class="metric-chip metric-people"><span>Participantes únicos</span><strong>1,068</strong></article>
+          <article class="metric-chip metric-success"><span>Principal fuente de ingreso</span><strong>PAN</strong><small>915 registros</small></article>
+          <article class="metric-chip"><span>Principal tipo de familia</span><strong>Madre soltera</strong><small>685 registros</small></article>
+          <article class="metric-chip"><span>Principal escolaridad</span><strong>Primaria</strong><small>313 registros</small></article>
+        </div>
+
+        <div class="visual-grid demographic-grid">
+          <article class="visual-panel panel-wide">
+            <div class="visual-panel-header">
+              <div>
+                <h2 class="visual-title">Participación por grupo de edad y sexo</h2>
+                <p>Distribución referencial por rango de edad; los valores deben venir del modelo.</p>
+              </div>
+            </div>
+            <div class="visual-body grouped-bar-list">
+              <div class="grouped-bar-row">
+                <span class="bar-label">5-12</span>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:44.6%"></span></div><strong class="bar-value">F 154</strong></div>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:42.9%"></span></div><strong class="bar-value">M 148</strong></div>
+              </div>
+              <div class="grouped-bar-row">
+                <span class="bar-label">13-18</span>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:27.5%"></span></div><strong class="bar-value">F 95</strong></div>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:24.6%"></span></div><strong class="bar-value">M 85</strong></div>
+              </div>
+              <div class="grouped-bar-row">
+                <span class="bar-label">19-59</span>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">F 345</strong></div>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:8.7%"></span></div><strong class="bar-value">M 30</strong></div>
+              </div>
+              <div class="grouped-bar-row">
+                <span class="bar-label">60+</span>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:50.7%"></span></div><strong class="bar-value">F 175</strong></div>
+                <div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:11.3%"></span></div><strong class="bar-value">M 39</strong></div>
+              </div>
+              <div class="chart-legend" style="padding-left:0"><span class="legend-female">Femenino</span><span class="legend-male">Masculino</span></div>
+              <small class="data-note">El valor masculino de 19-59 se dejó en 30 según la lectura aproximada del screenshot actual.</small>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Tipo de familia</h2><p>Ranking de categorías familiares por cantidad.</p></div>
+            </div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">Madre soltera</span><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">685</strong></div>
+              <div class="bar-row"><span class="bar-label">Solo(a)</span><div class="bar-track"><span class="bar-fill" style="width:31.2%"></span></div><strong class="bar-value">214</strong></div>
+              <div class="bar-row"><span class="bar-label">2 adultos sin menores</span><div class="bar-track"><span class="bar-fill" style="width:9.3%"></span></div><strong class="bar-value">64</strong></div>
+              <div class="bar-row"><span class="bar-label">2 adultos con menores</span><div class="bar-track"><span class="bar-fill" style="width:7.7%"></span></div><strong class="bar-value">53</strong></div>
+              <div class="bar-row"><span class="bar-label">Ambos padres</span><div class="bar-track"><span class="bar-fill" style="width:3.6%"></span></div><strong class="bar-value">25</strong></div>
+              <div class="bar-row"><span class="bar-label">Adulto mayor 60+</span><div class="bar-track"><span class="bar-fill" style="width:1.6%"></span></div><strong class="bar-value">11</strong></div>
+              <div class="bar-row"><span class="bar-label">Padre soltero</span><div class="bar-track"><span class="bar-fill" style="width:1.6%"></span></div><strong class="bar-value">11</strong></div>
+              <div class="bar-row"><span class="bar-label">Encargado con menor</span><div class="bar-track"><span class="bar-fill" style="width:.8%"></span></div><strong class="bar-value">5</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Rango de ingresos</h2><p>Convertido de pastel a barras para mejor lectura.</p></div>
+            </div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">101 - 500</span><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">601</strong></div>
+              <div class="bar-row"><span class="bar-label">501 - 1000</span><div class="bar-track"><span class="bar-fill dark" style="width:61.4%"></span></div><strong class="bar-value">369</strong></div>
+              <div class="bar-row"><span class="bar-label">1001 - 2000</span><div class="bar-track"><span class="bar-fill orange" style="width:9.2%"></span></div><strong class="bar-value">55</strong></div>
+              <div class="bar-row"><span class="bar-label">Otros rangos</span><div class="bar-track"><span class="bar-fill purple" style="width:7.2%"></span></div><strong class="bar-value">43</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Fuente de ingresos</h2><p>Ranking ordenado de mayor a menor.</p></div>
+            </div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">PAN</span><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">915</strong></div>
+              <div class="bar-row"><span class="bar-label">Seguro social</span><div class="bar-track"><span class="bar-fill" style="width:7.9%"></span></div><strong class="bar-value">72</strong></div>
+              <div class="bar-row"><span class="bar-label">Empleado</span><div class="bar-track"><span class="bar-fill" style="width:5.2%"></span></div><strong class="bar-value">48</strong></div>
+              <div class="bar-row"><span class="bar-label">Pensión alimentaria</span><div class="bar-track"><span class="bar-fill" style="width:1.7%"></span></div><strong class="bar-value">16</strong></div>
+              <div class="bar-row"><span class="bar-label">TANF</span><div class="bar-track"><span class="bar-fill" style="width:.8%"></span></div><strong class="bar-value">7</strong></div>
+              <div class="bar-row"><span class="bar-label">No formal</span><div class="bar-track"><span class="bar-fill" style="width:.4%"></span></div><strong class="bar-value">4</strong></div>
+              <div class="bar-row"><span class="bar-label">Desempleado</span><div class="bar-track"><span class="bar-fill" style="width:.3%"></span></div><strong class="bar-value">3</strong></div>
+              <div class="bar-row"><span class="bar-label">Pensión por retiro</span><div class="bar-track"><span class="bar-fill" style="width:.1%"></span></div><strong class="bar-value">1</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Escolaridad</h2><p>Campo visual: Escolaridad.</p></div>
+            </div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">Primaria</span><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">313</strong></div>
+              <div class="bar-row"><span class="bar-label">Cuarto año</span><div class="bar-track"><span class="bar-fill" style="width:98.4%"></span></div><strong class="bar-value">308</strong></div>
+              <div class="bar-row"><span class="bar-label">Secundaria</span><div class="bar-track"><span class="bar-fill" style="width:54.6%"></span></div><strong class="bar-value">171</strong></div>
+              <div class="bar-row"><span class="bar-label">Superior</span><div class="bar-track"><span class="bar-fill" style="width:50.5%"></span></div><strong class="bar-value">158</strong></div>
+              <div class="bar-row"><span class="bar-label">Asociado</span><div class="bar-track"><span class="bar-fill" style="width:11.8%"></span></div><strong class="bar-value">37</strong></div>
+              <div class="bar-row"><span class="bar-label">Grado técnico</span><div class="bar-track"><span class="bar-fill" style="width:8.9%"></span></div><strong class="bar-value">28</strong></div>
+              <div class="bar-row"><span class="bar-label">Certificado</span><div class="bar-track"><span class="bar-fill" style="width:6.4%"></span></div><strong class="bar-value">20</strong></div>
+              <div class="bar-row"><span class="bar-label">Bachillerato</span><div class="bar-track"><span class="bar-fill" style="width:5.4%"></span></div><strong class="bar-value">17</strong></div>
+              <div class="bar-row"><span class="bar-label">Maestría</span><div class="bar-track"><span class="bar-fill" style="width:.6%"></span></div><strong class="bar-value">2</strong></div>
+              <div class="bar-row"><span class="bar-label">Doctorado</span><div class="bar-track"><span class="bar-fill" style="width:0%"></span></div><strong class="bar-value">0</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Residenciales visibles</h2><p>Reemplazo del mapa para evitar una vista global poco útil.</p></div>
+            </div>
+            <div class="visual-body compact-list">
+              <div class="compact-item"><span>Arístides Chavier</span><strong>Visible</strong></div>
+              <div class="compact-item"><span>Bella Vista</span><strong>Visible</strong></div>
+              <div class="compact-item"><span>Brisas del Mar</span><strong>Visible</strong></div>
+              <div class="compact-item"><span>Columbus Landing</span><strong>Visible</strong></div>
+              <div class="compact-item"><span>El Carmen</span><strong>Visible</strong></div>
+              <small class="data-note">Conectar aquí la cantidad real por residencial o pueblo desde el modelo.</small>
+            </div>
+          </article>
+
+          <article class="visual-panel panel-full">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Resumen demográfico ejecutivo</h2><p>Tabla complementaria para datos completos y lectura rápida.</p></div>
+            </div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Categoría</th><th>Valor principal</th><th class="numeric">Cantidad</th><th>Observación</th></tr></thead>
+                <tbody>
+                  <tr><td>Fuente de ingresos</td><td>PAN</td><td class="numeric">915</td><td>Predomina como fuente principal.</td></tr>
+                  <tr><td>Tipo de familia</td><td>Madre soltera</td><td class="numeric">685</td><td>Mayor concentración familiar visible.</td></tr>
+                  <tr><td>Escolaridad</td><td>Primaria</td><td class="numeric">313</td><td>Mayor escolaridad registrada.</td></tr>
+                  <tr><td>Rango de ingresos</td><td>101 - 500</td><td class="numeric">601</td><td>Mayor rango de ingresos.</td></tr>
+                  <tr><td>Grupo de edad</td><td>19-59</td><td class="numeric">375</td><td>Mayor participación adulta visible.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="activities" class="dashboard-page" aria-labelledby="activities-title">
+      <div class="dashboard-page-inner">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Dashboard Ejecutivo FARO</p>
+            <h1 id="activities-title" class="dashboard-title">Programas y Actividades</h1>
+            <p class="dashboard-subtitle">Participación, ejecución y productividad por actividad</p>
+          </div>
+          <div class="header-meta">
+            <span class="status-badge status-info">Actividades</span>
+            <span>Mes referencial: Abril</span>
+          </div>
+        </header>
+
+        <div class="filter-bar" aria-label="Filtros de actividades">
+          <div class="filter-item"><span>Propuesta</span><strong>Todas</strong></div>
+          <div class="filter-item"><span>Mes / Período</span><strong>Abril</strong></div>
+          <div class="filter-item"><span>Programa</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Actividad</span><strong>Todas</strong></div>
+          <div class="filter-item"><span>Residencial</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Población</span><strong>Todas</strong></div>
+        </div>
+
+        <div class="summary-strip">
+          <article class="metric-chip metric-people"><span>Participación única</span><strong>1,068</strong></article>
+          <article class="metric-chip metric-activities"><span>Actividades realizadas</span><strong>1,377</strong></article>
+          <article class="metric-chip metric-signatures"><span>Participación duplicada</span><strong>8,681</strong></article>
+          <article class="metric-chip"><span>Actividad principal visible</span><strong>1.a.4</strong><small>301 personas</small></article>
+        </div>
+
+        <div class="visual-grid activities-grid">
+          <article class="visual-panel panel-wide">
+            <div class="visual-panel-header">
+              <div><h2 class="visual-title">Resumen por programa y actividad</h2><p>Matriz referencial con códigos visibles del dashboard actual; valores no fijos.</p></div>
+            </div>
+            <div class="visual-body table-scroll tall">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Área</th>
+                    <th>Código</th>
+                    <th class="numeric">Personas únicas</th>
+                    <th class="numeric">Actividades realizadas</th>
+                    <th class="numeric">Participaciones duplicadas</th>
+                    <th>Observación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>Tutorías</td><td>1.a.4</td><td class="numeric">301</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Mayor tutoría visible.</td></tr>
+                  <tr><td>Tutorías</td><td>1.a.11</td><td class="numeric">129</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Segunda tutoría visible.</td></tr>
+                  <tr><td>Recreación y deporte</td><td>1.a.7</td><td class="numeric">231</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Mayor actividad recreativa visible.</td></tr>
+                  <tr><td>Recreación y deporte</td><td>1.a.14</td><td class="numeric">141</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Ranking recreativo visible.</td></tr>
+                  <tr><td>Recreación y deporte</td><td>4.a.11</td><td class="numeric">106</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Ranking recreativo visible.</td></tr>
+                  <tr><td>Recreación y deporte</td><td>3.a.31</td><td class="numeric">104</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Ranking recreativo visible.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.5</td><td class="numeric">166</td><td class="numeric">17</td><td class="numeric muted">N/D</td><td>Mayor actividad visible de salud.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.26</td><td class="numeric">146</td><td class="numeric">21</td><td class="numeric muted">N/D</td><td>Mayor cantidad de actividades visibles.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.13</td><td class="numeric">122</td><td class="numeric">18</td><td class="numeric muted">N/D</td><td>Ranking salud visible.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.15</td><td class="numeric">106</td><td class="numeric">16</td><td class="numeric muted">N/D</td><td>Ranking salud visible.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.14</td><td class="numeric">96</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Ranking salud visible.</td></tr>
+                  <tr><td>Salud y bienestar</td><td>3.c.25</td><td class="numeric">62</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td>Ranking salud visible.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Tutorías</h2><p>Participación única por código.</p></div></div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">1.a.4</span><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">301</strong></div>
+              <div class="bar-row"><span class="bar-label">1.a.11</span><div class="bar-track"><span class="bar-fill dark" style="width:42.9%"></span></div><strong class="bar-value">129</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Recreación y deporte</h2><p>Distribución visible de participación única.</p></div></div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">1.a.7</span><div class="bar-track"><span class="bar-fill orange" style="width:100%"></span></div><strong class="bar-value">231</strong></div>
+              <div class="bar-row"><span class="bar-label">1.a.14</span><div class="bar-track"><span class="bar-fill orange" style="width:61%"></span></div><strong class="bar-value">141</strong></div>
+              <div class="bar-row"><span class="bar-label">4.a.11</span><div class="bar-track"><span class="bar-fill orange" style="width:45.9%"></span></div><strong class="bar-value">106</strong></div>
+              <div class="bar-row"><span class="bar-label">3.a.31</span><div class="bar-track"><span class="bar-fill orange" style="width:45%"></span></div><strong class="bar-value">104</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Salud y bienestar</h2><p>Comparación entre personas únicas y actividades realizadas.</p></div></div>
+            <div class="visual-body grouped-bar-list">
+              <div class="grouped-bar-row"><span class="bar-label">3.c.5</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">166</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:81%"></span></div><strong class="bar-value">17</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">3.c.26</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:88%"></span></div><strong class="bar-value">146</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:100%"></span></div><strong class="bar-value">21</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">3.c.13</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:73.5%"></span></div><strong class="bar-value">122</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:85.7%"></span></div><strong class="bar-value">18</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">3.c.15</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:63.9%"></span></div><strong class="bar-value">106</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:76.2%"></span></div><strong class="bar-value">16</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">3.c.14</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:57.8%"></span></div><strong class="bar-value">96</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:0%"></span></div><strong class="bar-value">N/D</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">3.c.25</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:37.3%"></span></div><strong class="bar-value">62</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:0%"></span></div><strong class="bar-value">N/D</strong></div></div>
+              <div class="chart-legend" style="padding-left:0"><span class="legend-people">Personas únicas</span><span class="legend-signatures">Actividades total</span></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Servicios psicosociales</h2><p>Ranking de 12 códigos visibles para evitar saturación.</p></div></div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">3.b.30</span><div class="bar-track"><span class="bar-fill purple" style="width:100%"></span></div><strong class="bar-value">12</strong></div>
+              <div class="bar-row"><span class="bar-label">4.a.10</span><div class="bar-track"><span class="bar-fill purple" style="width:41.7%"></span></div><strong class="bar-value">5</strong></div>
+              <div class="bar-row"><span class="bar-label">4.b.9</span><div class="bar-track"><span class="bar-fill purple" style="width:41.7%"></span></div><strong class="bar-value">5</strong></div>
+              <div class="bar-row"><span class="bar-label">3.b.17</span><div class="bar-track"><span class="bar-fill purple" style="width:41.7%"></span></div><strong class="bar-value">5</strong></div>
+              <div class="bar-row"><span class="bar-label">3.b.18</span><div class="bar-track"><span class="bar-fill purple" style="width:33.3%"></span></div><strong class="bar-value">4</strong></div>
+              <div class="bar-row"><span class="bar-label">3.b.8</span><div class="bar-track"><span class="bar-fill purple" style="width:33.3%"></span></div><strong class="bar-value">4</strong></div>
+              <div class="bar-row"><span class="bar-label">3.a.18</span><div class="bar-track"><span class="bar-fill purple" style="width:16.7%"></span></div><strong class="bar-value">2</strong></div>
+              <div class="bar-row"><span class="bar-label">3.a.7</span><div class="bar-track"><span class="bar-fill purple" style="width:16.7%"></span></div><strong class="bar-value">2</strong></div>
+              <div class="bar-row"><span class="bar-label">3.b.29</span><div class="bar-track"><span class="bar-fill purple" style="width:16.7%"></span></div><strong class="bar-value">2</strong></div>
+              <div class="bar-row"><span class="bar-label">3.b.7</span><div class="bar-track"><span class="bar-fill purple" style="width:16.7%"></span></div><strong class="bar-value">2</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Adulto mayor</h2><p>Participación y actividades visibles.</p></div></div>
+            <div class="visual-body grouped-bar-list">
+              <div class="grouped-bar-row"><span class="bar-label">4.d.5</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:100%"></span></div><strong class="bar-value">161</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:100%"></span></div><strong class="bar-value">47</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">4.a.11</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:65.8%"></span></div><strong class="bar-value">106</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:68.1%"></span></div><strong class="bar-value">32</strong></div></div>
+              <div class="grouped-bar-row"><span class="bar-label">4.d.6</span><div class="grouped-track"><div class="bar-track"><span class="bar-fill" style="width:62.7%"></span></div><strong class="bar-value">101</strong></div><div class="grouped-track"><div class="bar-track"><span class="bar-fill dark" style="width:0%"></span></div><strong class="bar-value">N/D</strong></div></div>
+              <div class="chart-legend" style="padding-left:0"><span class="legend-people">Personas únicas</span><span class="legend-signatures">Actividades total</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="vca" class="dashboard-page" aria-labelledby="vca-title">
+      <div class="dashboard-page-inner">
+        <header class="dashboard-header">
+          <div>
+            <p class="eyebrow">Dashboard Ejecutivo FARO</p>
+            <h1 id="vca-title" class="dashboard-title">VCA y Autosuficiencia</h1>
+            <p class="dashboard-subtitle">Participantes VCA, servicios recibidos y asistencias por tipo</p>
+          </div>
+          <div class="header-meta">
+            <span class="status-badge status-info">VCA</span>
+            <span>Trimestre referencial: JulioSeptiembre</span>
+          </div>
+        </header>
+
+        <div class="filter-bar" aria-label="Filtros VCA">
+          <div class="filter-item"><span>Propuesta</span><strong>Todas</strong></div>
+          <div class="filter-item"><span>Trimestre</span><strong>JulioSeptiembre</strong></div>
+          <div class="filter-item"><span>Mes / Período</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Residencial</span><strong>Todos</strong></div>
+          <div class="filter-item"><span>Tipo de servicio</span><strong>Todos</strong></div>
+        </div>
+
+        <div class="summary-strip">
+          <article class="metric-chip metric-people"><span>Personas con impedimentos</span><strong>13</strong></article>
+          <article class="metric-chip metric-success"><span>Personas que reciben servicios</span><strong>10</strong></article>
+          <article class="metric-chip metric-signatures"><span>Autosuficiencia social</span><strong>126</strong><small>88.73%</small></article>
+          <article class="metric-chip metric-activities"><span>Autosuficiencia económica</span><strong>16</strong><small>11.27%</small></article>
+        </div>
+
+        <div class="visual-grid vca-grid">
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Asistencias por tipo de servicio</h2><p>Comparación directa de social vs económica.</p></div></div>
+            <div class="visual-body bar-list">
+              <div class="bar-row"><span class="bar-label">Autosuficiencia social</span><div class="bar-track"><span class="bar-fill dark" style="width:100%"></span></div><strong class="bar-value">126 · 88.73%</strong></div>
+              <div class="bar-row"><span class="bar-label">Autosuficiencia económica</span><div class="bar-track"><span class="bar-fill" style="width:12.7%"></span></div><strong class="bar-value">16 · 11.27%</strong></div>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Resumen por trimestre</h2><p>Seguimiento temporal del trimestre seleccionado.</p></div></div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Trimestre</th><th class="numeric">Personas atendidas</th><th class="numeric">Asistencias social</th><th class="numeric">Asistencias económica</th><th class="numeric">Total</th></tr></thead>
+                <tbody><tr><td>JulioSeptiembre</td><td class="numeric">10</td><td class="numeric">126</td><td class="numeric">16</td><td class="numeric">142</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="visual-panel">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Residenciales para análisis VCA</h2><p>Preparado para conectar cantidades por residencial.</p></div></div>
+            <div class="visual-body table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Residencial</th><th class="numeric">Personas con impedimentos</th><th class="numeric">Reciben servicios</th><th class="numeric">Asistencias social</th><th class="numeric">Asistencias económica</th><th class="numeric">Total</th></tr></thead>
+                <tbody>
+                  <tr><td>Arístides Chavier</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Bella Vista</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Brisas del Mar</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td></tr>
+                  <tr><td>Columbus Landing</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td><td class="numeric muted">N/D</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="visual-panel panel-wide">
+            <div class="visual-panel-header"><div><h2 class="visual-title">Detalle de participantes VCA</h2><p>Tabla referencial con participantes visibles; debe conectarse a datos dinámicos.</p></div></div>
+            <div class="visual-body table-scroll tall">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Participante</th>
+                    <th class="numeric">Edad</th>
+                    <th>Sexo</th>
+                    <th>Servicio principal</th>
+                    <th>Residencial</th>
+                    <th>Trimestre</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>Rosa Rodríguez Colón</td><td class="numeric">79</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>María Flores Manfredy</td><td class="numeric">62</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Luis Velázquez Torres</td><td class="numeric">51</td><td>M</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Karidy Figueroa Hayes</td><td class="numeric">14</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Kalel Figueroa Hayes</td><td class="numeric">12</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Jacqueline Castillo Rivera</td><td class="numeric">56</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Felipe Flores Manfredi</td><td class="numeric">63</td><td>M</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Dalia Cruz Santiago</td><td class="numeric">43</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Aurora Laboy Sepúlveda</td><td class="numeric">71</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                  <tr><td>Aida Ramos López</td><td class="numeric">52</td><td>F</td><td>Por confirmar</td><td>Por confirmar</td><td>JulioSeptiembre</td></tr>
+                </tbody>
+              </table>
+              <small class="data-note">Servicio principal y residencial deben mapearse desde el dataset si existen en la tabla VCA.</small>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <template id="empty-state-template">
+    <div class="empty-state">No hay datos para los filtros seleccionados.</div>
+  </template>  <script src="dashboard-faro.js"></script>
+</body>
+</html>
+
+
+

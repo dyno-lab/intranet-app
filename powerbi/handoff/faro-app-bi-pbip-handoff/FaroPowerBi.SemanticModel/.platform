@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "FaroPowerBi"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "54a2afdd-c8da-4f51-8a82-125a4a46bd9e"
+  }
+}

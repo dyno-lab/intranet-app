@@ -1,0 +1,33 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["bi_dim_activity","bi_dim_participant","bi_dim_proposal","bi_dim_residential","bi_fact_attendance","bi_fact_sessions","bi_dim_program","bi_bridge_program_population","bi_bridge_program_activity","bi_dim_population","bi_fact_operational_detail","bi_fact_productivity_compliance"]
+
+annotation PBI_ProTooling = ["DaxQueryView_Desktop","DevMode"]
+
+ref table bi_dim_activity
+ref table bi_dim_participant
+ref table bi_dim_proposal
+ref table bi_dim_residential
+ref table bi_fact_attendance
+ref table bi_fact_sessions
+ref table bi_dim_program
+ref table bi_bridge_program_population
+ref table bi_bridge_program_activity
+ref table bi_dim_population
+ref table bi_fact_operational_detail
+ref table bi_fact_productivity_compliance
+ref table Dim_Fecha
+ref table Dim_Empleado
+ref table Dim_Usuario
+ref table Refresh_Info
+
+ref cultureInfo en-US
+
