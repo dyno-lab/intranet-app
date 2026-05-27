@@ -194,6 +194,14 @@
       <div class="col-md-2">
         <button type="button" class="btn btn-outline-secondary w-100" id="clear-age-filter">Limpiar filtros</button>
       </div>
+      <div class="col-md-12">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="hide-inactive-filter" checked>
+          <label class="form-check-label" for="hide-inactive-filter">
+            Ocultar participantes inactivos
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -220,7 +228,7 @@
             {% set pp = row.proposal_participant %}
             {% set person = row.person %}
             {% set is_active = row.is_active %}
-            <tr class="{{ '' if is_active else 'table-danger' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}">
+            <tr class="{{ '' if is_active else 'table-danger' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}" data-is-active="{{ '1' if is_active else '0' }}">
               <td>{{ pp.expediente_num or '—' }}</td>
               <td>{{ person.nombre }}</td>
               <td>{{ person.inicial or '' }}</td>
@@ -329,6 +337,7 @@
   const ageMaxFilter = document.getElementById('age-max-filter');
   const applyAgeFilterButton = document.getElementById('apply-age-filter');
   const clearAgeFilterButton = document.getElementById('clear-age-filter');
+  const hideInactiveFilter = document.getElementById('hide-inactive-filter');
   const visibleParticipantsCount = document.getElementById('visible-participants-count');
   const noAgeFilterResultsRow = document.getElementById('no-age-filter-results-row');
 
@@ -355,15 +364,18 @@
 
   function refreshAgeFilter() {
     const { minAge, maxAge } = selectedAgeBounds();
+    const hideInactive = hideInactiveFilter ? hideInactiveFilter.checked : false;
     let visibleCount = 0;
 
     participantRows.forEach((row) => {
       const rawAge = row.dataset.age || '';
       const age = rawAge === '' ? null : Number(rawAge);
+      const isActive = row.dataset.isActive === '1';
       const hasAge = age !== null && !Number.isNaN(age);
       const matchesMin = minAge === null || (hasAge && age >= minAge);
       const matchesMax = maxAge === null || (hasAge && age <= maxAge);
-      const visible = matchesMin && matchesMax;
+      const matchesStatus = !hideInactive || isActive;
+      const visible = matchesMin && matchesMax && matchesStatus;
 
       row.classList.toggle('d-none', !visible);
       if (visible) visibleCount += 1;
@@ -396,6 +408,9 @@
   }
   if (clearAgeFilterButton) {
     clearAgeFilterButton.addEventListener('click', clearAgeFilter);
+  }
+  if (hideInactiveFilter) {
+    hideInactiveFilter.addEventListener('change', refreshAgeFilter);
   }
   [ageMinFilter, ageMaxFilter].forEach((input) => {
     if (!input) return;

@@ -18,6 +18,40 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-27 - Filtro para ocultar participantes inactivos en sesiones
+Estado: **implementado localmente; pendiente de commit/push**.
+
+Contexto:
+- Christian pidio que dentro de cada sesion, tanto nueva como ya creada, el usuario pueda decidir si quiere ver o no participantes inactivos.
+- La necesidad aplica sobre la pantalla donde se marca asistencia por propuesta.
+
+Implementado:
+- `ui/listado` ahora incluye un check visual `Ocultar participantes inactivos`, activado por defecto.
+- El filtro se combina con el filtro de edad existente, sin borrar asistencias ya marcadas.
+- Los renglones de participantes exponen su estado en atributos `data-*` para que la logica del navegador oculte o muestre inactivos en tiempo real.
+
+Validacion / despliegue:
+- Cambio local en `app/templates/ui/listado.html`.
+- Falta commit y push antes de desplegarlo en la otra estacion.
+
+### Actualizacion 2026-05-27 - Listado de sesiones con participacion y actividad recortada
+Estado: **implementado y empujado a `origin/main`**.
+
+Contexto:
+- Christian pidio ajustar `ui/listado` para que la descripcion de actividad ocupe menos espacio visual.
+- Tambien pidio anadir una columna nueva de participacion usando el numero real de asistencias ya asignadas dentro de cada actividad creada.
+
+Implementado:
+- Commit `bcacbea` - `feat(ui): add participation count to session list`
+  - `ui/listado` ahora recorta visualmente la columna **Actividad** a 120 caracteres.
+  - El texto completo de la actividad queda disponible en `tooltip` (`title`).
+  - Se agrego la columna **Participacion** en la tabla de sesiones registradas.
+  - El valor de participacion se calcula desde `attendance` contando `attended = true` agrupado por `session_id`.
+
+Validacion / despliegue:
+- Push realizado a `origin/main`.
+- La estacion donde corre la app con SQL solo necesita `git pull origin main` para recibir este cambio.
+
 ### Actualizacion 2026-05-20 - Organizacion del repo y nota de automatizacion n8n
 Estado: **organizacion local completada; sin push remoto**.
 
