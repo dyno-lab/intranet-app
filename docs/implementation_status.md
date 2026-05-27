@@ -18,6 +18,22 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-27 - Correccion de conteo y persistencia para inactivos ya asistidos
+Estado: **implementado localmente; pendiente de commit/push**.
+
+Contexto:
+- Christian detecto una inconsistencia: si un participante ya tenia asistencia marcada y luego pasaba a inactivo, el contador superior dentro de la sesion dejaba de contarlo, pero el resumen externo de `ui/listado` si lo seguia contando.
+- Ademas existia riesgo de perder esa asistencia historica al volver a guardar la sesion, porque los checkboxes deshabilitados no se envian en el formulario.
+
+Implementado:
+- El contador visual de la sesion ahora cuenta tambien checkboxes marcados aunque esten deshabilitados por estado inactivo.
+- `save_attendance` preserva las asistencias ya existentes de participantes que quedaron inactivos despues de haber sido marcados.
+- La validacion sigue bloqueando marcar asistencias nuevas para participantes inactivos; solo se conserva el historico ya existente.
+
+Validacion / despliegue:
+- Cambios locales en `app/templates/ui/listado.html` y `app/api/routes/ui.py`.
+- Falta commit y push antes de desplegarlo en la otra estacion.
+
 ### Actualizacion 2026-05-27 - Filtro para ocultar participantes inactivos en sesiones
 Estado: **implementado localmente; pendiente de commit/push**.
 

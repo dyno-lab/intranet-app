@@ -1338,12 +1338,29 @@ async def save_attendance(
             "Error: Esta fase solo permite guardar asistencias nuevas usando participantes operativos de sesiones con propuesta.",
         )
 
+    existing_locked_inactive_ids = set(
+        db.execute(
+            select(Attendance.proposal_participant_id)
+            .join(
+                ProposalParticipant,
+                ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+            )
+            .where(
+                Attendance.session_id == session_id,
+                Attendance.attended == True,  # noqa: E712
+                Attendance.proposal_participant_id.is_not(None),
+                ProposalParticipant.is_active == False,  # noqa: E712
+            )
+        ).scalars().all()
+    )
+
     form = await request.form()
     present = [int(v) for v in form.getlist("present")]
+    present_ids = list(dict.fromkeys(present + list(existing_locked_inactive_ids)))
 
-    if present:
+    if present_ids:
         pp_stmt = select(ProposalParticipant).where(
-            ProposalParticipant.proposal_participant_id.in_(present)
+            ProposalParticipant.proposal_participant_id.in_(present_ids)
         )
         if not is_admin_or_supervisor(current_user):
             pp_stmt = pp_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
@@ -1354,7 +1371,7 @@ async def save_attendance(
             for p in selected_participants
         }
 
-        missing_ids = [pid for pid in present if pid not in selected_map]
+        missing_ids = [pid for pid in present_ids if pid not in selected_map]
         if missing_ids:
             return _redirect_with_msg(
                 f"/ui/listado/{session_id}",
@@ -1375,7 +1392,11 @@ async def save_attendance(
             pid for pid, proposal_participant in selected_map.items()
             if not bool(getattr(proposal_participant, "is_active", False))
         ]
-        if inactive_ids:
+        newly_selected_inactive_ids = [
+            pid for pid in inactive_ids
+            if pid not in existing_locked_inactive_ids
+        ]
+        if newly_selected_inactive_ids:
             return _redirect_with_msg(
                 f"/ui/listado/{session_id}",
                 "Error: No se puede registrar asistencia para participantes operativos inactivos.",
@@ -1386,18 +1407,18 @@ async def save_attendance(
     )
 
     legacy_participant_map: dict[int, int | None] = {}
-    if present:
+    if present_ids:
         person_rows = db.execute(
             select(ProposalParticipant.proposal_participant_id, Person.legacy_participant_id)
             .join(Person, Person.person_id == ProposalParticipant.person_id)
-            .where(ProposalParticipant.proposal_participant_id.in_(present))
+            .where(ProposalParticipant.proposal_participant_id.in_(present_ids))
         ).all()
         legacy_participant_map = {
             proposal_participant_id: legacy_participant_id
             for proposal_participant_id, legacy_participant_id in person_rows
         }
 
-    for proposal_participant_id in present:
+    for proposal_participant_id in present_ids:
         att = Attendance(
             participant_id=legacy_participant_map.get(proposal_participant_id),
             proposal_participant_id=proposal_participant_id,

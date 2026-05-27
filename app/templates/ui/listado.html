@@ -330,7 +330,7 @@
   }
 
   const counterValue = document.getElementById('attendance-counter-value');
-  const attendanceCheckboxes = Array.from(document.querySelectorAll('input[name="present"]:not(:disabled)'));
+  const attendanceCheckboxes = Array.from(document.querySelectorAll('input[name="present"]'));
   const participantRows = Array.from(document.querySelectorAll('[data-participant-row="1"]'));
   const ageRangeFilter = document.getElementById('age-range-filter');
   const ageMinFilter = document.getElementById('age-min-filter');
