@@ -165,6 +165,7 @@
           <th>Propuesta</th>
           <th>Código</th>
           <th>Actividad</th>
+          <th>Participación</th>
           <th>Empleado</th>
           {% if is_admin_or_supervisor_view %}<th>Creado por</th>{% endif %}
           <th>Minutos</th>
@@ -187,7 +188,12 @@
             {% endif %}
           </td>
           <td>{{ s.code }}</td>
-          <td>{{ s.description }}</td>
+          <td>
+            <span title="{{ s.description }}">
+              {{ s.description[:120] }}{% if s.description and s.description|length > 120 %}...{% endif %}
+            </span>
+          </td>
+          <td>{{ s.participation_count }}</td>
           <td>{{ s.employee_code }}</td>
           {% if is_admin_or_supervisor_view %}
           <td>
@@ -213,7 +219,7 @@
 
         {% if sessions|length == 0 %}
         <tr>
-          <td colspan="{{ 8 if is_admin_or_supervisor_view else 7 }}" class="text-muted">No hay sesiones para ese filtro.</td>
+          <td colspan="{{ 9 if is_admin_or_supervisor_view else 8 }}" class="text-muted">No hay sesiones para ese filtro.</td>
         </tr>
         {% endif %}
       </tbody>

@@ -399,6 +399,16 @@ def _redirect_with_msg(url: str, msg: str):
 
 
 def _build_sessions_stmt(current_user: User):
+    attendance_counts = (
+        select(
+            Attendance.session_id.label("session_id"),
+            func.count(Attendance.attendance_id).label("participation_count"),
+        )
+        .where(Attendance.attended == True)  # noqa: E712
+        .group_by(Attendance.session_id)
+        .subquery()
+    )
+
     stmt = (
         select(
             ActivitySession.session_id,
@@ -413,12 +423,14 @@ def _build_sessions_stmt(current_user: User):
             Proposal.status.label("proposal_status"),
             User.username.label("created_by_username"),
             Residential.name.label("created_by_residential"),
+            func.coalesce(attendance_counts.c.participation_count, 0).label("participation_count"),
         )
         .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
         .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
         .outerjoin(User, ActivitySession.created_by_user_id == User.user_id)
         .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(attendance_counts, attendance_counts.c.session_id == ActivitySession.session_id)
         .order_by(
             case((Proposal.code.is_(None), 1), else_=0),
             Proposal.code.asc(),
