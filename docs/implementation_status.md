@@ -18,6 +18,24 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-27 - Correccion de porcentajes en hoja ADM de Excel
+Estado: **implementado localmente; pendiente de commit/push**.
+
+Contexto:
+- En la hoja `ADM`, se detecto que el bloque **Socio-Demografico** mostraba mal algunos porcentajes en Excel.
+- El problema aparecia cuando el porcentaje real del rango era menor a `1.00%`, por ejemplo `0.57%`, porque la celda se terminaba escribiendo como `57.00%`.
+
+Implementado:
+- Se ajusto `build_adm_sheet` en `app/services/report_excel_builders.py`.
+- La columna **Por Ciento** ahora siempre escribe el valor como fraccion decimal para Excel, manteniendo la formula de negocio:
+  - cantidad del rango de edad
+  - dividida entre el total de participantes unicos del bloque ADM
+- El cambio aplica al Excel usado por `n8n` y evita inflar porcentajes pequenos en la hoja `ADM`.
+
+Validacion / despliegue:
+- Cambio local en `app/services/report_excel_builders.py`.
+- Falta commit y push antes de que quede disponible en la otra estacion.
+
 ### Actualizacion 2026-05-27 - Correccion de conteo y persistencia para inactivos ya asistidos
 Estado: **implementado localmente; pendiente de commit/push**.
 

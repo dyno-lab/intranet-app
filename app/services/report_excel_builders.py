@@ -84,6 +84,12 @@ def style_total(cell):
     cell.alignment = CENTER
 
 
+def excel_percent(value: float | int | None) -> float:
+    if value is None:
+        return 0
+    return float(value) / 100
+
+
 def apply_table_border(ws, start_row: int, end_row: int, start_col: int, end_col: int, left_align_first_col: bool = True):
     for row in range(start_row, end_row + 1):
         for col in range(start_col, end_col + 1):
@@ -684,7 +690,7 @@ def build_adm_sheet(wb: Workbook, context: dict, title: str = "ADM"):
         ws.cell(row=row_index, column=1, value=row["label"]).alignment = LEFT
         ws.cell(row=row_index, column=2, value=row["f"]).alignment = CENTER
         ws.cell(row=row_index, column=3, value=row["m"]).alignment = CENTER
-        pct = ws.cell(row=row_index, column=4, value=row["percent"] / 100 if row["percent"] and row["percent"] > 1 else row["percent"])
+        pct = ws.cell(row=row_index, column=4, value=excel_percent(row.get("percent")))
         pct.number_format = "0.00%"
         pct.alignment = CENTER
         ws.cell(row=row_index, column=5, value=row["vca"]).alignment = CENTER
