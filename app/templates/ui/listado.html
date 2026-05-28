@@ -2,12 +2,6 @@
 {% block title %}Asistencia{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
-  {{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% set session_edit_form = edit_form if edit_form is defined else {} %}
 {% if proposal_is_finalized %}
 <div class="alert alert-warning" role="alert">
