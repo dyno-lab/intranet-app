@@ -48,6 +48,53 @@ def _parse_date(value: str | None):
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
+SESSION_YEAR_WINDOW_PAST = 2
+SESSION_YEAR_WINDOW_FUTURE = 2
+
+
+def _session_date_bounds() -> tuple[date, date]:
+    today = date.today()
+    return (
+        date(today.year - SESSION_YEAR_WINDOW_PAST, 1, 1),
+        date(today.year + SESSION_YEAR_WINDOW_FUTURE, 12, 31),
+    )
+
+
+def _validate_session_date_or_redirect(raw_value: str | None, redirect_url: str) -> date | RedirectResponse:
+    try:
+        parsed = _parse_date(raw_value)
+    except (TypeError, ValueError):
+        return _redirect_with_msg(redirect_url, "Error: La fecha de la sesión no es válida.")
+
+    if parsed is None:
+        return _redirect_with_msg(redirect_url, "Error: La fecha de la sesión es requerida.")
+
+    min_date, max_date = _session_date_bounds()
+    if parsed < min_date or parsed > max_date:
+        return _redirect_with_msg(
+            redirect_url,
+            f"Error: La fecha de la sesión debe estar entre {min_date.isoformat()} y {max_date.isoformat()}.",
+        )
+
+    return parsed
+
+
+def _validate_session_date(raw_value: str | None) -> tuple[date | None, str | None]:
+    try:
+        parsed = _parse_date(raw_value)
+    except (TypeError, ValueError):
+        return None, "Error: La fecha de la sesión no es válida."
+
+    if parsed is None:
+        return None, "Error: La fecha de la sesión es requerida."
+
+    min_date, max_date = _session_date_bounds()
+    if parsed < min_date or parsed > max_date:
+        return None, f"Error: La fecha de la sesión debe estar entre {min_date.isoformat()} y {max_date.isoformat()}."
+
+    return parsed, None
+
+
 def _parse_optional_int(value: str | int | None) -> int | None:
     if value is None:
         return None
@@ -475,6 +522,93 @@ def _paginate(total_items: int, page: int, per_page: int):
         "prev_page": safe_page - 1 if safe_page > 1 else None,
         "next_page": safe_page + 1 if safe_page < total_pages else None,
     }
+
+
+def _render_listado_selector(
+    request: Request,
+    db: Session,
+    current_user: User,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    page: int = 1,
+    per_page: int = 25,
+    msg: str | None = None,
+    create_form: dict | None = None,
+):
+    fd = _parse_date(from_date) if from_date else None
+    td = _parse_date(to_date) if to_date else None
+    proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
+    month_int = int(month) if month and month.strip() else None
+    year_int = int(year) if year and year.strip() else None
+
+    base_stmt = _build_sessions_stmt(current_user)
+    base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
+
+    total_items = db.execute(
+        select(func.count()).select_from(base_stmt.order_by(None).subquery())
+    ).scalar_one()
+    pagination = _paginate(total_items=total_items, page=page, per_page=per_page)
+
+    stmt = base_stmt.offset(pagination["offset"]).limit(pagination["per_page"])
+    sessions = db.execute(stmt).all()
+
+    activity_codes = db.execute(
+        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
+    ).scalars().all()
+    employees = db.execute(
+        select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
+    ).scalars().all()
+    proposals = db.execute(
+        select(Proposal).order_by(Proposal.code)
+    ).scalars().all()
+
+    month_options = [
+        (1, "Enero"),
+        (2, "Febrero"),
+        (3, "Marzo"),
+        (4, "Abril"),
+        (5, "Mayo"),
+        (6, "Junio"),
+        (7, "Julio"),
+        (8, "Agosto"),
+        (9, "Septiembre"),
+        (10, "Octubre"),
+        (11, "Noviembre"),
+        (12, "Diciembre"),
+    ]
+    current_year = date.today().year
+    filter_years = list(range(current_year - 2, current_year + 3))
+    session_date_min, session_date_max = _session_date_bounds()
+
+    return templates.TemplateResponse(
+        "ui/select_session.html",
+        {
+            "request": request,
+            "sessions": sessions,
+            "activity_codes": activity_codes,
+            "employees": employees,
+            "proposals": proposals,
+            "selected_proposal_id": proposal_id_int,
+            "selected_month": month_int,
+            "selected_year": year_int,
+            "month_options": month_options,
+            "filter_years": filter_years,
+            "from_date": fd,
+            "to_date": td,
+            "current_user": current_user,
+            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+            "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "session_date_min": session_date_min.isoformat(),
+            "session_date_max": session_date_max.isoformat(),
+            "pagination": pagination,
+            "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
+            "msg": msg,
+            "create_form": create_form or {},
+        },
+    )
 
 
 # ============================================================
@@ -964,72 +1098,18 @@ def listado_selector(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    fd = _parse_date(from_date) if from_date else None
-    td = _parse_date(to_date) if to_date else None
-    proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
-    month_int = int(month) if month and month.strip() else None
-    year_int = int(year) if year and year.strip() else None
-
-    base_stmt = _build_sessions_stmt(current_user)
-    base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
-
-    total_items = db.execute(
-        select(func.count()).select_from(base_stmt.order_by(None).subquery())
-    ).scalar_one()
-    pagination = _paginate(total_items=total_items, page=page, per_page=per_page)
-
-    stmt = base_stmt.offset(pagination["offset"]).limit(pagination["per_page"])
-    sessions = db.execute(stmt).all()
-
-    activity_codes = db.execute(
-        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
-    ).scalars().all()
-    employees = db.execute(
-        select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
-    ).scalars().all()
-    proposals = db.execute(
-        select(Proposal).order_by(Proposal.code)
-    ).scalars().all()
-
-    month_options = [
-        (1, "Enero"),
-        (2, "Febrero"),
-        (3, "Marzo"),
-        (4, "Abril"),
-        (5, "Mayo"),
-        (6, "Junio"),
-        (7, "Julio"),
-        (8, "Agosto"),
-        (9, "Septiembre"),
-        (10, "Octubre"),
-        (11, "Noviembre"),
-        (12, "Diciembre"),
-    ]
-    current_year = date.today().year
-    filter_years = list(range(current_year - 2, current_year + 3))
-
-    return templates.TemplateResponse(
-        "ui/select_session.html",
-        {
-            "request": request,
-            "sessions": sessions,
-            "activity_codes": activity_codes,
-            "employees": employees,
-            "proposals": proposals,
-            "selected_proposal_id": proposal_id_int,
-            "selected_month": month_int,
-            "selected_year": year_int,
-            "month_options": month_options,
-            "filter_years": filter_years,
-            "from_date": fd,
-            "to_date": td,
-            "current_user": current_user,
-            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
-            "pagination": pagination,
-            "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
-            "msg": msg,
-        },
+    return _render_listado_selector(
+        request=request,
+        db=db,
+        current_user=current_user,
+        from_date=from_date,
+        to_date=to_date,
+        proposal_id=proposal_id,
+        month=month,
+        year=year,
+        page=page,
+        per_page=per_page,
+        msg=msg,
     )
 
 
@@ -1081,6 +1161,89 @@ def export_sessions_csv(
             "horas",
         ],
         rows=rows,
+    )
+
+
+def _render_open_session(
+    request: Request,
+    session_id: int,
+    db: Session,
+    current_user: User,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    page: int | None = None,
+    per_page: int | None = None,
+    msg: str | None = None,
+    edit_form: dict | None = None,
+    open_edit_session_form: bool = False,
+):
+    s = db.get(ActivitySession, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="SesiÃ³n no encontrada.")
+
+    _check_session_access(s, current_user)
+
+    activity_code = db.get(ActivityCode, s.activity_code_id)
+    employee = db.get(Employee, s.employee_id)
+    proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+    proposal_is_finalized = is_proposal_finalized(proposal)
+
+    activity_codes = _load_activity_codes_for_proposal(db, s.proposal_id, active_only=True)
+    employees = db.execute(
+        select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
+    ).scalars().all()
+    proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+
+    proposal_participant_rows = _load_session_proposal_participants(db, s, current_user)
+
+    att_stmt = select(Attendance.proposal_participant_id).where(
+        Attendance.session_id == session_id,
+        Attendance.attended == True,
+        Attendance.proposal_participant_id.is_not(None),
+    )
+    attended_ids = set(db.execute(att_stmt).scalars().all())
+
+    list_query_params = {
+        "proposal_id": proposal_id or "",
+        "month": month or "",
+        "year": year or "",
+        "from_date": from_date or "",
+        "to_date": to_date or "",
+        "page": page or "",
+        "per_page": per_page or "",
+    }
+    list_query_string = urlencode({k: v for k, v in list_query_params.items() if v not in (None, "")})
+    back_to_list_url = f"/ui/listado?{list_query_string}" if list_query_string else "/ui/listado"
+    session_date_min, session_date_max = _session_date_bounds()
+
+    return templates.TemplateResponse(
+        "ui/listado.html",
+        {
+            "request": request,
+            "session": s,
+            "activity_code": activity_code,
+            "employee": employee,
+            "proposal": proposal,
+            "proposal_is_finalized": proposal_is_finalized,
+            "activity_codes": activity_codes,
+            "employees": employees,
+            "proposals": proposals,
+            "proposal_participant_rows": proposal_participant_rows,
+            "attendance_age_range_options": ATTENDANCE_AGE_RANGE_OPTIONS,
+            "attended_ids": attended_ids,
+            "current_user": current_user,
+            "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+            "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "session_date_min": session_date_min.isoformat(),
+            "session_date_max": session_date_max.isoformat(),
+            "msg": msg,
+            "back_to_list_url": back_to_list_url,
+            "edit_form": edit_form or {},
+            "open_edit_session_form": open_edit_session_form,
+        },
     )
 
 
@@ -1186,6 +1349,7 @@ def export_attendance_csv(
 
 @router.post("/listado/create-session")
 def create_session_ui(
+    request: Request,
     session_date: str = Form(...),
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
@@ -1194,6 +1358,22 @@ def create_session_ui(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    parsed_session_date, session_date_error = _validate_session_date(session_date)
+    if session_date_error:
+        return _render_listado_selector(
+            request=request,
+            db=db,
+            current_user=current_user,
+            msg=session_date_error,
+            create_form={
+                "session_date": session_date,
+                "activity_code_id": activity_code_id,
+                "employee_id": employee_id,
+                "proposal_id": proposal_id,
+                "hours_minutes": hours_minutes,
+            },
+        )
+
     proposal = None
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
@@ -1214,7 +1394,7 @@ def create_session_ui(
         return _redirect_with_msg("/ui/listado", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s = ActivitySession(
-        session_date=_parse_date(session_date),
+        session_date=parsed_session_date,
         activity_code_id=activity_code_id,
         employee_id=employee_id,
         proposal_id=proposal.proposal_id if proposal else None,
@@ -1285,6 +1465,7 @@ def open_session(
     }
     list_query_string = urlencode({k: v for k, v in list_query_params.items() if v not in (None, "")})
     back_to_list_url = f"/ui/listado?{list_query_string}" if list_query_string else "/ui/listado"
+    session_date_min, session_date_max = _session_date_bounds()
 
     return templates.TemplateResponse(
         "ui/listado.html",
@@ -1304,6 +1485,8 @@ def open_session(
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
             "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "session_date_min": session_date_min.isoformat(),
+            "session_date_max": session_date_max.isoformat(),
             "msg": msg,
             "back_to_list_url": back_to_list_url,
         },
@@ -1468,6 +1651,7 @@ def clear_attendance(
 @router.post("/listado/{session_id}/edit")
 def edit_session(
     session_id: int,
+    request: Request,
     session_date: str = Form(...),
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
@@ -1479,6 +1663,24 @@ def edit_session(
     s = db.get(ActivitySession, session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+
+    parsed_session_date, session_date_error = _validate_session_date(session_date)
+    if session_date_error:
+        return _render_open_session(
+            request=request,
+            session_id=session_id,
+            db=db,
+            current_user=current_user,
+            msg=session_date_error,
+            edit_form={
+                "session_date": session_date,
+                "activity_code_id": activity_code_id,
+                "employee_id": employee_id,
+                "proposal_id": proposal_id,
+                "hours_minutes": hours_minutes,
+            },
+            open_edit_session_form=True,
+        )
 
     _check_session_access(s, current_user)
 
@@ -1512,7 +1714,7 @@ def edit_session(
     if not activity_code_allowed_for_proposal(activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
-    s.session_date = _parse_date(session_date)
+    s.session_date = parsed_session_date
     s.activity_code_id = activity_code_id
     s.employee_id = employee_id
     s.hours = _hours_from_minutes(hours_minutes)

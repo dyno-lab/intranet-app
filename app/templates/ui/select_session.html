@@ -102,7 +102,8 @@
     <form method="post" action="/ui/listado/create-session" class="row g-2">
       <div class="col-md-2">
         <label class="form-label">Fecha *</label>
-        <input type="date" class="form-control" name="session_date" required>
+        <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
+        <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}.</div>
       </div>
 
       <div class="col-md-2">
@@ -110,7 +111,7 @@
         <select class="form-select" name="proposal_id" id="proposal_id_select">
           <option value="">Sin propuesta</option>
           {% for proposal in proposals if proposal.is_active %}
-            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}">{{ proposal.code }} - {{ proposal.name }}</option>
+            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}" {% if create_form.get('proposal_id') == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -120,7 +121,7 @@
         <select class="form-select" name="activity_code_id" id="activity_code_select" required>
           <option value="">Selecciona...</option>
           {% for c in activity_codes %}
-            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}">{{ c.code }} - {{ c.description }}</option>
+            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
           {% endfor %}
         </select>
         <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales.</div>
@@ -131,14 +132,14 @@
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
           {% for e in employees %}
-            <option value="{{ e.employee_id }}">{{ e.employee_code }} - {{ e.full_name }}</option>
+            <option value="{{ e.employee_id }}" {% if create_form.get('employee_id') == e.employee_id %}selected{% endif %}>{{ e.employee_code }} - {{ e.full_name }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="col-md-1">
         <label class="form-label">Minutos</label>
-        <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" placeholder="5" data-hours-output="create-hours-preview">
+        <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ create_form.get('hours_minutes', '') }}" placeholder="5" data-hours-output="create-hours-preview">
       </div>
 
       <div class="col-md-2">
@@ -276,10 +277,36 @@
     output.value = parts.join(' y ');
   }
 
+  function wireSessionDateValidation(input) {
+    if (!input) return;
+    const min = input.getAttribute('min');
+    const max = input.getAttribute('max');
+    const baseMessage = min && max
+      ? `La fecha debe estar entre ${min} y ${max}.`
+      : 'La fecha no es válida.';
+
+    function validate() {
+      let message = '';
+      if (input.value) {
+        if (input.validity.badInput || input.validity.typeMismatch) {
+          message = 'Usa una fecha válida.';
+        } else if (input.validity.rangeUnderflow || input.validity.rangeOverflow) {
+          message = baseMessage;
+        }
+      }
+      input.setCustomValidity(message);
+    }
+
+    input.addEventListener('input', validate);
+    input.addEventListener('change', validate);
+    validate();
+  }
+
   document.querySelectorAll('.minutes-to-hours-input').forEach((input) => {
     input.addEventListener('input', () => updateHoursPreview(input));
     updateHoursPreview(input);
   });
+  document.querySelectorAll('.session-date-input').forEach(wireSessionDateValidation);
 })();
 
 (function () {

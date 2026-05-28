@@ -8,6 +8,7 @@
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
+{% set session_edit_form = edit_form if edit_form is defined else {} %}
 {% if proposal_is_finalized %}
 <div class="alert alert-warning" role="alert">
   Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
@@ -90,19 +91,20 @@
     </div>
 
     {% if not proposal_is_finalized %}
-    <div class="collapse mt-3" id="editSessionForm">
+    <div class="collapse mt-3{% if open_edit_session_form is defined and open_edit_session_form %} show{% endif %}" id="editSessionForm">
       <hr>
       <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2">
         <div class="col-md-2">
           <label class="form-label">Fecha *</label>
-          <input type="date" class="form-control" name="session_date" value="{{ session.session_date }}" required>
+          <input type="date" class="form-control session-date-input" name="session_date" value="{{ session_edit_form.get('session_date', session.session_date) }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
+          <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}.</div>
         </div>
         <div class="col-md-2">
           <label class="form-label">Propuesta</label>
           <select class="form-select" name="proposal_id" id="edit_proposal_id_select">
             <option value="">Sin propuesta</option>
             {% for p in proposals %}
-              <option value="{{ p.proposal_id }}" {% if p.proposal_id == session.proposal_id %}selected{% endif %}>
+              <option value="{{ p.proposal_id }}" {% if p.proposal_id == session_edit_form.get('proposal_id', session.proposal_id) %}selected{% endif %}>
                 {{ p.code }} - {{ p.name }}
               </option>
             {% endfor %}
@@ -112,7 +114,7 @@
           <label class="form-label">Código de actividad *</label>
           <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
             {% for c in activity_codes %}
-              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if c.activity_code_id == session.activity_code_id %}selected{% endif %}>
+              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
                 {{ c.code }} - {{ c.description or '' }}
               </option>
             {% endfor %}
@@ -122,7 +124,7 @@
           <label class="form-label">Empleado *</label>
           <select class="form-select" name="employee_id" required>
             {% for e in employees %}
-              <option value="{{ e.employee_id }}" {% if e.employee_id == session.employee_id %}selected{% endif %}>
+              <option value="{{ e.employee_id }}" {% if e.employee_id == session_edit_form.get('employee_id', session.employee_id) %}selected{% endif %}>
                 {{ e.employee_code or '' }} - {{ e.full_name }}
               </option>
             {% endfor %}
@@ -130,7 +132,7 @@
         </div>
         <div class="col-md-1">
           <label class="form-label">Minutos</label>
-          <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{% if session.hours is not none %}{{ (session.hours * 60)|round(0)|int }}{% endif %}" data-hours-output="edit-hours-preview">
+          <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ session_edit_form.get('hours_minutes', ((session.hours * 60)|round(0)|int) if session.hours is not none else '') }}" data-hours-output="edit-hours-preview">
         </div>
         <div class="col-md-2">
           <label class="form-label">Equivale a</label>
@@ -303,10 +305,36 @@
     output.value = parts.join(' y ');
   }
 
+  function wireSessionDateValidation(input) {
+    if (!input) return;
+    const min = input.getAttribute('min');
+    const max = input.getAttribute('max');
+    const baseMessage = min && max
+      ? `La fecha debe estar entre ${min} y ${max}.`
+      : 'La fecha no es válida.';
+
+    function validate() {
+      let message = '';
+      if (input.value) {
+        if (input.validity.badInput || input.validity.typeMismatch) {
+          message = 'Usa una fecha válida.';
+        } else if (input.validity.rangeUnderflow || input.validity.rangeOverflow) {
+          message = baseMessage;
+        }
+      }
+      input.setCustomValidity(message);
+    }
+
+    input.addEventListener('input', validate);
+    input.addEventListener('change', validate);
+    validate();
+  }
+
   document.querySelectorAll('.minutes-to-hours-input').forEach((input) => {
     input.addEventListener('input', () => updateHoursPreview(input));
     updateHoursPreview(input);
   });
+  document.querySelectorAll('.session-date-input').forEach(wireSessionDateValidation);
 
   const proposalSelect = document.getElementById('edit_proposal_id_select');
   const activitySelect = document.getElementById('edit_activity_code_select');
