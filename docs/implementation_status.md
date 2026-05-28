@@ -18,6 +18,30 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-05-28 - Orden funcional de codigos de actividad en ui/listado
+Estado: **implementado y empujado a `origin/main` en este flujo de trabajo**.
+
+Contexto:
+- Christian indico que el orden visible de codigos de actividad en `/ui/listado` no debia resolverse como texto plano.
+- La regla funcional confirmada fue ordenar por:
+  - primer numero del codigo,
+  - ultimo numero del codigo,
+  - letra o letras del medio.
+- Ejemplo esperado:
+  - `3.c.21`
+  - `3.a.22`
+  - `3.b.22`
+  - `3.c.22`
+
+Implementado:
+- Se agrego una clave de orden estructurada en `app/api/routes/ui.py` para interpretar el codigo por segmentos.
+- El selector de actividades en crear sesion y el selector de editar sesion ahora reutilizan la misma logica central.
+- El orden ya no depende de `ActivityCode.code` como texto completo.
+
+Validacion / despliegue:
+- El cambio se documenta y se empuja en el mismo flujo de trabajo.
+- Queda pendiente habilitar Python en esta terminal para poder correr validaciones locales automáticas en cambios futuros.
+
 ### Actualizacion 2026-05-27 - Correccion de porcentajes en hoja ADM de Excel
 Estado: **implementado localmente; pendiente de commit/push**.
 

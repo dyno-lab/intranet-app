@@ -327,6 +327,46 @@ def _is_participant_active(participant: Participant) -> bool:
     return bool(getattr(participant, "is_active", False))
 
 
+def _parse_activity_code_number(value: str | None) -> int:
+    try:
+        return int((value or "").strip())
+    except (TypeError, ValueError):
+        return 10**9
+
+
+def _activity_code_sort_key(code: str | None) -> tuple[int, int, str, str]:
+    raw_code = (code or "").strip()
+    parts = [part.strip().lower() for part in raw_code.split(".") if part.strip()]
+
+    if len(parts) >= 3:
+        program_part = parts[0]
+        classification_part = ".".join(parts[1:-1])
+        activity_part = parts[-1]
+    elif len(parts) == 2:
+        program_part = parts[0]
+        classification_part = parts[1]
+        activity_part = ""
+    elif len(parts) == 1:
+        program_part = parts[0]
+        classification_part = ""
+        activity_part = ""
+    else:
+        program_part = ""
+        classification_part = ""
+        activity_part = ""
+
+    return (
+        _parse_activity_code_number(program_part),
+        _parse_activity_code_number(activity_part),
+        classification_part,
+        raw_code.lower(),
+    )
+
+
+def _sort_activity_codes(activity_codes: list[ActivityCode]) -> list[ActivityCode]:
+    return sorted(activity_codes, key=lambda activity_code: _activity_code_sort_key(activity_code.code))
+
+
 def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
     stmt = select(ActivityCode)
     if active_only:
@@ -337,8 +377,8 @@ def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, acti
     else:
         stmt = stmt.where(ActivityCode.proposal_id == proposal_id)
 
-    stmt = stmt.order_by(ActivityCode.code)
-    return db.execute(stmt).scalars().all()
+    activity_codes = db.execute(stmt).scalars().all()
+    return _sort_activity_codes(activity_codes)
 
 
 def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
@@ -555,9 +595,11 @@ def _render_listado_selector(
     stmt = base_stmt.offset(pagination["offset"]).limit(pagination["per_page"])
     sessions = db.execute(stmt).all()
 
-    activity_codes = db.execute(
-        select(ActivityCode).where(ActivityCode.is_active == True).order_by(ActivityCode.code)  # noqa: E712
-    ).scalars().all()
+    activity_codes = _sort_activity_codes(
+        db.execute(
+            select(ActivityCode).where(ActivityCode.is_active == True)  # noqa: E712
+        ).scalars().all()
+    )
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()

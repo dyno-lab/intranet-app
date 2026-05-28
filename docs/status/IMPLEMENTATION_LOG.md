@@ -31,6 +31,36 @@ No usar esta bitácora para microcambios triviales sin impacto arquitectónico o
 
 ---
 
+## 2026-05-28
+
+### Ajuste de orden funcional para codigos de actividad en `/ui/listado`
+- **Tipo:** `ui`, `sessions`, `activity-codes`, `ordering`
+- **Estado:** implementado y empujado en este flujo; pendiente validacion manual de Christian.
+- **Contexto:**
+  - En `/ui/listado`, los codigos de actividad se estaban mostrando con orden lexicografico simple.
+  - Christian aclaro que el orden esperado no depende solo de la letra intermedia ni del texto completo.
+  - La regla confirmada fue: primero programa, luego tipo numerico final y despues clasificacion intermedia.
+- **Decision funcional:**
+  - Interpretar codigos como estructura `programa.clasificacion.tipo`.
+  - Ordenar por:
+    - primer numero
+    - ultimo numero
+    - letra o letras del medio
+- **Que se hizo:**
+  - Se agrego una clave de orden reutilizable en `app/api/routes/ui.py`.
+  - La carga de actividades para crear sesion y editar sesion ahora usa la misma logica centralizada.
+  - El orden dejo de depender de `ActivityCode.code` como texto plano desde SQL.
+- **Impacto esperado:**
+  - Casos como `3.c.21`, `3.a.22`, `3.b.22`, `3.c.22` quedan en el orden funcional esperado por operacion.
+  - Se reduce el riesgo de que los usuarios seleccionen actividades desde un listado visualmente desordenado.
+- **Validacion tecnica:**
+  - No se pudo correr validacion automatica en esta terminal porque no hay `python`/`py` disponible.
+- **Siguiente paso recomendado:**
+  - Validacion manual en pantalla por Christian.
+  - Habilitar Python local para agregar validaciones tecnicas en cambios futuros.
+
+---
+
 ## 2026-05-05
 
 ### Cierre temporal - Report Templates como punto unico para PDF/Word corregido
