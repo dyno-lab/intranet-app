@@ -76,10 +76,10 @@
 
 <div class="card shadow-sm mb-4">
   <div class="card-body">
-    <form method="post" action="/ui/new-list/create" class="row g-2">
+    <form method="post" action="/ui/new-list/create" class="row g-3 align-items-end">
 
       {% if phase2_expediente_enabled %}
-<div class="col-md-2">
+<div class="col-lg-2 col-md-3">
   <label class="form-label">Año expediente *</label>
   <select class="form-select" name="exp_year" id="exp_year" required>
     <option value="">Selecciona</option>
@@ -89,50 +89,50 @@
   </select>
 </div>
 
-<div class="col-md-2">
+<div class="col-lg-2 col-md-3">
   <label class="form-label">Siglas empleado *</label>
   <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
 </div>
 
-<div class="col-md-2">
+<div class="col-lg-2 col-md-3">
   <label class="form-label">4 dígitos *</label>
   <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
   <div class="form-text">Único por empleado (no se puede repetir aunque cambie el año).</div>
 </div>
 
-<div class="col-md-2">
+<div class="col-lg-2 col-md-3">
   <label class="form-label">Vista previa</label>
   <input class="form-control" id="exp_preview" readonly placeholder="FE-YYYY-XX-0000">
 </div>
 {% else %}
-<div class="col-md-2">
+<div class="col-lg-3 col-md-4">
   <label class="form-label">Número de expediente *</label>
   <input class="form-control" name="expediente_num" required>
 </div>
 {% endif %}
 
 
-      <div class="col-md-3">
+      <div class="col-lg-4 col-md-6">
         <label class="form-label">Nombre *</label>
         <input class="form-control" name="nombre" required>
       </div>
 
-      <div class="col-md-1">
+      <div class="col-lg-1 col-md-2">
         <label class="form-label">Inicial</label>
         <input class="form-control" name="inicial" maxlength="10">
       </div>
 
-      <div class="col-md-3">
+      <div class="col-lg-4 col-md-6">
         <label class="form-label">Apellido Paterno *</label>
         <input class="form-control" name="apellido_paterno" required>
       </div>
 
-      <div class="col-md-3">
+      <div class="col-lg-4 col-md-6">
         <label class="form-label">Apellido Materno</label>
         <input class="form-control" name="apellido_materno">
       </div>
 
-      <div class="col-md-2">
+      <div class="col-lg-2 col-md-3">
         <label class="form-label">Género</label>
         <select class="form-select" name="genero">
           <option value="">Selecciona</option>
@@ -141,17 +141,17 @@
         </select>
       </div>
 
-      <div class="col-md-2">
+      <div class="col-lg-3 col-md-4">
         <label class="form-label">Fecha de nacimiento</label>
         <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
       </div>
 
-      <div class="col-md-1">
+      <div class="col-lg-1 col-md-2">
         <label class="form-label">Edad</label>
         <input class="form-control" id="edad" readonly placeholder="Auto">
       </div>
 
-      <div class="col-md-2">
+      <div class="col-lg-2 col-md-3">
         <label class="form-label">VCA</label>
         <select class="form-select" name="vca">
           <option value="">Selecciona</option>
@@ -160,7 +160,7 @@
         </select>
       </div>
 
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-4">
         <label class="form-label">Participa por primera vez</label>
         <select class="form-select" name="primera_vez">
           <option value="">Selecciona</option>
@@ -169,7 +169,7 @@
         </select>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-lg-4 col-md-5">
         <label class="form-label">Escolaridad del participante</label>
         <select class="form-select" name="escolaridad_participante">
           <option value="">Selecciona</option>
@@ -179,7 +179,7 @@
         </select>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-lg-4 col-md-5">
         <label class="form-label">Composición Familiar</label>
         <select class="form-select" name="composicion_familiar">
           <option value="">Selecciona</option>
@@ -189,7 +189,7 @@
         </select>
       </div>
 
-      <div class="col-md-2">
+      <div class="col-lg-2 col-md-3">
         <label class="form-label">Grupo familiar</label>
         <select class="form-select" name="grupo_familiar">
           <option value="">Selecciona</option>
@@ -199,7 +199,7 @@
         </select>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-lg-4 col-md-6">
         <label class="form-label">Fuente de ingreso principal</label>
         <select class="form-select" name="fuente_ingreso_principal">
           <option value="">Selecciona</option>
@@ -209,7 +209,7 @@
         </select>
       </div>
 
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-4">
         <label class="form-label">Rango de ingreso</label>
         <select class="form-select" name="rango_ingreso">
           <option value="">Selecciona</option>
@@ -219,7 +219,7 @@
         </select>
       </div>
 
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-4">
         <label class="form-label">Relación familiar</label>
         <select class="form-select" name="relacion_familiar">
           <option value="">Selecciona</option>
@@ -227,6 +227,20 @@
           <option value="{{ opt.value }}">{{ opt.label }}</option>
           {% endfor %}
         </select>
+      </div>
+
+      <div class="col-lg-3 col-md-4">
+        <label class="form-label">Edificio</label>
+        <input class="form-control" name="edificio" maxlength="50">
+      </div>
+
+      <div class="col-lg-2 col-md-3">
+        <label class="form-label">Apt</label>
+        <input class="form-control" name="apart" maxlength="50">
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <label class="form-label d-block">Jefe de familia</label>
         <div class="form-check mt-2">
           <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
           <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
@@ -234,17 +248,7 @@
         <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
       </div>
 
-      <div class="col-md-2">
-        <label class="form-label">Edificio</label>
-        <input class="form-control" name="edificio" maxlength="50">
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Apt</label>
-        <input class="form-control" name="apart" maxlength="50">
-      </div>
-
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-4">
         <label class="form-label">Estatus</label>
         <select class="form-select" name="estatus">
           <option value="">Selecciona</option>
