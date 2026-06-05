@@ -20,6 +20,7 @@ from app.core.proposal_guard import is_proposal_finalized
 from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.residential import Residential
+from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.user import User
@@ -145,7 +146,7 @@ def school_grade_reports_index(
         (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
     ]
     current_year = date.today().year
-    year_options = list(range(current_year - 2, current_year + 1))
+    year_options = list(range(MIN_REPORTING_YEAR, current_year + 1))
     month_lookup = dict(month_options)
 
     return templates.TemplateResponse(

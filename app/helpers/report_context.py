@@ -9,6 +9,8 @@ from app.helpers.reports import normalize_text
 from app.models.proposal import Proposal
 from app.models.user import User
 
+MIN_REPORTING_YEAR = 2026
+
 USER_RESIDENTIAL = {
     "AC": "Aristides Chavier",
     "PJR": "Pedro J. Rosaly",
@@ -107,7 +109,7 @@ def base_reports_context(db: Session, current_user: User, month_options: list[tu
         select(User).where(User.is_active == True, User.role == "user").order_by(User.username)
     ).scalars().all()  # noqa: E712
     current_year = date.today().year
-    year_options = list(range(current_year - 2, current_year + 3))
+    year_options = list(range(MIN_REPORTING_YEAR, current_year + 1))
     month_lookup = dict(month_options)
     user_residential_map = {user.user_id: f"{user.username} = {residential_from_user(user)}" for user in report_users}
     residential_name = residential_from_user(current_user) if current_user.role == "user" else None
