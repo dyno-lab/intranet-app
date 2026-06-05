@@ -122,10 +122,22 @@ BEGIN
     ADD is_active BIT NOT NULL CONSTRAINT DF_participants_is_active DEFAULT 1;
 END;
 
+IF COL_LENGTH('dbo.participants', 'is_head_of_household') IS NULL
+BEGIN
+    ALTER TABLE dbo.participants
+    ADD is_head_of_household BIT NOT NULL CONSTRAINT DF_participants_is_head_of_household DEFAULT 0;
+END;
+
 IF COL_LENGTH('dbo.participants', 'escolaridad_participante') IS NULL
 BEGIN
     ALTER TABLE dbo.participants
     ADD escolaridad_participante VARCHAR(150) NULL;
+END;
+
+IF COL_LENGTH('dbo.participants', 'relacion_familiar') IS NULL
+BEGIN
+    ALTER TABLE dbo.participants
+    ADD relacion_familiar VARCHAR(100) NULL;
 END;
 
 UPDATE dbo.participants
@@ -235,6 +247,12 @@ IF NOT EXISTS (SELECT 1 FROM dbo.catalog_types WHERE [key] = 'escolaridad_partic
 BEGIN
     INSERT INTO dbo.catalog_types ([key], [name], [description])
     VALUES ('escolaridad_participante', 'Escolaridad del Participante', 'Opciones del campo escolaridad del participante');
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.catalog_types WHERE [key] = 'relacion_familiar')
+BEGIN
+    INSERT INTO dbo.catalog_types ([key], [name], [description])
+    VALUES ('relacion_familiar', 'Relación Familiar', 'Opciones para identificar relación familiar y jefe de familia.');
 END;
 
 IF NOT EXISTS (
@@ -348,6 +366,23 @@ BEGIN
         ('Baja', 'Baja', 5)
     ) v([value], [label], sort_order)
     WHERE ct.[key] = 'estatus_participante';
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.catalog_options co
+    INNER JOIN dbo.catalog_types ct ON ct.catalog_type_id = co.catalog_type_id
+    WHERE ct.[key] = 'relacion_familiar'
+)
+BEGIN
+    INSERT INTO dbo.catalog_options (catalog_type_id, [value], [label], sort_order, is_active)
+    SELECT ct.catalog_type_id, v.[value], v.[label], v.sort_order, 1
+    FROM dbo.catalog_types ct
+    CROSS APPLY (VALUES
+        ('jefe_familia', 'Jefe de familia', 1),
+        ('miembro_familia', 'Miembro de familia', 2)
+    ) v([value], [label], sort_order)
+    WHERE ct.[key] = 'relacion_familiar';
 END;
 
 IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NULL

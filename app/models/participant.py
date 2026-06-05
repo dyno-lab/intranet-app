@@ -48,10 +48,12 @@ class Participant(Base):
     primera_vez: Mapped[str | None] = mapped_column(String(5), nullable=True)  # SI / NO
     escolaridad_participante: Mapped[str | None] = mapped_column(String(150), nullable=True)
     composicion_familiar: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    relacion_familiar: Mapped[str | None] = mapped_column(String(100), nullable=True)
     estatus: Mapped[str | None] = mapped_column(String(50), nullable=True)
     grupo_familiar: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fuente_ingreso_principal: Mapped[str | None] = mapped_column(String(100), nullable=True)
     rango_ingreso: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    is_head_of_household: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
     # Auditoría

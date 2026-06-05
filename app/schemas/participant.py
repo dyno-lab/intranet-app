@@ -18,6 +18,8 @@ class ParticipantCreate(BaseModel):
     fecha_nacimiento: date | None = None
     edificio: str | None = None
     apart: str | None = None
+    relacion_familiar: str | None = None
+    is_head_of_household: bool = False
 
 
 class ParticipantOut(BaseModel):
@@ -31,6 +33,8 @@ class ParticipantOut(BaseModel):
     fecha_nacimiento: date | None
     edificio: str | None
     apart: str | None
+    relacion_familiar: str | None = None
+    is_head_of_household: bool = False
 
     # FASE 2 (opcionales)
     exp_year: int | None = None

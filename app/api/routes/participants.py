@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user, is_admin_or_supervisor
+from app.core.participant_household import require_head_of_household_allowed
 from app.models.participant import Participant
 from app.models.user import User
 from app.schemas.participant import ParticipantCreate, ParticipantOut
@@ -25,8 +26,18 @@ def create_participant(
     if existing:
         raise HTTPException(status_code=409, detail="expediente_num ya existe")
 
+    payload_data = payload.model_dump()
+    marked_as_head = bool(payload_data.get("is_head_of_household"))
+    if marked_as_head:
+        require_head_of_household_allowed(
+            db,
+            residential_id=getattr(current_user, "residential_id", None),
+            edificio=payload_data.get("edificio"),
+            apart=payload_data.get("apart"),
+        )
+
     p = Participant(
-        **payload.model_dump(),
+        **payload_data,
         created_by_user_id=current_user.user_id,
     )
     db.add(p)

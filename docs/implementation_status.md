@@ -18,6 +18,41 @@ Sirve para:
 
 ## Estado actual validado
 
+### Actualizacion 2026-06-05 - Bloqueo de periodos y fechas futuras en sesiones e informes
+Estado: **implementado y empujado a `origin/main` en este flujo de trabajo**.
+
+Contexto:
+- Christian solicito endurecer la operacion para impedir registros en fechas o periodos no autorizados.
+- El problema afectaba sesiones/asistencias y tambien informes operacionales como notas, embarazo, desercion y visitas.
+- Ademas se ajusto la UI para no seguir mostrando años anteriores a 2026 en los selectores relacionados.
+
+Implementado:
+- Se creo `app/core/period_guard.py` como helper central para reglas de periodo.
+- Se mantuvo `proposal_guard.py` para cierre total por propuesta finalizada, sin mezclar ambas responsabilidades.
+- Se agregaron campos de cierre mensual por propuesta:
+  - `locked_through_month`
+  - `locked_through_year`
+  - `period_lock_note`
+- En sesiones/asistencias:
+  - no se permiten fechas futuras
+  - no se permiten sesiones dentro de periodos ya cerrados para la propuesta
+  - `ui/listado` y `ui/select_session` ahora limitan fechas desde `2026-01-01` hasta hoy
+  - los filtros/años visibles quedaron en `2026+`
+- En informes de notas, embarazo, desercion y visitas:
+  - no se permiten periodos futuros
+  - no se permite crear, editar o borrar si el periodo ya esta cerrado para la propuesta
+- En Admin > Propuestas:
+  - se habilito configurar el cierre de periodos hasta un mes/año
+  - se muestra nota de cierre mensual separada del cierre total por `finalized`
+
+Validacion / despliegue:
+- Se validaron los cambios con compilacion Python y revision de diff durante el flujo.
+- Commits empujados en este trabajo:
+  - `9f3dca4` - `feat(periods): lock future and closed reporting periods`
+  - `d59ce7d` - `chore(periods): limit year selectors to 2026+`
+  - `6492f05` - `fix(ui): align session dates with 2026 reporting window`
+- Christian confirmo en pruebas que el comportamiento actual le funciono correctamente.
+
 ### Actualizacion 2026-05-28 - Orden funcional de codigos de actividad en ui/listado
 Estado: **implementado y empujado a `origin/main` en este flujo de trabajo**.
 

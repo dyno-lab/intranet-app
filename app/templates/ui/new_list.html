@@ -219,6 +219,21 @@
         </select>
       </div>
 
+      <div class="col-md-3">
+        <label class="form-label">Relación familiar</label>
+        <select class="form-select" name="relacion_familiar">
+          <option value="">Selecciona</option>
+          {% for opt in relacion_familiar_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
+          <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
+        </div>
+        <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
+      </div>
+
       <div class="col-md-2">
         <label class="form-label">Edificio</label>
         <input class="form-control" name="edificio" maxlength="50">
@@ -320,6 +335,7 @@
           <th>Edad</th>
           <th>Género</th>
           <th>Estado</th>
+          <th>Jefe familia</th>
           <th>Apt</th>
           <th>Edificio</th>
           <th class="text-end">Acciones</th>
@@ -343,6 +359,13 @@
                 <span class="badge bg-danger">● Inactivo</span>
               {% endif %}
             </td>
+            <td>
+              {% if r.is_head_of_household %}
+                <span class="badge bg-primary">✔ Jefe</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>{{ p.apart or '' }}</td>
             <td>{{ p.edificio or '' }}</td>
             <td class="text-end">
@@ -360,7 +383,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="10" class="text-muted text-center py-4">
+            <td colspan="11" class="text-muted text-center py-4">
               No hay participantes que coincidan con los filtros seleccionados.
             </td>
           </tr>

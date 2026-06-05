@@ -27,6 +27,7 @@ from app.models.proposal_participant import ProposalParticipant
 
 from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
 from app.core.config import settings
+from app.core.participant_household import require_head_of_household_allowed
 from app.core.proposal_guard import (
     is_proposal_finalized,
     require_session_proposal_not_finalized,
@@ -429,6 +430,7 @@ def _participant_form_catalogs(db: Session):
         "fuente_ingreso_principal_options": _load_catalog_options(db, "fuente_ingreso_principal"),
         "rango_ingreso_options": _load_catalog_options(db, "rango_ingreso"),
         "estatus_options": _load_catalog_options(db, "estatus_participante"),
+        "relacion_familiar_options": _load_catalog_options(db, "relacion_familiar"),
     }
 
 
@@ -756,7 +758,12 @@ def new_list(
     participants = db.execute(stmt).scalars().all()
 
     rows = [
-        {"p": p, "age": _calc_age(p.fecha_nacimiento), "is_active": _is_participant_active(p)}
+        {
+            "p": p,
+            "age": _calc_age(p.fecha_nacimiento),
+            "is_active": _is_participant_active(p),
+            "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
+        }
         for p in participants
     ]
 
@@ -803,8 +810,10 @@ def create_participant(
     escolaridad_participante: str | None = Form(default=None),
     composicion_familiar: str | None = Form(default=None),
     grupo_familiar: str | None = Form(default=None),
+    relacion_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
+    is_head_of_household: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -846,6 +855,15 @@ def create_participant(
 
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
+    marked_as_head_of_household = is_head_of_household == "on"
+
+    if marked_as_head_of_household:
+        require_head_of_household_allowed(
+            db,
+            residential_id=getattr(current_user, "residential_id", None),
+            edificio=edificio,
+            apart=apart,
+        )
 
     p = Participant(
         expediente_num=expediente_num,
@@ -863,8 +881,10 @@ def create_participant(
         escolaridad_participante=escolaridad_participante,
         composicion_familiar=composicion_familiar,
         grupo_familiar=grupo_familiar,
+        relacion_familiar=relacion_familiar,
         fuente_ingreso_principal=fuente_ingreso_principal,
         rango_ingreso=rango_ingreso,
+        is_head_of_household=marked_as_head_of_household,
         is_active=participant_is_active,
         created_by_user_id=current_user.user_id,
     )
@@ -1039,8 +1059,10 @@ def edit_participant_save(
     escolaridad_participante: str | None = Form(default=None),
     composicion_familiar: str | None = Form(default=None),
     grupo_familiar: str | None = Form(default=None),
+    relacion_familiar: str | None = Form(default=None),
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
+    is_head_of_household: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1094,6 +1116,17 @@ def edit_participant_save(
 
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
+    marked_as_head_of_household = is_head_of_household == "on"
+
+    if marked_as_head_of_household:
+        owner = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
+        require_head_of_household_allowed(
+            db,
+            residential_id=getattr(owner, "residential_id", None),
+            edificio=edificio,
+            apart=apart,
+            exclude_participant_id=p.participant_id,
+        )
 
     p.expediente_num = expediente_num_final
     p.nombre = nombre
@@ -1111,8 +1144,10 @@ def edit_participant_save(
     p.escolaridad_participante = escolaridad_participante
     p.composicion_familiar = composicion_familiar
     p.grupo_familiar = grupo_familiar
+    p.relacion_familiar = relacion_familiar
     p.fuente_ingreso_principal = fuente_ingreso_principal
     p.rango_ingreso = rango_ingreso
+    p.is_head_of_household = marked_as_head_of_household
 
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         p.exp_year = exp_year
