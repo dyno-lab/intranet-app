@@ -103,7 +103,7 @@
       <div class="col-md-2">
         <label class="form-label">Fecha *</label>
         <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
-        <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}.</div>
+        <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
       </div>
 
       <div class="col-md-2">
@@ -282,7 +282,7 @@
     const min = input.getAttribute('min');
     const max = input.getAttribute('max');
     const baseMessage = min && max
-      ? `La fecha debe estar entre ${min} y ${max}.`
+      ? `La fecha debe estar entre ${min} y ${max}. No se permiten fechas futuras.`
       : 'La fecha no es válida.';
 
     function validate() {

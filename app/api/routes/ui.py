@@ -38,6 +38,7 @@ from app.core.period_guard import (
     require_session_date_not_future,
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
+from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
 router = APIRouter()
@@ -54,13 +55,10 @@ def _parse_date(value: str | None):
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
-SESSION_YEAR_WINDOW_PAST = 2
-
-
 def _session_date_bounds() -> tuple[date, date]:
     today = date.today()
     return (
-        date(today.year - SESSION_YEAR_WINDOW_PAST, 1, 1),
+        date(MIN_REPORTING_YEAR, 1, 1),
         today,
     )
 
@@ -627,7 +625,7 @@ def _render_listado_selector(
         (12, "Diciembre"),
     ]
     current_year = date.today().year
-    filter_years = list(range(current_year - 2, current_year + 3))
+    filter_years = list(range(MIN_REPORTING_YEAR, current_year + 1))
     session_date_min, session_date_max = _session_date_bounds()
 
     return templates.TemplateResponse(
@@ -647,7 +645,7 @@ def _render_listado_selector(
             "to_date": td,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "years": list(range(MIN_REPORTING_YEAR, date.today().year + 1)),
             "session_date_min": session_date_min.isoformat(),
             "session_date_max": session_date_max.isoformat(),
             "pagination": pagination,
@@ -1286,7 +1284,7 @@ def _render_open_session(
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "years": list(range(MIN_REPORTING_YEAR, date.today().year + 1)),
             "session_date_min": session_date_min.isoformat(),
             "session_date_max": session_date_max.isoformat(),
             "msg": msg,
@@ -1571,7 +1569,7 @@ def open_session(
             "attended_ids": attended_ids,
             "current_user": current_user,
             "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
-            "years": list(range(date.today().year - 2, date.today().year + 3)),
+            "years": list(range(MIN_REPORTING_YEAR, date.today().year + 1)),
             "session_date_min": session_date_min.isoformat(),
             "session_date_max": session_date_max.isoformat(),
             "msg": msg,

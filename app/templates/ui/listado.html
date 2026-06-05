@@ -310,7 +310,7 @@
     const min = input.getAttribute('min');
     const max = input.getAttribute('max');
     const baseMessage = min && max
-      ? `La fecha debe estar entre ${min} y ${max}.`
+      ? `La fecha debe estar entre ${min} y ${max}. No se permiten fechas futuras.`
       : 'La fecha no es válida.';
 
     function validate() {
