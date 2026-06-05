@@ -858,12 +858,15 @@ def create_participant(
     marked_as_head_of_household = is_head_of_household == "on"
 
     if marked_as_head_of_household:
-        require_head_of_household_allowed(
-            db,
-            residential_id=getattr(current_user, "residential_id", None),
-            edificio=edificio,
-            apart=apart,
-        )
+        try:
+            require_head_of_household_allowed(
+                db,
+                residential_id=getattr(current_user, "residential_id", None),
+                edificio=edificio,
+                apart=apart,
+            )
+        except HTTPException as exc:
+            return _redirect_with_msg("/ui/new-list", str(exc.detail))
 
     p = Participant(
         expediente_num=expediente_num,
@@ -1120,13 +1123,16 @@ def edit_participant_save(
 
     if marked_as_head_of_household:
         owner = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
-        require_head_of_household_allowed(
-            db,
-            residential_id=getattr(owner, "residential_id", None),
-            edificio=edificio,
-            apart=apart,
-            exclude_participant_id=p.participant_id,
-        )
+        try:
+            require_head_of_household_allowed(
+                db,
+                residential_id=getattr(owner, "residential_id", None),
+                edificio=edificio,
+                apart=apart,
+                exclude_participant_id=p.participant_id,
+            )
+        except HTTPException as exc:
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", str(exc.detail))
 
     p.expediente_num = expediente_num_final
     p.nombre = nombre
