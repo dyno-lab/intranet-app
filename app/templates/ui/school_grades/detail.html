@@ -9,6 +9,10 @@
 </div>
 {% endif %}
 
+{% if report_is_locked %}
+<div class="alert alert-warning">Este informe está en solo lectura porque la propuesta fue finalizada o el periodo quedó cerrado{% if report_lock_label %} hasta {{ report_lock_label }}{% endif %}.</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-1">Informe de notas</h4>
@@ -17,13 +21,16 @@
     </div>
   </div>
   <div class="d-flex gap-2">
+    {% if not report_is_locked %}
     <form method="post" action="/ui/school-grades/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de notas completo?');">
       <button class="btn btn-outline-danger">Borrar informe</button>
     </form>
+    {% endif %}
     <a class="btn btn-outline-secondary" href="/ui/school-grades">Volver</a>
   </div>
 </div>
 
+{% if not report_is_locked %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Añadir participante (0 a 21 años)</h5>
@@ -63,6 +70,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
@@ -137,11 +145,13 @@
               {% endif %}
             </td>
             <td class="text-nowrap">
-              <button class="btn btn-sm btn-success">Guardar</button>
+              {% if not report_is_locked %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
           </form>
+              {% if not report_is_locked %}
               <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
                 <button class="btn btn-sm btn-outline-danger">Quitar</button>
               </form>
+              {% endif %}
             </td>
         </tr>
         {% endfor %}

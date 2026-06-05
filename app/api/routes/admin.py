@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_or_supervisor
+from app.core.period_guard import current_reporting_period, proposal_locked_through_label, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.security import hash_password, verify_password
 from app.models.user import User
@@ -1407,6 +1408,13 @@ def admin_proposals(
             "current_user": current_user,
             "proposals": proposals,
             "participant_counts": participant_counts,
+            "month_options": [
+                (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
+                (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
+                (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
+            ],
+            "current_period": current_reporting_period(),
+            "proposal_locked_through_label": proposal_locked_through_label,
             "msg": msg,
         },
     )
@@ -1943,6 +1951,9 @@ def admin_edit_proposal(
     name: str = Form(...),
     description: str | None = Form(default=None),
     is_active: str | None = Form(default=None),
+    locked_through_month: int | None = Form(default=None),
+    locked_through_year: int | None = Form(default=None),
+    period_lock_note: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -1978,6 +1989,29 @@ def admin_edit_proposal(
     proposal.name = name
     proposal.description = description
     proposal.is_active = is_active == "on"
+    if locked_through_month and not locked_through_year:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: Debe seleccionar el año del cierre de periodos.",
+            status_code=303,
+        )
+    if locked_through_year and not locked_through_month:
+        return RedirectResponse(
+            "/ui/admin/proposals?msg=Error: Debe seleccionar el mes del cierre de periodos.",
+            status_code=303,
+        )
+    if locked_through_month and locked_through_year:
+        try:
+            require_reporting_period_not_future(
+                locked_through_month,
+                locked_through_year,
+                message="Error: No se puede cerrar un periodo futuro.",
+            )
+        except Exception as exc:
+            detail = exc.detail if hasattr(exc, "detail") else str(exc)
+            return RedirectResponse(f"/ui/admin/proposals?msg={detail}", status_code=303)
+    proposal.locked_through_month = locked_through_month or None
+    proposal.locked_through_year = locked_through_year or None
+    proposal.period_lock_note = (period_lock_note or "").strip() or None
 
     db.add(proposal)
     db.commit()

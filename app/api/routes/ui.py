@@ -31,6 +31,12 @@ from app.core.proposal_guard import (
     is_proposal_finalized,
     require_session_proposal_not_finalized,
 )
+from app.core.period_guard import (
+    is_session_date_in_locked_period,
+    proposal_locked_through_label,
+    require_session_date_in_open_period,
+    require_session_date_not_future,
+)
 from app.core.session_rules import activity_code_allowed_for_proposal
 from app.api.deps import get_db
 
@@ -49,14 +55,13 @@ def _parse_date(value: str | None):
 
 
 SESSION_YEAR_WINDOW_PAST = 2
-SESSION_YEAR_WINDOW_FUTURE = 2
 
 
 def _session_date_bounds() -> tuple[date, date]:
     today = date.today()
     return (
         date(today.year - SESSION_YEAR_WINDOW_PAST, 1, 1),
-        date(today.year + SESSION_YEAR_WINDOW_FUTURE, 12, 31),
+        today,
     )
 
 
@@ -1232,6 +1237,7 @@ def _render_open_session(
     employee = db.get(Employee, s.employee_id)
     proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
     proposal_is_finalized = is_proposal_finalized(proposal)
+    session_period_locked = bool(proposal and is_session_date_in_locked_period(proposal, s.session_date))
 
     activity_codes = _load_activity_codes_for_proposal(db, s.proposal_id, active_only=True)
     employees = db.execute(
@@ -1270,6 +1276,8 @@ def _render_open_session(
             "employee": employee,
             "proposal": proposal,
             "proposal_is_finalized": proposal_is_finalized,
+            "session_period_locked": session_period_locked,
+            "session_period_lock_label": proposal_locked_through_label(proposal),
             "activity_codes": activity_codes,
             "employees": employees,
             "proposals": proposals,
@@ -1428,6 +1436,43 @@ def create_session_ui(
         )
         if redirect:
             return redirect
+        try:
+            require_session_date_in_open_period(
+                proposal,
+                parsed_session_date,
+                message=f"Error: La propuesta seleccionada tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite crear sesiones en ese rango.",
+            )
+        except HTTPException as exc:
+            return _render_listado_selector(
+                request=request,
+                db=db,
+                current_user=current_user,
+                msg=str(exc.detail),
+                create_form={
+                    "session_date": session_date,
+                    "activity_code_id": activity_code_id,
+                    "employee_id": employee_id,
+                    "proposal_id": proposal_id,
+                    "hours_minutes": hours_minutes,
+                },
+            )
+
+    try:
+        require_session_date_not_future(parsed_session_date)
+    except HTTPException as exc:
+        return _render_listado_selector(
+            request=request,
+            db=db,
+            current_user=current_user,
+            msg=str(exc.detail),
+            create_form={
+                "session_date": session_date,
+                "activity_code_id": activity_code_id,
+                "employee_id": employee_id,
+                "proposal_id": proposal_id,
+                "hours_minutes": hours_minutes,
+            },
+        )
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
@@ -1554,6 +1599,12 @@ async def save_attendance(
             s,
             message="Error: La propuesta de esta sesión está finalizada y no permite modificar asistencias.",
         )
+        proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+        require_session_date_in_open_period(
+            proposal,
+            s.session_date,
+            message=f"Error: La propuesta de esta sesión tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite modificar asistencias de ese periodo.",
+        )
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
 
@@ -1679,6 +1730,12 @@ def clear_attendance(
             s,
             message="Error: La propuesta de esta sesión está finalizada y no permite eliminar asistencias.",
         )
+        proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+        require_session_date_in_open_period(
+            proposal,
+            s.session_date,
+            message=f"Error: La propuesta de esta sesión tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite eliminar asistencias de ese periodo.",
+        )
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
 
@@ -1732,8 +1789,33 @@ def edit_session(
             s,
             message="Error: La propuesta de esta sesión está finalizada y no permite editar la sesión.",
         )
+        current_proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+        require_session_date_in_open_period(
+            current_proposal,
+            s.session_date,
+            message=f"Error: La propuesta de esta sesión tiene periodos cerrados hasta {proposal_locked_through_label(current_proposal)} y no permite editar la sesión.",
+        )
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
+
+    try:
+        require_session_date_not_future(parsed_session_date)
+    except HTTPException as exc:
+        return _render_open_session(
+            request=request,
+            session_id=session_id,
+            db=db,
+            current_user=current_user,
+            msg=str(exc.detail),
+            edit_form={
+                "session_date": session_date,
+                "activity_code_id": activity_code_id,
+                "employee_id": employee_id,
+                "proposal_id": proposal_id,
+                "hours_minutes": hours_minutes,
+            },
+            open_edit_session_form=True,
+        )
 
     if proposal_id:
         proposal = db.get(Proposal, proposal_id)
@@ -1746,6 +1828,28 @@ def edit_session(
         )
         if redirect:
             return redirect
+        try:
+            require_session_date_in_open_period(
+                proposal,
+                parsed_session_date,
+                message=f"Error: La propuesta seleccionada tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite editar sesiones en ese rango.",
+            )
+        except HTTPException as exc:
+            return _render_open_session(
+                request=request,
+                session_id=session_id,
+                db=db,
+                current_user=current_user,
+                msg=str(exc.detail),
+                edit_form={
+                    "session_date": session_date,
+                    "activity_code_id": activity_code_id,
+                    "employee_id": employee_id,
+                    "proposal_id": proposal_id,
+                    "hours_minutes": hours_minutes,
+                },
+                open_edit_session_form=True,
+            )
         s.proposal_id = proposal.proposal_id
     else:
         s.proposal_id = None
@@ -1787,6 +1891,12 @@ def delete_session(
             db,
             s,
             message="Error: La propuesta de esta sesión está finalizada y no permite eliminar la sesión.",
+        )
+        proposal = db.get(Proposal, s.proposal_id) if s.proposal_id else None
+        require_session_date_in_open_period(
+            proposal,
+            s.session_date,
+            message=f"Error: La propuesta de esta sesión tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite eliminar la sesión.",
         )
     except HTTPException as exc:
         return _redirect_with_msg("/ui/listado", str(exc.detail))

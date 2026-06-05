@@ -10,6 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user
+from app.core.period_guard import (
+    is_proposal_period_locked,
+    proposal_locked_through_label,
+    require_proposal_period_open,
+    require_reporting_period_not_future,
+)
+from app.core.proposal_guard import is_proposal_finalized
 from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -75,6 +82,26 @@ def _grade_letter(average: float | None) -> str:
     return "F"
 
 
+def _report_is_locked(proposal: Proposal | None, report: SchoolGradeReport) -> bool:
+    return bool(
+        proposal
+        and (
+            is_proposal_finalized(proposal)
+            or is_proposal_period_locked(proposal, report.report_month, report.report_year)
+        )
+    )
+
+
+def _ensure_report_editable(proposal: Proposal | None, report: SchoolGradeReport, action: str) -> None:
+    if proposal and is_proposal_finalized(proposal):
+        raise HTTPException(status_code=409, detail=f"Error: La propuesta está finalizada y no permite {action} este informe.")
+    if proposal and is_proposal_period_locked(proposal, report.report_month, report.report_year):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Error: La propuesta tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite {action} este informe.",
+        )
+
+
 @router.get("", response_class=HTMLResponse)
 def school_grade_reports_index(
     request: Request,
@@ -118,7 +145,7 @@ def school_grade_reports_index(
         (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
     ]
     current_year = date.today().year
-    year_options = list(range(current_year - 2, current_year + 3))
+    year_options = list(range(current_year - 2, current_year + 1))
     month_lookup = dict(month_options)
 
     return templates.TemplateResponse(
@@ -148,6 +175,22 @@ def create_school_grade_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse("/ui/school-grades?msg=Error: Propuesta no encontrada.", status_code=303)
+    if is_proposal_finalized(proposal):
+        return RedirectResponse("/ui/school-grades?msg=Error: La propuesta está finalizada y no permite crear informes.", status_code=303)
+    try:
+        require_reporting_period_not_future(report_month, report_year, message="Error: No se permite crear informes en periodos futuros.")
+        require_proposal_period_open(
+            proposal,
+            report_month,
+            report_year,
+            message=f"Error: La propuesta tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite crear ese informe.",
+        )
+    except HTTPException as exc:
+        return RedirectResponse(f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg={exc.detail}", status_code=303)
+
     existing = db.execute(
         select(SchoolGradeReport).where(
             SchoolGradeReport.proposal_id == proposal_id,
@@ -201,6 +244,7 @@ def school_grade_report_detail(
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este informe.")
 
     proposal = db.get(Proposal, report.proposal_id)
+    report_is_locked = _report_is_locked(proposal, report)
 
     participant_stmt = (
         select(Participant)
@@ -243,6 +287,8 @@ def school_grade_report_detail(
             "grade_options": GRADE_OPTIONS,
             "age_map": age_map,
             "grade_letter": _grade_letter,
+            "report_is_locked": report_is_locked,
+            "report_lock_label": proposal_locked_through_label(proposal),
             "msg": msg,
         },
     )
@@ -262,6 +308,11 @@ def add_participant_to_school_grade_report(
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
     if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    proposal = db.get(Proposal, report.proposal_id)
+    try:
+        _ensure_report_editable(proposal, report, "editar")
+    except HTTPException as exc:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg={exc.detail}", status_code=303)
 
     participant = db.get(Participant, participant_id)
     if not participant:
@@ -321,6 +372,11 @@ def edit_school_grade_report_item(
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
     if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    proposal = db.get(Proposal, report.proposal_id)
+    try:
+        _ensure_report_editable(proposal, report, "editar")
+    except HTTPException as exc:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg={exc.detail}", status_code=303)
 
     item = db.get(SchoolGradeReportItem, report_item_id)
     if not item or item.report_id != report_id:
@@ -365,6 +421,11 @@ def delete_school_grade_report(
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
     if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
+    proposal = db.get(Proposal, report.proposal_id)
+    try:
+        _ensure_report_editable(proposal, report, "borrar")
+    except HTTPException as exc:
+        return RedirectResponse(f"/ui/school-grades?msg={exc.detail}", status_code=303)
 
     db.execute(
         delete(SchoolGradeReportItem).where(SchoolGradeReportItem.report_id == report_id)
@@ -390,6 +451,11 @@ def delete_school_grade_report_item(
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
     if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    proposal = db.get(Proposal, report.proposal_id)
+    try:
+        _ensure_report_editable(proposal, report, "editar")
+    except HTTPException as exc:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg={exc.detail}", status_code=303)
 
     item = db.get(SchoolGradeReportItem, report_item_id)
     if not item or item.report_id != report_id:

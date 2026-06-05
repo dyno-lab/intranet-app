@@ -20,6 +20,9 @@ class Proposal(Base):
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finalized_by_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.user_id"), nullable=True)
     finalization_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    locked_through_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    locked_through_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    period_lock_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.sysutcdatetime(),

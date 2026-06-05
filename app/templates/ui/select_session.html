@@ -111,7 +111,7 @@
         <select class="form-select" name="proposal_id" id="proposal_id_select">
           <option value="">Sin propuesta</option>
           {% for proposal in proposals if proposal.is_active %}
-            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}" {% if create_form.get('proposal_id') == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}" data-locked-through="{{ proposal.locked_through_year or '' }}-{{ proposal.locked_through_month or '' }}" {% if create_form.get('proposal_id') == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -124,7 +124,7 @@
             <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
           {% endfor %}
         </select>
-        <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales.</div>
+        <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales. No se permiten fechas futuras.</div>
       </div>
 
       <div class="col-md-2">

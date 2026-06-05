@@ -88,6 +88,9 @@
 </div>
 
 {% if selected_proposal_id and period_label and (selected_user or is_global) %}
+{% if visits_period_locked %}
+<div class="alert alert-warning">Este periodo está en solo lectura para referidos. {{ visits_period_lock_message }}</div>
+{% endif %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <div class="row g-2">
@@ -117,10 +120,13 @@
         <div class="col-md-3 d-grid">
           <button class="btn btn-outline-primary" type="button" id="buildReferralRows">Preparar espacios</button>
         </div>
+        {% if not visits_period_locked %}
         <div class="col-md-3 d-grid">
           <button class="btn btn-success" type="submit">Guardar referidos</button>
         </div>
+        {% endif %}
         {% if visit_report or (is_global and referral_rows|length > 0) %}
+        {% if not visits_period_locked %}
         <div class="col-md-3 d-grid">
           <button
             class="btn btn-outline-danger w-100"
@@ -132,6 +138,7 @@
             Eliminar referidos
           </button>
         </div>
+        {% endif %}
         {% endif %}
       </div>
       <div id="referralRowsContainer" class="row g-3"></div>

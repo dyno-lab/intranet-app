@@ -9,6 +9,10 @@
 </div>
 {% endif %}
 
+{% if report_is_locked %}
+<div class="alert alert-warning">Este informe está en solo lectura porque la propuesta fue finalizada o el periodo quedó cerrado{% if report_lock_label %} hasta {{ report_lock_label }}{% endif %}.</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-1">Informe de embarazo</h4>
@@ -17,13 +21,16 @@
     </div>
   </div>
   <div class="d-flex gap-2">
+    {% if not report_is_locked %}
     <form method="post" action="/ui/pregnancy/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de embarazo completo?');">
       <button class="btn btn-outline-danger">Borrar informe</button>
     </form>
+    {% endif %}
     <a class="btn btn-outline-secondary" href="/ui/pregnancy">Volver</a>
   </div>
 </div>
 
+{% if not report_is_locked %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Añadir participante (8 a 19 años)</h5>
@@ -48,6 +55,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
@@ -88,11 +96,13 @@
             <td><input class="form-control form-control-sm text-center" type="number" min="0" name="children_count" value="{{ item.children_count if item.children_count is not none else '' }}"></td>
             <td><input class="form-control form-control-sm" name="children_ages" value="{{ item.children_ages or '' }}" placeholder="Ej. 2, 5 (separadas por coma)"></td>
             <td class="text-nowrap">
-              <button class="btn btn-sm btn-success">Guardar</button>
+              {% if not report_is_locked %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
           </form>
+              {% if not report_is_locked %}
               <form method="post" action="/ui/pregnancy/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
                 <button class="btn btn-sm btn-outline-danger">Quitar</button>
               </form>
+              {% endif %}
             </td>
         </tr>
         {% endfor %}

@@ -3,9 +3,14 @@
 
 {% block content %}
 {% set session_edit_form = edit_form if edit_form is defined else {} %}
+{% set session_read_only = proposal_is_finalized or session_period_locked %}
 {% if proposal_is_finalized %}
 <div class="alert alert-warning" role="alert">
   Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
+</div>
+{% elif session_period_locked %}
+<div class="alert alert-warning" role="alert">
+  Esta sesión pertenece a un <strong>periodo cerrado</strong>{% if session_period_lock_label %} hasta {{ session_period_lock_label }}{% endif %}. Se muestra en modo solo lectura.
 </div>
 {% endif %}
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
@@ -14,7 +19,7 @@
     {% if proposal %}
     <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
     {% endif %}
-    {% if current_user and current_user.role in ["admin", "supervisor"] and not proposal_is_finalized %}
+    {% if current_user and current_user.role in ["admin", "supervisor"] and not session_read_only %}
     <form method="post"
           action="/ui/listado/{{ session.session_id }}/clear-attendance"
           style="display:inline;"
@@ -36,7 +41,7 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Datos de la Sesión</h5>
-      {% if not proposal_is_finalized %}
+      {% if not session_read_only %}
       <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
         ✏️ Editar Sesión
       </button>
@@ -54,6 +59,7 @@
         {% if proposal %}
           {{ proposal.code }} - {{ proposal.name }}
           {% if proposal_is_finalized %}<span class="badge bg-secondary ms-1">Finalizada</span>{% endif %}
+          {% if session_period_locked %}<span class="badge bg-warning text-dark ms-1">Periodo cerrado</span>{% endif %}
         {% else %}
           <span class="text-muted">Sin propuesta</span>
         {% endif %}
@@ -84,14 +90,14 @@
       </div>
     </div>
 
-    {% if not proposal_is_finalized %}
+    {% if not session_read_only %}
     <div class="collapse mt-3{% if open_edit_session_form is defined and open_edit_session_form %} show{% endif %}" id="editSessionForm">
       <hr>
       <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2">
         <div class="col-md-2">
           <label class="form-label">Fecha *</label>
           <input type="date" class="form-control session-date-input" name="session_date" value="{{ session_edit_form.get('session_date', session.session_date) }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
-          <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}.</div>
+          <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
         </div>
         <div class="col-md-2">
           <label class="form-label">Propuesta</label>
@@ -242,7 +248,7 @@
                        name="present"
                        value="{{ pp.proposal_participant_id }}"
                        {% if pp.proposal_participant_id in attended_ids %}checked{% endif %}
-                       {% if not is_active or proposal_is_finalized %}disabled{% endif %}>
+                       {% if not is_active or session_read_only %}disabled{% endif %}>
               </td>
             </tr>
             {% endfor %}
@@ -263,10 +269,10 @@
         </tbody>
       </table>
 
-      {% if not proposal_is_finalized %}
+      {% if not session_read_only %}
       <button class="btn btn-success mt-2">Guardar Asistencia</button>
       {% else %}
-      <button class="btn btn-secondary mt-2" disabled>Propuesta finalizada (solo lectura)</button>
+      <button class="btn btn-secondary mt-2" disabled>Sesión en solo lectura</button>
       {% endif %}
     </div>
   </div>

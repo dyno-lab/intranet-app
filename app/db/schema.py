@@ -14,6 +14,9 @@ BEGIN
         finalized_at DATETIMEOFFSET NULL,
         finalized_by_user_id INT NULL,
         finalization_note VARCHAR(500) NULL,
+        locked_through_month INT NULL,
+        locked_through_year INT NULL,
+        period_lock_note VARCHAR(500) NULL,
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposals_updated_at DEFAULT SYSUTCDATETIME()
     );
 END;
@@ -40,6 +43,24 @@ IF COL_LENGTH('dbo.proposals', 'finalization_note') IS NULL
 BEGIN
     ALTER TABLE dbo.proposals
     ADD finalization_note VARCHAR(500) NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'locked_through_month') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD locked_through_month INT NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'locked_through_year') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD locked_through_year INT NULL;
+END;
+
+IF COL_LENGTH('dbo.proposals', 'period_lock_note') IS NULL
+BEGIN
+    ALTER TABLE dbo.proposals
+    ADD period_lock_note VARCHAR(500) NULL;
 END;
 
 IF COL_LENGTH('dbo.proposals', 'updated_at') IS NULL

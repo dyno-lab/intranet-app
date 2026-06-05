@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user
+from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
+from app.core.proposal_guard import is_proposal_finalized
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
@@ -2225,6 +2227,22 @@ def _build_visits_context(
         apply_period_filter=_apply_session_period_filter,
     )
 
+    proposal = db.get(Proposal, proposal_id) if proposal_id else None
+    visits_period_locked = False
+    visits_period_lock_message = None
+    if proposal and period["period_type"] == "monthly" and period["month"] and period["year"]:
+        if is_proposal_finalized(proposal):
+            visits_period_locked = True
+            visits_period_lock_message = "La propuesta está finalizada."
+        else:
+            locked_label = proposal_locked_through_label(proposal)
+            if locked_label:
+                try:
+                    require_proposal_period_open(proposal, period["month"], period["year"])
+                except HTTPException:
+                    visits_period_locked = True
+                    visits_period_lock_message = f"La propuesta tiene periodos cerrados hasta {locked_label}."
+
     return {
         **base_context,
         "selected_proposal_id": proposal_id,
@@ -2246,6 +2264,8 @@ def _build_visits_context(
         "referral_rows": payload["referral_rows"],
         "referral_count": payload["referral_count"],
         "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
+        "visits_period_locked": visits_period_locked,
+        "visits_period_lock_message": visits_period_lock_message,
     }
 
 
@@ -2292,6 +2312,28 @@ async def visits_report_save_referrals(
     if not proposal_id or not period_month or not period_year or not (selected_user or is_global):
         return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar propuesta, periodo y residencial.", status_code=303)
 
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Propuesta no encontrada.", status_code=303)
+    if is_proposal_finalized(proposal):
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={period_month}&year={period_year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Error: La propuesta está finalizada y no permite guardar referidos.",
+            status_code=303,
+        )
+    try:
+        require_reporting_period_not_future(period_month, period_year, message="Error: No se permiten periodos futuros para guardar referidos.")
+        require_proposal_period_open(
+            proposal,
+            period_month,
+            period_year,
+            message=f"Error: La propuesta tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite guardar referidos en ese periodo.",
+        )
+    except HTTPException as exc:
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={period_month}&year={period_year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg={exc.detail}",
+            status_code=303,
+        )
+
     report_owner_user_id = None if is_global else selected_user.user_id
     visit_report = get_or_create_visit_report(
         db,
@@ -2337,6 +2379,28 @@ def visits_report_delete(
 
     if not proposal_id or not month or not year or not (selected_user or is_global):
         return RedirectResponse("/ui/reports/visitas?msg=Error: Contexto inválido para eliminar informe.", status_code=303)
+
+    proposal = db.get(Proposal, proposal_id)
+    if not proposal:
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Propuesta no encontrada.", status_code=303)
+    if is_proposal_finalized(proposal):
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Error: La propuesta está finalizada y no permite borrar referidos.",
+            status_code=303,
+        )
+    try:
+        require_reporting_period_not_future(month, year, message="Error: No se permiten periodos futuros para borrar referidos.")
+        require_proposal_period_open(
+            proposal,
+            month,
+            year,
+            message=f"Error: La propuesta tiene periodos cerrados hasta {proposal_locked_through_label(proposal)} y no permite borrar referidos en ese periodo.",
+        )
+    except HTTPException as exc:
+        return RedirectResponse(
+            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg={exc.detail}",
+            status_code=303,
+        )
 
     if is_global:
         reports = get_visit_reports(
