@@ -1,0 +1,234 @@
+{% extends "ui/_base.html" %}
+{% block title %}Expediente{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+  <div>
+    <h4 class="mb-1">Expediente del Participante</h4>
+    <div class="text-muted small">Vista read-only para auditoría</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver</a>
+    <a class="btn btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar participante</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-start">
+      <div class="col-lg-3 col-md-6">
+        <div class="text-muted small">Número de expediente</div>
+        <div class="fw-semibold">{{ p.expediente_num }}</div>
+      </div>
+      <div class="col-lg-5 col-md-6">
+        <div class="text-muted small">Nombre completo</div>
+        <div class="fw-semibold">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
+      </div>
+      <div class="col-lg-2 col-md-6">
+        <div class="text-muted small">Estado</div>
+        {% if is_active %}
+          <span class="badge bg-success">Activo</span>
+        {% else %}
+          <span class="badge bg-danger">Inactivo</span>
+        {% endif %}
+      </div>
+      <div class="col-lg-2 col-md-6">
+        <div class="text-muted small">Jefe familia</div>
+        {% if is_head_of_household %}
+          <span class="badge bg-primary">✔ Jefe</span>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-light"><strong>Información general</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Fecha nacimiento</div>
+            <div>{{ p.fecha_nacimiento or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Edad</div>
+            <div>{{ age if age is not none else '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Género</div>
+            <div>{{ p.genero or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">VCA</div>
+            <div>{{ p.vca or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Primera vez</div>
+            <div>{{ p.primera_vez or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Estatus</div>
+            <div>{{ p.estatus or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Escolaridad</div>
+            <div>{{ p.escolaridad_participante or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Relación familiar</div>
+            <div>{{ p.relacion_familiar or '—' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-light"><strong>Información familiar / residencial</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Edificio</div>
+            <div>{{ p.edificio or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Apartamento</div>
+            <div>{{ p.apart or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Grupo familiar</div>
+            <div>{{ p.grupo_familiar or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Composición familiar</div>
+            <div>{{ p.composicion_familiar or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Fuente ingreso principal</div>
+            <div>{{ p.fuente_ingreso_principal or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Rango ingreso</div>
+            <div>{{ p.rango_ingreso or '—' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm my-4">
+  <div class="card-header bg-light"><strong>Campos configurables</strong></div>
+  <div class="card-body">
+    {% if profile_fields %}
+    <div class="row g-3">
+      {% for field in profile_fields %}
+      <div class="col-lg-3 col-md-6">
+        <div class="text-muted small">{{ field.label }}</div>
+        <div>{{ profile_values_by_field.get(field.participant_profile_field_id) or '—' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="text-muted">No hay campos configurables definidos.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <strong>Propuestas asociadas</strong>
+    <span class="badge bg-secondary">{{ proposal_participants|length }}</span>
+  </div>
+  <div class="card-body table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Propuesta</th>
+          <th>Nombre</th>
+          <th>Expediente snapshot</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for proposal_participant, proposal in proposal_participants %}
+        <tr>
+          <td>{{ proposal.code }}</td>
+          <td>{{ proposal.name }}</td>
+          <td>{{ proposal_participant.expediente_num or '—' }}</td>
+          <td>
+            {% if proposal_participant.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-muted text-center py-3">No hay propuestas asociadas.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <strong>Participación / asistencia</strong>
+    <span class="badge bg-secondary">{{ participation_rows|length }}</span>
+  </div>
+  <div class="card-body table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Actividad</th>
+          <th>Descripción</th>
+          <th>Propuesta</th>
+          <th>Empleado</th>
+          <th>Fuente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in participation_rows %}
+        <tr>
+          <td>{{ row.session.session_date }}</td>
+          <td>{{ row.activity_code.code }}</td>
+          <td>{{ row.activity_code.description or '—' }}</td>
+          <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% else %}—{% endif %}</td>
+          <td>{{ row.employee.full_name }}</td>
+          <td><span class="badge bg-light text-dark">{{ row.source }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-muted text-center py-3">No hay participación registrada.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4 border-info">
+  <div class="card-header bg-info-subtle"><strong>Documentos</strong></div>
+  <div class="card-body">
+    <div class="text-muted">La carga de documentos queda preparada como fase futura. Esta V1 es solo para auditoría read-only.</div>
+  </div>
+</div>
+
+{% endblock %}

@@ -408,6 +408,7 @@
             <td>{{ p.apart or '' }}</td>
             <td>{{ p.edificio or '' }}</td>
             <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="/ui/new-list/{{ p.participant_id }}/expediente">Expediente</a>
               <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
 
               {% if current_user and current_user.role in ["admin", "supervisor"] %}

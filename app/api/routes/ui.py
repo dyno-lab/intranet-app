@@ -30,6 +30,7 @@ from app.core.auth import get_current_user, require_admin, is_admin_or_superviso
 from app.services.participant_profile_fields import (
     build_profile_field_form_values,
     extract_profile_field_inputs,
+    load_all_profile_fields,
     load_active_new_list_fields,
     load_profile_field_presence_by_participants,
     load_participant_profile_values,
@@ -1052,6 +1053,41 @@ def export_participants_csv(
 
 
 # ============================================================
+# PARTICIPANT EXPEDIENTE / AUDIT PROFILE
+# ============================================================
+
+@router.get("/new-list/{participant_id}/expediente", response_class=HTMLResponse)
+def participant_expediente(
+    participant_id: int,
+    request: Request,
+    msg: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    p = db.execute(
+        select(Participant).where(Participant.participant_id == participant_id)
+    ).scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail="Participante no existe.")
+
+    _check_participant_access(p, current_user)
+
+    context = {
+        "request": request,
+        "p": p,
+        "age": _calc_age(p.fecha_nacimiento),
+        "current_user": current_user,
+        "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
+        "is_active": _is_participant_active(p),
+        "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
+        "msg": msg,
+    }
+    context.update(_load_participant_expediente_context(db, p))
+
+    return templates.TemplateResponse("ui/participant_expediente.html", context)
+
+
+# ============================================================
 # EDIT PARTICIPANT (FASE 1 + FASE 2)
 # ============================================================
 
@@ -1078,6 +1114,90 @@ def edit_participant_form(
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
         "msg": msg,
+    }
+
+
+def _load_participant_expediente_context(db: Session, participant: Participant):
+    profile_fields = load_all_profile_fields(db)
+    profile_values_by_field = build_profile_field_form_values(
+        profile_fields,
+        load_participant_profile_values(db, participant.participant_id),
+    )
+
+    person = db.execute(
+        select(Person).where(Person.legacy_participant_id == participant.participant_id)
+    ).scalar_one_or_none()
+
+    proposal_participants = []
+    if person:
+        proposal_participants = db.execute(
+            select(ProposalParticipant, Proposal)
+            .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
+            .where(ProposalParticipant.person_id == person.person_id)
+            .order_by(Proposal.code)
+        ).all()
+
+    participation_rows_by_attendance_id = {}
+
+    direct_attendance_rows = db.execute(
+        select(Attendance, ActivitySession, ActivityCode, Employee, Proposal)
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .join(Employee, Employee.employee_id == ActivitySession.employee_id)
+        .outerjoin(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
+        .where(
+            Attendance.participant_id == participant.participant_id,
+            Attendance.attended == True,  # noqa: E712
+        )
+    ).all()
+
+    for attendance, session, activity_code, employee, proposal in direct_attendance_rows:
+        participation_rows_by_attendance_id[attendance.attendance_id] = {
+            "attendance": attendance,
+            "session": session,
+            "activity_code": activity_code,
+            "employee": employee,
+            "proposal": proposal,
+            "source": "New-list directo",
+        }
+
+    if person:
+        proposal_attendance_rows = db.execute(
+            select(Attendance, ActivitySession, ActivityCode, Employee, Proposal, ProposalParticipant)
+            .join(ProposalParticipant, ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id)
+            .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+            .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+            .join(Employee, Employee.employee_id == ActivitySession.employee_id)
+            .outerjoin(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
+            .where(
+                ProposalParticipant.person_id == person.person_id,
+                Attendance.attended == True,  # noqa: E712
+            )
+        ).all()
+
+        for attendance, session, activity_code, employee, proposal, proposal_participant in proposal_attendance_rows:
+            participation_rows_by_attendance_id[attendance.attendance_id] = {
+                "attendance": attendance,
+                "session": session,
+                "activity_code": activity_code,
+                "employee": employee,
+                "proposal": proposal,
+                "proposal_participant": proposal_participant,
+                "source": "Propuesta",
+            }
+
+    participation_rows = sorted(
+        participation_rows_by_attendance_id.values(),
+        key=lambda row: (row["session"].session_date, row["session"].session_id),
+        reverse=True,
+    )
+
+    return {
+        "profile_fields": profile_fields,
+        "profile_values_by_field": profile_values_by_field,
+        "person": person,
+        "proposal_participants": proposal_participants,
+        "participation_rows": participation_rows,
     }
     context.update(_participant_form_catalogs(db))
     context.update(_participant_profile_context(db, participant_id=p.participant_id))
