@@ -93,16 +93,6 @@
         <input class="form-control" id="edad" readonly placeholder="Auto">
       </div>
 
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Estatus</label>
-        <select class="form-select" name="estatus">
-          <option value="">Selecciona</option>
-          {% for opt in estatus_options %}
-          <option value="{{ opt.value }}" {% if p.estatus == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
       <div class="col-lg-2 col-md-3">
         <label class="form-label">VCA</label>
         <select class="form-select" name="vca">
@@ -181,7 +171,7 @@
         </select>
       </div>
 
-      <div class="col-lg-3 col-md-4">
+      <div class="col-lg-4 col-md-6">
         <label class="form-label">Edificio</label>
         <input class="form-control" name="edificio" maxlength="50" value="{{ p.edificio or '' }}">
       </div>
@@ -192,7 +182,7 @@
       </div>
 
       {% for field in participant_profile_fields %}
-      <div class="col-lg-4 col-md-6">
+      <div class="col-lg-3 col-md-6">
         <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
         <input
           class="form-control"
@@ -210,7 +200,17 @@
       </div>
       {% endfor %}
 
-      <div class="col-lg-4 col-md-6">
+      <div class="col-lg-3 col-md-4">
+        <label class="form-label">Estatus</label>
+        <select class="form-select" name="estatus">
+          <option value="">Selecciona</option>
+          {% for opt in estatus_options %}
+          <option value="{{ opt.value }}" {% if p.estatus == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-lg-12 col-md-8">
         <label class="form-label d-block">Jefe de familia</label>
         <div class="form-check mt-2">
           <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household" {{ 'checked' if p.is_head_of_household }}>
