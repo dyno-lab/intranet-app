@@ -1115,6 +1115,10 @@ def edit_participant_form(
         "years": list(range(date.today().year - 2, date.today().year + 3)),
         "msg": msg,
     }
+    context.update(_participant_form_catalogs(db))
+    context.update(_participant_profile_context(db, participant_id=p.participant_id))
+
+    return templates.TemplateResponse("ui/edit_participant.html", context)
 
 
 def _load_participant_expediente_context(db: Session, participant: Participant):
@@ -1199,10 +1203,6 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
         "proposal_participants": proposal_participants,
         "participation_rows": participation_rows,
     }
-    context.update(_participant_form_catalogs(db))
-    context.update(_participant_profile_context(db, participant_id=p.participant_id))
-
-    return templates.TemplateResponse("ui/edit_participant.html", context)
 
 
 @router.post("/new-list/{participant_id}/edit")
