@@ -17,7 +17,7 @@
     <form method="post" class="row g-3 align-items-end">
 
 {% if phase2_expediente_enabled %}
-<div class="col-lg-2 col-md-3">
+<div class="col-lg-3 col-md-6">
   <label class="form-label">Año expediente *</label>
   <select class="form-select" name="exp_year" id="exp_year" required>
     <option value="">Selecciona</option>
@@ -27,18 +27,18 @@
   </select>
 </div>
 
-<div class="col-lg-2 col-md-3">
+<div class="col-lg-3 col-md-6">
   <label class="form-label">Siglas empleado *</label>
   <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
 </div>
 
-<div class="col-lg-2 col-md-3">
+<div class="col-lg-3 col-md-6">
   <label class="form-label">4 dígitos *</label>
   <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
   <div class="form-text">Único por Participante/Residencial</div>
 </div>
 
-<div class="col-lg-2 col-md-3">
+<div class="col-lg-3 col-md-6">
   <label class="form-label">Vista previa</label>
   <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
 </div>
