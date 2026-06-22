@@ -213,6 +213,91 @@ BEGIN
     ON dbo.catalog_options(catalog_type_id);
 END;
 
+IF OBJECT_ID(N'dbo.participant_profile_fields', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.participant_profile_fields (
+        participant_profile_field_id INT IDENTITY(1,1) PRIMARY KEY,
+        field_key VARCHAR(100) NOT NULL,
+        label VARCHAR(150) NOT NULL,
+        field_type VARCHAR(30) NOT NULL CONSTRAINT DF_participant_profile_fields_field_type DEFAULT 'text',
+        placeholder VARCHAR(150) NULL,
+        help_text VARCHAR(255) NULL,
+        validation_pattern VARCHAR(255) NULL,
+        is_required BIT NOT NULL CONSTRAINT DF_participant_profile_fields_is_required DEFAULT 0,
+        is_active BIT NOT NULL CONSTRAINT DF_participant_profile_fields_is_active DEFAULT 1,
+        sort_order INT NOT NULL CONSTRAINT DF_participant_profile_fields_sort_order DEFAULT 0,
+        applies_to_new_list BIT NOT NULL CONSTRAINT DF_participant_profile_fields_applies_to_new_list DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_participant_profile_fields_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_participant_profile_fields_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_participant_profile_fields_field_key UNIQUE (field_key)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_participant_profile_fields_field_key'
+      AND object_id = OBJECT_ID('dbo.participant_profile_fields')
+)
+BEGIN
+    CREATE INDEX IX_participant_profile_fields_field_key
+    ON dbo.participant_profile_fields(field_key);
+END;
+
+IF OBJECT_ID(N'dbo.participant_profile_field_values', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.participant_profile_field_values (
+        participant_profile_field_value_id INT IDENTITY(1,1) PRIMARY KEY,
+        participant_id INT NOT NULL,
+        participant_profile_field_id INT NOT NULL,
+        [value] VARCHAR(255) NULL,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_participant_profile_field_values_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_participant_profile_field_values_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_participant_profile_field_values_participant FOREIGN KEY (participant_id) REFERENCES dbo.participants(participant_id),
+        CONSTRAINT FK_participant_profile_field_values_field FOREIGN KEY (participant_profile_field_id) REFERENCES dbo.participant_profile_fields(participant_profile_field_id),
+        CONSTRAINT UQ_participant_profile_field_values_participant_field UNIQUE (participant_id, participant_profile_field_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_participant_profile_field_values_participant_id'
+      AND object_id = OBJECT_ID('dbo.participant_profile_field_values')
+)
+BEGIN
+    CREATE INDEX IX_participant_profile_field_values_participant_id
+    ON dbo.participant_profile_field_values(participant_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_participant_profile_field_values_field_id'
+      AND object_id = OBJECT_ID('dbo.participant_profile_field_values')
+)
+BEGIN
+    CREATE INDEX IX_participant_profile_field_values_field_id
+    ON dbo.participant_profile_field_values(participant_profile_field_id);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.participant_profile_fields WHERE field_key = 'telefono')
+BEGIN
+    INSERT INTO dbo.participant_profile_fields (
+        field_key, label, field_type, placeholder, help_text, validation_pattern, is_required, is_active, sort_order, applies_to_new_list
+    )
+    VALUES (
+        'telefono', 'Telefono', 'phone', '(XXX)-XXX-XXXX', 'Formato requerido: (XXX)-XXX-XXXX', '^\\([0-9]{3}\\)-[0-9]{3}-[0-9]{4}$', 0, 1, 10, 1
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.participant_profile_fields WHERE field_key = 'email')
+BEGIN
+    INSERT INTO dbo.participant_profile_fields (
+        field_key, label, field_type, placeholder, help_text, validation_pattern, is_required, is_active, sort_order, applies_to_new_list
+    )
+    VALUES (
+        'email', 'Email', 'email', 'email@email.com', 'Ingrese un correo electrónico válido.', NULL, 0, 1, 20, 1
+    );
+END;
+
 IF NOT EXISTS (SELECT 1 FROM dbo.catalog_types WHERE [key] = 'composicion_familiar')
 BEGIN
     INSERT INTO dbo.catalog_types ([key], [name], [description])

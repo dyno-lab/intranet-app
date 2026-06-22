@@ -7,6 +7,7 @@ from datetime import date, datetime
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from starlette.datastructures import FormData
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete, func, or_, case
 from math import ceil
@@ -26,6 +27,14 @@ from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
 
 from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
+from app.services.participant_profile_fields import (
+    build_profile_field_form_values,
+    extract_profile_field_inputs,
+    load_active_new_list_fields,
+    load_participant_profile_values,
+    save_profile_field_values,
+    validate_profile_field_inputs,
+)
 from app.core.config import settings
 from app.core.participant_household import require_head_of_household_allowed
 from app.core.proposal_guard import (
@@ -434,6 +443,20 @@ def _participant_form_catalogs(db: Session):
     }
 
 
+def _participant_profile_context(
+    db: Session,
+    participant_id: int | None = None,
+    form_values: dict[int, str] | None = None,
+):
+    profile_fields = load_active_new_list_fields(db)
+    stored_values = load_participant_profile_values(db, participant_id) if participant_id else {}
+    resolved_values = form_values if form_values is not None else build_profile_field_form_values(profile_fields, stored_values)
+    return {
+        "participant_profile_fields": profile_fields,
+        "participant_profile_form_values": resolved_values,
+    }
+
+
 ATTENDANCE_AGE_RANGE_OPTIONS = [
     {"value": "lt5", "label": "Menos de 5 años", "min": None, "max": 4},
     {"value": "6_7", "label": "6 – 7 años", "min": 6, "max": 7},
@@ -786,12 +809,13 @@ def new_list(
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
+    context.update(_participant_profile_context(db))
 
     return templates.TemplateResponse("ui/new_list.html", context)
 
 
 @router.post("/new-list/create")
-def create_participant(
+async def create_participant(
     expediente_num: str | None = Form(default=None),
     exp_year: int | None = Form(default=None),
     exp_employee_initials: str | None = Form(default=None),
@@ -814,6 +838,7 @@ def create_participant(
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
     is_head_of_household: str | None = Form(default=None),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -852,6 +877,13 @@ def create_participant(
     ).scalar_one_or_none()
     if exists:
         return _redirect_with_msg("/ui/new-list", "Error: El expediente ya existe.")
+
+    profile_fields = load_active_new_list_fields(db)
+    form_data: FormData = await request.form()
+    profile_field_values = extract_profile_field_inputs(form_data, profile_fields)
+    profile_field_errors = validate_profile_field_inputs(profile_fields, profile_field_values)
+    if profile_field_errors:
+        return _redirect_with_msg("/ui/new-list", profile_field_errors[0])
 
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
@@ -898,6 +930,8 @@ def create_participant(
         p.exp_seq4 = seq4
 
     db.add(p)
+    db.flush()
+    save_profile_field_values(db, p, profile_fields, profile_field_values)
     db.commit()
 
     return _redirect_with_msg("/ui/new-list", "Participante creado exitosamente.")
@@ -1037,12 +1071,13 @@ def edit_participant_form(
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
+    context.update(_participant_profile_context(db, participant_id=p.participant_id))
 
     return templates.TemplateResponse("ui/edit_participant.html", context)
 
 
 @router.post("/new-list/{participant_id}/edit")
-def edit_participant_save(
+async def edit_participant_save(
     participant_id: int,
     expediente_num: str | None = Form(default=None),
     exp_year: int | None = Form(default=None),
@@ -1066,6 +1101,7 @@ def edit_participant_save(
     fuente_ingreso_principal: str | None = Form(default=None),
     rango_ingreso: str | None = Form(default=None),
     is_head_of_household: str | None = Form(default=None),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1117,6 +1153,13 @@ def edit_participant_save(
     if exists:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El expediente ya existe.")
 
+    profile_fields = load_active_new_list_fields(db)
+    form_data: FormData = await request.form()
+    profile_field_values = extract_profile_field_inputs(form_data, profile_fields)
+    profile_field_errors = validate_profile_field_inputs(profile_fields, profile_field_values)
+    if profile_field_errors:
+        return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", profile_field_errors[0])
+
     normalized_estatus = (estatus or "").strip()
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
     marked_as_head_of_household = is_head_of_household == "on"
@@ -1161,6 +1204,7 @@ def edit_participant_save(
         p.exp_seq4 = seq4
 
     db.add(p)
+    save_profile_field_values(db, p, profile_fields, profile_field_values)
     db.commit()
 
     return _redirect_with_msg("/ui/new-list", "Participante actualizado exitosamente.")

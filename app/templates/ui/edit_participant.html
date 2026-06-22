@@ -191,6 +191,25 @@
         <input class="form-control" name="apart" maxlength="50" value="{{ p.apart or '' }}">
       </div>
 
+      {% for field in participant_profile_fields %}
+      <div class="col-lg-4 col-md-6">
+        <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
+        <input
+          class="form-control"
+          name="profile_field_{{ field.participant_profile_field_id }}"
+          value="{{ participant_profile_form_values.get(field.participant_profile_field_id, '') }}"
+          {% if field.field_type == 'email' %}type="email"{% else %}type="text"{% endif %}
+          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+          {% if field.validation_pattern %}pattern="{{ field.validation_pattern }}"{% endif %}
+          {% if field.field_type == 'phone' %}maxlength="14" inputmode="numeric"{% endif %}
+          {% if field.is_required %}required{% endif %}
+        >
+        {% if field.help_text %}
+        <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
       <div class="col-lg-4 col-md-6">
         <label class="form-label d-block">Jefe de familia</label>
         <div class="form-check mt-2">
@@ -260,6 +279,30 @@
   if (seqEl)  seqEl.addEventListener("input", updateExpPreview);
 
   updateExpPreview();
+})();
+</script>
+
+<script>
+(function () {
+  document.querySelectorAll('input[name^="profile_field_"]').forEach((input) => {
+    const pattern = input.getAttribute('pattern');
+    const isPhone = pattern === '^\\([0-9]{3}\\)-[0-9]{3}-[0-9]{4}$';
+    if (!isPhone) return;
+
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/\D/g, '').slice(0, 10);
+      if (!digits) {
+        input.value = '';
+        return;
+      }
+      const p1 = digits.slice(0, 3);
+      const p2 = digits.slice(3, 6);
+      const p3 = digits.slice(6, 10);
+      if (digits.length <= 3) input.value = p1;
+      else if (digits.length <= 6) input.value = `(${p1})-${p2}`;
+      else input.value = `(${p1})-${p2}-${p3}`;
+    });
+  });
 })();
 </script>
 {% endblock %}

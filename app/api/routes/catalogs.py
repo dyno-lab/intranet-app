@@ -12,7 +12,9 @@ from app.api.deps import get_db
 from app.core.auth import require_admin
 from app.models.catalog_type import CatalogType
 from app.models.catalog_option import CatalogOption
+from app.models.participant_profile_field import ParticipantProfileField
 from app.models.user import User
+from app.services.participant_profile_fields import normalize_profile_field_key, normalize_profile_field_type
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -49,6 +51,11 @@ def admin_catalogs(
             .order_by(CatalogOption.sort_order, CatalogOption.label)
         ).scalars().all()
 
+    participant_profile_fields = db.execute(
+        select(ParticipantProfileField)
+        .order_by(ParticipantProfileField.sort_order, ParticipantProfileField.label)
+    ).scalars().all()
+
     return templates.TemplateResponse(
         "ui/admin/catalogs.html",
         {
@@ -57,6 +64,12 @@ def admin_catalogs(
             "catalog_types": catalog_types,
             "selected_type": selected_type,
             "options": options,
+            "participant_profile_fields": participant_profile_fields,
+            "participant_profile_field_types": [
+                ("text", "Texto"),
+                ("email", "Email"),
+                ("phone", "Telefono"),
+            ],
             "msg": msg,
         },
     )
@@ -188,3 +201,87 @@ def edit_catalog_option(
         f"/ui/admin/catalogs?selected_type_id={option.catalog_type_id}&msg=Opción actualizada exitosamente.",
         status_code=303,
     )
+
+
+@router.post("/participant-profile-fields/create")
+def create_participant_profile_field(
+    field_key: str = Form(...),
+    label: str = Form(...),
+    field_type: str = Form("text"),
+    placeholder: str | None = Form(default=None),
+    help_text: str | None = Form(default=None),
+    validation_pattern: str | None = Form(default=None),
+    sort_order: int = Form(0),
+    is_required: str | None = Form(default=None),
+    is_active: str | None = Form(default=None),
+    applies_to_new_list: str | None = Form(default="on"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    normalized_key = normalize_profile_field_key(field_key)
+    existing = db.execute(
+        select(ParticipantProfileField).where(ParticipantProfileField.field_key == normalized_key)
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse("/ui/admin/catalogs?msg=Error: La clave del campo ya existe.", status_code=303)
+
+    profile_field = ParticipantProfileField(
+        field_key=normalized_key,
+        label=label.strip(),
+        field_type=normalize_profile_field_type(field_type),
+        placeholder=(placeholder or "").strip() or None,
+        help_text=(help_text or "").strip() or None,
+        validation_pattern=(validation_pattern or "").strip() or None,
+        sort_order=sort_order,
+        is_required=is_required == "on",
+        is_active=is_active == "on",
+        applies_to_new_list=applies_to_new_list == "on",
+    )
+    db.add(profile_field)
+    db.commit()
+    return RedirectResponse("/ui/admin/catalogs?msg=Campo de perfil creado exitosamente.", status_code=303)
+
+
+@router.post("/participant-profile-fields/{participant_profile_field_id}/edit")
+def edit_participant_profile_field(
+    participant_profile_field_id: int,
+    field_key: str = Form(...),
+    label: str = Form(...),
+    field_type: str = Form("text"),
+    placeholder: str | None = Form(default=None),
+    help_text: str | None = Form(default=None),
+    validation_pattern: str | None = Form(default=None),
+    sort_order: int = Form(0),
+    is_required: str | None = Form(default=None),
+    is_active: str | None = Form(default=None),
+    applies_to_new_list: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    profile_field = db.get(ParticipantProfileField, participant_profile_field_id)
+    if not profile_field:
+        return RedirectResponse("/ui/admin/catalogs?msg=Error: Campo de perfil no encontrado.", status_code=303)
+
+    normalized_key = normalize_profile_field_key(field_key)
+    existing = db.execute(
+        select(ParticipantProfileField).where(
+            ParticipantProfileField.field_key == normalized_key,
+            ParticipantProfileField.participant_profile_field_id != participant_profile_field_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return RedirectResponse("/ui/admin/catalogs?msg=Error: La clave del campo ya existe.", status_code=303)
+
+    profile_field.field_key = normalized_key
+    profile_field.label = label.strip()
+    profile_field.field_type = normalize_profile_field_type(field_type)
+    profile_field.placeholder = (placeholder or "").strip() or None
+    profile_field.help_text = (help_text or "").strip() or None
+    profile_field.validation_pattern = (validation_pattern or "").strip() or None
+    profile_field.sort_order = sort_order
+    profile_field.is_required = is_required == "on"
+    profile_field.is_active = is_active == "on"
+    profile_field.applies_to_new_list = applies_to_new_list == "on"
+    db.add(profile_field)
+    db.commit()
+    return RedirectResponse("/ui/admin/catalogs?msg=Campo de perfil actualizado exitosamente.", status_code=303)

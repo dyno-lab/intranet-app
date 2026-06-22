@@ -199,4 +199,162 @@
     {% endif %}
   </div>
 </div>
+
+<div class="card mt-4">
+  <div class="card-header bg-secondary text-white">
+    <strong>Campos configurables del perfil de participantes</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/ui/admin/catalogs/participant-profile-fields/create" class="row g-3 align-items-end mb-4">
+      <div class="col-md-2">
+        <label class="form-label">Clave</label>
+        <input type="text" class="form-control" name="field_key" placeholder="telefono" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Etiqueta</label>
+        <input type="text" class="form-control" name="label" placeholder="Telefono" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" name="field_type">
+          {% for value, label in participant_profile_field_types %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Placeholder</label>
+        <input type="text" class="form-control" name="placeholder">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Orden</label>
+        <input type="number" class="form-control" name="sort_order" value="0" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Patrón</label>
+        <input type="text" class="form-control" name="validation_pattern">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Ayuda</label>
+        <input type="text" class="form-control" name="help_text">
+      </div>
+      <div class="col-md-2">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" name="is_required" id="ppf-required-create">
+          <label class="form-check-label" for="ppf-required-create">Requerido</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" name="is_active" id="ppf-active-create" checked>
+          <label class="form-check-label" for="ppf-active-create">Activo</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" name="applies_to_new_list" id="ppf-new-list-create" checked>
+          <label class="form-check-label" for="ppf-new-list-create">Mostrar en New-list</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary w-100">Crear campo</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Clave</th>
+            <th>Etiqueta</th>
+            <th>Tipo</th>
+            <th>Orden</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for field in participant_profile_fields %}
+          <tr class="{{ 'text-muted' if not field.is_active }}">
+            <td>{{ field.field_key }}</td>
+            <td>{{ field.label }}</td>
+            <td>{{ field.field_type }}</td>
+            <td>{{ field.sort_order }}</td>
+            <td>
+              {% if field.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-danger">Inactivo</span>{% endif %}
+              {% if field.is_required %}<span class="badge bg-warning text-dark">Requerido</span>{% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-profile-field-{{ field.participant_profile_field_id }}">Editar</button>
+            </td>
+          </tr>
+          <tr class="collapse" id="edit-profile-field-{{ field.participant_profile_field_id }}">
+            <td colspan="6" class="bg-light">
+              <form method="post" action="/ui/admin/catalogs/participant-profile-fields/{{ field.participant_profile_field_id }}/edit" class="row g-2 align-items-end p-2">
+                <div class="col-md-2">
+                  <label class="form-label small">Clave</label>
+                  <input type="text" class="form-control form-control-sm" name="field_key" value="{{ field.field_key }}" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Etiqueta</label>
+                  <input type="text" class="form-control form-control-sm" name="label" value="{{ field.label }}" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Tipo</label>
+                  <select class="form-select form-select-sm" name="field_type">
+                    {% for value, label in participant_profile_field_types %}
+                    <option value="{{ value }}" {{ 'selected' if field.field_type == value else '' }}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Placeholder</label>
+                  <input type="text" class="form-control form-control-sm" name="placeholder" value="{{ field.placeholder or '' }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Orden</label>
+                  <input type="number" class="form-control form-control-sm" name="sort_order" value="{{ field.sort_order }}" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Patrón</label>
+                  <input type="text" class="form-control form-control-sm" name="validation_pattern" value="{{ field.validation_pattern or '' }}">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small">Ayuda</label>
+                  <input type="text" class="form-control form-control-sm" name="help_text" value="{{ field.help_text or '' }}">
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="is_required" id="required-{{ field.participant_profile_field_id }}" {{ 'checked' if field.is_required }}>
+                    <label class="form-check-label" for="required-{{ field.participant_profile_field_id }}">Requerido</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ field.participant_profile_field_id }}" {{ 'checked' if field.is_active }}>
+                    <label class="form-check-label" for="active-{{ field.participant_profile_field_id }}">Activo</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="applies_to_new_list" id="new-list-{{ field.participant_profile_field_id }}" {{ 'checked' if field.applies_to_new_list }}>
+                    <label class="form-check-label" for="new-list-{{ field.participant_profile_field_id }}">Mostrar en New-list</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-sm btn-success">Guardar</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-muted">No hay campos configurables del perfil todavía.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -37,6 +37,8 @@ import app.models.person  # noqa: F401
 import app.models.proposal_participant  # noqa: F401
 import app.models.activity_productivity_goal  # noqa: F401
 import app.models.report_template  # noqa: F401
+import app.models.participant_profile_field  # noqa: F401
+import app.models.participant_profile_field_value  # noqa: F401
 
 app = FastAPI(title="Intranet App")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
