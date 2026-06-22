@@ -31,6 +31,7 @@ from app.services.participant_profile_fields import (
     build_profile_field_form_values,
     extract_profile_field_inputs,
     load_active_new_list_fields,
+    load_profile_field_presence_by_participants,
     load_participant_profile_values,
     save_profile_field_values,
     validate_profile_field_inputs,
@@ -780,12 +781,20 @@ def new_list(
 
     participants = db.execute(stmt).scalars().all()
 
+    participant_profile_presence = load_profile_field_presence_by_participants(
+        db,
+        [p.participant_id for p in participants],
+        ["telefono", "email"],
+    )
+
     rows = [
         {
             "p": p,
             "age": _calc_age(p.fecha_nacimiento),
             "is_active": _is_participant_active(p),
             "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
+            "has_phone": participant_profile_presence.get(p.participant_id, {}).get("telefono", False),
+            "has_email": participant_profile_presence.get(p.participant_id, {}).get("email", False),
         }
         for p in participants
     ]

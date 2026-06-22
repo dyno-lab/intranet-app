@@ -45,6 +45,41 @@ def load_participant_profile_values(db: Session, participant_id: int) -> dict[in
     return {row.participant_profile_field_id: row for row in rows}
 
 
+def load_profile_field_presence_by_participants(
+    db: Session,
+    participant_ids: list[int],
+    field_keys: list[str],
+) -> dict[int, dict[str, bool]]:
+    result = {
+        participant_id: {field_key: False for field_key in field_keys}
+        for participant_id in participant_ids
+    }
+    if not participant_ids or not field_keys:
+        return result
+
+    rows = db.execute(
+        select(
+            ParticipantProfileFieldValue.participant_id,
+            ParticipantProfileField.field_key,
+            ParticipantProfileFieldValue.value,
+        )
+        .join(
+            ParticipantProfileField,
+            ParticipantProfileField.participant_profile_field_id == ParticipantProfileFieldValue.participant_profile_field_id,
+        )
+        .where(
+            ParticipantProfileFieldValue.participant_id.in_(participant_ids),
+            ParticipantProfileField.field_key.in_(field_keys),
+        )
+    ).all()
+
+    for participant_id, field_key, value in rows:
+        if participant_id in result and field_key in result[participant_id]:
+            result[participant_id][field_key] = bool((value or "").strip())
+
+    return result
+
+
 def build_profile_field_form_values(
     fields: list[ParticipantProfileField],
     stored_values: dict[int, ParticipantProfileFieldValue] | None = None,

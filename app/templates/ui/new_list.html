@@ -359,6 +359,8 @@
           <th>Género</th>
           <th>Estado</th>
           <th>Jefe familia</th>
+          <th>Tel.</th>
+          <th>Email</th>
           <th>Apt</th>
           <th>Edificio</th>
           <th class="text-end">Acciones</th>
@@ -389,6 +391,20 @@
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
+            <td>
+              {% if r.has_phone %}
+                <span class="badge bg-success">✔</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.has_email %}
+                <span class="badge bg-success">✔</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>{{ p.apart or '' }}</td>
             <td>{{ p.edificio or '' }}</td>
             <td class="text-end">
@@ -406,7 +422,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="11" class="text-muted text-center py-4">
+            <td colspan="13" class="text-muted text-center py-4">
               No hay participantes que coincidan con los filtros seleccionados.
             </td>
           </tr>
