@@ -103,6 +103,10 @@
                       data-bs-toggle="collapse" data-bs-target="#edit-proposal-{{ proposal.proposal_id }}">
                 Editar
               </button>
+              <button class="btn btn-sm btn-outline-success" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#copy-proposal-{{ proposal.proposal_id }}">
+                Copiar propuesta
+              </button>
               <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
                 Participantes
               </a>
@@ -113,11 +117,41 @@
               <a class="btn btn-sm btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">
                 Ver participantes
               </a>
+              <button class="btn btn-sm btn-outline-success" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#copy-proposal-{{ proposal.proposal_id }}">
+                Copiar propuesta
+              </button>
               <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/reopen" class="mb-0" onsubmit="return confirm('¿Reabrir esta propuesta? Volverá a permitir operación.');">
                 <button type="submit" class="btn btn-sm btn-outline-warning">Reabrir</button>
               </form>
             </div>
             {% endif %}
+          </td>
+        </tr>
+        <tr class="collapse" id="copy-proposal-{{ proposal.proposal_id }}">
+          <td colspan="8" class="bg-light">
+            <form method="post" action="/ui/admin/proposals/{{ proposal.proposal_id }}/copy" class="row g-2 align-items-end p-2" onsubmit="return confirm('Copiar esta propuesta como una propuesta nueva? Se copiaran configuraciones administrativas, no sesiones ni asistencias.');">
+              <div class="col-md-2">
+                <label class="form-label small">Nuevo codigo</label>
+                <input type="text" class="form-control form-control-sm" name="code" placeholder="Ej. {{ proposal.code }}-EXT" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Nuevo nombre</label>
+                <input type="text" class="form-control form-control-sm" name="name" value="{{ proposal.name }} - copia" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Descripcion</label>
+                <input type="text" class="form-control form-control-sm" name="description" value="{{ proposal.description or '' }}">
+              </div>
+              <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-success">Crear copia</button>
+                <button type="button" class="btn btn-sm btn-secondary"
+                        data-bs-toggle="collapse" data-bs-target="#copy-proposal-{{ proposal.proposal_id }}">Cancelar</button>
+              </div>
+              <div class="col-md-12">
+                <div class="form-text">Copia actividades asignadas, programas, poblaciones, VCA, ADM, visitas, metas y plantillas. No copia participantes, sesiones, asistencias ni reportes operativos.</div>
+              </div>
+            </form>
           </td>
         </tr>
         <tr class="collapse" id="edit-proposal-{{ proposal.proposal_id }}">
