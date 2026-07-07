@@ -83,6 +83,23 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
 
 VALID_PRODUCTIVITY_GOAL_TYPES = {value for value, _ in PRODUCTIVITY_GOAL_TYPE_OPTIONS}
 
+PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
+    ("none", "Sin meta productiva"),
+    ("per_residential_min_1", "Según Necesidad"),
+    ("per_residential_fixed", "Cantidad fija por residencial por mes"),
+    ("per_residential_period_fixed", "Acumulada por período"),
+]
+
+
+def _clean_productivity_text(value: str) -> str:
+    return (
+        value.replace("SegÃƒÂºn", "Según")
+        .replace("perÃƒÂ­odo", "período")
+        .replace("PerÃƒÂ­odo", "Período")
+        .replace("nÃƒÂºmero", "número")
+        .replace("invÃƒÂ¡lido", "inválido")
+    )
+
 
 def _redirect_with_msg(url: str, msg: str):
     separator = "&" if "?" in url else "?"
@@ -211,7 +228,7 @@ def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | 
     if goal.period_goal_value:
         parts.append(f"{goal.period_goal_value} global / perÃ­odo")
 
-    return " + ".join(parts) if parts else "Sin meta productiva"
+    return _clean_productivity_text(" + ".join(parts)) if parts else "Sin meta productiva"
 
 
 def _upsert_activity_productivity_goal(
@@ -1147,7 +1164,7 @@ def admin_create_activity_code(
             normalized_proposal_id,
         )
     except ValueError as exc:
-        return _redirect_with_msg("/ui/admin/activity-codes", str(exc))
+        return _redirect_with_msg("/ui/admin/activity-codes", _clean_productivity_text(str(exc)))
 
     ac = ActivityCode(
         code=code.strip(),
@@ -1225,7 +1242,7 @@ def admin_edit_activity_code(
         )
     except ValueError as exc:
         return RedirectResponse(
-            f"/ui/admin/activity-codes?msg={quote_plus(str(exc))}",
+            f"/ui/admin/activity-codes?msg={quote_plus(_clean_productivity_text(str(exc)))}",
             status_code=303,
         )
 
