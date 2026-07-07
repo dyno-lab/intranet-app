@@ -114,7 +114,7 @@
           <label class="form-label">Código de actividad *</label>
           <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
             {% for c in activity_codes %}
-              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
+              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
                 {{ c.code }} - {{ c.description or '' }}
               </option>
             {% endfor %}
@@ -345,7 +345,8 @@
 
       options.forEach((option) => {
         const optionProposal = option.dataset.proposalId || '';
-        const allowed = optionProposal === selectedProposal;
+        const optionProposals = (option.dataset.proposalIds || '').split(',').filter(Boolean);
+        const allowed = selectedProposal ? optionProposals.includes(selectedProposal) : optionProposal === '';
         option.hidden = !allowed;
         if (!allowed && option.selected) {
           activitySelect.value = '';

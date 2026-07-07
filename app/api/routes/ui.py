@@ -50,7 +50,7 @@ from app.core.period_guard import (
     require_session_date_not_future,
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
-from app.services.activity_proposals import load_activity_codes_for_proposal
+from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -385,7 +385,7 @@ def _sort_activity_codes(activity_codes: list[ActivityCode]) -> list[ActivityCod
 
 def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
     activity_codes = load_activity_codes_for_proposal(db, proposal_id, active_only=active_only)
-    return _sort_activity_codes(activity_codes)
+    return _sort_activity_codes(attach_activity_assigned_proposal_ids(db, activity_codes))
 
 
 def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
@@ -622,6 +622,7 @@ def _render_listado_selector(
             select(ActivityCode).where(ActivityCode.is_active == True)  # noqa: E712
         ).scalars().all()
     )
+    activity_codes = attach_activity_assigned_proposal_ids(db, activity_codes)
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()

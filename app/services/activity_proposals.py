@@ -88,3 +88,24 @@ def load_activity_codes_for_proposal(
         )
 
     return list(db.execute(stmt).scalars().all())
+
+
+def attach_activity_assigned_proposal_ids(db: Session, activity_codes: list[ActivityCode]) -> list[ActivityCode]:
+    activity_ids = [activity.activity_code_id for activity in activity_codes]
+    assigned_by_activity: dict[int, set[int]] = {activity_id: set() for activity_id in activity_ids}
+    if activity_ids:
+        rows = db.execute(
+            select(ProposalActivityCode.activity_code_id, ProposalActivityCode.proposal_id).where(
+                ProposalActivityCode.activity_code_id.in_(activity_ids),
+                ProposalActivityCode.is_active == True,  # noqa: E712
+            )
+        ).all()
+        for activity_code_id, proposal_id in rows:
+            assigned_by_activity.setdefault(activity_code_id, set()).add(proposal_id)
+
+    for activity in activity_codes:
+        if activity.proposal_id:
+            assigned_by_activity.setdefault(activity.activity_code_id, set()).add(activity.proposal_id)
+        setattr(activity, "assigned_proposal_ids", sorted(assigned_by_activity.get(activity.activity_code_id, set())))
+
+    return activity_codes
