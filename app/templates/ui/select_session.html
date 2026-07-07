@@ -121,7 +121,7 @@
         <select class="form-select" name="activity_code_id" id="activity_code_select" required>
           <option value="">Selecciona...</option>
           {% for c in activity_codes %}
-            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
+            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
           {% endfor %}
         </select>
         <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales. No se permiten fechas futuras.</div>
@@ -327,7 +327,8 @@
         return;
       }
       const optionProposal = option.dataset.proposalId || '';
-      const allowed = optionProposal === selectedProposal;
+      const optionProposals = (option.dataset.proposalIds || '').split(',').filter(Boolean);
+      const allowed = selectedProposal ? optionProposals.includes(selectedProposal) : optionProposal === '';
       option.hidden = !allowed;
       if (!allowed && option.selected) {
         activitySelect.value = '';
