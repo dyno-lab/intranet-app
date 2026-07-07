@@ -94,11 +94,24 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
 def _clean_productivity_text(value: str) -> str:
     return (
         value.replace("SegÃƒÂºn", "Según")
+        .replace("SegÃºn", "Según")
         .replace("perÃƒÂ­odo", "período")
+        .replace("perÃ­odo", "período")
         .replace("PerÃƒÂ­odo", "Período")
+        .replace("PerÃ­odo", "Período")
         .replace("nÃƒÂºmero", "número")
+        .replace("nÃºmero", "número")
         .replace("invÃƒÂ¡lido", "inválido")
+        .replace("invÃ¡lido", "inválido")
     )
+
+
+PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
+    ("none", "Sin meta productiva"),
+    ("per_residential_min_1", "Seg\u00fan Necesidad"),
+    ("per_residential_fixed", "Cantidad fija por residencial por mes"),
+    ("per_residential_period_fixed", "Acumulada por per\u00edodo"),
+]
 
 
 def _redirect_with_msg(url: str, msg: str):
