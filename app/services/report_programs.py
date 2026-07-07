@@ -10,6 +10,7 @@ from app.models.proposal_report_program_population import ProposalReportProgramP
 from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.activity_code import ActivityCode
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
+from app.services.activity_proposals import load_activity_codes_for_proposal
 
 
 def program_display_name(program: ProposalReportProgram) -> str:
@@ -132,11 +133,10 @@ def resolve_effective_program_population_blocks(db: Session, proposal_id: int) -
     ).scalars().all()
     population_group_by_id = {group.population_group_id: group for group in population_groups}
 
-    activity_codes = db.execute(
-        select(ActivityCode)
-        .where(ActivityCode.proposal_id == proposal_id)
-        .order_by(ActivityCode.code)
-    ).scalars().all()
+    activity_codes = sorted(
+        load_activity_codes_for_proposal(db, proposal_id, active_only=False),
+        key=lambda activity: activity.code,
+    )
     activity_code_by_id = {activity.activity_code_id: activity for activity in activity_codes}
 
     program_ids = [program.program_id for program in programs]
