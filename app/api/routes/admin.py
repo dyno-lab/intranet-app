@@ -1035,6 +1035,11 @@ def admin_activity_codes(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    goal_proposal_filter = (
+        ActivityProductivityGoal.proposal_id == proposal_id
+        if proposal_id
+        else ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id
+    )
     codes_stmt = (
         select(
             ActivityCode,
@@ -1046,7 +1051,7 @@ def admin_activity_codes(
         .outerjoin(
             ActivityProductivityGoal,
             (ActivityProductivityGoal.activity_code_id == ActivityCode.activity_code_id)
-            & (ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id),
+            & goal_proposal_filter,
         )
     )
 
@@ -1063,6 +1068,33 @@ def admin_activity_codes(
     codes = db.execute(
         codes_stmt.order_by(ActivityCode.code)
     ).all()
+    activity_code_ids = [row[0].activity_code_id for row in codes]
+    assigned_proposals_by_activity: dict[int, list[Proposal]] = {}
+    if activity_code_ids:
+        assignment_rows = db.execute(
+            select(ProposalActivityCode, Proposal)
+            .join(Proposal, Proposal.proposal_id == ProposalActivityCode.proposal_id)
+            .where(
+                ProposalActivityCode.activity_code_id.in_(activity_code_ids),
+                ProposalActivityCode.is_active == True,  # noqa: E712
+            )
+            .order_by(Proposal.code)
+        ).all()
+        for assignment, proposal in assignment_rows:
+            assigned_proposals_by_activity.setdefault(assignment.activity_code_id, []).append(proposal)
+
+    for activity, proposal_code, proposal_name, _ in codes:
+        assigned_proposals = assigned_proposals_by_activity.get(activity.activity_code_id, [])
+        if activity.proposal_id and not any(proposal.proposal_id == activity.proposal_id for proposal in assigned_proposals):
+            assigned_proposals.append(
+                Proposal(
+                    proposal_id=activity.proposal_id,
+                    code=proposal_code or "",
+                    name=proposal_name or "",
+                )
+            )
+        setattr(activity, "assigned_proposals", assigned_proposals)
+
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
 
@@ -1199,7 +1231,8 @@ def admin_edit_activity_code(
 
     ac.code = code.strip()
     ac.description = description
-    ac.proposal_id = normalized_proposal_id
+    if ac.proposal_id is None and normalized_proposal_id is not None:
+        ac.proposal_id = normalized_proposal_id
     ac.is_active = is_active == "on"
 
     db.add(ac)
@@ -1993,18 +2026,16 @@ def admin_copy_proposal(
     db.add(target)
     db.flush()
 
-    source_activity_assignments = db.execute(
-        select(ProposalActivityCode).where(ProposalActivityCode.proposal_id == source.proposal_id)
-    ).scalars().all()
     copied_activity_ids: set[int] = set()
-    for assignment in source_activity_assignments:
+    source_activity_rows = load_activity_codes_for_proposal(db, source.proposal_id, active_only=False)
+    for activity in source_activity_rows:
         ensure_activity_assigned_to_proposal(
             db,
-            assignment.activity_code_id,
+            activity.activity_code_id,
             target.proposal_id,
-            is_active=assignment.is_active,
+            is_active=activity.is_active,
         )
-        copied_activity_ids.add(assignment.activity_code_id)
+        copied_activity_ids.add(activity.activity_code_id)
 
     legacy_activity_rows = db.execute(
         select(ActivityCode).where(ActivityCode.proposal_id == source.proposal_id)
