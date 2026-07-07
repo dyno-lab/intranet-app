@@ -50,6 +50,7 @@ from app.core.period_guard import (
     require_session_date_not_future,
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
+from app.services.activity_proposals import load_activity_codes_for_proposal
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -383,16 +384,7 @@ def _sort_activity_codes(activity_codes: list[ActivityCode]) -> list[ActivityCod
 
 
 def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
-    stmt = select(ActivityCode)
-    if active_only:
-        stmt = stmt.where(ActivityCode.is_active == True)  # noqa: E712
-
-    if proposal_id is None:
-        stmt = stmt.where(ActivityCode.proposal_id.is_(None))
-    else:
-        stmt = stmt.where(ActivityCode.proposal_id == proposal_id)
-
-    activity_codes = db.execute(stmt).scalars().all()
+    activity_codes = load_activity_codes_for_proposal(db, proposal_id, active_only=active_only)
     return _sort_activity_codes(activity_codes)
 
 
@@ -1689,7 +1681,7 @@ def create_session_ui(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg("/ui/listado", "Error: El código de actividad seleccionado no existe.")
-    if not activity_code_allowed_for_proposal(activity_code, proposal_id):
+    if not activity_code_allowed_for_proposal(db, activity_code, proposal_id):
         return _redirect_with_msg("/ui/listado", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s = ActivitySession(
@@ -2069,7 +2061,7 @@ def edit_session(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
-    if not activity_code_allowed_for_proposal(activity_code, s.proposal_id):
+    if not activity_code_allowed_for_proposal(db, activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     s.session_date = parsed_session_date
