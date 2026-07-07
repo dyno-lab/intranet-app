@@ -229,6 +229,39 @@
                         data-bs-toggle="collapse" data-bs-target="#edit-ac-{{ ac.activity_code_id }}">Cancelar</button>
               </div>
             </form>
+            <div class="border-top mt-2 pt-2">
+              <div class="small fw-semibold mb-2">Asignaciones de propuesta</div>
+              {% if ac.assigned_proposals %}
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                {% for assigned_proposal in ac.assigned_proposals %}
+                <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/unassign-proposal" class="d-inline" onsubmit="return confirm('Quitar esta actividad de {{ assigned_proposal.code }}?');">
+                  <input type="hidden" name="proposal_id" value="{{ assigned_proposal.proposal_id }}">
+                  <input type="hidden" name="return_proposal_id" value="{{ selected_proposal_id or '' }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">{{ assigned_proposal.code }} &times;</button>
+                </form>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="small text-muted mb-2">Esta actividad no tiene propuestas asignadas.</div>
+              {% endif %}
+              <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/assign-proposal" class="row g-2 align-items-end">
+                <input type="hidden" name="return_proposal_id" value="{{ selected_proposal_id or '' }}">
+                <div class="col-md-4">
+                  <label class="form-label small">Asignar a otra propuesta</label>
+                  <select class="form-select form-select-sm" name="proposal_id" required>
+                    <option value="">Selecciona...</option>
+                    {% for proposal in proposals %}
+                      {% if proposal.proposal_id not in ac.assigned_proposal_ids %}
+                      <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-sm btn-outline-success">Asignar propuesta</button>
+                </div>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}

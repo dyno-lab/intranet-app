@@ -1111,6 +1111,7 @@ def admin_activity_codes(
                 )
             )
         setattr(activity, "assigned_proposals", assigned_proposals)
+        setattr(activity, "assigned_proposal_ids", {proposal.proposal_id for proposal in assigned_proposals})
 
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
@@ -1272,6 +1273,69 @@ def admin_edit_activity_code(
         "/ui/admin/activity-codes?msg=CÃ³digo de actividad actualizado exitosamente.",
         status_code=303,
     )
+
+
+@router.post("/activity-codes/{activity_code_id}/assign-proposal")
+def admin_assign_activity_code_to_proposal(
+    activity_code_id: int,
+    proposal_id: int = Form(...),
+    return_proposal_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    return_proposal_id_int = int(return_proposal_id) if return_proposal_id and return_proposal_id.strip() else None
+    redirect_url = f"/ui/admin/activity-codes?proposal_id={return_proposal_id_int}" if return_proposal_id_int else "/ui/admin/activity-codes"
+    if not activity or not proposal:
+        return _redirect_with_msg(redirect_url, "Error: Actividad o propuesta no encontrada.")
+
+    ensure_activity_assigned_to_proposal(db, activity.activity_code_id, proposal.proposal_id, is_active=True)
+    if activity.proposal_id is None:
+        activity.proposal_id = proposal.proposal_id
+        db.add(activity)
+    db.commit()
+
+    return _redirect_with_msg(redirect_url, "Actividad asignada a la propuesta exitosamente.")
+
+
+@router.post("/activity-codes/{activity_code_id}/unassign-proposal")
+def admin_unassign_activity_code_from_proposal(
+    activity_code_id: int,
+    proposal_id: int = Form(...),
+    return_proposal_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    return_proposal_id_int = int(return_proposal_id) if return_proposal_id and return_proposal_id.strip() else None
+    redirect_url = f"/ui/admin/activity-codes?proposal_id={return_proposal_id_int}" if return_proposal_id_int else "/ui/admin/activity-codes"
+    if not activity or not proposal:
+        return _redirect_with_msg(redirect_url, "Error: Actividad o propuesta no encontrada.")
+
+    assignment = db.execute(
+        select(ProposalActivityCode).where(
+            ProposalActivityCode.activity_code_id == activity_code_id,
+            ProposalActivityCode.proposal_id == proposal_id,
+        )
+    ).scalar_one_or_none()
+    if assignment:
+        db.delete(assignment)
+
+    if activity.proposal_id == proposal_id:
+        activity.proposal_id = None
+        db.add(activity)
+
+    db.execute(
+        delete(ActivityProductivityGoal).where(
+            ActivityProductivityGoal.activity_code_id == activity_code_id,
+            ActivityProductivityGoal.proposal_id == proposal_id,
+        )
+    )
+    db.commit()
+
+    return _redirect_with_msg(redirect_url, "Actividad removida de la propuesta exitosamente.")
 
 
 @router.post("/activity-codes/{activity_code_id}/delete")
