@@ -122,6 +122,7 @@ BEGIN
     ADD control_number VARCHAR(64) NULL;
 END;
 
+EXEC(N'
 UPDATE s
 SET s.control_number = UPPER(LTRIM(RTRIM(e.employee_code)))
     + CAST(s.session_id AS VARCHAR(20))
@@ -130,7 +131,8 @@ FROM dbo.activity_sessions s
 INNER JOIN dbo.employees e ON e.employee_id = s.employee_id
 WHERE s.control_number IS NULL
   AND e.employee_code IS NOT NULL
-  AND LTRIM(RTRIM(e.employee_code)) <> '';
+  AND LTRIM(RTRIM(e.employee_code)) <> '''';
+');
 
 IF NOT EXISTS (
     SELECT 1
@@ -139,9 +141,11 @@ IF NOT EXISTS (
       AND object_id = OBJECT_ID('dbo.activity_sessions')
 )
 BEGIN
+    EXEC(N'
     CREATE UNIQUE INDEX UX_activity_sessions_control_number
     ON dbo.activity_sessions(control_number)
     WHERE control_number IS NOT NULL;
+    ');
 END;
 
 IF COL_LENGTH('dbo.participants', 'is_active') IS NULL
