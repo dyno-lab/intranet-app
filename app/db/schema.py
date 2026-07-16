@@ -124,14 +124,13 @@ END;
 
 EXEC(N'
 UPDATE s
-SET s.control_number = UPPER(LTRIM(RTRIM(e.employee_code)))
+SET s.control_number = UPPER(LTRIM(RTRIM(u.username)))
     + CAST(s.session_id AS VARCHAR(20))
     + CAST(YEAR(s.session_date) AS VARCHAR(4))
 FROM dbo.activity_sessions s
-INNER JOIN dbo.employees e ON e.employee_id = s.employee_id
-WHERE s.control_number IS NULL
-  AND e.employee_code IS NOT NULL
-  AND LTRIM(RTRIM(e.employee_code)) <> '''';
+INNER JOIN dbo.users u ON u.user_id = s.created_by_user_id
+WHERE u.username IS NOT NULL
+  AND LTRIM(RTRIM(u.username)) <> '''';
 ');
 
 IF NOT EXISTS (

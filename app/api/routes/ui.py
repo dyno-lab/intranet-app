@@ -507,9 +507,9 @@ def _redirect_with_msg(url: str, msg: str):
     return RedirectResponse(f"{url}{separator}msg={msg}", status_code=303)
 
 
-def _build_session_control_number(employee_code: str, session_id: int, session_date: date) -> str:
-    normalized_employee_code = employee_code.strip().upper()
-    return f"{normalized_employee_code}{session_id}{session_date.year}"
+def _build_session_control_number(user_code: str, session_id: int, session_date: date) -> str:
+    normalized_user_code = user_code.strip().upper()
+    return f"{normalized_user_code}{session_id}{session_date.year}"
 
 
 def _build_sessions_stmt(current_user: User):
@@ -1715,8 +1715,8 @@ def create_session_ui(
     employee = db.get(Employee, employee_id)
     if not employee:
         return _redirect_with_msg("/ui/listado", "Error: El empleado seleccionado no existe.")
-    if not employee.employee_code or not employee.employee_code.strip():
-        return _redirect_with_msg("/ui/listado", "Error: El empleado seleccionado no tiene codigo para generar el numero de control.")
+    if not current_user.username or not current_user.username.strip():
+        return _redirect_with_msg("/ui/listado", "Error: El usuario actual no tiene codigo para generar el numero de control.")
 
     s = ActivitySession(
         session_date=parsed_session_date,
@@ -1730,7 +1730,7 @@ def create_session_ui(
     db.add(s)
     db.flush()
     s.control_number = _build_session_control_number(
-        employee_code=employee.employee_code,
+        user_code=current_user.username,
         session_id=s.session_id,
         session_date=parsed_session_date,
     )
@@ -2105,6 +2105,14 @@ def edit_session(
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
     if not activity_code_allowed_for_proposal(db, activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
+
+    creator_user = db.get(User, s.created_by_user_id) if s.created_by_user_id else None
+    if creator_user and creator_user.username and creator_user.username.strip():
+        s.control_number = _build_session_control_number(
+            user_code=creator_user.username,
+            session_id=s.session_id,
+            session_date=parsed_session_date,
+        )
 
     s.session_date = parsed_session_date
     s.activity_code_id = activity_code_id
