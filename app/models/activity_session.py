@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, date
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, func, Integer
+from sqlalchemy import Date, DateTime, Float, ForeignKey, func, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -12,6 +12,7 @@ class ActivitySession(Base):
     __tablename__ = "activity_sessions"
 
     session_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    control_number: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
 
     # Ownership (para roles/aislamiento)
     created_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)

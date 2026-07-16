@@ -116,6 +116,34 @@ BEGIN
     ON dbo.activity_sessions(proposal_id);
 END;
 
+IF COL_LENGTH('dbo.activity_sessions', 'control_number') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_sessions
+    ADD control_number VARCHAR(64) NULL;
+END;
+
+UPDATE s
+SET s.control_number = UPPER(LTRIM(RTRIM(e.employee_code)))
+    + CAST(s.session_id AS VARCHAR(20))
+    + CAST(YEAR(s.session_date) AS VARCHAR(4))
+FROM dbo.activity_sessions s
+INNER JOIN dbo.employees e ON e.employee_id = s.employee_id
+WHERE s.control_number IS NULL
+  AND e.employee_code IS NOT NULL
+  AND LTRIM(RTRIM(e.employee_code)) <> '';
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_activity_sessions_control_number'
+      AND object_id = OBJECT_ID('dbo.activity_sessions')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_activity_sessions_control_number
+    ON dbo.activity_sessions(control_number)
+    WHERE control_number IS NOT NULL;
+END;
+
 IF COL_LENGTH('dbo.participants', 'is_active') IS NULL
 BEGIN
     ALTER TABLE dbo.participants
