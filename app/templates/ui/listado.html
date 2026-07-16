@@ -51,6 +51,9 @@
     </div>
 
     <div class="row g-2">
+      <div class="col-md-3">
+        <strong>Numero de control:</strong> {{ session.control_number or '-' }}
+      </div>
       <div class="col-md-2">
         <strong>Fecha:</strong> {{ session.session_date }}
       </div>
