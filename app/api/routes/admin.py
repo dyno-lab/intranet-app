@@ -30,6 +30,7 @@ from app.models.proposal import Proposal
 from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
+from app.models.proposal_activity_code import ProposalActivityCode
 from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.residential import Residential
@@ -55,6 +56,12 @@ from app.services.report_programs import (
     activity_code_is_assigned_anywhere_in_proposal as _activity_code_is_assigned_anywhere_in_proposal,
 )
 from app.services.hoja_cotejo_admin_service import build_hoja_cotejo_admin_context
+from app.services.activity_proposals import (
+    activity_code_assigned_to_proposal,
+    activity_code_allowed_for_proposal,
+    ensure_activity_assigned_to_proposal,
+    load_activity_codes_for_proposal,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -75,6 +82,36 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
 ]
 
 VALID_PRODUCTIVITY_GOAL_TYPES = {value for value, _ in PRODUCTIVITY_GOAL_TYPE_OPTIONS}
+
+PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
+    ("none", "Sin meta productiva"),
+    ("per_residential_min_1", "Según Necesidad"),
+    ("per_residential_fixed", "Cantidad fija por residencial por mes"),
+    ("per_residential_period_fixed", "Acumulada por período"),
+]
+
+
+def _clean_productivity_text(value: str) -> str:
+    return (
+        value.replace("SegÃƒÂºn", "Según")
+        .replace("SegÃºn", "Según")
+        .replace("perÃƒÂ­odo", "período")
+        .replace("perÃ­odo", "período")
+        .replace("PerÃƒÂ­odo", "Período")
+        .replace("PerÃ­odo", "Período")
+        .replace("nÃƒÂºmero", "número")
+        .replace("nÃºmero", "número")
+        .replace("invÃƒÂ¡lido", "inválido")
+        .replace("invÃ¡lido", "inválido")
+    )
+
+
+PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
+    ("none", "Sin meta productiva"),
+    ("per_residential_min_1", "Seg\u00fan Necesidad"),
+    ("per_residential_fixed", "Cantidad fija por residencial por mes"),
+    ("per_residential_period_fixed", "Acumulada por per\u00edodo"),
+]
 
 
 def _redirect_with_msg(url: str, msg: str):
@@ -204,12 +241,13 @@ def _format_activity_productivity_goal_summary(goal: ActivityProductivityGoal | 
     if goal.period_goal_value:
         parts.append(f"{goal.period_goal_value} global / perÃ­odo")
 
-    return " + ".join(parts) if parts else "Sin meta productiva"
+    return _clean_productivity_text(" + ".join(parts)) if parts else "Sin meta productiva"
 
 
 def _upsert_activity_productivity_goal(
     db: Session,
     activity_code: ActivityCode,
+    proposal_id: int | None,
     goal_type: str,
     goal_value: int | None,
     period_goal_value: int | None,
@@ -218,22 +256,22 @@ def _upsert_activity_productivity_goal(
     existing_goal = db.execute(
         select(ActivityProductivityGoal).where(
             ActivityProductivityGoal.activity_code_id == activity_code.activity_code_id,
-            ActivityProductivityGoal.proposal_id == activity_code.proposal_id,
+            ActivityProductivityGoal.proposal_id == proposal_id,
         )
     ).scalar_one_or_none()
 
-    if activity_code.proposal_id is None:
+    if proposal_id is None:
         if existing_goal:
             db.delete(existing_goal)
         return
 
     if not existing_goal:
         existing_goal = ActivityProductivityGoal(
-            proposal_id=activity_code.proposal_id,
+            proposal_id=proposal_id,
             activity_code_id=activity_code.activity_code_id,
         )
 
-    existing_goal.proposal_id = activity_code.proposal_id
+    existing_goal.proposal_id = proposal_id
     existing_goal.activity_code_id = activity_code.activity_code_id
     existing_goal.goal_type = goal_type
     existing_goal.goal_value = goal_value
@@ -506,11 +544,8 @@ def admin_visits(
     assigned_activity_ids: set[int] = set()
 
     if selected_proposal:
-        activities = db.execute(
-            select(ActivityCode)
-            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
-            .order_by(ActivityCode.code)
-        ).scalars().all()
+        activities = load_activity_codes_for_proposal(db, selected_proposal.proposal_id)
+        activities = sorted(activities, key=lambda activity: activity.code)
 
         mappings = db.execute(
             select(VisitActivityMapping, ActivityCode)
@@ -557,7 +592,7 @@ def admin_create_visit_mapping(
     if redirect:
         return redirect
 
-    if activity.proposal_id != proposal_id:
+    if not activity_code_allowed_for_proposal(db, activity, proposal_id):
         return _redirect_with_msg(f"/ui/admin/visits?proposal_id={proposal_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     existing = db.execute(
@@ -650,11 +685,8 @@ def admin_adm(
         for service_type in service_types:
             setattr(service_type, "assigned_activities", activity_map.get(service_type.adm_service_type_id, []))
 
-        activities = db.execute(
-            select(ActivityCode)
-            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
-            .order_by(ActivityCode.code)
-        ).scalars().all()
+        activities = load_activity_codes_for_proposal(db, selected_proposal.proposal_id)
+        activities = sorted(activities, key=lambda activity: activity.code)
 
     return templates.TemplateResponse(
         "ui/admin/adm.html",
@@ -774,7 +806,7 @@ def admin_assign_activity_to_adm_service_type(
         return redirect
     if not service_type or not activity:
         return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: Tipo de servicio o actividad no encontrada.", status_code=303)
-    if service_type.proposal_id != proposal_id or activity.proposal_id != proposal_id:
+    if service_type.proposal_id != proposal_id or not activity_code_allowed_for_proposal(db, activity, proposal_id):
         return RedirectResponse(f"/ui/admin/adm?proposal_id={proposal_id}&msg=Error: La actividad y el tipo de servicio deben pertenecer a la misma propuesta.", status_code=303)
 
     existing_assignment = db.execute(
@@ -852,11 +884,8 @@ def admin_vca(
         for column in columns:
             setattr(column, "assigned_activities", activity_map.get(column.vca_column_id, []))
 
-        activities = db.execute(
-            select(ActivityCode)
-            .where(ActivityCode.proposal_id == selected_proposal.proposal_id)
-            .order_by(ActivityCode.code)
-        ).scalars().all()
+        activities = load_activity_codes_for_proposal(db, selected_proposal.proposal_id)
+        activities = sorted(activities, key=lambda activity: activity.code)
 
     return templates.TemplateResponse(
         "ui/admin/vca.html",
@@ -982,7 +1011,7 @@ def admin_assign_activity_to_vca_column(
         return redirect
     if not column or not activity:
         return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: Columna o actividad no encontrada.", status_code=303)
-    if column.proposal_id != proposal_id or activity.proposal_id != proposal_id:
+    if column.proposal_id != proposal_id or not activity_code_allowed_for_proposal(db, activity, proposal_id):
         return RedirectResponse(f"/ui/admin/vca?proposal_id={proposal_id}&msg=Error: La actividad y la columna deben pertenecer a la misma propuesta.", status_code=303)
 
     existing_assignment = db.execute(
@@ -1036,6 +1065,11 @@ def admin_activity_codes(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    goal_proposal_filter = (
+        ActivityProductivityGoal.proposal_id == proposal_id
+        if proposal_id
+        else ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id
+    )
     codes_stmt = (
         select(
             ActivityCode,
@@ -1047,16 +1081,51 @@ def admin_activity_codes(
         .outerjoin(
             ActivityProductivityGoal,
             (ActivityProductivityGoal.activity_code_id == ActivityCode.activity_code_id)
-            & (ActivityProductivityGoal.proposal_id == ActivityCode.proposal_id),
+            & goal_proposal_filter,
         )
     )
 
     if proposal_id:
-        codes_stmt = codes_stmt.where(ActivityCode.proposal_id == proposal_id)
+        assigned_ids = select(ProposalActivityCode.activity_code_id).where(
+            ProposalActivityCode.proposal_id == proposal_id,
+            ProposalActivityCode.is_active == True,  # noqa: E712
+        )
+        codes_stmt = codes_stmt.where(
+            (ActivityCode.proposal_id == proposal_id)
+            | (ActivityCode.activity_code_id.in_(assigned_ids))
+        )
 
     codes = db.execute(
         codes_stmt.order_by(ActivityCode.code)
     ).all()
+    activity_code_ids = [row[0].activity_code_id for row in codes]
+    assigned_proposals_by_activity: dict[int, list[Proposal]] = {}
+    if activity_code_ids:
+        assignment_rows = db.execute(
+            select(ProposalActivityCode, Proposal)
+            .join(Proposal, Proposal.proposal_id == ProposalActivityCode.proposal_id)
+            .where(
+                ProposalActivityCode.activity_code_id.in_(activity_code_ids),
+                ProposalActivityCode.is_active == True,  # noqa: E712
+            )
+            .order_by(Proposal.code)
+        ).all()
+        for assignment, proposal in assignment_rows:
+            assigned_proposals_by_activity.setdefault(assignment.activity_code_id, []).append(proposal)
+
+    for activity, proposal_code, proposal_name, _ in codes:
+        assigned_proposals = assigned_proposals_by_activity.get(activity.activity_code_id, [])
+        if activity.proposal_id and not any(proposal.proposal_id == activity.proposal_id for proposal in assigned_proposals):
+            assigned_proposals.append(
+                Proposal(
+                    proposal_id=activity.proposal_id,
+                    code=proposal_code or "",
+                    name=proposal_name or "",
+                )
+            )
+        setattr(activity, "assigned_proposals", assigned_proposals)
+        setattr(activity, "assigned_proposal_ids", {proposal.proposal_id for proposal in assigned_proposals})
+
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
 
@@ -1109,7 +1178,7 @@ def admin_create_activity_code(
             normalized_proposal_id,
         )
     except ValueError as exc:
-        return _redirect_with_msg("/ui/admin/activity-codes", str(exc))
+        return _redirect_with_msg("/ui/admin/activity-codes", _clean_productivity_text(str(exc)))
 
     ac = ActivityCode(
         code=code.strip(),
@@ -1118,10 +1187,12 @@ def admin_create_activity_code(
     )
     db.add(ac)
     db.flush()
+    ensure_activity_assigned_to_proposal(db, ac.activity_code_id, normalized_proposal_id, is_active=ac.is_active)
 
     _upsert_activity_productivity_goal(
         db,
         ac,
+        normalized_proposal_id,
         normalized_goal_type,
         normalized_goal_value,
         normalized_period_goal_value,
@@ -1185,21 +1256,24 @@ def admin_edit_activity_code(
         )
     except ValueError as exc:
         return RedirectResponse(
-            f"/ui/admin/activity-codes?msg={quote_plus(str(exc))}",
+            f"/ui/admin/activity-codes?msg={quote_plus(_clean_productivity_text(str(exc)))}",
             status_code=303,
         )
 
     ac.code = code.strip()
     ac.description = description
-    ac.proposal_id = normalized_proposal_id
+    if ac.proposal_id is None and normalized_proposal_id is not None:
+        ac.proposal_id = normalized_proposal_id
     ac.is_active = is_active == "on"
 
     db.add(ac)
     db.flush()
+    ensure_activity_assigned_to_proposal(db, ac.activity_code_id, normalized_proposal_id, is_active=ac.is_active)
 
     _upsert_activity_productivity_goal(
         db,
         ac,
+        normalized_proposal_id,
         normalized_goal_type,
         normalized_goal_value,
         normalized_period_goal_value,
@@ -1212,6 +1286,69 @@ def admin_edit_activity_code(
         "/ui/admin/activity-codes?msg=CÃ³digo de actividad actualizado exitosamente.",
         status_code=303,
     )
+
+
+@router.post("/activity-codes/{activity_code_id}/assign-proposal")
+def admin_assign_activity_code_to_proposal(
+    activity_code_id: int,
+    proposal_id: int = Form(...),
+    return_proposal_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    return_proposal_id_int = int(return_proposal_id) if return_proposal_id and return_proposal_id.strip() else None
+    redirect_url = f"/ui/admin/activity-codes?proposal_id={return_proposal_id_int}" if return_proposal_id_int else "/ui/admin/activity-codes"
+    if not activity or not proposal:
+        return _redirect_with_msg(redirect_url, "Error: Actividad o propuesta no encontrada.")
+
+    ensure_activity_assigned_to_proposal(db, activity.activity_code_id, proposal.proposal_id, is_active=True)
+    if activity.proposal_id is None:
+        activity.proposal_id = proposal.proposal_id
+        db.add(activity)
+    db.commit()
+
+    return _redirect_with_msg(redirect_url, "Actividad asignada a la propuesta exitosamente.")
+
+
+@router.post("/activity-codes/{activity_code_id}/unassign-proposal")
+def admin_unassign_activity_code_from_proposal(
+    activity_code_id: int,
+    proposal_id: int = Form(...),
+    return_proposal_id: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    activity = db.get(ActivityCode, activity_code_id)
+    proposal = db.get(Proposal, proposal_id)
+    return_proposal_id_int = int(return_proposal_id) if return_proposal_id and return_proposal_id.strip() else None
+    redirect_url = f"/ui/admin/activity-codes?proposal_id={return_proposal_id_int}" if return_proposal_id_int else "/ui/admin/activity-codes"
+    if not activity or not proposal:
+        return _redirect_with_msg(redirect_url, "Error: Actividad o propuesta no encontrada.")
+
+    assignment = db.execute(
+        select(ProposalActivityCode).where(
+            ProposalActivityCode.activity_code_id == activity_code_id,
+            ProposalActivityCode.proposal_id == proposal_id,
+        )
+    ).scalar_one_or_none()
+    if assignment:
+        db.delete(assignment)
+
+    if activity.proposal_id == proposal_id:
+        activity.proposal_id = None
+        db.add(activity)
+
+    db.execute(
+        delete(ActivityProductivityGoal).where(
+            ActivityProductivityGoal.activity_code_id == activity_code_id,
+            ActivityProductivityGoal.proposal_id == proposal_id,
+        )
+    )
+    db.commit()
+
+    return _redirect_with_msg(redirect_url, "Actividad removida de la propuesta exitosamente.")
 
 
 @router.post("/activity-codes/{activity_code_id}/delete")
@@ -1944,6 +2081,284 @@ def admin_create_proposal(
     return _redirect_with_msg("/ui/admin/proposals", "Propuesta creada exitosamente.")
 
 
+@router.post("/proposals/{proposal_id}/copy")
+def admin_copy_proposal(
+    proposal_id: int,
+    code: str = Form(...),
+    name: str = Form(...),
+    description: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    source = db.get(Proposal, proposal_id)
+    if not source:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: Propuesta origen no encontrada.")
+
+    code = code.strip()
+    name = name.strip()
+    description = (description or "").strip() or None
+    if not code or not name:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: Debe indicar codigo y nombre para la copia.")
+
+    existing = db.execute(select(Proposal).where(Proposal.code == code)).scalar_one_or_none()
+    if existing:
+        return _redirect_with_msg("/ui/admin/proposals", "Error: El codigo de la nueva propuesta ya existe.")
+
+    target = Proposal(
+        code=code,
+        name=name,
+        description=description,
+        is_active=True,
+        status="active",
+        finalized_at=None,
+        finalized_by_user_id=None,
+        finalization_note=None,
+        locked_through_month=None,
+        locked_through_year=None,
+        period_lock_note=None,
+    )
+    db.add(target)
+    db.flush()
+
+    copied_activity_ids: set[int] = set()
+    source_activity_rows = load_activity_codes_for_proposal(db, source.proposal_id, active_only=False)
+    for activity in source_activity_rows:
+        ensure_activity_assigned_to_proposal(
+            db,
+            activity.activity_code_id,
+            target.proposal_id,
+            is_active=activity.is_active,
+        )
+        copied_activity_ids.add(activity.activity_code_id)
+
+    legacy_activity_rows = db.execute(
+        select(ActivityCode).where(ActivityCode.proposal_id == source.proposal_id)
+    ).scalars().all()
+    for activity in legacy_activity_rows:
+        if activity.activity_code_id in copied_activity_ids:
+            continue
+        ensure_activity_assigned_to_proposal(
+            db,
+            activity.activity_code_id,
+            target.proposal_id,
+            is_active=activity.is_active,
+        )
+        copied_activity_ids.add(activity.activity_code_id)
+
+    population_group_map: dict[int, int] = {}
+    source_groups = db.execute(
+        select(ProposalPopulationGroup)
+        .where(ProposalPopulationGroup.proposal_id == source.proposal_id)
+        .order_by(ProposalPopulationGroup.sort_order, ProposalPopulationGroup.population_group_id)
+    ).scalars().all()
+    for group in source_groups:
+        new_group = ProposalPopulationGroup(
+            proposal_id=target.proposal_id,
+            code=group.code,
+            label=group.label,
+            age_min=group.age_min,
+            age_max=group.age_max,
+            sort_order=group.sort_order,
+            is_active=group.is_active,
+        )
+        db.add(new_group)
+        db.flush()
+        population_group_map[group.population_group_id] = new_group.population_group_id
+
+    program_map: dict[int, int] = {}
+    source_programs = db.execute(
+        select(ProposalReportProgram)
+        .where(ProposalReportProgram.proposal_id == source.proposal_id)
+        .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.program_id)
+    ).scalars().all()
+    for program in source_programs:
+        new_program = ProposalReportProgram(
+            proposal_id=target.proposal_id,
+            code=program.code,
+            name=program.name,
+            formal_name=program.formal_name,
+            population_group_id=population_group_map.get(program.population_group_id),
+            sort_order=program.sort_order,
+            is_active=program.is_active,
+        )
+        db.add(new_program)
+        db.flush()
+        program_map[program.program_id] = new_program.program_id
+
+    program_activity_map: dict[int, int] = {}
+    if program_map:
+        source_program_activities = db.execute(
+            select(ProposalReportProgramActivity)
+            .where(ProposalReportProgramActivity.program_id.in_(list(program_map)))
+        ).scalars().all()
+        for activity in source_program_activities:
+            new_activity = ProposalReportProgramActivity(
+                program_id=program_map[activity.program_id],
+                code=activity.code,
+                label=activity.label,
+                age_min=activity.age_min,
+                age_max=activity.age_max,
+                sort_order=activity.sort_order,
+                is_active=activity.is_active,
+            )
+            db.add(new_activity)
+            db.flush()
+            program_activity_map[activity.program_activity_id] = new_activity.program_activity_id
+
+    if program_activity_map:
+        activity_code_rows = db.execute(
+            select(ProposalReportProgramActivityCode)
+            .where(ProposalReportProgramActivityCode.program_activity_id.in_(list(program_activity_map)))
+        ).scalars().all()
+        for row in activity_code_rows:
+            ensure_activity_assigned_to_proposal(db, row.activity_code_id, target.proposal_id)
+            db.add(
+                ProposalReportProgramActivityCode(
+                    program_activity_id=program_activity_map[row.program_activity_id],
+                    activity_code_id=row.activity_code_id,
+                )
+            )
+
+    program_population_map: dict[int, int] = {}
+    if program_map:
+        source_program_populations = db.execute(
+            select(ProposalReportProgramPopulation)
+            .where(ProposalReportProgramPopulation.program_id.in_(list(program_map)))
+        ).scalars().all()
+        for row in source_program_populations:
+            new_row = ProposalReportProgramPopulation(
+                program_id=program_map[row.program_id],
+                population_group_id=population_group_map[row.population_group_id],
+                sort_order=row.sort_order,
+                is_active=row.is_active,
+            )
+            db.add(new_row)
+            db.flush()
+            program_population_map[row.program_population_id] = new_row.program_population_id
+
+    if program_population_map:
+        population_activity_rows = db.execute(
+            select(ProposalReportProgramPopulationActivityCode)
+            .where(ProposalReportProgramPopulationActivityCode.program_population_id.in_(list(program_population_map)))
+        ).scalars().all()
+        for row in population_activity_rows:
+            ensure_activity_assigned_to_proposal(db, row.activity_code_id, target.proposal_id)
+            db.add(
+                ProposalReportProgramPopulationActivityCode(
+                    program_population_id=program_population_map[row.program_population_id],
+                    activity_code_id=row.activity_code_id,
+                )
+            )
+
+    vca_column_map: dict[int, int] = {}
+    source_vca_columns = db.execute(
+        select(VCAColumn)
+        .where(VCAColumn.proposal_id == source.proposal_id)
+        .order_by(VCAColumn.sort_order, VCAColumn.vca_column_id)
+    ).scalars().all()
+    for column in source_vca_columns:
+        new_column = VCAColumn(
+            proposal_id=target.proposal_id,
+            name=column.name,
+            sort_order=column.sort_order,
+            is_active=column.is_active,
+        )
+        db.add(new_column)
+        db.flush()
+        vca_column_map[column.vca_column_id] = new_column.vca_column_id
+
+    if vca_column_map:
+        vca_activity_rows = db.execute(
+            select(VCAColumnActivityCode)
+            .where(VCAColumnActivityCode.vca_column_id.in_(list(vca_column_map)))
+        ).scalars().all()
+        for row in vca_activity_rows:
+            ensure_activity_assigned_to_proposal(db, row.activity_code_id, target.proposal_id)
+            db.add(VCAColumnActivityCode(vca_column_id=vca_column_map[row.vca_column_id], activity_code_id=row.activity_code_id))
+
+    source_visit_mappings = db.execute(
+        select(VisitActivityMapping).where(VisitActivityMapping.proposal_id == source.proposal_id)
+    ).scalars().all()
+    for mapping in source_visit_mappings:
+        ensure_activity_assigned_to_proposal(db, mapping.activity_code_id, target.proposal_id)
+        db.add(
+            VisitActivityMapping(
+                proposal_id=target.proposal_id,
+                activity_code_id=mapping.activity_code_id,
+                is_active=mapping.is_active,
+            )
+        )
+
+    adm_type_map: dict[int, int] = {}
+    source_adm_types = db.execute(
+        select(ADMServiceType)
+        .where(ADMServiceType.proposal_id == source.proposal_id)
+        .order_by(ADMServiceType.sort_order, ADMServiceType.adm_service_type_id)
+    ).scalars().all()
+    for service_type in source_adm_types:
+        new_type = ADMServiceType(
+            proposal_id=target.proposal_id,
+            name=service_type.name,
+            sort_order=service_type.sort_order,
+            is_active=service_type.is_active,
+        )
+        db.add(new_type)
+        db.flush()
+        adm_type_map[service_type.adm_service_type_id] = new_type.adm_service_type_id
+
+    if adm_type_map:
+        adm_activity_rows = db.execute(
+            select(ADMServiceTypeActivityCode)
+            .where(ADMServiceTypeActivityCode.adm_service_type_id.in_(list(adm_type_map)))
+        ).scalars().all()
+        for row in adm_activity_rows:
+            ensure_activity_assigned_to_proposal(db, row.activity_code_id, target.proposal_id)
+            db.add(
+                ADMServiceTypeActivityCode(
+                    adm_service_type_id=adm_type_map[row.adm_service_type_id],
+                    activity_code_id=row.activity_code_id,
+                )
+            )
+
+    source_goals = db.execute(
+        select(ActivityProductivityGoal).where(ActivityProductivityGoal.proposal_id == source.proposal_id)
+    ).scalars().all()
+    for goal in source_goals:
+        ensure_activity_assigned_to_proposal(db, goal.activity_code_id, target.proposal_id)
+        db.add(
+            ActivityProductivityGoal(
+                proposal_id=target.proposal_id,
+                activity_code_id=goal.activity_code_id,
+                goal_type=goal.goal_type,
+                goal_value=goal.goal_value,
+                period_goal_value=goal.period_goal_value,
+                is_active=goal.is_active,
+            )
+        )
+
+    source_template_assignments = db.execute(
+        select(ProposalReportTemplate).where(
+            ProposalReportTemplate.proposal_id == source.proposal_id,
+            ProposalReportTemplate.is_active == True,  # noqa: E712
+        )
+    ).scalars().all()
+    for assignment in source_template_assignments:
+        db.add(
+            ProposalReportTemplate(
+                proposal_id=target.proposal_id,
+                report_key=assignment.report_key,
+                report_template_version_id=assignment.report_template_version_id,
+                is_active=assignment.is_active,
+            )
+        )
+
+    db.commit()
+    return _redirect_with_msg(
+        f"/ui/admin/proposals?copied_proposal_id={target.proposal_id}",
+        "Propuesta copiada exitosamente.",
+    )
+
+
 @router.post("/proposals/{proposal_id}/edit")
 def admin_edit_proposal(
     proposal_id: int,
@@ -2097,7 +2512,7 @@ def admin_delete_proposal(
         blockers.append(f"{participant_count} participante(s) asociados")
 
     linked_activity_codes = db.execute(
-        select(func.count()).select_from(ActivityCode).where(ActivityCode.proposal_id == proposal_id)
+        select(func.count()).select_from(ProposalActivityCode).where(ProposalActivityCode.proposal_id == proposal_id)
     ).scalar() or 0
     if linked_activity_codes > 0:
         blockers.append(f"{linked_activity_codes} actividad(es)")
@@ -2414,14 +2829,8 @@ def admin_report_programs(
         ).scalars().all()
         group_map = {group.population_group_id: group for group in population_groups}
 
-        proposal_activity_codes = db.execute(
-            select(ActivityCode)
-            .where(
-                ActivityCode.proposal_id == selected_proposal.proposal_id,
-                ActivityCode.is_active == True,  # noqa: E712
-            )
-            .order_by(ActivityCode.code)
-        ).scalars().all()
+        proposal_activity_codes = load_activity_codes_for_proposal(db, selected_proposal.proposal_id, active_only=True)
+        proposal_activity_codes = sorted(proposal_activity_codes, key=lambda activity: activity.code)
         proposal_activity_code_map = {activity.activity_code_id: activity for activity in proposal_activity_codes}
 
         programs = db.execute(
@@ -3032,7 +3441,7 @@ def admin_add_activity_code_to_report_program_activity(
         )
 
     activity_code = db.get(ActivityCode, activity_code_id)
-    if not activity_code or activity_code.proposal_id != proposal_id:
+    if not activity_code or not activity_code_assigned_to_proposal(db, activity_code.activity_code_id, proposal_id):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Debe seleccionar un cÃ³digo de actividad vÃ¡lido de la propuesta.",
@@ -3270,7 +3679,7 @@ def admin_add_activity_code_to_program_population(
         )
 
     activity_code = db.get(ActivityCode, activity_code_id)
-    if not activity_code or activity_code.proposal_id != proposal_id:
+    if not activity_code or not activity_code_assigned_to_proposal(db, activity_code.activity_code_id, proposal_id):
         return _redirect_with_msg(
             f"/ui/admin/report-programs?proposal_id={proposal_id}",
             "Error: Debe seleccionar un cÃ³digo de actividad vÃ¡lido de la propuesta.",

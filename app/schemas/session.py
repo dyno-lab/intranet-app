@@ -12,6 +12,7 @@ class SessionCreate(BaseModel):
 
 class SessionOut(BaseModel):
     session_id: int
+    control_number: str | None = None
     session_date: date
     activity_code_id: int
     employee_id: int

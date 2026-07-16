@@ -51,6 +51,9 @@
     </div>
 
     <div class="row g-2">
+      <div class="col-md-3">
+        <strong>Numero de control:</strong> {{ session.control_number or '-' }}
+      </div>
       <div class="col-md-2">
         <strong>Fecha:</strong> {{ session.session_date }}
       </div>
@@ -114,7 +117,7 @@
           <label class="form-label">Código de actividad *</label>
           <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
             {% for c in activity_codes %}
-              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
+              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
                 {{ c.code }} - {{ c.description or '' }}
               </option>
             {% endfor %}
@@ -151,7 +154,10 @@
       <p class="mb-0 text-muted flex-grow-1">
         Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
       </p>
-      <div class="text-md-end">
+      <div class="d-flex gap-2 flex-wrap justify-content-md-end">
+        <span class="badge text-bg-success fs-6 px-3 py-2">
+          Numero de control: {{ session.control_number or '-' }}
+        </span>
         <span class="badge text-bg-primary fs-6 px-3 py-2">
           Asistencias marcadas: <span id="attendance-counter-value">0</span>
         </span>
@@ -345,7 +351,8 @@
 
       options.forEach((option) => {
         const optionProposal = option.dataset.proposalId || '';
-        const allowed = optionProposal === selectedProposal;
+        const optionProposals = (option.dataset.proposalIds || '').split(',').filter(Boolean);
+        const allowed = selectedProposal ? optionProposals.includes(selectedProposal) : optionProposal === '';
         option.hidden = !allowed;
         if (!allowed && option.selected) {
           activitySelect.value = '';

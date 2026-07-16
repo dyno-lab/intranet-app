@@ -116,6 +116,37 @@ BEGIN
     ON dbo.activity_sessions(proposal_id);
 END;
 
+IF COL_LENGTH('dbo.activity_sessions', 'control_number') IS NULL
+BEGIN
+    ALTER TABLE dbo.activity_sessions
+    ADD control_number VARCHAR(64) NULL;
+END;
+
+EXEC(N'
+UPDATE s
+SET s.control_number = UPPER(LTRIM(RTRIM(u.username)))
+    + CAST(s.session_id AS VARCHAR(20))
+    + CAST(YEAR(s.session_date) AS VARCHAR(4))
+FROM dbo.activity_sessions s
+INNER JOIN dbo.users u ON u.user_id = s.created_by_user_id
+WHERE u.username IS NOT NULL
+  AND LTRIM(RTRIM(u.username)) <> '''';
+');
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_activity_sessions_control_number'
+      AND object_id = OBJECT_ID('dbo.activity_sessions')
+)
+BEGIN
+    EXEC(N'
+    CREATE UNIQUE INDEX UX_activity_sessions_control_number
+    ON dbo.activity_sessions(control_number)
+    WHERE control_number IS NOT NULL;
+    ');
+END;
+
 IF COL_LENGTH('dbo.participants', 'is_active') IS NULL
 BEGIN
     ALTER TABLE dbo.participants
@@ -1261,6 +1292,55 @@ END;
 """
 
 
+PHASE10_PROPOSAL_ACTIVITY_CODES_SQL = """
+IF OBJECT_ID(N'dbo.proposal_activity_codes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.proposal_activity_codes (
+        proposal_activity_code_id INT IDENTITY(1,1) PRIMARY KEY,
+        proposal_id INT NOT NULL,
+        activity_code_id INT NOT NULL,
+        is_active BIT NOT NULL CONSTRAINT DF_proposal_activity_codes_is_active DEFAULT 1,
+        created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_activity_codes_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_activity_codes_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_proposal_activity_codes_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
+        CONSTRAINT FK_proposal_activity_codes_activity_codes FOREIGN KEY (activity_code_id) REFERENCES dbo.activity_codes(activity_code_id),
+        CONSTRAINT UQ_proposal_activity_codes_proposal_activity UNIQUE (proposal_id, activity_code_id)
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_proposal_activity_codes_proposal_id'
+      AND object_id = OBJECT_ID('dbo.proposal_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_activity_codes_proposal_id ON dbo.proposal_activity_codes(proposal_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_proposal_activity_codes_activity_code_id'
+      AND object_id = OBJECT_ID('dbo.proposal_activity_codes')
+)
+BEGIN
+    CREATE INDEX IX_proposal_activity_codes_activity_code_id ON dbo.proposal_activity_codes(activity_code_id);
+END;
+
+INSERT INTO dbo.proposal_activity_codes (proposal_id, activity_code_id, is_active)
+SELECT ac.proposal_id, ac.activity_code_id, ISNULL(ac.is_active, 1)
+FROM dbo.activity_codes ac
+WHERE ac.proposal_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dbo.proposal_activity_codes pac
+      WHERE pac.proposal_id = ac.proposal_id
+        AND pac.activity_code_id = ac.activity_code_id
+  );
+"""
+
+
 PHASE8_ACTIVITY_PRODUCTIVITY_SQL = """
 BEGIN TRY
     IF OBJECT_ID(N'dbo.activity_productivity_goals', N'U') IS NULL
@@ -1646,6 +1726,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
+        conn.exec_driver_sql(PHASE10_PROPOSAL_ACTIVITY_CODES_SQL)
         conn.exec_driver_sql(PHASE9_REPORT_TEMPLATES_SQL)
         # PHASE8 temporalmente fuera del startup para no bloquear arranque por estados legacy de SQL Server.
         # La corrección de activity_productivity_goals debe ejecutarse de forma controlada sobre la BD real.

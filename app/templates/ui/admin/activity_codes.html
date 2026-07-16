@@ -121,14 +121,23 @@
         {% set proposal_code = row[1] %}
         {% set proposal_name = row[2] %}
         {% set productivity_goal = row[3] %}
+        {% set productivity_proposal_id = selected_proposal_id or ac.proposal_id %}
         <tr class="{{ 'text-muted text-decoration-line-through' if not ac.is_active }}">
           <td>{{ ac.activity_code_id }}</td>
           <td><strong>{{ ac.code }}</strong></td>
           <td>{{ ac.description or '-' }}</td>
           <td>
-            {% if proposal_code %}
-              <span class="badge bg-info text-dark">{{ proposal_code }}</span>
-              <div class="small text-muted">{{ proposal_name }}</div>
+            {% if ac.assigned_proposals %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for assigned_proposal in ac.assigned_proposals %}
+                  <span class="badge bg-info text-dark">{{ assigned_proposal.code }}</span>
+                {% endfor %}
+              </div>
+              <div class="small text-muted mt-1">
+                {% for assigned_proposal in ac.assigned_proposals %}
+                  <div>{{ assigned_proposal.name }}</div>
+                {% endfor %}
+              </div>
             {% else %}
               <span class="text-muted">Global</span>
             {% endif %}
@@ -173,13 +182,13 @@
                 <select class="form-select form-select-sm js-productivity-proposal" name="proposal_id" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
                   <option value="">Global / Todas</option>
                   {% for proposal in proposals %}
-                    <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id == ac.proposal_id %}selected{% endif %}>
+                    <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id == productivity_proposal_id %}selected{% endif %}>
                       {{ proposal.code }} - {{ proposal.name }}
                     </option>
                   {% endfor %}
                 </select>
               </div>
-              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-container">
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not productivity_proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-container">
                 <label class="form-label small">Tipo de meta</label>
                 <select class="form-select form-select-sm js-productivity-goal-type" name="productivity_goal_type" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
                   {% set selected_goal_type = productivity_goal.goal_type if productivity_goal else 'none' %}
@@ -189,15 +198,15 @@
                 </select>
               </div>
               {% set show_value = productivity_goal and productivity_goal.goal_type in ['per_residential_fixed', 'per_residential_period_fixed'] %}
-              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not productivity_proposal_id or not show_value }}" id="edit-productivity-{{ ac.activity_code_id }}-value-container">
                 <label class="form-label small js-productivity-goal-value-label">Meta mensual</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-goal-value" name="productivity_goal_value" value="{{ productivity_goal.goal_value if productivity_goal and productivity_goal.goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
               </div>
-              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-period-value-container">
+              <div class="col-md-2 js-productivity-fields {{ 'd-none' if not productivity_proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-period-value-container">
                 <label class="form-label small js-productivity-period-goal-value-label">Meta período</label>
                 <input type="number" min="1" class="form-control form-control-sm js-productivity-period-goal-value" name="productivity_period_goal_value" value="{{ productivity_goal.period_goal_value if productivity_goal and productivity_goal.period_goal_value is not none else '' }}" data-target-prefix="edit-productivity-{{ ac.activity_code_id }}">
               </div>
-              <div class="col-md-1 js-productivity-fields {{ 'd-none' if not ac.proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-active-container">
+              <div class="col-md-1 js-productivity-fields {{ 'd-none' if not productivity_proposal_id }}" id="edit-productivity-{{ ac.activity_code_id }}-active-container">
                 <div class="form-check mt-4">
                   <input class="form-check-input" type="checkbox" name="productivity_goal_is_active" id="productivity-active-{{ ac.activity_code_id }}"
                          {{ 'checked' if productivity_goal and productivity_goal.is_active }}>
@@ -211,7 +220,7 @@
                   <label class="form-check-label" for="active-ac-{{ ac.activity_code_id }}">Activo</label>
                 </div>
               </div>
-              <div class="col-md-12 js-productivity-help {{ 'd-none' if ac.proposal_id else '' }}" id="edit-productivity-{{ ac.activity_code_id }}-help">
+              <div class="col-md-12 js-productivity-help {{ 'd-none' if productivity_proposal_id else '' }}" id="edit-productivity-{{ ac.activity_code_id }}-help">
                 <div class="small text-muted">La configuración productiva solo aplica a actividades asociadas a una propuesta. En Acumulada por período, el período aplicable se toma de la propuesta y no se exige meta mensual.</div>
               </div>
               <div class="col-md-2">
@@ -220,6 +229,39 @@
                         data-bs-toggle="collapse" data-bs-target="#edit-ac-{{ ac.activity_code_id }}">Cancelar</button>
               </div>
             </form>
+            <div class="border-top mt-2 pt-2">
+              <div class="small fw-semibold mb-2">Asignaciones de propuesta</div>
+              {% if ac.assigned_proposals %}
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                {% for assigned_proposal in ac.assigned_proposals %}
+                <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/unassign-proposal" class="d-inline" onsubmit="return confirm('Quitar esta actividad de {{ assigned_proposal.code }}?');">
+                  <input type="hidden" name="proposal_id" value="{{ assigned_proposal.proposal_id }}">
+                  <input type="hidden" name="return_proposal_id" value="{{ selected_proposal_id or '' }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">{{ assigned_proposal.code }} &times;</button>
+                </form>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="small text-muted mb-2">Esta actividad no tiene propuestas asignadas.</div>
+              {% endif %}
+              <form method="post" action="/ui/admin/activity-codes/{{ ac.activity_code_id }}/assign-proposal" class="row g-2 align-items-end">
+                <input type="hidden" name="return_proposal_id" value="{{ selected_proposal_id or '' }}">
+                <div class="col-md-4">
+                  <label class="form-label small">Asignar a otra propuesta</label>
+                  <select class="form-select form-select-sm" name="proposal_id" required>
+                    <option value="">Selecciona...</option>
+                    {% for proposal in proposals %}
+                      {% if proposal.proposal_id not in ac.assigned_proposal_ids %}
+                      <option value="{{ proposal.proposal_id }}">{{ proposal.code }} - {{ proposal.name }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-sm btn-outline-success">Asignar propuesta</button>
+                </div>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}

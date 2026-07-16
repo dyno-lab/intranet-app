@@ -59,6 +59,7 @@ def create_session(
         )
 
     require_activity_code_allowed_for_proposal(
+        db,
         code,
         payload.proposal_id,
         message="La actividad no pertenece a la propuesta seleccionada",

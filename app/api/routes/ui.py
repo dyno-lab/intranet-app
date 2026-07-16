@@ -50,6 +50,7 @@ from app.core.period_guard import (
     require_session_date_not_future,
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
+from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -383,17 +384,8 @@ def _sort_activity_codes(activity_codes: list[ActivityCode]) -> list[ActivityCod
 
 
 def _load_activity_codes_for_proposal(db: Session, proposal_id: int | None, active_only: bool = True):
-    stmt = select(ActivityCode)
-    if active_only:
-        stmt = stmt.where(ActivityCode.is_active == True)  # noqa: E712
-
-    if proposal_id is None:
-        stmt = stmt.where(ActivityCode.proposal_id.is_(None))
-    else:
-        stmt = stmt.where(ActivityCode.proposal_id == proposal_id)
-
-    activity_codes = db.execute(stmt).scalars().all()
-    return _sort_activity_codes(activity_codes)
+    activity_codes = load_activity_codes_for_proposal(db, proposal_id, active_only=active_only)
+    return _sort_activity_codes(attach_activity_assigned_proposal_ids(db, activity_codes))
 
 
 def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
@@ -515,6 +507,11 @@ def _redirect_with_msg(url: str, msg: str):
     return RedirectResponse(f"{url}{separator}msg={msg}", status_code=303)
 
 
+def _build_session_control_number(user_code: str, session_id: int, session_date: date) -> str:
+    normalized_user_code = user_code.strip().upper()
+    return f"{normalized_user_code}{session_id}{session_date.year}"
+
+
 def _build_sessions_stmt(current_user: User):
     attendance_counts = (
         select(
@@ -529,6 +526,7 @@ def _build_sessions_stmt(current_user: User):
     stmt = (
         select(
             ActivitySession.session_id,
+            ActivitySession.control_number,
             ActivitySession.session_date,
             ActivityCode.code,
             ActivityCode.description,
@@ -598,6 +596,7 @@ def _render_listado_selector(
     request: Request,
     db: Session,
     current_user: User,
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -610,12 +609,15 @@ def _render_listado_selector(
 ):
     fd = _parse_date(from_date) if from_date else None
     td = _parse_date(to_date) if to_date else None
+    control_number_text = (control_number or "").strip()
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
 
     base_stmt = _build_sessions_stmt(current_user)
     base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
+    if control_number_text:
+        base_stmt = base_stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
 
     total_items = db.execute(
         select(func.count()).select_from(base_stmt.order_by(None).subquery())
@@ -630,6 +632,7 @@ def _render_listado_selector(
             select(ActivityCode).where(ActivityCode.is_active == True)  # noqa: E712
         ).scalars().all()
     )
+    activity_codes = attach_activity_assigned_proposal_ids(db, activity_codes)
     employees = db.execute(
         select(Employee).where(Employee.is_active == True).order_by(Employee.full_name)  # noqa: E712
     ).scalars().all()
@@ -664,6 +667,7 @@ def _render_listado_selector(
             "employees": employees,
             "proposals": proposals,
             "selected_proposal_id": proposal_id_int,
+            "selected_control_number": control_number_text,
             "selected_month": month_int,
             "selected_year": year_int,
             "month_options": month_options,
@@ -1346,6 +1350,7 @@ async def edit_participant_save(
 @router.get("/listado", response_class=HTMLResponse)
 def listado_selector(
     request: Request,
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1361,6 +1366,7 @@ def listado_selector(
         request=request,
         db=db,
         current_user=current_user,
+        control_number=control_number,
         from_date=from_date,
         to_date=to_date,
         proposal_id=proposal_id,
@@ -1374,6 +1380,7 @@ def listado_selector(
 
 @router.get("/listado/export.csv")
 def export_sessions_csv(
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1387,15 +1394,19 @@ def export_sessions_csv(
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
+    control_number_text = (control_number or "").strip()
 
     stmt = _build_sessions_stmt(current_user)
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    if control_number_text:
+        stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
     sessions = db.execute(stmt).all()
 
     rows = []
     for s in sessions:
         rows.append([
             s.session_id,
+            s.control_number or "",
             s.session_date.isoformat() if s.session_date else "",
             s.proposal_code or "",
             s.proposal_name or "",
@@ -1410,6 +1421,7 @@ def export_sessions_csv(
         filename=f"sesiones_{date.today().isoformat()}.csv",
         headers=[
             "session_id",
+            "control_number",
             "fecha",
             "propuesta_codigo",
             "propuesta_nombre",
@@ -1428,6 +1440,7 @@ def _render_open_session(
     session_id: int,
     db: Session,
     current_user: User,
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1467,6 +1480,7 @@ def _render_open_session(
     attended_ids = set(db.execute(att_stmt).scalars().all())
 
     list_query_params = {
+        "control_number": control_number or "",
         "proposal_id": proposal_id or "",
         "month": month or "",
         "year": year or "",
@@ -1511,6 +1525,7 @@ def _render_open_session(
 
 @router.get("/listado/export-attendance.csv")
 def export_attendance_csv(
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1524,10 +1539,12 @@ def export_attendance_csv(
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
+    control_number_text = (control_number or "").strip()
 
     stmt = (
         select(
             ActivitySession.session_id,
+            ActivitySession.control_number,
             ActivitySession.session_date,
             Proposal.code.label("proposal_code"),
             Proposal.name.label("proposal_name"),
@@ -1562,12 +1579,15 @@ def export_attendance_csv(
         stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    if control_number_text:
+        stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
     attendance_rows = db.execute(stmt).all()
 
     rows = []
     for row in attendance_rows:
         rows.append([
             row.session_id,
+            row.control_number or "",
             row.session_date.isoformat() if row.session_date else "",
             row.proposal_code or "",
             row.proposal_name or "",
@@ -1589,6 +1609,7 @@ def export_attendance_csv(
         filename=f"asistencias_{date.today().isoformat()}.csv",
         headers=[
             "session_id",
+            "control_number",
             "fecha",
             "propuesta_codigo",
             "propuesta_nombre",
@@ -1689,8 +1710,13 @@ def create_session_ui(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg("/ui/listado", "Error: El código de actividad seleccionado no existe.")
-    if not activity_code_allowed_for_proposal(activity_code, proposal_id):
+    if not activity_code_allowed_for_proposal(db, activity_code, proposal_id):
         return _redirect_with_msg("/ui/listado", "Error: La actividad no pertenece a la propuesta seleccionada.")
+    employee = db.get(Employee, employee_id)
+    if not employee:
+        return _redirect_with_msg("/ui/listado", "Error: El empleado seleccionado no existe.")
+    if not current_user.username or not current_user.username.strip():
+        return _redirect_with_msg("/ui/listado", "Error: El usuario actual no tiene codigo para generar el numero de control.")
 
     s = ActivitySession(
         session_date=parsed_session_date,
@@ -1702,6 +1728,12 @@ def create_session_ui(
     )
 
     db.add(s)
+    db.flush()
+    s.control_number = _build_session_control_number(
+        user_code=current_user.username,
+        session_id=s.session_id,
+        session_date=parsed_session_date,
+    )
     db.commit()
     db.refresh(s)
 
@@ -1716,6 +1748,7 @@ def create_session_ui(
 def open_session(
     session_id: int,
     request: Request,
+    control_number: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1754,6 +1787,7 @@ def open_session(
     attended_ids = set(db.execute(att_stmt).scalars().all())
 
     list_query_params = {
+        "control_number": control_number or "",
         "proposal_id": proposal_id or "",
         "month": month or "",
         "year": year or "",
@@ -2069,8 +2103,16 @@ def edit_session(
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
-    if not activity_code_allowed_for_proposal(activity_code, s.proposal_id):
+    if not activity_code_allowed_for_proposal(db, activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
+
+    creator_user = db.get(User, s.created_by_user_id) if s.created_by_user_id else None
+    if creator_user and creator_user.username and creator_user.username.strip():
+        s.control_number = _build_session_control_number(
+            user_code=creator_user.username,
+            session_id=s.session_id,
+            session_date=parsed_session_date,
+        )
 
     s.session_date = parsed_session_date
     s.activity_code_id = activity_code_id
