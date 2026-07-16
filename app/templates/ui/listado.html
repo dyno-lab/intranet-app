@@ -154,7 +154,10 @@
       <p class="mb-0 text-muted flex-grow-1">
         Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
       </p>
-      <div class="text-md-end">
+      <div class="d-flex gap-2 flex-wrap justify-content-md-end">
+        <span class="badge text-bg-success fs-6 px-3 py-2">
+          Numero de control: {{ session.control_number or '-' }}
+        </span>
         <span class="badge text-bg-primary fs-6 px-3 py-2">
           Asistencias marcadas: <span id="attendance-counter-value">0</span>
         </span>
