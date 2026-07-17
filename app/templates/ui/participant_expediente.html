@@ -10,225 +10,266 @@
 </div>
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
-  <div>
-    <h4 class="mb-1">Expediente del Participante</h4>
-    <div class="text-muted small">Vista read-only para auditoría</div>
-  </div>
-  <div class="d-flex gap-2 flex-wrap">
-    <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver</a>
-    <a class="btn btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar participante</a>
-  </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <div class="row g-3 align-items-start">
-      <div class="col-lg-3 col-md-6">
-        <div class="text-muted small">Número de expediente</div>
-        <div class="fw-semibold">{{ p.expediente_num }}</div>
-      </div>
-      <div class="col-lg-5 col-md-6">
-        <div class="text-muted small">Nombre completo</div>
-        <div class="fw-semibold">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
-      </div>
-      <div class="col-lg-2 col-md-6">
-        <div class="text-muted small">Estado</div>
-        {% if is_active %}
-          <span class="badge bg-success">Activo</span>
-        {% else %}
-          <span class="badge bg-danger">Inactivo</span>
-        {% endif %}
-      </div>
-      <div class="col-lg-2 col-md-6">
-        <div class="text-muted small">Jefe familia</div>
-        {% if is_head_of_household %}
-          <span class="badge bg-primary">✔ Jefe</span>
-        {% else %}
-          <span class="text-muted">—</span>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row g-4">
-  <div class="col-xl-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-light"><strong>Información general</strong></div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="text-muted small">Fecha nacimiento</div>
-            <div>{{ p.fecha_nacimiento or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Edad</div>
-            <div>{{ age if age is not none else '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Género</div>
-            <div>{{ p.genero or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">VCA</div>
-            <div>{{ p.vca or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Primera vez</div>
-            <div>{{ p.primera_vez or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Estatus</div>
-            <div>{{ p.estatus or '—' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Escolaridad</div>
-            <div>{{ p.escolaridad_participante or '—' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Relación familiar</div>
-            <div>{{ p.relacion_familiar or '—' }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-light"><strong>Información familiar / residencial</strong></div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="text-muted small">Edificio</div>
-            <div>{{ p.edificio or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Apartamento</div>
-            <div>{{ p.apart or '—' }}</div>
-          </div>
-          <div class="col-md-4">
-            <div class="text-muted small">Grupo familiar</div>
-            <div>{{ p.grupo_familiar or '—' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Composición familiar</div>
-            <div>{{ p.composicion_familiar or '—' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Fuente ingreso principal</div>
-            <div>{{ p.fuente_ingreso_principal or '—' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Rango ingreso</div>
-            <div>{{ p.rango_ingreso or '—' }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="card shadow-sm my-4">
-  <div class="card-header bg-light"><strong>Información de contacto</strong></div>
-  <div class="card-body">
-    {% if profile_fields %}
-    <div class="row g-3">
-      {% for field in profile_fields %}
-      <div class="col-lg-3 col-md-6">
-        <div class="text-muted small">{{ field.label }}</div>
-        <div>{{ profile_values_by_field.get(field.participant_profile_field_id) or '—' }}</div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-      <div class="text-muted">No hay campos configurables definidos.</div>
-    {% endif %}
-  </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-light d-flex justify-content-between align-items-center">
-    <strong>Propuestas asociadas</strong>
-    <span class="badge bg-secondary">{{ proposal_participants|length }}</span>
-  </div>
-  <div class="card-body table-responsive">
-    <table class="table table-sm align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Propuesta</th>
-          <th>Nombre</th>
-          <th>Expediente snapshot</th>
-          <th>Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for proposal_participant, proposal in proposal_participants %}
-        <tr>
-          <td>{{ proposal.code }}</td>
-          <td>{{ proposal.name }}</td>
-          <td>{{ proposal_participant.expediente_num or '—' }}</td>
-          <td>
-            {% if proposal_participant.is_active %}
-              <span class="badge bg-success">Activo</span>
+<div class="participants-page participants-expediente-page">
+  <section class="participants-hero participants-hero--expediente">
+    <div class="participants-hero__content">
+      <span class="participants-hero__eyebrow">Participantes</span>
+      <h1 class="participants-hero__title">Expediente del Participante</h1>
+      <div class="participants-expediente__headline">
+        <div class="participants-expediente__name">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
+        <div class="participants-expediente__meta">
+          <span class="participants-expediente__meta-item">
+            <span class="participants-expediente__meta-label">Número de expediente</span>
+            <strong>{{ p.expediente_num }}</strong>
+          </span>
+          <span class="participants-expediente__meta-item">
+            <span class="participants-expediente__meta-label">Estado</span>
+            {% if is_active %}
+              <span class="badge text-bg-success participants-badge">
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                <span>Activo</span>
+              </span>
             {% else %}
-              <span class="badge bg-danger">Inactivo</span>
+              <span class="badge text-bg-danger participants-badge">
+                <i class="bi bi-x-circle" aria-hidden="true"></i>
+                <span>Inactivo</span>
+              </span>
             {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="4" class="text-muted text-center py-3">No hay propuestas asociadas.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+          </span>
+          <span class="participants-expediente__meta-item">
+            <span class="participants-expediente__meta-label">Jefe familia</span>
+            {% if is_head_of_household %}
+              <span class="badge text-bg-primary participants-badge">
+                <i class="bi bi-house-check" aria-hidden="true"></i>
+                <span>Jefe</span>
+              </span>
+            {% else %}
+              <span class="participants-empty-mark">&mdash;</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="participants-hero__actions">
+        <a class="btn btn-outline-secondary" href="/ui/new-list">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Volver</span>
+        </a>
+        <a class="btn btn-primary participants-hero__cta" href="/ui/new-list/{{ p.participant_id }}/edit">
+          <i class="bi bi-pencil-square" aria-hidden="true"></i>
+          <span>Editar participante</span>
+        </a>
+      </div>
+    </div>
+    <div class="participants-hero__aside">
+      <div class="participants-hero-card">
+        <div class="participants-hero-card__label">Vista actual</div>
+        <p class="participants-hero-card__text">Vista read-only para auditoría</p>
+      </div>
+    </div>
+  </section>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-light d-flex justify-content-between align-items-center">
-    <strong>Participación / asistencia</strong>
-    <span class="badge bg-secondary">{{ participation_rows|length }}</span>
-  </div>
-  <div class="card-body table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Actividad</th>
-          <th>Descripción</th>
-          <th>Propuesta</th>
-          <th>Empleado</th>
-          <th>Fuente</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in participation_rows %}
-        <tr>
-          <td>{{ row.session.session_date }}</td>
-          <td>{{ row.activity_code.code }}</td>
-          <td>{{ row.activity_code.description or '—' }}</td>
-          <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% else %}—{% endif %}</td>
-          <td>{{ row.employee.full_name }}</td>
-          <td><span class="badge bg-light text-dark">{{ row.source }}</span></td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="6" class="text-muted text-center py-3">No hay participación registrada.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+  <section class="participants-section">
+    <div class="participants-expediente-grid">
+      <div class="participants-expediente-card">
+        <div class="participants-expediente-card__header">
+          <h2 class="participants-card__title">Datos generales</h2>
+        </div>
+        <div class="participants-expediente-card__body">
+          <div class="participants-expediente-fields">
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Fecha nacimiento</div>
+              <div class="participants-expediente-field__value">{{ p.fecha_nacimiento or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Edad</div>
+              <div class="participants-expediente-field__value">{{ age if age is not none else '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Género</div>
+              <div class="participants-expediente-field__value">{{ p.genero or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">VCA</div>
+              <div class="participants-expediente-field__value">{{ p.vca or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Primera vez</div>
+              <div class="participants-expediente-field__value">{{ p.primera_vez or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Estatus</div>
+              <div class="participants-expediente-field__value">{{ p.estatus or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Escolaridad</div>
+              <div class="participants-expediente-field__value">{{ p.escolaridad_participante or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Relación familiar</div>
+              <div class="participants-expediente-field__value">{{ p.relacion_familiar or '—' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<div class="card shadow-sm mb-4 border-info">
-  <div class="card-header bg-info-subtle"><strong>Documentos</strong></div>
-  <div class="card-body">
-    <div class="text-muted">La carga de documentos queda preparada como fase futura.</div>
-  </div>
+      <div class="participants-expediente-card">
+        <div class="participants-expediente-card__header">
+          <h2 class="participants-card__title">Información familiar / residencial</h2>
+        </div>
+        <div class="participants-expediente-card__body">
+          <div class="participants-expediente-fields">
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Edificio</div>
+              <div class="participants-expediente-field__value">{{ p.edificio or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Apartamento</div>
+              <div class="participants-expediente-field__value">{{ p.apart or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Grupo familiar</div>
+              <div class="participants-expediente-field__value">{{ p.grupo_familiar or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Composición familiar</div>
+              <div class="participants-expediente-field__value">{{ p.composicion_familiar or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Fuente ingreso principal</div>
+              <div class="participants-expediente-field__value">{{ p.fuente_ingreso_principal or '—' }}</div>
+            </div>
+            <div class="participants-expediente-field">
+              <div class="participants-expediente-field__label">Rango ingreso</div>
+              <div class="participants-expediente-field__value">{{ p.rango_ingreso or '—' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="participants-section">
+    <div class="participants-expediente-card">
+      <div class="participants-expediente-card__header">
+        <h2 class="participants-card__title">Información de contacto</h2>
+      </div>
+      <div class="participants-expediente-card__body">
+        {% if profile_fields %}
+        <div class="participants-expediente-fields">
+          {% for field in profile_fields %}
+          <div class="participants-expediente-field">
+            <div class="participants-expediente-field__label">{{ field.label }}</div>
+            <div class="participants-expediente-field__value">{{ profile_values_by_field.get(field.participant_profile_field_id) or '—' }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          <div class="text-muted">No hay campos configurables definidos.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="participants-section">
+    <div class="participants-expediente-card">
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline">
+        <h2 class="participants-card__title">Propuestas asociadas</h2>
+        <span class="badge text-bg-secondary">{{ proposal_participants|length }}</span>
+      </div>
+      <div class="participants-expediente-card__body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle participants-table mb-0">
+            <thead>
+              <tr>
+                <th>Propuesta</th>
+                <th>Nombre</th>
+                <th>Expediente snapshot</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for proposal_participant, proposal in proposal_participants %}
+              <tr>
+                <td class="participants-table__expediente">{{ proposal.code }}</td>
+                <td>{{ proposal.name }}</td>
+                <td>{{ proposal_participant.expediente_num or '—' }}</td>
+                <td>
+                  {% if proposal_participant.is_active %}
+                    <span class="badge text-bg-success participants-badge">
+                      <i class="bi bi-check-circle" aria-hidden="true"></i>
+                      <span>Activo</span>
+                    </span>
+                  {% else %}
+                    <span class="badge text-bg-danger participants-badge">
+                      <i class="bi bi-x-circle" aria-hidden="true"></i>
+                      <span>Inactivo</span>
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-muted text-center py-3">No hay propuestas asociadas.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="participants-section">
+    <div class="participants-expediente-card">
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline">
+        <h2 class="participants-card__title">Participación / asistencia</h2>
+        <span class="badge text-bg-secondary">{{ participation_rows|length }}</span>
+      </div>
+      <div class="participants-expediente-card__body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle participants-table mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Actividad</th>
+                <th>Descripción</th>
+                <th>Propuesta</th>
+                <th>Empleado</th>
+                <th>Fuente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in participation_rows %}
+              <tr>
+                <td>{{ row.session.session_date }}</td>
+                <td class="participants-table__expediente">{{ row.activity_code.code }}</td>
+                <td>{{ row.activity_code.description or '—' }}</td>
+                <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% else %}—{% endif %}</td>
+                <td>{{ row.employee.full_name }}</td>
+                <td><span class="badge bg-light text-dark">{{ row.source }}</span></td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-muted text-center py-3">No hay participación registrada.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="participants-section">
+    <div class="participants-expediente-card participants-expediente-card--placeholder">
+      <div class="participants-expediente-card__header">
+        <h2 class="participants-card__title">Documentos</h2>
+      </div>
+      <div class="participants-expediente-card__body">
+        <div class="text-muted">La carga de documentos queda preparada como fase futura.</div>
+      </div>
+    </div>
+  </section>
 </div>
 
 {% endblock %}
