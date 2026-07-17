@@ -397,9 +397,9 @@ body.ui-shell-body {
 
 .home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
-  gap: 1.25rem;
-  padding: 1.4rem;
+  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 1.1fr);
+  gap: 1.4rem;
+  padding: 1.5rem;
   border-radius: 28px;
   background:
     radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 34%),
@@ -485,6 +485,7 @@ body.ui-shell-body {
 .home-hero__brand {
   display: flex;
   align-items: stretch;
+  justify-content: center;
 }
 
 .home-logo-card {
@@ -501,22 +502,46 @@ body.ui-shell-body {
   text-align: center;
 }
 
+.home-logo-card--hero {
+  max-width: 620px;
+  gap: 1.15rem;
+  padding: 1.9rem 2rem;
+  border-radius: 28px;
+  justify-content: center;
+}
+
 .home-logo-card__image {
   width: min(100%, 190px);
   max-height: 190px;
   object-fit: contain;
 }
 
+.home-logo-card--hero .home-logo-card__image {
+  width: min(100%, 240px);
+  max-height: 220px;
+}
+
 .home-logo-card__copy {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  align-items: center;
 }
 
 .home-logo-card__title {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
+}
+
+.home-logo-card--hero .home-logo-card__title {
+  font-size: clamp(1.45rem, 2vw, 1.95rem);
+}
+
+.home-logo-card--hero .home-logo-card__text {
+  max-width: 34ch;
+  font-size: 1.02rem;
+  line-height: 1.65;
 }
 
 .home-section {
