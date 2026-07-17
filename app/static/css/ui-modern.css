@@ -1160,6 +1160,17 @@ body.ui-shell-body {
   font-weight: 600;
 }
 
+.participants-expediente-table-empty {
+  display: inline-block;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
+.participants-expediente-badge-neutral {
+  color: var(--ui-text-muted);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
 .participants-expediente-card--placeholder {
   border-color: rgba(6, 182, 212, 0.18);
   background:

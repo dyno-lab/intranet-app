@@ -176,7 +176,7 @@
   <section class="participants-section">
     <div class="participants-expediente-card">
       <div class="participants-expediente-card__header participants-expediente-card__header--inline">
-        <h2 class="participants-card__title">Propuestas asociadas</h2>
+        <h2 class="participants-card__title">Propuestas relacionadas</h2>
         <span class="badge text-bg-secondary">{{ proposal_participants|length }}</span>
       </div>
       <div class="participants-expediente-card__body">
@@ -186,33 +186,53 @@
               <tr>
                 <th>Propuesta</th>
                 <th>Nombre</th>
+                <th>Tipo de vinculo</th>
                 <th>Expediente snapshot</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {% for proposal_participant, proposal in proposal_participants %}
+              {% for row in proposal_participants %}
+              {% set proposal_participant = row.proposal_participant %}
+              {% set proposal = row.proposal %}
               <tr>
                 <td class="participants-table__expediente">{{ proposal.code }}</td>
                 <td>{{ proposal.name }}</td>
-                <td>{{ display_value(proposal_participant.expediente_num) }}</td>
                 <td>
-                  {% if proposal_participant.is_active %}
-                    <span class="badge text-bg-success participants-badge">
-                      <i class="bi bi-check-circle" aria-hidden="true"></i>
-                      <span>Activo</span>
-                    </span>
+                  {% if row.relationship_source == "formal" %}
+                    <span class="badge text-bg-light participants-expediente-badge-neutral">Asociacion formal</span>
+                  {% elif proposal_participant %}
+                    <span class="badge text-bg-light participants-expediente-badge-neutral">Asociacion formal</span>
                   {% else %}
-                    <span class="badge text-bg-danger participants-badge">
-                      <i class="bi bi-x-circle" aria-hidden="true"></i>
-                      <span>Inactivo</span>
-                    </span>
+                    <span class="badge text-bg-light participants-expediente-badge-neutral">Participacion historica</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.relationship_source == "formal" %}
+                    {{ display_value(proposal_participant.expediente_num if proposal_participant else '') }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.relationship_source == "formal" %}
+                    {% if proposal_participant and proposal_participant.is_active %}
+                      <span class="badge text-bg-success participants-badge">
+                        <i class="bi bi-check-circle" aria-hidden="true"></i>
+                        <span>Activo</span>
+                      </span>
+                    {% else %}
+                      <span class="badge text-bg-danger participants-badge">
+                        <i class="bi bi-x-circle" aria-hidden="true"></i>
+                        <span>Inactivo</span>
+                      </span>
+                    {% endif %}
+                  {% else %}
+                    <span class="participants-expediente-table-empty">No disponible</span>
                   {% endif %}
                 </td>
               </tr>
               {% else %}
               <tr>
-                <td colspan="4" class="text-muted text-center py-3">No hay propuestas asociadas.</td>
+                <td colspan="5" class="text-muted text-center py-3">No hay propuestas asociadas.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -234,6 +254,7 @@
             <thead>
               <tr>
                 <th>Fecha</th>
+                <th>Numero de control</th>
                 <th>Actividad</th>
                 <th>Descripcion</th>
                 <th>Propuesta</th>
@@ -245,6 +266,7 @@
               {% for row in participation_rows %}
               <tr>
                 <td>{{ row.session.session_date }}</td>
+                <td>{{ display_value(row.session.control_number) }}</td>
                 <td class="participants-table__expediente">{{ row.activity_code.code }}</td>
                 <td>{{ display_value(row.activity_code.description) }}</td>
                 <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% endif %}</td>
@@ -253,7 +275,7 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="6" class="text-muted text-center py-3">No hay participacion registrada.</td>
+                <td colspan="7" class="text-muted text-center py-3">No hay participacion registrada.</td>
               </tr>
               {% endfor %}
             </tbody>

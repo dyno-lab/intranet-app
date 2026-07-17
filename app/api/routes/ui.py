@@ -1136,14 +1136,20 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
         select(Person).where(Person.legacy_participant_id == participant.participant_id)
     ).scalar_one_or_none()
 
-    proposal_participants = []
+    proposal_participants_by_proposal_id: dict[int, dict[str, object | None]] = {}
     if person:
-        proposal_participants = db.execute(
+        proposal_rows = db.execute(
             select(ProposalParticipant, Proposal)
             .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
             .where(ProposalParticipant.person_id == person.person_id)
             .order_by(Proposal.code)
         ).all()
+        for proposal_participant, proposal in proposal_rows:
+            proposal_participants_by_proposal_id[proposal.proposal_id] = {
+                "proposal_participant": proposal_participant,
+                "proposal": proposal,
+                "relationship_source": "formal",
+            }
 
     participation_rows_by_attendance_id = {}
 
@@ -1160,6 +1166,12 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
     ).all()
 
     for attendance, session, activity_code, employee, proposal in direct_attendance_rows:
+        if proposal and proposal.proposal_id not in proposal_participants_by_proposal_id:
+            proposal_participants_by_proposal_id[proposal.proposal_id] = {
+                "proposal_participant": None,
+                "proposal": proposal,
+                "relationship_source": "historical",
+            }
         participation_rows_by_attendance_id[attendance.attendance_id] = {
             "attendance": attendance,
             "session": session,
@@ -1184,6 +1196,12 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
         ).all()
 
         for attendance, session, activity_code, employee, proposal, proposal_participant in proposal_attendance_rows:
+            if proposal and proposal.proposal_id not in proposal_participants_by_proposal_id:
+                proposal_participants_by_proposal_id[proposal.proposal_id] = {
+                    "proposal_participant": proposal_participant,
+                    "proposal": proposal,
+                    "relationship_source": "historical",
+                }
             participation_rows_by_attendance_id[attendance.attendance_id] = {
                 "attendance": attendance,
                 "session": session,
@@ -1199,6 +1217,20 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
         key=lambda row: (row["session"].session_date, row["session"].session_id),
         reverse=True,
     )
+    proposal_participants = [
+        {
+            "proposal_participant": row["proposal_participant"],
+            "proposal": row["proposal"],
+            "relationship_source": row["relationship_source"],
+        }
+        for row in sorted(
+            proposal_participants_by_proposal_id.values(),
+            key=lambda row: (
+                ((row["proposal"].code if row["proposal"] else "") or ""),
+                ((row["proposal"].name if row["proposal"] else "") or ""),
+            ),
+        )
+    ]
 
     return {
         "profile_fields": profile_fields,
