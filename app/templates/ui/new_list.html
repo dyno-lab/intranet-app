@@ -18,25 +18,6 @@
         </a>
       </div>
     </div>
-    <div class="participants-hero__aside">
-      <div class="participants-hero-card">
-        <div class="participants-hero-card__label">Vista actual</div>
-        {% if is_admin_or_supervisor_view and selected_residential_id %}
-          <span class="badge text-bg-info participants-badge">Residencial filtrado</span>
-        {% elif is_admin_or_supervisor_view %}
-          <span class="badge text-bg-secondary participants-badge">Vista global</span>
-        {% else %}
-          <span class="badge text-bg-primary participants-badge">Mi cuenta</span>
-        {% endif %}
-        <p class="participants-hero-card__text">
-          {% if is_admin_or_supervisor_view %}
-            Resumen y listado segun el filtro de residencial seleccionado.
-          {% else %}
-            Resumen y listado de los participantes registrados por tu cuenta.
-          {% endif %}
-        </p>
-      </div>
-    </div>
   </section>
 
   <section class="participants-section participants-section--compact">
