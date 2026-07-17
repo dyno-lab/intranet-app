@@ -341,6 +341,370 @@ body.ui-shell-body {
   padding-top: 1rem;
 }
 
+.home-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.home-hero,
+.home-panel,
+.home-logo-card,
+.home-module-card,
+.home-admin-card,
+.home-logout-card {
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+  gap: 1.25rem;
+  padding: 1.4rem;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(244, 248, 255, 0.96));
+}
+
+.home-hero__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.95rem;
+}
+
+.home-hero__eyebrow,
+.home-section__title,
+.home-panel__title,
+.home-logo-card__title,
+.home-module-card__title,
+.home-admin-card__title,
+.home-logout-card__title,
+.home-guide-item h3 {
+  color: var(--ui-text);
+}
+
+.home-hero__eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.home-hero__title {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.2rem);
+  line-height: 1.05;
+  font-weight: 800;
+  color: var(--ui-text);
+}
+
+.home-hero__lead,
+.home-section__text,
+.home-panel__text,
+.home-logo-card__text,
+.home-module-card__text,
+.home-admin-card__text,
+.home-logout-card__text,
+.home-guide-item p,
+.home-footer-note {
+  margin: 0;
+  color: var(--ui-text-muted);
+}
+
+.home-hero__lead {
+  max-width: 60ch;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.home-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  color: var(--ui-text);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.home-pill i {
+  color: #2563eb;
+}
+
+.home-hero__brand {
+  display: flex;
+  align-items: stretch;
+}
+
+.home-logo-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 100%;
+  padding: 1.4rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  text-align: center;
+}
+
+.home-logo-card__image {
+  width: min(100%, 190px);
+  max-height: 190px;
+  object-fit: contain;
+}
+
+.home-logo-card__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.home-logo-card__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.home-section__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-section__title,
+.home-panel__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+  font-weight: 750;
+}
+
+.home-module-card,
+.home-admin-card,
+.home-logout-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--ui-transition-fast),
+    box-shadow var(--ui-transition-base),
+    transform var(--ui-transition-fast),
+    background-color var(--ui-transition-fast);
+}
+
+.home-module-card:hover,
+.home-module-card:focus-visible,
+.home-admin-card:hover,
+.home-admin-card:focus-visible,
+.home-logout-card:hover,
+.home-logout-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--ui-shadow);
+}
+
+.home-module-card__icon,
+.home-admin-card__icon,
+.home-logout-card__icon {
+  width: 3.65rem;
+  height: 3.65rem;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  font-size: 1.55rem;
+}
+
+.home-module-card__body,
+.home-admin-card__body,
+.home-logout-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.home-module-card__title,
+.home-admin-card__title,
+.home-logout-card__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.home-module-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: auto;
+  font-weight: 700;
+  color: var(--ui-text);
+}
+
+.home-module-card__action i {
+  font-size: 0.95rem;
+}
+
+.home-module-card--participants {
+  border-color: rgba(59, 130, 246, 0.26);
+}
+
+.home-module-card--participants .home-module-card__icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.home-module-card--attendance {
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.home-module-card--attendance .home-module-card__icon {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.home-module-card--grades {
+  border-color: rgba(6, 182, 212, 0.24);
+}
+
+.home-module-card--grades .home-module-card__icon {
+  background: rgba(6, 182, 212, 0.12);
+  color: #0891b2;
+}
+
+.home-module-card--dropout {
+  border-color: rgba(71, 85, 105, 0.22);
+}
+
+.home-module-card--dropout .home-module-card__icon {
+  background: rgba(71, 85, 105, 0.12);
+  color: #334155;
+}
+
+.home-module-card--pregnancy {
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.home-module-card--pregnancy .home-module-card__icon {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.home-module-card--reports {
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+.home-module-card--reports .home-module-card__icon {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.home-panel {
+  height: 100%;
+  padding: 1.35rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.home-panel__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.home-guide-grid {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.home-guide-item {
+  display: grid;
+  grid-template-columns: 2.75rem 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.home-guide-item i {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  font-size: 1.15rem;
+}
+
+.home-guide-item h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.home-admin-card {
+  align-items: center;
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.home-admin-card__icon {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.home-logout-card {
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  align-items: center;
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.1), transparent 32%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.home-logout-card__icon {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.home-footer-note {
+  text-align: center;
+  font-size: 0.88rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
 @media (min-width: 992px) {
   .ui-main {
     margin-left: var(--ui-sidebar-width);
@@ -361,6 +725,14 @@ body.ui-shell-body {
   .ui-content-shell {
     padding: 1rem;
   }
+
+  .home-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero__brand {
+    min-height: 0;
+  }
 }
 
 @media (max-width: 575.98px) {
@@ -378,6 +750,45 @@ body.ui-shell-body {
 
   .ui-logout-btn span {
     display: none;
+  }
+
+  .home-hero,
+  .home-panel,
+  .home-module-card,
+  .home-admin-card,
+  .home-logout-card {
+    border-radius: 20px;
+  }
+
+  .home-hero,
+  .home-panel,
+  .home-module-card,
+  .home-admin-card,
+  .home-logout-card,
+  .home-logo-card {
+    padding: 1rem;
+  }
+
+  .home-module-card,
+  .home-admin-card,
+  .home-logout-card {
+    flex-direction: column;
+  }
+
+  .home-module-card__icon,
+  .home-admin-card__icon,
+  .home-logout-card__icon {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .home-hero__title {
+    font-size: 1.85rem;
+  }
+
+  .home-section__title,
+  .home-panel__title {
+    font-size: 1.35rem;
   }
 }
 

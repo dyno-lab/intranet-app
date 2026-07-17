@@ -2,163 +2,237 @@
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
-  {{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
-<div class="row justify-content-center">
-  <div class="col-12 col-xl-10">
-    <div class="text-center mb-4">
-      <img src="/static/img/logo-faro-esperanza.png"
-           alt="Logo Programa Faro de Esperanza"
-           class="img-fluid mb-3"
-           style="max-width: 230px; max-height: 230px;">
-      <h1 class="h2 fw-bold mb-2">Programa Faro de Esperanza</h1>
-      <p class="text-secondary fs-5 mb-0">Menú Estadístico</p>
-    </div>
+<section class="home-dashboard">
+  <div class="home-hero">
+    <div class="home-hero__content">
+      <div class="home-hero__eyebrow">Panel principal</div>
+      <h1 class="home-hero__title">Bienvenido{% if current_user %}, {{ current_user.username }}{% endif %}</h1>
+      <p class="home-hero__lead">
+        Accede a los módulos principales del sistema y continúa el trabajo operativo desde un solo punto.
+      </p>
 
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4 p-md-5">
-        <div class="row g-4 justify-content-center">
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/new-list" class="text-decoration-none">
-              <div class="card h-100 border-primary border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">👥</div>
-                  <h3 class="h4 text-dark fw-semibold">Participantes</h3>
-                  <p class="text-muted mb-0">Registrar, consultar y actualizar participantes.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/listado" class="text-decoration-none">
-              <div class="card h-100 border-success border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">📋</div>
-                  <h3 class="h4 text-dark fw-semibold">Asistencias</h3>
-                  <p class="text-muted mb-0">Crear sesiones, marcar asistencia y revisar listados.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/school-grades" class="text-decoration-none">
-              <div class="card h-100 border-info border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">📝</div>
-                  <h3 class="h4 text-dark fw-semibold">Notas escolares</h3>
-                  <p class="text-muted mb-0">Crear informes mensuales por propuesta, mes y año.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/school-dropout" class="text-decoration-none">
-              <div class="card h-100 border-secondary border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">🎓</div>
-                  <h3 class="h4 text-dark fw-semibold">Deserción escolar</h3>
-                  <p class="text-muted mb-0">Crear informes mensuales y registrar seguimiento escolar.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/pregnancy" class="text-decoration-none">
-              <div class="card h-100 border-danger border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">🤰</div>
-                  <h3 class="h4 text-dark fw-semibold">Embarazo</h3>
-                  <p class="text-muted mb-0">Crear informes mensuales y registrar seguimiento de embarazo.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/reports/" class="text-decoration-none">
-              <div class="card h-100 border-dark border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-5 mb-3">📄</div>
-                  <h3 class="h4 text-dark fw-semibold">Reportes</h3>
-                  <p class="text-muted mb-0">Generar Bonafide y centralizar futuros reportes operativos.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <form method="post" action="/logout" class="h-100">
-              <button type="submit" class="btn p-0 border-0 bg-transparent w-100 h-100 text-start">
-                <div class="card h-100 border-danger border-2 shadow-sm text-center">
-                  <div class="card-body py-4 px-3">
-                    <div class="display-5 mb-3">🚪</div>
-                    <h3 class="h4 text-dark fw-semibold">Cerrar sesión</h3>
-                    <p class="text-muted mb-0">Salir de forma segura del sistema.</p>
-                  </div>
-                </div>
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {% if current_user and current_user.role == "admin" %}
-        <hr class="my-5">
-
-        <div class="text-center mb-4">
-          <h2 class="h4 fw-bold mb-2">Administración</h2>
-          <p class="text-muted mb-0">Opciones disponibles para usuarios administradores.</p>
-        </div>
-
-        <div class="row g-4 justify-content-center">
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/admin/users" class="text-decoration-none">
-              <div class="card h-100 border-warning border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-6 mb-3">👤</div>
-                  <h3 class="h5 text-dark fw-semibold">Usuarios</h3>
-                  <p class="text-muted mb-0">Gestionar cuentas, roles y accesos.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/admin/activity-codes" class="text-decoration-none">
-              <div class="card h-100 border-warning border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-6 mb-3">🗂️</div>
-                  <h3 class="h5 text-dark fw-semibold">Actividades</h3>
-                  <p class="text-muted mb-0">Administrar códigos y descripciones de actividad.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-12 col-md-6 col-xl-4">
-            <a href="/ui/admin/employees" class="text-decoration-none">
-              <div class="card h-100 border-warning border-2 shadow-sm text-center">
-                <div class="card-body py-4 px-3">
-                  <div class="display-6 mb-3">🧑‍💼</div>
-                  <h3 class="h5 text-dark fw-semibold">Empleados</h3>
-                  <p class="text-muted mb-0">Mantener el catálogo del personal disponible.</p>
-                </div>
-              </div>
-            </a>
-          </div>
-        </div>
+      <div class="home-hero__meta">
+        {% if current_user %}
+        <span class="home-pill">
+          <i class="bi bi-person-badge" aria-hidden="true"></i>
+          <span>Rol: {{ current_user.role }}</span>
+        </span>
+        {% endif %}
+        {% if phase2_expediente_enabled %}
+        <span class="home-pill">
+          <i class="bi bi-folder2-open" aria-hidden="true"></i>
+          <span>Expediente habilitado</span>
+        </span>
         {% endif %}
       </div>
     </div>
 
-    <p class="text-center text-muted small mt-4 mb-0">Derechos reservados Christian X. Ramirez</p>
+    <div class="home-hero__brand">
+      <div class="home-logo-card">
+        <img
+          src="/static/img/logo-faro-esperanza.png"
+          alt="Logo Programa Faro de Esperanza"
+          class="home-logo-card__image"
+        >
+        <div class="home-logo-card__copy">
+          <h2 class="home-logo-card__title">Programa Faro de Esperanza</h2>
+          <p class="home-logo-card__text">Entorno de trabajo institucional para participantes, asistencias, seguimientos y reportes.</p>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <section class="home-section">
+    <div class="home-section__header">
+      <div>
+        <h2 class="home-section__title">Accesos rápidos</h2>
+        <p class="home-section__text">Módulos existentes del sistema disponibles desde la página principal.</p>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/new-list" class="home-module-card home-module-card--participants">
+          <span class="home-module-card__icon">
+            <i class="bi bi-people" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Participantes</h3>
+            <p class="home-module-card__text">Registrar, consultar y actualizar participantes.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/listado" class="home-module-card home-module-card--attendance">
+          <span class="home-module-card__icon">
+            <i class="bi bi-calendar-check" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Asistencias</h3>
+            <p class="home-module-card__text">Crear sesiones, marcar asistencia y revisar listados.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/school-grades" class="home-module-card home-module-card--grades">
+          <span class="home-module-card__icon">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Notas escolares</h3>
+            <p class="home-module-card__text">Crear informes mensuales por propuesta, mes y año.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/school-dropout" class="home-module-card home-module-card--dropout">
+          <span class="home-module-card__icon">
+            <i class="bi bi-mortarboard" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Deserción escolar</h3>
+            <p class="home-module-card__text">Crear informes mensuales y registrar seguimiento escolar.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/pregnancy" class="home-module-card home-module-card--pregnancy">
+          <span class="home-module-card__icon">
+            <i class="bi bi-heart-pulse" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Embarazo</h3>
+            <p class="home-module-card__text">Crear informes mensuales y registrar seguimiento de embarazo.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xxl-4">
+        <a href="/ui/reports/" class="home-module-card home-module-card--reports">
+          <span class="home-module-card__icon">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+          </span>
+          <div class="home-module-card__body">
+            <h3 class="home-module-card__title">Reportes</h3>
+            <p class="home-module-card__text">Generar Bonafide y centralizar futuros reportes operativos.</p>
+            <span class="home-module-card__action">Acceder <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section">
+    <div class="row g-4">
+      <div class="col-12 {% if current_user and current_user.role == 'admin' %}col-xl-8{% else %}col-xl-12{% endif %}">
+        <div class="home-panel">
+          <div class="home-panel__header">
+            <div>
+              <h2 class="home-panel__title">Guía rápida</h2>
+              <p class="home-panel__text">Selecciona el módulo según la operación que necesites completar.</p>
+            </div>
+          </div>
+
+          <div class="home-guide-grid">
+            <div class="home-guide-item">
+              <i class="bi bi-people" aria-hidden="true"></i>
+              <div>
+                <h3>Participantes</h3>
+                <p>Altas, consulta, edición y expediente del participante.</p>
+              </div>
+            </div>
+            <div class="home-guide-item">
+              <i class="bi bi-calendar-check" aria-hidden="true"></i>
+              <div>
+                <h3>Asistencias</h3>
+                <p>Sesiones, listados y control operativo de participación.</p>
+              </div>
+            </div>
+            <div class="home-guide-item">
+              <i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i>
+              <div>
+                <h3>Seguimientos y reportes</h3>
+                <p>Informes mensuales y salidas administrativas ya existentes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 {% if current_user and current_user.role == 'admin' %}col-xl-4{% else %}col-xl-12{% endif %}">
+        <form method="post" action="/logout" class="h-100">
+          <button type="submit" class="home-logout-card">
+            <span class="home-logout-card__icon">
+              <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+            </span>
+            <span class="home-logout-card__body">
+              <span class="home-logout-card__title">Cerrar sesión</span>
+              <span class="home-logout-card__text">Salir de forma segura del sistema.</span>
+            </span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {% if current_user and current_user.role == "admin" %}
+  <section class="home-section">
+    <div class="home-section__header">
+      <div>
+        <h2 class="home-section__title">Administración</h2>
+        <p class="home-section__text">Accesos directos a opciones disponibles para usuarios administradores.</p>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-6 col-xl-4">
+        <a href="/ui/admin/users" class="home-admin-card">
+          <span class="home-admin-card__icon">
+            <i class="bi bi-person-gear" aria-hidden="true"></i>
+          </span>
+          <div class="home-admin-card__body">
+            <h3 class="home-admin-card__title">Usuarios</h3>
+            <p class="home-admin-card__text">Gestionar cuentas, roles y accesos.</p>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xl-4">
+        <a href="/ui/admin/activity-codes" class="home-admin-card">
+          <span class="home-admin-card__icon">
+            <i class="bi bi-kanban" aria-hidden="true"></i>
+          </span>
+          <div class="home-admin-card__body">
+            <h3 class="home-admin-card__title">Actividades</h3>
+            <p class="home-admin-card__text">Administrar códigos y descripciones de actividad.</p>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-12 col-md-6 col-xl-4">
+        <a href="/ui/admin/employees" class="home-admin-card">
+          <span class="home-admin-card__icon">
+            <i class="bi bi-person-workspace" aria-hidden="true"></i>
+          </span>
+          <div class="home-admin-card__body">
+            <h3 class="home-admin-card__title">Empleados</h3>
+            <p class="home-admin-card__text">Mantener el catálogo del personal disponible.</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <p class="home-footer-note">Derechos reservados Christian X. Ramirez</p>
+</section>
 {% endblock %}
