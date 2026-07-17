@@ -1,459 +1,575 @@
 {% extends "ui/_base.html" %}
-{% block title %}New List{% endblock %}
+{% block title %}Participantes{% endblock %}
 
 {% block content %}
-<h4 class="mb-3">New List - Registro de Participantes</h4>
-
-<div class="card shadow-sm mb-4 border-0">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
-      <div>
-        <h5 class="mb-1">Resumen de Participantes Registrados</h5>
-        <div class="text-muted small">
-          {% if is_admin_or_supervisor_view %}
-            Métricas según el filtro de residencial seleccionado.
-          {% else %}
-            Métricas de los participantes registrados por tu cuenta.
-          {% endif %}
-        </div>
+<div class="participants-page">
+  <section class="participants-hero">
+    <div class="participants-hero__content">
+      <span class="participants-hero__eyebrow">Modulo operativo</span>
+      <h1 class="participants-hero__title">Registro de Participantes</h1>
+      <p class="participants-hero__lead">
+        Gestiona el alta, consulta, filtrado y seguimiento inicial de participantes
+        usando los formularios y permisos ya existentes.
+      </p>
+      <div class="participants-hero__actions">
+        <a class="btn btn-primary participants-hero__cta" href="#participant-register-card">
+          <i class="bi bi-person-plus" aria-hidden="true"></i>
+          <span>Registrar participante</span>
+        </a>
+        <a class="btn btn-outline-secondary" href="#participants-table-card">
+          <i class="bi bi-table" aria-hidden="true"></i>
+          <span>Ver participantes</span>
+        </a>
       </div>
-      {% if is_admin_or_supervisor_view and selected_residential_id %}
-        <span class="badge text-bg-info">Residencial filtrado</span>
-      {% elif is_admin_or_supervisor_view %}
-        <span class="badge text-bg-secondary">Vista global</span>
-      {% else %}
-        <span class="badge text-bg-primary">Mi cuenta</span>
-      {% endif %}
+    </div>
+    <div class="participants-hero__aside">
+      <div class="participants-hero-card">
+        <div class="participants-hero-card__label">Vista actual</div>
+        {% if is_admin_or_supervisor_view and selected_residential_id %}
+          <span class="badge text-bg-info participants-badge">Residencial filtrado</span>
+        {% elif is_admin_or_supervisor_view %}
+          <span class="badge text-bg-secondary participants-badge">Vista global</span>
+        {% else %}
+          <span class="badge text-bg-primary participants-badge">Mi cuenta</span>
+        {% endif %}
+        <p class="participants-hero-card__text">
+          {% if is_admin_or_supervisor_view %}
+            Resumen y listado segun el filtro de residencial seleccionado.
+          {% else %}
+            Resumen y listado de los participantes registrados por tu cuenta.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="participants-section">
+    <div class="participants-section__header">
+      <div>
+        <h2 class="participants-section__title">Resumen existente</h2>
+        <p class="participants-section__text">
+          Se presentan unicamente los datos ya entregados por el backend.
+        </p>
+      </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-md-4">
-        <div class="p-3 rounded bg-light h-100">
-          <div class="text-muted small">Registrados</div>
-          <div class="fs-3 fw-bold">{{ new_list_dashboard.totals.registered_count }}</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="p-3 rounded bg-light h-100">
-          <div class="text-muted small">Asignados a propuesta</div>
-          <div class="fs-3 fw-bold">{{ new_list_dashboard.totals.assigned_count }}</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="p-3 rounded bg-light h-100">
-          <div class="text-muted small">Pendientes de sync</div>
-          <div class="fs-3 fw-bold {{ 'text-warning' if new_list_dashboard.totals.pending_sync_count else '' }}">{{ new_list_dashboard.totals.pending_sync_count }}</div>
-        </div>
-      </div>
+    <div class="participants-summary-grid">
+      <article class="participants-summary-card">
+        <span class="participants-summary-card__label">Registrados</span>
+        <strong class="participants-summary-card__value">{{ new_list_dashboard.totals.registered_count }}</strong>
+      </article>
+      <article class="participants-summary-card">
+        <span class="participants-summary-card__label">Asignados a propuesta</span>
+        <strong class="participants-summary-card__value">{{ new_list_dashboard.totals.assigned_count }}</strong>
+      </article>
+      <article class="participants-summary-card">
+        <span class="participants-summary-card__label">Pendientes de sync</span>
+        <strong class="participants-summary-card__value {{ 'text-warning' if new_list_dashboard.totals.pending_sync_count else '' }}">
+          {{ new_list_dashboard.totals.pending_sync_count }}
+        </strong>
+      </article>
     </div>
 
     {% if new_list_dashboard.show_residential_breakdown and new_list_dashboard.residential_rows %}
-    <div class="table-responsive mt-3">
-      <table class="table table-sm align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Residencial</th>
-            <th class="text-end">Registrados</th>
-            <th class="text-end">Asignados</th>
-            <th class="text-end">Pendientes sync</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in new_list_dashboard.residential_rows %}
-          <tr>
-            <td>{{ row.label }}</td>
-            <td class="text-end">{{ row.registered_count }}</td>
-            <td class="text-end">{{ row.assigned_count }}</td>
-            <td class="text-end {{ 'text-warning fw-semibold' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="card shadow-sm border-0 participants-breakdown-card">
+      <div class="card-body">
+        <div class="participants-card__header">
+          <div>
+            <h3 class="participants-card__title">Desglose por residencial</h3>
+            <p class="participants-card__text">Vista tabular del resumen existente.</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 participants-breakdown-table">
+            <thead>
+              <tr>
+                <th>Residencial</th>
+                <th class="text-end">Registrados</th>
+                <th class="text-end">Asignados</th>
+                <th class="text-end">Pendientes sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in new_list_dashboard.residential_rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="text-end">{{ row.registered_count }}</td>
+                <td class="text-end">{{ row.assigned_count }}</td>
+                <td class="text-end {{ 'text-warning fw-semibold' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     {% endif %}
-  </div>
-</div>
+  </section>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="post" action="/ui/new-list/create" class="row g-3 align-items-start">
-
-      {% if phase2_expediente_enabled %}
-<div class="col-lg-3 col-md-6">
-  <label class="form-label">Año expediente *</label>
-  <select class="form-select" name="exp_year" id="exp_year" required>
-    <option value="">Selecciona</option>
-    {% for y in years %}
-    <option value="{{ y }}">{{ y }}</option>
-    {% endfor %}
-  </select>
-</div>
-
-<div class="col-lg-3 col-md-6">
-  <label class="form-label">Siglas empleado *</label>
-  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
-</div>
-
-<div class="col-lg-2 col-md-4">
-  <label class="form-label">4 dígitos *</label>
-  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
-  <div class="form-text">Único</div>
-</div>
-
-<div class="col-lg-4 col-md-8">
-  <label class="form-label">Vista previa</label>
-  <input class="form-control" id="exp_preview" readonly placeholder="FE-YYYY-XX-0000">
-</div>
-{% else %}
-<div class="col-lg-3 col-md-4">
-  <label class="form-label">Número de expediente *</label>
-  <input class="form-control" name="expediente_num" required>
-</div>
-{% endif %}
-
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Nombre *</label>
-        <input class="form-control" name="nombre" required>
+  <section class="participants-section">
+    <div class="participants-section__header">
+      <div>
+        <h2 class="participants-section__title">Registrar participante</h2>
+        <p class="participants-section__text">
+          El formulario mantiene la misma logica, validaciones y campos actuales.
+        </p>
       </div>
+    </div>
 
-      <div class="col-lg-1 col-md-2">
-        <label class="form-label">Inicial</label>
-        <input class="form-control" name="inicial" maxlength="10">
+    <div class="card shadow-sm border-0 participants-form-card" id="participant-register-card">
+      <div class="card-body">
+        <form method="post" action="/ui/new-list/create" class="row g-3 align-items-start">
+
+          {% if phase2_expediente_enabled %}
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Datos de expediente</h3>
+                <p class="participants-form-section__text">Campos obligatorios para construir el expediente.</p>
+              </div>
+              <div class="row g-3">
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label">Ano expediente *</label>
+                  <select class="form-select" name="exp_year" id="exp_year" required>
+                    <option value="">Selecciona</option>
+                    {% for y in years %}
+                    <option value="{{ y }}">{{ y }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label">Siglas empleado *</label>
+                  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
+                </div>
+
+                <div class="col-lg-2 col-md-4">
+                  <label class="form-label">4 digitos *</label>
+                  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
+                  <div class="form-text">Unico</div>
+                </div>
+
+                <div class="col-lg-4 col-md-8">
+                  <label class="form-label">Vista previa</label>
+                  <input class="form-control" id="exp_preview" readonly placeholder="FE-YYYY-XX-0000">
+                </div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="col-lg-3 col-md-4">
+            <label class="form-label">Numero de expediente *</label>
+            <input class="form-control" name="expediente_num" required>
+          </div>
+          {% endif %}
+
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Datos personales</h3>
+                <p class="participants-form-section__text">Informacion principal del participante y su contexto inmediato.</p>
+              </div>
+              <div class="row g-3">
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label">Nombre *</label>
+                  <input class="form-control" name="nombre" required>
+                </div>
+
+                <div class="col-lg-1 col-md-2">
+                  <label class="form-label">Inicial</label>
+                  <input class="form-control" name="inicial" maxlength="10">
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label">Apellido Paterno *</label>
+                  <input class="form-control" name="apellido_paterno" required>
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label">Apellido Materno</label>
+                  <input class="form-control" name="apellido_materno">
+                </div>
+
+                <div class="col-lg-2 col-md-3">
+                  <label class="form-label">Genero</label>
+                  <select class="form-select" name="genero">
+                    <option value="">Selecciona</option>
+                    <option value="F">F</option>
+                    <option value="M">M</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-4">
+                  <label class="form-label">Fecha de nacimiento</label>
+                  <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
+                </div>
+
+                <div class="col-lg-1 col-md-2">
+                  <label class="form-label">Edad</label>
+                  <input class="form-control" id="edad" readonly placeholder="Auto">
+                </div>
+
+                <div class="col-lg-2 col-md-3">
+                  <label class="form-label">VCA</label>
+                  <select class="form-select" name="vca">
+                    <option value="">Selecciona</option>
+                    <option value="SI">SI</option>
+                    <option value="NO">NO</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-4">
+                  <label class="form-label">Participa por primera vez</label>
+                  <select class="form-select" name="primera_vez">
+                    <option value="">Selecciona</option>
+                    <option value="SI">SI</option>
+                    <option value="NO">NO</option>
+                  </select>
+                </div>
+
+                <div class="col-lg-4 col-md-5">
+                  <label class="form-label">Escolaridad del participante</label>
+                  <select class="form-select" name="escolaridad_participante">
+                    <option value="">Selecciona</option>
+                    {% for opt in escolaridad_participante_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-4 col-md-5">
+                  <label class="form-label">Composicion Familiar</label>
+                  <select class="form-select" name="composicion_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in composicion_familiar_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-2 col-md-3">
+                  <label class="form-label">Grupo familiar</label>
+                  <select class="form-select" name="grupo_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in grupo_familiar_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label">Fuente de ingreso principal</label>
+                  <select class="form-select" name="fuente_ingreso_principal">
+                    <option value="">Selecciona</option>
+                    {% for opt in fuente_ingreso_principal_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-4">
+                  <label class="form-label">Rango de ingreso</label>
+                  <select class="form-select" name="rango_ingreso">
+                    <option value="">Selecciona</option>
+                    {% for opt in rango_ingreso_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-3 col-md-4">
+                  <label class="form-label">Relacion familiar</label>
+                  <select class="form-select" name="relacion_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in relacion_familiar_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                  <label class="form-label">Edificio</label>
+                  <input class="form-control" name="edificio" maxlength="50">
+                </div>
+
+                <div class="col-lg-2 col-md-3">
+                  <label class="form-label">Apt</label>
+                  <input class="form-control" name="apart" maxlength="50">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if participant_profile_fields %}
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Campos de perfil</h3>
+                <p class="participants-form-section__text">Se mantienen los mismos campos dinamicos y validaciones.</p>
+              </div>
+              <div class="row g-3">
+                {% for field in participant_profile_fields %}
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
+                  <input
+                    class="form-control"
+                    name="profile_field_{{ field.participant_profile_field_id }}"
+                    value="{{ participant_profile_form_values.get(field.participant_profile_field_id, '') }}"
+                    {% if field.field_type == 'email' %}type="email"{% else %}type="text"{% endif %}
+                    {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+                    {% if field.validation_pattern %}pattern="{{ field.validation_pattern }}"{% endif %}
+                    {% if field.field_type == 'phone' %}maxlength="14" inputmode="numeric"{% endif %}
+                    {% if field.is_required %}required{% endif %}
+                  >
+                  {% if field.help_text %}
+                  <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Estado y hogar</h3>
+                <p class="participants-form-section__text">Los permisos y reglas del hogar se conservan sin cambios.</p>
+              </div>
+              <div class="row g-3">
+                <div class="col-lg-3 col-md-4">
+                  <label class="form-label">Estatus</label>
+                  <select class="form-select" name="estatus">
+                    <option value="">Selecciona</option>
+                    {% for opt in estatus_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-lg-12 col-md-8">
+                  <label class="form-label d-block">Jefe de familia</label>
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
+                    <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
+                  </div>
+                  <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 mt-2">
+            <button class="btn btn-success w-100 participants-submit-btn">
+              <i class="bi bi-save" aria-hidden="true"></i>
+              <span>Guardar Participante</span>
+            </button>
+          </div>
+        </form>
       </div>
+    </div>
+  </section>
 
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Apellido Paterno *</label>
-        <input class="form-control" name="apellido_paterno" required>
+  <section class="participants-section">
+    <div class="participants-toolbar">
+      <div>
+        <h2 class="participants-section__title mb-1">Participantes registrados</h2>
+        <p class="participants-section__text mb-0">
+          El listado mantiene filtros, paginacion, exportacion y acciones por fila.
+        </p>
       </div>
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Apellido Materno</label>
-        <input class="form-control" name="apellido_materno">
+      <div class="participants-toolbar__actions">
+        <a class="btn btn-outline-success" href="/ui/new-list/export.csv{% if new_list_query_string %}?{{ new_list_query_string }}{% endif %}">
+          <i class="bi bi-filetype-csv" aria-hidden="true"></i>
+          <span>Exportar CSV</span>
+        </a>
+        <span class="participants-toolbar__meta">
+          {% if current_user %}Viendo como: {{ current_user.username }}{% endif %}
+        </span>
       </div>
+    </div>
 
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Género</label>
-        <select class="form-select" name="genero">
-          <option value="">Selecciona</option>
-          <option value="F">F</option>
-          <option value="M">M</option>
-        </select>
+    <div class="card shadow-sm border-0 participants-filter-card">
+      <div class="card-body">
+        <form method="get" action="/ui/new-list" class="row g-3 align-items-end">
+          <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label">Rango de edad</label>
+            <select class="form-select" name="age_range" id="new-list-age-range-filter">
+              <option value="">Todos los rangos</option>
+              {% for option in participant_age_range_options %}
+                <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}" {{ 'selected' if selected_age_range == option.value }}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-2 col-md-3">
+            <label class="form-label">Edad desde</label>
+            <input type="number" min="0" class="form-control" name="age_min" id="new-list-age-min-filter" value="{{ selected_age_min if selected_age_min is not none else '' }}" placeholder="Desde">
+          </div>
+          <div class="col-lg-2 col-md-3">
+            <label class="form-label">Edad hasta</label>
+            <input type="number" min="0" class="form-control" name="age_max" id="new-list-age-max-filter" value="{{ selected_age_max if selected_age_max is not none else '' }}" placeholder="Hasta">
+          </div>
+          {% if is_admin_or_supervisor_view %}
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label">Residencial</label>
+            <select class="form-select" name="residential_id">
+              <option value="">Todos los residenciales</option>
+              {% for residential in residentials %}
+                <option value="{{ residential.residential_id }}" {{ 'selected' if selected_residential_id == residential.residential_id }}>{{ residential.name }}{% if residential.municipality %} - {{ residential.municipality }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="col-lg-1 col-md-3">
+            <button class="btn btn-primary w-100" type="submit">Filtrar</button>
+          </div>
+          <div class="col-lg-1 col-md-3">
+            <a class="btn btn-outline-secondary w-100" href="/ui/new-list?per_page={{ pagination.per_page }}">Limpiar</a>
+          </div>
+        </form>
       </div>
+    </div>
 
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Fecha de nacimiento</label>
-        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
+    <div class="participants-list-meta">
+      <div>
+        Mostrando {{ rows|length }} de {{ pagination.total_items }} participantes
       </div>
-
-      <div class="col-lg-1 col-md-2">
-        <label class="form-label">Edad</label>
-        <input class="form-control" id="edad" readonly placeholder="Auto">
+      <div>
+        Pagina {{ pagination.page }} de {{ pagination.total_pages }}
       </div>
+    </div>
 
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">VCA</label>
-        <select class="form-select" name="vca">
-          <option value="">Selecciona</option>
-          <option value="SI">SI</option>
-          <option value="NO">NO</option>
-        </select>
-      </div>
+    <div class="card shadow-sm border-0 participants-table-card" id="participants-table-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle participants-table mb-0">
+            <thead>
+              <tr>
+                <th>Numero de expediente</th>
+                <th>Nombre</th>
+                <th>Inicial</th>
+                <th>Apellido</th>
+                <th>Edad</th>
+                <th>Genero</th>
+                <th>Estado</th>
+                <th>Jefe familia</th>
+                <th>Tel.</th>
+                <th>Email</th>
+                <th>Apt</th>
+                <th>Edificio</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in rows %}
+                {% set p = r.p %}
+                {% set primera_vez_si = (p.primera_vez or '')|lower in ['si', 'sí'] %}
+                <tr class="participants-row {{ 'participants-row--inactive' if not r.is_active else ('participants-row--first-time' if primera_vez_si else '') }}">
+                  <td class="participants-table__expediente">{{ p.expediente_num }}</td>
+                  <td>{{ p.nombre }}</td>
+                  <td>{{ p.inicial or '' }}</td>
+                  <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
+                  <td>{{ r.age if r.age is not none else '' }}</td>
+                  <td>{{ p.genero or '' }}</td>
+                  <td>
+                    {% if r.is_active %}
+                      <span class="badge text-bg-success participants-badge">
+                        <i class="bi bi-check-circle" aria-hidden="true"></i>
+                        <span>Activo</span>
+                      </span>
+                    {% else %}
+                      <span class="badge text-bg-danger participants-badge">
+                        <i class="bi bi-x-circle" aria-hidden="true"></i>
+                        <span>Inactivo</span>
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if r.is_head_of_household %}
+                      <span class="badge text-bg-primary participants-badge">
+                        <i class="bi bi-house-check" aria-hidden="true"></i>
+                        <span>Jefe</span>
+                      </span>
+                    {% else %}
+                      <span class="participants-empty-mark">&mdash;</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if r.has_phone %}
+                      <span class="badge text-bg-success participants-badge participants-badge--icon-only">
+                        <i class="bi bi-check2" aria-hidden="true"></i>
+                        <span class="visually-hidden">Tiene telefono</span>
+                      </span>
+                    {% else %}
+                      <span class="participants-empty-mark">&mdash;</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if r.has_email %}
+                      <span class="badge text-bg-success participants-badge participants-badge--icon-only">
+                        <i class="bi bi-check2" aria-hidden="true"></i>
+                        <span class="visually-hidden">Tiene email</span>
+                      </span>
+                    {% else %}
+                      <span class="participants-empty-mark">&mdash;</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ p.apart or '' }}</td>
+                  <td>{{ p.edificio or '' }}</td>
+                  <td class="text-end">
+                    <div class="participants-actions">
+                      <a class="btn btn-sm btn-outline-secondary" href="/ui/new-list/{{ p.participant_id }}/expediente">Expediente</a>
+                      <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
 
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Participa por primera vez</label>
-        <select class="form-select" name="primera_vez">
-          <option value="">Selecciona</option>
-          <option value="SI">SI</option>
-          <option value="NO">NO</option>
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-5">
-        <label class="form-label">Escolaridad del participante</label>
-        <select class="form-select" name="escolaridad_participante">
-          <option value="">Selecciona</option>
-          {% for opt in escolaridad_participante_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-5">
-        <label class="form-label">Composición Familiar</label>
-        <select class="form-select" name="composicion_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in composicion_familiar_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Grupo familiar</label>
-        <select class="form-select" name="grupo_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in grupo_familiar_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Fuente de ingreso principal</label>
-        <select class="form-select" name="fuente_ingreso_principal">
-          <option value="">Selecciona</option>
-          {% for opt in fuente_ingreso_principal_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Rango de ingreso</label>
-        <select class="form-select" name="rango_ingreso">
-          <option value="">Selecciona</option>
-          {% for opt in rango_ingreso_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Relación familiar</label>
-        <select class="form-select" name="relacion_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in relacion_familiar_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Edificio</label>
-        <input class="form-control" name="edificio" maxlength="50">
-      </div>
-
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Apt</label>
-        <input class="form-control" name="apart" maxlength="50">
-      </div>
-
-      {% for field in participant_profile_fields %}
-      <div class="col-lg-3 col-md-6">
-        <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
-        <input
-          class="form-control"
-          name="profile_field_{{ field.participant_profile_field_id }}"
-          value="{{ participant_profile_form_values.get(field.participant_profile_field_id, '') }}"
-          {% if field.field_type == 'email' %}type="email"{% else %}type="text"{% endif %}
-          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
-          {% if field.validation_pattern %}pattern="{{ field.validation_pattern }}"{% endif %}
-          {% if field.field_type == 'phone' %}maxlength="14" inputmode="numeric"{% endif %}
-          {% if field.is_required %}required{% endif %}
-        >
-        {% if field.help_text %}
-        <div class="form-text">{{ field.help_text }}</div>
-        {% endif %}
-      </div>
-      {% endfor %}
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Estatus</label>
-        <select class="form-select" name="estatus">
-          <option value="">Selecciona</option>
-          {% for opt in estatus_options %}
-          <option value="{{ opt.value }}">{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-12 col-md-8">
-        <label class="form-label d-block">Jefe de familia</label>
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
-          <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
+                      {% if current_user and current_user.role in ["admin", "supervisor"] %}
+                      <form method="post"
+                            action="/ui/new-list/{{ p.participant_id }}/delete"
+                            class="participants-actions__delete"
+                            onsubmit="return confirm('¿Eliminar participante?');">
+                        <button class="btn btn-sm btn-danger">Eliminar</button>
+                      </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="13" class="text-muted text-center py-4">
+                    No hay participantes que coincidan con los filtros seleccionados.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
       </div>
+    </div>
 
-      <div class="col-12 mt-3">
-        <button class="btn btn-success w-100">Guardar Participante</button>
-      </div>
-
-    </form>
-  </div>
+    {% if pagination.total_pages > 1 %}
+    <nav aria-label="Paginacion participantes" class="mt-3">
+      <ul class="pagination pagination-sm justify-content-center flex-wrap participants-pagination">
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="/ui/new-list?page=1{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Primera</a>
+        </li>
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="/ui/new-list?page={{ pagination.prev_page or 1 }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Anterior</a>
+        </li>
+        <li class="page-item disabled">
+          <span class="page-link">Pagina {{ pagination.page }} / {{ pagination.total_pages }}</span>
+        </li>
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="/ui/new-list?page={{ pagination.next_page or pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Siguiente</a>
+        </li>
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="/ui/new-list?page={{ pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Ultima</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+  </section>
 </div>
-
-<div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
-  <h5 class="mb-0">Participantes Registrados</h5>
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    <a class="btn btn-sm btn-outline-success" href="/ui/new-list/export.csv{% if new_list_query_string %}?{{ new_list_query_string }}{% endif %}">Exportar CSV</a>
-    <span class="text-muted small">
-      {% if current_user %}Viendo como: {{ current_user.username }}{% endif %}
-    </span>
-  </div>
-</div>
-
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <form method="get" action="/ui/new-list" class="row g-2 align-items-end">
-      <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
-      <div class="col-md-3">
-        <label class="form-label">Rango de edad</label>
-        <select class="form-select" name="age_range" id="new-list-age-range-filter">
-          <option value="">Todos los rangos</option>
-          {% for option in participant_age_range_options %}
-            <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}" {{ 'selected' if selected_age_range == option.value }}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Edad desde</label>
-        <input type="number" min="0" class="form-control" name="age_min" id="new-list-age-min-filter" value="{{ selected_age_min if selected_age_min is not none else '' }}" placeholder="Desde">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Edad hasta</label>
-        <input type="number" min="0" class="form-control" name="age_max" id="new-list-age-max-filter" value="{{ selected_age_max if selected_age_max is not none else '' }}" placeholder="Hasta">
-      </div>
-      {% if is_admin_or_supervisor_view %}
-      <div class="col-md-3">
-        <label class="form-label">Residencial</label>
-        <select class="form-select" name="residential_id">
-          <option value="">Todos los residenciales</option>
-          {% for residential in residentials %}
-            <option value="{{ residential.residential_id }}" {{ 'selected' if selected_residential_id == residential.residential_id }}>{{ residential.name }}{% if residential.municipality %} - {{ residential.municipality }}{% endif %}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-      <div class="col-md-1">
-        <button class="btn btn-primary w-100" type="submit">Filtrar</button>
-      </div>
-      <div class="col-md-1">
-        <a class="btn btn-outline-secondary w-100" href="/ui/new-list?per_page={{ pagination.per_page }}">Limpiar</a>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap small text-muted">
-  <div>
-    Mostrando {{ rows|length }} de {{ pagination.total_items }} participantes
-  </div>
-  <div>
-    Página {{ pagination.page }} de {{ pagination.total_pages }}
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <table class="table table-sm table-hover align-middle">
-      <thead>
-        <tr>
-          <th>Número de expediente</th>
-          <th>Nombre</th>
-          <th>Inicial</th>
-          <th>Apellido</th>
-          <th>Edad</th>
-          <th>Género</th>
-          <th>Estado</th>
-          <th>Jefe familia</th>
-          <th>Tel.</th>
-          <th>Email</th>
-          <th>Apt</th>
-          <th>Edificio</th>
-          <th class="text-end">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rows %}
-          {% set p = r.p %}
-          {% set primera_vez_si = (p.primera_vez or '')|lower in ['si', 'sí'] %}
-          <tr class="{{ 'table-danger' if not r.is_active else ('table-warning' if primera_vez_si else '') }}">
-            <td>{{ p.expediente_num }}</td>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.inicial or '' }}</td>
-            <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
-            <td>{{ r.age if r.age is not none else '' }}</td>
-            <td>{{ p.genero or '' }}</td>
-            <td>
-              {% if r.is_active %}
-                <span class="badge bg-success">● Activo</span>
-              {% else %}
-                <span class="badge bg-danger">● Inactivo</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if r.is_head_of_household %}
-                <span class="badge bg-primary">✔ Jefe</span>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if r.has_phone %}
-                <span class="badge bg-success">✔</span>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if r.has_email %}
-                <span class="badge bg-success">✔</span>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>{{ p.apart or '' }}</td>
-            <td>{{ p.edificio or '' }}</td>
-            <td class="text-end">
-              <a class="btn btn-sm btn-outline-secondary" href="/ui/new-list/{{ p.participant_id }}/expediente">Expediente</a>
-              <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
-
-              {% if current_user and current_user.role in ["admin", "supervisor"] %}
-              <form method="post"
-                    action="/ui/new-list/{{ p.participant_id }}/delete"
-                    style="display:inline;"
-                    onsubmit="return confirm('¿Eliminar participante?');">
-                <button class="btn btn-sm btn-danger">Eliminar</button>
-              </form>
-              {% endif %}
-            </td>
-          </tr>
-        {% else %}
-          <tr>
-            <td colspan="13" class="text-muted text-center py-4">
-              No hay participantes que coincidan con los filtros seleccionados.
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-{% if pagination.total_pages > 1 %}
-<nav aria-label="Paginación participantes" class="mt-3">
-  <ul class="pagination pagination-sm justify-content-center flex-wrap">
-    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page=1{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Primera</a>
-    </li>
-    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.prev_page or 1 }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Anterior</a>
-    </li>
-    <li class="page-item disabled">
-      <span class="page-link">Página {{ pagination.page }} / {{ pagination.total_pages }}</span>
-    </li>
-    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.next_page or pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Siguiente</a>
-    </li>
-    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/new-list?page={{ pagination.total_pages }}{% if new_list_query_string %}&{{ new_list_query_string }}{% else %}&per_page={{ pagination.per_page }}{% endif %}">Última</a>
-    </li>
-  </ul>
-</nav>
-{% endif %}
 
 <script>
   function calcAge(dobStr) {
@@ -489,7 +605,6 @@
     });
   }
 </script>
-
 
 <script>
 (function () {

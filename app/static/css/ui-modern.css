@@ -743,6 +743,274 @@ body.ui-shell-body {
   padding: 0.5rem 0 0.25rem;
 }
 
+.participants-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.participants-hero,
+.participants-form-card,
+.participants-filter-card,
+.participants-table-card,
+.participants-breakdown-card,
+.participants-summary-card {
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.participants-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr);
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 255, 0.98));
+}
+
+.participants-hero__content,
+.participants-hero__aside,
+.participants-hero-card,
+.participants-section,
+.participants-form-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.participants-hero__content {
+  gap: 1rem;
+  justify-content: center;
+}
+
+.participants-hero__eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.participants-hero__title,
+.participants-section__title,
+.participants-card__title,
+.participants-form-section__title {
+  margin: 0;
+  color: var(--ui-text);
+}
+
+.participants-hero__title {
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.participants-hero__lead,
+.participants-section__text,
+.participants-card__text,
+.participants-form-section__text,
+.participants-hero-card__text,
+.participants-toolbar__meta,
+.participants-list-meta,
+.participants-empty-mark {
+  color: var(--ui-text-muted);
+}
+
+.participants-hero__lead {
+  margin: 0;
+  max-width: 62ch;
+  line-height: 1.7;
+}
+
+.participants-hero__actions,
+.participants-toolbar,
+.participants-toolbar__actions,
+.participants-actions,
+.participants-card__header,
+.participants-section__header,
+.participants-form-section__header {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.participants-hero__actions,
+.participants-toolbar__actions,
+.participants-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.participants-hero__cta,
+.participants-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.participants-hero-card {
+  height: 100%;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 1.35rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.participants-hero-card__label,
+.participants-summary-card__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.participants-hero-card__text,
+.participants-section__text,
+.participants-card__text,
+.participants-form-section__text {
+  margin: 0;
+}
+
+.participants-section {
+  gap: 1rem;
+}
+
+.participants-section__header,
+.participants-card__header,
+.participants-form-section__header,
+.participants-toolbar {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.participants-section__title {
+  font-size: 1.6rem;
+  font-weight: 750;
+  margin-bottom: 0.2rem;
+}
+
+.participants-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.participants-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.15rem 1.2rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.participants-summary-card__value {
+  font-size: clamp(1.85rem, 2.5vw, 2.45rem);
+  line-height: 1;
+  color: var(--ui-text);
+}
+
+.participants-breakdown-card .card-body,
+.participants-form-card .card-body,
+.participants-filter-card .card-body,
+.participants-table-card .card-body {
+  padding: 1.3rem;
+}
+
+.participants-card__title,
+.participants-form-section__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.participants-form-section {
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 24px;
+  background: rgba(248, 250, 255, 0.72);
+}
+
+.participants-form-section + .participants-form-section {
+  margin-top: 0.25rem;
+}
+
+.participants-filter-card {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.participants-list-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.93rem;
+}
+
+.participants-table {
+  --bs-table-bg: transparent;
+  margin-bottom: 0;
+}
+
+.participants-table thead th {
+  border-bottom-width: 1px;
+  white-space: nowrap;
+  color: var(--ui-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.participants-table tbody td {
+  vertical-align: middle;
+}
+
+.participants-row--inactive {
+  --bs-table-bg: rgba(220, 38, 38, 0.08);
+}
+
+.participants-row--first-time {
+  --bs-table-bg: rgba(245, 158, 11, 0.12);
+}
+
+.participants-table__expediente {
+  font-weight: 700;
+  color: var(--ui-text);
+}
+
+.participants-actions {
+  justify-content: flex-end;
+}
+
+.participants-actions__delete {
+  display: inline-flex;
+}
+
+.participants-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.participants-badge--icon-only {
+  min-width: 2rem;
+  justify-content: center;
+}
+
+.participants-empty-mark {
+  font-weight: 600;
+}
+
+.participants-pagination .page-link {
+  border-radius: 999px;
+  padding-inline: 0.9rem;
+}
+
 @media (min-width: 992px) {
   .ui-main {
     margin-left: var(--ui-sidebar-width);
@@ -770,6 +1038,11 @@ body.ui-shell-body {
 
   .home-hero__brand {
     min-height: 0;
+  }
+
+  .participants-hero,
+  .participants-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -827,6 +1100,38 @@ body.ui-shell-body {
   .home-section__title,
   .home-panel__title {
     font-size: 1.35rem;
+  }
+
+  .participants-hero,
+  .participants-form-section,
+  .participants-breakdown-card .card-body,
+  .participants-form-card .card-body,
+  .participants-filter-card .card-body,
+  .participants-table-card .card-body,
+  .participants-summary-card {
+    padding: 1rem;
+  }
+
+  .participants-hero,
+  .participants-form-section,
+  .participants-summary-card {
+    border-radius: 20px;
+  }
+
+  .participants-section__header,
+  .participants-toolbar,
+  .participants-toolbar__actions,
+  .participants-list-meta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .participants-actions {
+    justify-content: stretch;
+  }
+
+  .participants-actions > * {
+    width: 100%;
   }
 }
 
