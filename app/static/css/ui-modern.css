@@ -62,15 +62,18 @@ body.ui-shell-body {
   width: var(--ui-sidebar-width);
   display: flex;
   flex-direction: column;
+  height: 100vh;
   background: var(--ui-sidebar-bg);
   border-right: 1px solid var(--ui-sidebar-border);
   box-shadow: 18px 0 45px rgba(2, 6, 23, 0.18);
   z-index: 1030;
+  overflow: hidden;
 }
 
 .ui-sidebar__brand,
 .ui-sidebar__footer {
   padding: 1.35rem 1.2rem;
+  flex: 0 0 auto;
 }
 
 .ui-sidebar__brand {
@@ -129,6 +132,14 @@ body.ui-shell-body {
   flex-direction: column;
   gap: 0.35rem;
   padding: 1rem 0.9rem 1.25rem;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.ui-sidebar__nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ui-sidebar__section {
@@ -330,15 +341,28 @@ body.ui-shell-body {
 
 .ui-mobile-sidebar .offcanvas-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
 }
 
 .ui-mobile-sidebar .btn-close {
   filter: invert(1) grayscale(1);
 }
 
+.ui-mobile-sidebar .offcanvas-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-mobile-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .ui-mobile-sidebar__footer {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 1rem;
+  flex: 0 0 auto;
 }
 
 .home-dashboard {
