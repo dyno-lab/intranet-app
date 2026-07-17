@@ -294,6 +294,25 @@
                   <label class="form-label">Apt</label>
                   <input class="form-control" name="apart" maxlength="50">
                 </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Estatus</label>
+                  <select class="form-select" name="estatus">
+                    <option value="">Selecciona</option>
+                    {% for opt in estatus_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-4 col-lg-6 col-md-8">
+                  <label class="form-label d-block">Jefe de familia</label>
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
+                    <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
+                  </div>
+                  <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -328,35 +347,6 @@
             </div>
           </div>
           {% endif %}
-
-          <div class="col-12">
-            <div class="participants-form-section">
-              <div class="participants-form-section__header">
-                <h3 class="participants-form-section__title">Estado y hogar</h3>
-                <p class="participants-form-section__text">Permisos y reglas del hogar sin cambios.</p>
-              </div>
-              <div class="row g-2">
-                <div class="col-xl-2 col-lg-3 col-md-4">
-                  <label class="form-label">Estatus</label>
-                  <select class="form-select" name="estatus">
-                    <option value="">Selecciona</option>
-                    {% for opt in estatus_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-
-                <div class="col-xl-10 col-lg-9 col-md-8">
-                  <label class="form-label d-block">Jefe de familia</label>
-                  <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
-                    <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
-                  </div>
-                  <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <div class="col-12 mt-2">
             <button class="btn btn-success w-100 participants-submit-btn">
