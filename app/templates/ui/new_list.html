@@ -43,7 +43,7 @@
     </div>
   </section>
 
-  <section class="participants-section">
+  <section class="participants-section participants-section--compact">
     <div class="participants-section__header">
       <div>
         <h2 class="participants-section__title">Resumen existente</h2>
@@ -110,25 +110,23 @@
     <div class="participants-section__header">
       <div>
         <h2 class="participants-section__title">Registrar participante</h2>
-        <p class="participants-section__text">
-          El formulario mantiene la misma logica, validaciones y campos actuales.
-        </p>
+        <p class="participants-section__text">Misma logica, campos y validaciones en una vista mas compacta.</p>
       </div>
     </div>
 
     <div class="card shadow-sm border-0 participants-form-card" id="participant-register-card">
       <div class="card-body">
-        <form method="post" action="/ui/new-list/create" class="row g-3 align-items-start">
+        <form method="post" action="/ui/new-list/create" class="row g-2 align-items-start">
 
           {% if phase2_expediente_enabled %}
           <div class="col-12">
             <div class="participants-form-section">
               <div class="participants-form-section__header">
                 <h3 class="participants-form-section__title">Datos de expediente</h3>
-                <p class="participants-form-section__text">Campos obligatorios para construir el expediente.</p>
+                <p class="participants-form-section__text">Campos obligatorios del expediente.</p>
               </div>
-              <div class="row g-3">
-                <div class="col-lg-3 col-md-6">
+              <div class="row g-2">
+                <div class="col-xl-2 col-lg-3 col-md-6">
                   <label class="form-label">Ano expediente *</label>
                   <select class="form-select" name="exp_year" id="exp_year" required>
                     <option value="">Selecciona</option>
@@ -138,18 +136,18 @@
                   </select>
                 </div>
 
-                <div class="col-lg-3 col-md-6">
+                <div class="col-xl-2 col-lg-3 col-md-6">
                   <label class="form-label">Siglas empleado *</label>
                   <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
                 </div>
 
-                <div class="col-lg-2 col-md-4">
+                <div class="col-xl-2 col-lg-2 col-md-4">
                   <label class="form-label">4 digitos *</label>
                   <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
                   <div class="form-text">Unico</div>
                 </div>
 
-                <div class="col-lg-4 col-md-8">
+                <div class="col-xl-3 col-lg-4 col-md-8">
                   <label class="form-label">Vista previa</label>
                   <input class="form-control" id="exp_preview" readonly placeholder="FE-YYYY-XX-0000">
                 </div>
@@ -167,30 +165,30 @@
             <div class="participants-form-section">
               <div class="participants-form-section__header">
                 <h3 class="participants-form-section__title">Datos personales</h3>
-                <p class="participants-form-section__text">Informacion principal del participante y su contexto inmediato.</p>
+                <p class="participants-form-section__text">Informacion principal del participante.</p>
               </div>
-              <div class="row g-3">
-                <div class="col-lg-4 col-md-6">
+              <div class="row g-2">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Nombre *</label>
                   <input class="form-control" name="nombre" required>
                 </div>
 
-                <div class="col-lg-1 col-md-2">
+                <div class="col-xl-1 col-lg-2 col-md-2">
                   <label class="form-label">Inicial</label>
                   <input class="form-control" name="inicial" maxlength="10">
                 </div>
 
-                <div class="col-lg-4 col-md-6">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Apellido Paterno *</label>
                   <input class="form-control" name="apellido_paterno" required>
                 </div>
 
-                <div class="col-lg-4 col-md-6">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Apellido Materno</label>
                   <input class="form-control" name="apellido_materno">
                 </div>
 
-                <div class="col-lg-2 col-md-3">
+                <div class="col-xl-2 col-lg-3 col-md-3">
                   <label class="form-label">Genero</label>
                   <select class="form-select" name="genero">
                     <option value="">Selecciona</option>
@@ -199,17 +197,17 @@
                   </select>
                 </div>
 
-                <div class="col-lg-3 col-md-4">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Fecha de nacimiento</label>
                   <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
                 </div>
 
-                <div class="col-lg-1 col-md-2">
+                <div class="col-xl-1 col-lg-2 col-md-2">
                   <label class="form-label">Edad</label>
                   <input class="form-control" id="edad" readonly placeholder="Auto">
                 </div>
 
-                <div class="col-lg-2 col-md-3">
+                <div class="col-xl-2 col-lg-2 col-md-3">
                   <label class="form-label">VCA</label>
                   <select class="form-select" name="vca">
                     <option value="">Selecciona</option>
@@ -218,7 +216,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-3 col-md-4">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Participa por primera vez</label>
                   <select class="form-select" name="primera_vez">
                     <option value="">Selecciona</option>
@@ -227,7 +225,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-4 col-md-5">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Escolaridad del participante</label>
                   <select class="form-select" name="escolaridad_participante">
                     <option value="">Selecciona</option>
@@ -237,7 +235,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-4 col-md-5">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Composicion Familiar</label>
                   <select class="form-select" name="composicion_familiar">
                     <option value="">Selecciona</option>
@@ -247,7 +245,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-2 col-md-3">
+                <div class="col-xl-2 col-lg-3 col-md-3">
                   <label class="form-label">Grupo familiar</label>
                   <select class="form-select" name="grupo_familiar">
                     <option value="">Selecciona</option>
@@ -257,7 +255,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-4 col-md-6">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Fuente de ingreso principal</label>
                   <select class="form-select" name="fuente_ingreso_principal">
                     <option value="">Selecciona</option>
@@ -267,7 +265,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-3 col-md-4">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Rango de ingreso</label>
                   <select class="form-select" name="rango_ingreso">
                     <option value="">Selecciona</option>
@@ -277,7 +275,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-3 col-md-4">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Relacion familiar</label>
                   <select class="form-select" name="relacion_familiar">
                     <option value="">Selecciona</option>
@@ -287,12 +285,12 @@
                   </select>
                 </div>
 
-                <div class="col-lg-4 col-md-6">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Edificio</label>
                   <input class="form-control" name="edificio" maxlength="50">
                 </div>
 
-                <div class="col-lg-2 col-md-3">
+                <div class="col-xl-2 col-lg-2 col-md-3">
                   <label class="form-label">Apt</label>
                   <input class="form-control" name="apart" maxlength="50">
                 </div>
@@ -305,11 +303,11 @@
             <div class="participants-form-section">
               <div class="participants-form-section__header">
                 <h3 class="participants-form-section__title">Campos de perfil</h3>
-                <p class="participants-form-section__text">Se mantienen los mismos campos dinamicos y validaciones.</p>
+                <p class="participants-form-section__text">Campos dinamicos existentes.</p>
               </div>
-              <div class="row g-3">
+              <div class="row g-2">
                 {% for field in participant_profile_fields %}
-                <div class="col-lg-3 col-md-6">
+                <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
                   <input
                     class="form-control"
@@ -335,10 +333,10 @@
             <div class="participants-form-section">
               <div class="participants-form-section__header">
                 <h3 class="participants-form-section__title">Estado y hogar</h3>
-                <p class="participants-form-section__text">Los permisos y reglas del hogar se conservan sin cambios.</p>
+                <p class="participants-form-section__text">Permisos y reglas del hogar sin cambios.</p>
               </div>
-              <div class="row g-3">
-                <div class="col-lg-3 col-md-4">
+              <div class="row g-2">
+                <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Estatus</label>
                   <select class="form-select" name="estatus">
                     <option value="">Selecciona</option>
@@ -348,7 +346,7 @@
                   </select>
                 </div>
 
-                <div class="col-lg-12 col-md-8">
+                <div class="col-xl-10 col-lg-9 col-md-8">
                   <label class="form-label d-block">Jefe de familia</label>
                   <div class="form-check mt-2">
                     <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
