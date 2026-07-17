@@ -867,6 +867,12 @@ body.ui-shell-body {
   color: #2563eb;
 }
 
+.participants-hero-card__value {
+  font-size: 1.2rem;
+  line-height: 1.25;
+  color: var(--ui-text);
+}
+
 .participants-hero-card__text,
 .participants-section__text,
 .participants-card__text,
@@ -1033,6 +1039,10 @@ body.ui-shell-body {
 .participants-pagination .page-link {
   border-radius: 999px;
   padding-inline: 0.9rem;
+}
+
+.participants-section--backlink {
+  gap: 0;
 }
 
 @media (min-width: 992px) {

@@ -10,225 +10,286 @@
 </div>
 {% endif %}
 
-<h4 class="mb-3">Editar Participante</h4>
+<div class="participants-page">
+  <section class="participants-hero participants-hero--edit">
+    <div class="participants-hero__content">
+      <span class="participants-hero__eyebrow">Modulo operativo</span>
+      <h1 class="participants-hero__title">Editar Participante</h1>
+      <div class="participants-hero__actions">
+        <a class="btn btn-primary participants-hero__cta" href="#exp_year">
+          <i class="bi bi-pencil-square" aria-hidden="true"></i>
+          <span>Editar formulario</span>
+        </a>
+        <a class="btn btn-outline-secondary" href="/ui/new-list">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Volver a Lista</span>
+        </a>
+      </div>
+    </div>
+    <div class="participants-hero__aside">
+      <div class="participants-hero-card">
+        <div class="participants-hero-card__label">Expediente actual</div>
+        <strong class="participants-hero-card__value">{{ p.expediente_num }}</strong>
+      </div>
+    </div>
+  </section>
 
-<div class="card shadow-sm">
-  <div class="card-body">
-    <form method="post" class="row g-3 align-items-start">
+  <section class="participants-section">
+    <div class="participants-section__header">
+      <div>
+        <h2 class="participants-section__title">Formulario de edicion</h2>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 participants-form-card">
+      <div class="card-body">
+        <form method="post" class="row g-2 align-items-start">
 
 {% if phase2_expediente_enabled %}
-<div class="col-lg-3 col-md-6">
-  <label class="form-label">Año expediente *</label>
-  <select class="form-select" name="exp_year" id="exp_year" required>
-    <option value="">Selecciona</option>
-    {% for y in years %}
-    <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
-    {% endfor %}
-  </select>
-</div>
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Datos de expediente</h3>
+              </div>
+              <div class="row g-2">
+                <div class="col-xl-2 col-lg-3 col-md-6">
+                  <label class="form-label">Año expediente *</label>
+                  <select class="form-select" name="exp_year" id="exp_year" required>
+                    <option value="">Selecciona</option>
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if p.exp_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
 
-<div class="col-lg-3 col-md-6">
-  <label class="form-label">Siglas empleado *</label>
-  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
-</div>
+                <div class="col-xl-2 col-lg-3 col-md-6">
+                  <label class="form-label">Siglas empleado *</label>
+                  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
+                </div>
 
-<div class="col-lg-2 col-md-4">
-  <label class="form-label">4 dígitos *</label>
-  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
-  <div class="form-text">Único</div>
-</div>
+                <div class="col-xl-2 col-lg-2 col-md-4">
+                  <label class="form-label">4 dígitos *</label>
+                  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
+                  <div class="form-text">Único</div>
+                </div>
 
-<div class="col-lg-4 col-md-8">
-  <label class="form-label">Vista previa</label>
-  <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
-</div>
+                <div class="col-xl-3 col-lg-4 col-md-8">
+                  <label class="form-label">Vista previa</label>
+                  <input class="form-control" id="exp_preview" readonly value="{{ p.expediente_num }}">
+                </div>
 
-<div class="col-12">
-  <label class="form-label">Expediente actual</label>
-  <input class="form-control" value="{{ p.expediente_num }}" readonly>
-</div>
+                <div class="col-xl-3 col-lg-12 col-md-12">
+                  <label class="form-label">Expediente actual</label>
+                  <input class="form-control" value="{{ p.expediente_num }}" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
 {% else %}
-<div class="col-lg-3 col-md-4">
-  <label class="form-label">Número de expediente *</label>
-  <input class="form-control" name="expediente_num" value="{{ p.expediente_num }}" required>
-</div>
+          <div class="col-lg-3 col-md-4">
+            <label class="form-label">Número de expediente *</label>
+            <input class="form-control" name="expediente_num" value="{{ p.expediente_num }}" required>
+          </div>
 {% endif %}
 
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Nombre *</label>
-        <input class="form-control" name="nombre" value="{{ p.nombre }}" required>
-      </div>
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Datos personales</h3>
+              </div>
+              <div class="row g-2">
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Nombre *</label>
+                  <input class="form-control" name="nombre" value="{{ p.nombre }}" required>
+                </div>
 
-      <div class="col-lg-1 col-md-2">
-        <label class="form-label">Inicial</label>
-        <input class="form-control" name="inicial" maxlength="10" value="{{ p.inicial or '' }}">
-      </div>
+                <div class="col-xl-1 col-lg-2 col-md-2">
+                  <label class="form-label">Inicial</label>
+                  <input class="form-control" name="inicial" maxlength="10" value="{{ p.inicial or '' }}">
+                </div>
 
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Apellido Paterno *</label>
-        <input class="form-control" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
-      </div>
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Apellido Paterno *</label>
+                  <input class="form-control" name="apellido_paterno" value="{{ p.apellido_paterno }}" required>
+                </div>
 
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Apellido Materno</label>
-        <input class="form-control" name="apellido_materno" value="{{ p.apellido_materno or '' }}">
-      </div>
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Apellido Materno</label>
+                  <input class="form-control" name="apellido_materno" value="{{ p.apellido_materno or '' }}">
+                </div>
 
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Género</label>
-        <select class="form-select" name="genero">
-          <option value="">Selecciona</option>
-          <option value="F" {% if p.genero == 'F' %}selected{% endif %}>F</option>
-          <option value="M" {% if p.genero == 'M' %}selected{% endif %}>M</option>
-        </select>
-      </div>
+                <div class="col-xl-2 col-lg-3 col-md-3">
+                  <label class="form-label">Género</label>
+                  <select class="form-select" name="genero">
+                    <option value="">Selecciona</option>
+                    <option value="F" {% if p.genero == 'F' %}selected{% endif %}>F</option>
+                    <option value="M" {% if p.genero == 'M' %}selected{% endif %}>M</option>
+                  </select>
+                </div>
 
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Fecha de nacimiento</label>
-        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ p.fecha_nacimiento or '' }}">
-      </div>
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Fecha de nacimiento</label>
+                  <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ p.fecha_nacimiento or '' }}">
+                </div>
 
-      <div class="col-lg-1 col-md-2">
-        <label class="form-label">Edad</label>
-        <input class="form-control" id="edad" readonly placeholder="Auto">
-      </div>
+                <div class="col-xl-1 col-lg-2 col-md-2">
+                  <label class="form-label">Edad</label>
+                  <input class="form-control" id="edad" readonly placeholder="Auto">
+                </div>
 
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">VCA</label>
-        <select class="form-select" name="vca">
-          <option value="">Selecciona</option>
-          <option value="SI" {% if p.vca == 'SI' %}selected{% endif %}>SI</option>
-          <option value="NO" {% if p.vca == 'NO' %}selected{% endif %}>NO</option>
-        </select>
-      </div>
+                <div class="col-xl-2 col-lg-2 col-md-3">
+                  <label class="form-label">VCA</label>
+                  <select class="form-select" name="vca">
+                    <option value="">Selecciona</option>
+                    <option value="SI" {% if p.vca == 'SI' %}selected{% endif %}>SI</option>
+                    <option value="NO" {% if p.vca == 'NO' %}selected{% endif %}>NO</option>
+                  </select>
+                </div>
 
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Participa por primera vez</label>
-        <select class="form-select" name="primera_vez">
-          <option value="">Selecciona</option>
-          <option value="SI" {% if p.primera_vez == 'SI' %}selected{% endif %}>SI</option>
-          <option value="NO" {% if p.primera_vez == 'NO' %}selected{% endif %}>NO</option>
-        </select>
-      </div>
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Participa por primera vez</label>
+                  <select class="form-select" name="primera_vez">
+                    <option value="">Selecciona</option>
+                    <option value="SI" {% if p.primera_vez == 'SI' %}selected{% endif %}>SI</option>
+                    <option value="NO" {% if p.primera_vez == 'NO' %}selected{% endif %}>NO</option>
+                  </select>
+                </div>
 
-      <div class="col-lg-4 col-md-5">
-        <label class="form-label">Escolaridad del participante</label>
-        <select class="form-select" name="escolaridad_participante">
-          <option value="">Selecciona</option>
-          {% for opt in escolaridad_participante_options %}
-          <option value="{{ opt.value }}" {% if p.escolaridad_participante == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Escolaridad del participante</label>
+                  <select class="form-select" name="escolaridad_participante">
+                    <option value="">Selecciona</option>
+                    {% for opt in escolaridad_participante_options %}
+                    <option value="{{ opt.value }}" {% if p.escolaridad_participante == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Composición Familiar</label>
+                  <select class="form-select" name="composicion_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in composicion_familiar_options %}
+                    <option value="{{ opt.value }}" {% if p.composicion_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-3">
+                  <label class="form-label">Grupo familiar</label>
+                  <select class="form-select" name="grupo_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in grupo_familiar_options %}
+                    <option value="{{ opt.value }}" {% if p.grupo_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">Fuente de ingreso principal</label>
+                  <select class="form-select" name="fuente_ingreso_principal">
+                    <option value="">Selecciona</option>
+                    {% for opt in fuente_ingreso_principal_options %}
+                    <option value="{{ opt.value }}" {% if p.fuente_ingreso_principal == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Rango de ingreso</label>
+                  <select class="form-select" name="rango_ingreso">
+                    <option value="">Selecciona</option>
+                    {% for opt in rango_ingreso_options %}
+                    <option value="{{ opt.value }}" {% if p.rango_ingreso == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Relación familiar</label>
+                  <select class="form-select" name="relacion_familiar">
+                    <option value="">Selecciona</option>
+                    {% for opt in relacion_familiar_options %}
+                    <option value="{{ opt.value }}" {% if p.relacion_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Edificio</label>
+                  <input class="form-control" name="edificio" maxlength="50" value="{{ p.edificio or '' }}">
+                </div>
+
+                <div class="col-xl-2 col-lg-2 col-md-3">
+                  <label class="form-label">Apt</label>
+                  <input class="form-control" name="apart" maxlength="50" value="{{ p.apart or '' }}">
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                  <label class="form-label">Estatus</label>
+                  <select class="form-select" name="estatus">
+                    <option value="">Selecciona</option>
+                    {% for opt in estatus_options %}
+                    <option value="{{ opt.value }}" {% if p.estatus == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-xl-4 col-lg-6 col-md-8">
+                  <label class="form-label d-block">Jefe de familia</label>
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household" {{ 'checked' if p.is_head_of_household }}>
+                    <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
+                  </div>
+                  <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if participant_profile_fields %}
+          <div class="col-12">
+            <div class="participants-form-section">
+              <div class="participants-form-section__header">
+                <h3 class="participants-form-section__title">Campos de perfil</h3>
+              </div>
+              <div class="row g-2">
+          {% for field in participant_profile_fields %}
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
+                  <input
+                    class="form-control"
+                    name="profile_field_{{ field.participant_profile_field_id }}"
+                    value="{{ participant_profile_form_values.get(field.participant_profile_field_id, '') }}"
+                    {% if field.field_type == 'email' %}type="email"{% else %}type="text"{% endif %}
+                    {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+                    {% if field.validation_pattern %}pattern="{{ field.validation_pattern }}"{% endif %}
+                    {% if field.field_type == 'phone' %}maxlength="14" inputmode="numeric"{% endif %}
+                    {% if field.is_required %}required{% endif %}
+                  >
+                  {% if field.help_text %}
+                  <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                </div>
           {% endfor %}
-        </select>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="col-12 mt-2">
+            <button class="btn btn-primary w-100 participants-submit-btn">Guardar Cambios</button>
+          </div>
+        </form>
       </div>
+    </div>
+  </section>
 
-      <div class="col-lg-4 col-md-5">
-        <label class="form-label">Composición Familiar</label>
-        <select class="form-select" name="composicion_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in composicion_familiar_options %}
-          <option value="{{ opt.value }}" {% if p.composicion_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Grupo familiar</label>
-        <select class="form-select" name="grupo_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in grupo_familiar_options %}
-          <option value="{{ opt.value }}" {% if p.grupo_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Fuente de ingreso principal</label>
-        <select class="form-select" name="fuente_ingreso_principal">
-          <option value="">Selecciona</option>
-          {% for opt in fuente_ingreso_principal_options %}
-          <option value="{{ opt.value }}" {% if p.fuente_ingreso_principal == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Rango de ingreso</label>
-        <select class="form-select" name="rango_ingreso">
-          <option value="">Selecciona</option>
-          {% for opt in rango_ingreso_options %}
-          <option value="{{ opt.value }}" {% if p.rango_ingreso == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Relación familiar</label>
-        <select class="form-select" name="relacion_familiar">
-          <option value="">Selecciona</option>
-          {% for opt in relacion_familiar_options %}
-          <option value="{{ opt.value }}" {% if p.relacion_familiar == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-4 col-md-6">
-        <label class="form-label">Edificio</label>
-        <input class="form-control" name="edificio" maxlength="50" value="{{ p.edificio or '' }}">
-      </div>
-
-      <div class="col-lg-2 col-md-3">
-        <label class="form-label">Apt</label>
-        <input class="form-control" name="apart" maxlength="50" value="{{ p.apart or '' }}">
-      </div>
-
-      {% for field in participant_profile_fields %}
-      <div class="col-lg-3 col-md-6">
-        <label class="form-label">{{ field.label }}{% if field.is_required %} *{% endif %}</label>
-        <input
-          class="form-control"
-          name="profile_field_{{ field.participant_profile_field_id }}"
-          value="{{ participant_profile_form_values.get(field.participant_profile_field_id, '') }}"
-          {% if field.field_type == 'email' %}type="email"{% else %}type="text"{% endif %}
-          {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
-          {% if field.validation_pattern %}pattern="{{ field.validation_pattern }}"{% endif %}
-          {% if field.field_type == 'phone' %}maxlength="14" inputmode="numeric"{% endif %}
-          {% if field.is_required %}required{% endif %}
-        >
-        {% if field.help_text %}
-        <div class="form-text">{{ field.help_text }}</div>
-        {% endif %}
-      </div>
-      {% endfor %}
-
-      <div class="col-lg-3 col-md-4">
-        <label class="form-label">Estatus</label>
-        <select class="form-select" name="estatus">
-          <option value="">Selecciona</option>
-          {% for opt in estatus_options %}
-          <option value="{{ opt.value }}" {% if p.estatus == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-lg-12 col-md-8">
-        <label class="form-label d-block">Jefe de familia</label>
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household" {{ 'checked' if p.is_head_of_household }}>
-          <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
-        </div>
-        <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
-      </div>
-
-      <div class="col-12 mt-3">
-        <button class="btn btn-primary w-100">Guardar Cambios</button>
-      </div>
-
-    </form>
-  </div>
-</div>
-
-<div class="mt-3">
-  <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver a Lista</a>
+  <section class="participants-section participants-section--backlink">
+    <div>
+      <a class="btn btn-outline-secondary" href="/ui/new-list">← Volver a Lista</a>
+    </div>
+  </section>
 </div>
 
 <script>
