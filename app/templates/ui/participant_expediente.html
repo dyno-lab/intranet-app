@@ -3,6 +3,15 @@
 
 {% block content %}
 
+{% macro display_value(value, prettify_code=false) -%}
+  {%- if value is none or value == '' -%}
+  {%- elif prettify_code and value is string and '_' in value -%}
+    {{ value|replace('_', ' ')|title }}
+  {%- else -%}
+    {{ value }}
+  {%- endif -%}
+{%- endmacro %}
+
 {% if msg %}
 <div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
   {{ msg }}
@@ -12,15 +21,15 @@
 
 <div class="participants-page participants-expediente-page">
   <section class="participants-hero participants-hero--expediente">
-    <div class="participants-hero__content">
+    <div class="participants-hero__content participants-hero__content--expediente">
       <span class="participants-hero__eyebrow">Participantes</span>
       <h1 class="participants-hero__title">Expediente del Participante</h1>
       <div class="participants-expediente__headline">
         <div class="participants-expediente__name">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</div>
         <div class="participants-expediente__meta">
           <span class="participants-expediente__meta-item">
-            <span class="participants-expediente__meta-label">Número de expediente</span>
-            <strong>{{ p.expediente_num }}</strong>
+            <span class="participants-expediente__meta-label">Numero de expediente</span>
+            <strong class="participants-expediente__meta-value">{{ p.expediente_num }}</strong>
           </span>
           <span class="participants-expediente__meta-item">
             <span class="participants-expediente__meta-label">Estado</span>
@@ -44,7 +53,7 @@
                 <span>Jefe</span>
               </span>
             {% else %}
-              <span class="participants-empty-mark">&mdash;</span>
+              <span class="participants-expediente__meta-value"></span>
             {% endif %}
           </span>
         </div>
@@ -60,12 +69,6 @@
         </a>
       </div>
     </div>
-    <div class="participants-hero__aside">
-      <div class="participants-hero-card">
-        <div class="participants-hero-card__label">Vista actual</div>
-        <p class="participants-hero-card__text">Vista read-only para auditoría</p>
-      </div>
-    </div>
   </section>
 
   <section class="participants-section">
@@ -78,35 +81,35 @@
           <div class="participants-expediente-fields">
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Fecha nacimiento</div>
-              <div class="participants-expediente-field__value">{{ p.fecha_nacimiento or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.fecha_nacimiento) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Edad</div>
-              <div class="participants-expediente-field__value">{{ age if age is not none else '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(age) }}</div>
             </div>
             <div class="participants-expediente-field">
-              <div class="participants-expediente-field__label">Género</div>
-              <div class="participants-expediente-field__value">{{ p.genero or '—' }}</div>
+              <div class="participants-expediente-field__label">Genero</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.genero) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">VCA</div>
-              <div class="participants-expediente-field__value">{{ p.vca or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.vca) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Primera vez</div>
-              <div class="participants-expediente-field__value">{{ p.primera_vez or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.primera_vez) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Estatus</div>
-              <div class="participants-expediente-field__value">{{ p.estatus or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.estatus) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Escolaridad</div>
-              <div class="participants-expediente-field__value">{{ p.escolaridad_participante or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.escolaridad_participante, true) }}</div>
             </div>
             <div class="participants-expediente-field">
-              <div class="participants-expediente-field__label">Relación familiar</div>
-              <div class="participants-expediente-field__value">{{ p.relacion_familiar or '—' }}</div>
+              <div class="participants-expediente-field__label">Relacion familiar</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.relacion_familiar, true) }}</div>
             </div>
           </div>
         </div>
@@ -114,33 +117,33 @@
 
       <div class="participants-expediente-card">
         <div class="participants-expediente-card__header">
-          <h2 class="participants-card__title">Información familiar / residencial</h2>
+          <h2 class="participants-card__title">Informacion familiar / residencial</h2>
         </div>
         <div class="participants-expediente-card__body">
           <div class="participants-expediente-fields">
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Edificio</div>
-              <div class="participants-expediente-field__value">{{ p.edificio or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.edificio) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Apartamento</div>
-              <div class="participants-expediente-field__value">{{ p.apart or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.apart) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Grupo familiar</div>
-              <div class="participants-expediente-field__value">{{ p.grupo_familiar or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.grupo_familiar, true) }}</div>
             </div>
             <div class="participants-expediente-field">
-              <div class="participants-expediente-field__label">Composición familiar</div>
-              <div class="participants-expediente-field__value">{{ p.composicion_familiar or '—' }}</div>
+              <div class="participants-expediente-field__label">Composicion familiar</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.composicion_familiar, true) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Fuente ingreso principal</div>
-              <div class="participants-expediente-field__value">{{ p.fuente_ingreso_principal or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.fuente_ingreso_principal, true) }}</div>
             </div>
             <div class="participants-expediente-field">
               <div class="participants-expediente-field__label">Rango ingreso</div>
-              <div class="participants-expediente-field__value">{{ p.rango_ingreso or '—' }}</div>
+              <div class="participants-expediente-field__value">{{ display_value(p.rango_ingreso, true) }}</div>
             </div>
           </div>
         </div>
@@ -151,7 +154,7 @@
   <section class="participants-section">
     <div class="participants-expediente-card">
       <div class="participants-expediente-card__header">
-        <h2 class="participants-card__title">Información de contacto</h2>
+        <h2 class="participants-card__title">Informacion de contacto</h2>
       </div>
       <div class="participants-expediente-card__body">
         {% if profile_fields %}
@@ -159,7 +162,7 @@
           {% for field in profile_fields %}
           <div class="participants-expediente-field">
             <div class="participants-expediente-field__label">{{ field.label }}</div>
-            <div class="participants-expediente-field__value">{{ profile_values_by_field.get(field.participant_profile_field_id) or '—' }}</div>
+            <div class="participants-expediente-field__value">{{ display_value(profile_values_by_field.get(field.participant_profile_field_id)) }}</div>
           </div>
           {% endfor %}
         </div>
@@ -192,7 +195,7 @@
               <tr>
                 <td class="participants-table__expediente">{{ proposal.code }}</td>
                 <td>{{ proposal.name }}</td>
-                <td>{{ proposal_participant.expediente_num or '—' }}</td>
+                <td>{{ display_value(proposal_participant.expediente_num) }}</td>
                 <td>
                   {% if proposal_participant.is_active %}
                     <span class="badge text-bg-success participants-badge">
@@ -222,7 +225,7 @@
   <section class="participants-section">
     <div class="participants-expediente-card">
       <div class="participants-expediente-card__header participants-expediente-card__header--inline">
-        <h2 class="participants-card__title">Participación / asistencia</h2>
+        <h2 class="participants-card__title">Participacion / asistencia</h2>
         <span class="badge text-bg-secondary">{{ participation_rows|length }}</span>
       </div>
       <div class="participants-expediente-card__body">
@@ -232,7 +235,7 @@
               <tr>
                 <th>Fecha</th>
                 <th>Actividad</th>
-                <th>Descripción</th>
+                <th>Descripcion</th>
                 <th>Propuesta</th>
                 <th>Empleado</th>
                 <th>Fuente</th>
@@ -243,14 +246,14 @@
               <tr>
                 <td>{{ row.session.session_date }}</td>
                 <td class="participants-table__expediente">{{ row.activity_code.code }}</td>
-                <td>{{ row.activity_code.description or '—' }}</td>
-                <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% else %}—{% endif %}</td>
+                <td>{{ display_value(row.activity_code.description) }}</td>
+                <td>{% if row.proposal %}{{ row.proposal.code }} - {{ row.proposal.name }}{% endif %}</td>
                 <td>{{ row.employee.full_name }}</td>
                 <td><span class="badge bg-light text-dark">{{ row.source }}</span></td>
               </tr>
               {% else %}
               <tr>
-                <td colspan="6" class="text-muted text-center py-3">No hay participación registrada.</td>
+                <td colspan="6" class="text-muted text-center py-3">No hay participacion registrada.</td>
               </tr>
               {% endfor %}
             </tbody>
