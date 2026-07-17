@@ -1073,36 +1073,36 @@ body.ui-shell-body {
 .participants-expediente__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .participants-expediente__meta-item {
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.18rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 16px;
+  gap: 0.12rem;
+  padding: 0.58rem 0.75rem;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(15, 23, 42, 0.08);
-  min-width: 170px;
+  min-width: 152px;
 }
 
 .participants-expediente__meta-label,
 .participants-expediente-field__label {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
   color: var(--ui-text-muted);
 }
 
 .participants-expediente__meta-value {
-  min-height: 1.5rem;
+  min-height: 1.1rem;
   display: inline-flex;
   align-items: center;
   color: var(--ui-text);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .participants-expediente-grid {
@@ -1113,7 +1113,7 @@ body.ui-shell-body {
 
 .participants-expediente-card {
   border: 1px solid var(--ui-border);
-  border-radius: 24px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: var(--ui-shadow-soft);
 }
@@ -1122,7 +1122,7 @@ body.ui-shell-body {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 1rem 1.05rem 0;
+  padding: 0.85rem 0.9rem 0;
 }
 
 .participants-expediente-card__header--inline {
@@ -1133,37 +1133,38 @@ body.ui-shell-body {
 }
 
 .participants-expediente-card__body {
-  padding: 1rem 1.05rem 1.05rem;
+  padding: 0.8rem 0.9rem 0.9rem;
 }
 
 .participants-expediente-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 0.6rem 0.7rem;
 }
 
 .participants-expediente-field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: 18px;
+  gap: 0.14rem;
+  padding: 0.72rem 0.8rem;
+  border-radius: 14px;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .participants-expediente-field__value {
   color: var(--ui-text);
-  line-height: 1.5;
+  line-height: 1.35;
   word-break: break-word;
-  min-height: 1.5rem;
-  font-weight: 600;
+  min-height: 1rem;
+  font-size: 0.98rem;
+  font-weight: 400;
 }
 
 .participants-expediente-table-empty {
   display: inline-block;
-  min-width: 1rem;
-  min-height: 1rem;
+  min-width: 0.25rem;
+  min-height: 0.85rem;
 }
 
 .participants-expediente-badge-neutral {
@@ -1212,7 +1213,18 @@ body.ui-shell-body {
     grid-template-columns: 1fr;
   }
 
-  .participants-expediente-grid,
+  .participants-expediente-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .participants-expediente-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
   .participants-expediente-fields {
     grid-template-columns: 1fr;
   }
@@ -1316,12 +1328,12 @@ body.ui-shell-body {
 
   .participants-expediente-card,
   .participants-expediente-field {
-    border-radius: 20px;
+    border-radius: 16px;
   }
 
   .participants-expediente-card__header,
   .participants-expediente-card__body {
-    padding: 1rem;
+    padding: 0.82rem;
   }
 }
 
