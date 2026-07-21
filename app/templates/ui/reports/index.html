@@ -43,7 +43,14 @@
   </section>
 
   <section class="reports-layout">
-    <div class="reports-config-card" id="reports-config-panel" tabindex="-1">
+    <div
+      class="reports-config-card"
+      id="reports-config-panel"
+      tabindex="-1"
+      data-default-month="{{ default_report_month or '' }}"
+      data-default-year="{{ default_report_year or '' }}"
+      data-latest-proposal-id="{{ latest_proposal_id or '' }}"
+    >
       <div class="reports-section-header reports-section-header--compact">
         <div>
           <h2 class="reports-section-title">Configuración del informe</h2>
@@ -333,6 +340,9 @@
   const selectedMeta = document.querySelector('[data-selected-report-meta]');
   const reportCards = Array.from(document.querySelectorAll('[data-report-card]'));
   if (!periodType || !reportKey || !outputType) return;
+  const monthSelect = document.querySelector('select[name="month"]');
+  const yearSelect = document.querySelector('select[name="year"]');
+  const proposalSelect = document.querySelector('select[name="proposal_id"]');
 
   function refreshPeriodUI() {
     const value = periodType.value;
@@ -385,6 +395,22 @@
     });
   };
 
+  const setSelectValueIfAvailable = (select, value) => {
+    if (!select || !value) return;
+    const hasOption = Array.from(select.options).some(option => option.value === String(value));
+    if (hasOption) {
+      select.value = String(value);
+    }
+  };
+
+  const applyReportDefaults = () => {
+    periodType.value = 'monthly';
+    setSelectValueIfAvailable(monthSelect, configPanel ? configPanel.dataset.defaultMonth : '');
+    setSelectValueIfAvailable(yearSelect, configPanel ? configPanel.dataset.defaultYear : '');
+    setSelectValueIfAvailable(proposalSelect, configPanel ? configPanel.dataset.latestProposalId : '');
+    refreshPeriodUI();
+  };
+
   function refreshOutputUI() {
     const isProductividad = reportKey.value === 'productividad';
     Array.from(outputType.options).forEach(option => {
@@ -408,7 +434,10 @@
   });
 
   periodType.addEventListener('change', refreshPeriodUI);
-  reportKey.addEventListener('change', refreshOutputUI);
+  reportKey.addEventListener('change', () => {
+    applyReportDefaults();
+    refreshOutputUI();
+  });
   if (categoryFilter) {
     categoryFilter.addEventListener('change', refreshCategoryFilter);
   }

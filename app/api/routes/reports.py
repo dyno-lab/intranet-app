@@ -302,6 +302,27 @@ PERIOD_TYPE_OPTIONS = [
 ]
 
 
+def _latest_report_proposal_id(proposals: list[Proposal]) -> int | None:
+    if not proposals:
+        return None
+
+    active_status_proposals = [
+        proposal
+        for proposal in proposals
+        if (getattr(proposal, "status", "") or "").strip().lower() == "active"
+    ]
+    candidates = active_status_proposals or proposals
+    latest = max(
+        candidates,
+        key=lambda proposal: (
+            getattr(proposal, "updated_at", None) is not None,
+            getattr(proposal, "updated_at", None).isoformat() if getattr(proposal, "updated_at", None) else "",
+            proposal.proposal_id or 0,
+        ),
+    )
+    return latest.proposal_id
+
+
 @router.get("/", response_class=HTMLResponse)
 def reports_home(
     request: Request,
@@ -320,6 +341,8 @@ def reports_home(
 ):
     context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     dashboard_context = _build_current_month_dashboard_cards(db, current_user)
+    today = date.today()
+    latest_proposal_id = _latest_report_proposal_id(context["proposals"])
     productivity_only_screen = report_key == "productividad"
     if productivity_only_screen and output != "screen":
         output = "screen"
@@ -341,6 +364,9 @@ def reports_home(
             "authorized_name": (authorized_name or "").strip(),
             "selected_start_date": start_date or "",
             "selected_end_date": end_date or "",
+            "default_report_month": today.month,
+            "default_report_year": today.year,
+            "latest_proposal_id": latest_proposal_id,
             **dashboard_context,
         }
     )
