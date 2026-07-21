@@ -43,12 +43,62 @@
   </section>
 
   <section class="reports-layout">
-    <div class="reports-config-card">
+    <div class="reports-config-card" id="reports-config-panel" tabindex="-1">
       <div class="reports-section-header reports-section-header--compact">
         <div>
           <h2 class="reports-section-title">Configuración del informe</h2>
           <p class="reports-section-text">Selecciona el reporte, alcance, período y formato antes de generar.</p>
         </div>
+      </div>
+
+      <div class="reports-selected-summary" aria-live="polite">
+        <span class="reports-selected-summary__eyebrow">Reporte seleccionado</span>
+        {% for option in report_options if selected_report_key == option.value %}
+        <strong class="reports-selected-summary__title" data-selected-report-title>{{ option.label }}</strong>
+        <span class="reports-selected-summary__text" data-selected-report-description>
+          {% if option.value == 'bonafide' %}
+          Lista bonafide de participantes del programa.
+          {% elif option.value == 'productividad' %}
+          Seguimiento de cumplimiento operativo por actividad.
+          {% elif option.value == 'no-duplicado' %}
+          Participantes únicos con asistencia confirmada.
+          {% elif option.value == 'duplicados' %}
+          Participaciones acumuladas con asistencia confirmada.
+          {% elif option.value == 'desercion-escolar' %}
+          Resumen de seguimiento de deserción escolar.
+          {% elif option.value == 'embarazo' %}
+          Resumen de seguimiento de embarazo.
+          {% elif option.value == 'notas' %}
+          Reporte académico con distribución de notas.
+          {% elif option.value == 'visitas' %}
+          Visitas registradas y referidos del período.
+          {% elif option.value == 'por-programa' %}
+          Participantes no duplicados agrupados por programa.
+          {% elif option.value == 'hoja-cotejo' %}
+          Hoja de cotejo generada desde el flujo actual.
+          {% elif option.value == 'vca' %}
+          Informe según columnas VCA configuradas.
+          {% elif option.value == 'adm' %}
+          Informe ADM según servicios configurados.
+          {% else %}
+          Paquete consolidado de reportes disponibles.
+          {% endif %}
+        </span>
+        <span class="reports-selected-summary__meta" data-selected-report-meta>
+          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+          Participantes
+          {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
+          Operativos
+          {% elif option.value in ['notas', 'desercion-escolar', 'embarazo'] %}
+          Académicos
+          {% elif option.value == 'productividad' %}
+          Estadístico
+          {% else %}
+          Consolidado
+          {% endif %}
+          · Pantalla{% if option.value not in ['productividad', 'hoja-cotejo'] %} · Excel · {% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}{% endif %}
+        </span>
+        {% endfor %}
       </div>
 
       <form method="get" action="/ui/reports/run" class="reports-config-form">
@@ -179,6 +229,7 @@
           data-report-category="bundle"
           {% endif %}
           aria-pressed="{{ 'true' if selected_report_key == option.value else 'false' }}"
+          aria-label="Configurar reporte {{ option.label }}"
         >
           <span class="reports-card__icon" aria-hidden="true">
             {% if option.value == 'bonafide' %}
@@ -258,6 +309,10 @@
               <span class="reports-format reports-format--pdf">{% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}</span>
               {% endif %}
             </span>
+            <span class="reports-card__action">
+              <span>Configurar reporte</span>
+              <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+            </span>
           </span>
         </button>
         {% endfor %}
@@ -272,6 +327,10 @@
   const reportKey = document.querySelector('select[name="report_key"]');
   const outputType = document.getElementById('outputType');
   const categoryFilter = document.getElementById('reports-category-filter');
+  const configPanel = document.getElementById('reports-config-panel');
+  const selectedTitle = document.querySelector('[data-selected-report-title]');
+  const selectedDescription = document.querySelector('[data-selected-report-description]');
+  const selectedMeta = document.querySelector('[data-selected-report-meta]');
   const reportCards = Array.from(document.querySelectorAll('[data-report-card]'));
   if (!periodType || !reportKey || !outputType) return;
 
@@ -294,6 +353,29 @@
     });
   };
 
+  const refreshSelectedSummary = () => {
+    const selectedCard = reportCards.find(card => card.dataset.reportCard === reportKey.value);
+    if (!selectedCard || !selectedTitle || !selectedDescription || !selectedMeta) return;
+    const title = selectedCard.querySelector('.reports-card__title');
+    const description = selectedCard.querySelector('.reports-card__description');
+    const category = selectedCard.querySelector('.reports-card__category');
+    const formats = Array.from(selectedCard.querySelectorAll('.reports-format')).map(format => format.textContent.trim());
+
+    selectedTitle.textContent = title ? title.textContent.trim() : '';
+    selectedDescription.textContent = description ? description.textContent.trim() : '';
+    selectedMeta.textContent = [category ? category.textContent.trim() : '', ...formats].filter(Boolean).join(' · ');
+  };
+
+  const focusConfigPanel = () => {
+    if (!configPanel) return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    configPanel.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start'
+    });
+    reportKey.focus({ preventScroll: true });
+  };
+
   const refreshCategoryFilter = () => {
     if (!categoryFilter) return;
     const category = categoryFilter.value;
@@ -314,12 +396,14 @@
       outputType.value = 'screen';
     }
     refreshReportCards();
+    refreshSelectedSummary();
   }
 
   reportCards.forEach(card => {
     card.addEventListener('click', () => {
       reportKey.value = card.dataset.reportCard;
       reportKey.dispatchEvent(new Event('change', { bubbles: true }));
+      focusConfigPanel();
     });
   });
 

@@ -2016,6 +2016,51 @@ body.ui-shell-body {
   align-items: end;
 }
 
+.reports-config-card:focus {
+  outline: none;
+}
+
+.reports-config-card:focus-visible {
+  box-shadow:
+    var(--ui-shadow-soft),
+    0 0 0 0.2rem rgba(37, 99, 235, 0.16);
+}
+
+.reports-selected-summary {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 0.95rem;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.95));
+}
+
+.reports-selected-summary__eyebrow {
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reports-selected-summary__title {
+  color: var(--ui-text);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.reports-selected-summary__text,
+.reports-selected-summary__meta {
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.reports-selected-summary__meta {
+  font-weight: 700;
+}
+
 .reports-config-form__field {
   min-width: 0;
 }
@@ -2174,6 +2219,11 @@ body.ui-shell-body {
   box-shadow: 0 14px 30px rgba(37, 99, 235, 0.11);
 }
 
+.reports-card.is-selected .reports-card__action {
+  color: #ffffff;
+  background: #2563eb;
+}
+
 .reports-card__icon {
   display: inline-flex;
   align-items: center;
@@ -2229,6 +2279,24 @@ body.ui-shell-body {
 .reports-card__formats {
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.reports-card__action {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.35rem;
+  min-height: 1.85rem;
+  margin-top: 0.1rem;
+  padding: 0.32rem 0.56rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.1);
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition:
+    color var(--ui-transition-fast),
+    background-color var(--ui-transition-fast);
 }
 
 .reports-format {
