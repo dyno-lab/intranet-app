@@ -574,6 +574,82 @@ def _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int):
     return stmt
 
 
+def _build_filtered_session_ids_stmt(
+    current_user: User,
+    fd,
+    td,
+    proposal_id_int,
+    month_int,
+    year_int,
+    control_number_text: str | None = None,
+):
+    stmt = select(ActivitySession.session_id)
+
+    if not is_admin_or_supervisor(current_user):
+        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+
+    stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+
+    if control_number_text:
+        stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
+
+    return stmt
+
+
+def _calculate_listado_metrics(
+    db: Session,
+    current_user: User,
+    fd,
+    td,
+    proposal_id_int,
+    month_int,
+    year_int,
+    control_number_text: str | None = None,
+):
+    filtered_session_ids = _build_filtered_session_ids_stmt(
+        current_user=current_user,
+        fd=fd,
+        td=td,
+        proposal_id_int=proposal_id_int,
+        month_int=month_int,
+        year_int=year_int,
+        control_number_text=control_number_text,
+    ).subquery()
+
+    filtered_session_id_select = select(filtered_session_ids.c.session_id)
+    metrics_stmt = select(
+        select(func.count())
+        .select_from(filtered_session_ids)
+        .scalar_subquery()
+        .label("total_activities"),
+        select(func.count(func.distinct(Participant.participant_id)))
+        .select_from(Attendance)
+        .join(Participant, Participant.participant_id == Attendance.participant_id)
+        .where(
+            Attendance.attended == True,  # noqa: E712
+            Attendance.session_id.in_(filtered_session_id_select),
+        )
+        .scalar_subquery()
+        .label("unique_participants"),
+        select(func.count(Attendance.attendance_id))
+        .select_from(Attendance)
+        .join(Participant, Participant.participant_id == Attendance.participant_id)
+        .where(
+            Attendance.attended == True,  # noqa: E712
+            Attendance.session_id.in_(filtered_session_id_select),
+        )
+        .scalar_subquery()
+        .label("total_participations"),
+    )
+    metrics_row = db.execute(metrics_stmt).one()
+
+    return {
+        "total_activities": metrics_row.total_activities or 0,
+        "unique_participants": metrics_row.unique_participants or 0,
+        "total_participations": metrics_row.total_participations or 0,
+    }
+
+
 def _paginate(total_items: int, page: int, per_page: int):
     safe_per_page = max(1, per_page)
     total_pages = max(1, ceil(total_items / safe_per_page)) if total_items else 1
@@ -623,6 +699,16 @@ def _render_listado_selector(
         select(func.count()).select_from(base_stmt.order_by(None).subquery())
     ).scalar_one()
     pagination = _paginate(total_items=total_items, page=page, per_page=per_page)
+    metrics = _calculate_listado_metrics(
+        db=db,
+        current_user=current_user,
+        fd=fd,
+        td=td,
+        proposal_id_int=proposal_id_int,
+        month_int=month_int,
+        year_int=year_int,
+        control_number_text=control_number_text,
+    )
 
     stmt = base_stmt.offset(pagination["offset"]).limit(pagination["per_page"])
     sessions = db.execute(stmt).all()
@@ -680,6 +766,9 @@ def _render_listado_selector(
             "session_date_min": session_date_min.isoformat(),
             "session_date_max": session_date_max.isoformat(),
             "pagination": pagination,
+            "total_activities": metrics["total_activities"],
+            "unique_participants": metrics["unique_participants"],
+            "total_participations": metrics["total_participations"],
             "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
             "msg": msg,
             "create_form": create_form or {},

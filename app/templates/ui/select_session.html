@@ -42,19 +42,19 @@
 
     <div class="attendance-hero__summary">
       <article class="attendance-hero-card">
-        <span class="attendance-hero-card__label">Sesiones visibles</span>
-        <strong class="attendance-hero-card__value">{{ sessions|length }}</strong>
-        <p class="attendance-hero-card__text">Resultados en esta vista</p>
+        <span class="attendance-hero-card__label">Total actividades</span>
+        <strong class="attendance-hero-card__value">{{ total_activities }}</strong>
+        <p class="attendance-hero-card__text">Según los filtros aplicados</p>
       </article>
       <article class="attendance-hero-card">
-        <span class="attendance-hero-card__label">Total registradas</span>
-        <strong class="attendance-hero-card__value">{{ pagination.total_items }}</strong>
-        <p class="attendance-hero-card__text">Según filtros aplicados</p>
+        <span class="attendance-hero-card__label">Participantes únicos</span>
+        <strong class="attendance-hero-card__value">{{ unique_participants }}</strong>
+        <p class="attendance-hero-card__text">Con asistencia confirmada</p>
       </article>
       <article class="attendance-hero-card">
-        <span class="attendance-hero-card__label">Página actual</span>
-        <strong class="attendance-hero-card__value">Página {{ pagination.page }}</strong>
-        <p class="attendance-hero-card__text">de {{ pagination.total_pages }}</p>
+        <span class="attendance-hero-card__label">Participaciones registradas</span>
+        <strong class="attendance-hero-card__value">{{ total_participations }}</strong>
+        <p class="attendance-hero-card__text">Asistencias confirmadas</p>
       </article>
     </div>
   </section>
