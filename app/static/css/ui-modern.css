@@ -2004,15 +2004,39 @@ body.ui-shell-body {
 }
 
 .reports-layout {
-  display: grid;
-  grid-template-columns: minmax(20rem, 0.95fr) minmax(24rem, 1.35fr);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
 }
 
 .reports-config-form {
-  --bs-gutter-x: 0.7rem;
-  --bs-gutter-y: 0.65rem;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.65rem 0.7rem;
+  align-items: end;
+}
+
+.reports-config-form__field {
+  min-width: 0;
+}
+
+.reports-config-form__field--report,
+.reports-config-form__field--proposal {
+  grid-column: span 3;
+}
+
+.reports-config-form__field--period,
+.reports-config-form__field--month,
+.reports-config-form__field--year,
+.reports-config-form__field--date,
+.reports-config-form__field--output,
+.reports-config-form__submit {
+  grid-column: span 2;
+}
+
+.reports-config-form__field--scope,
+.reports-config-form__field--authorized {
+  grid-column: span 4;
 }
 
 .reports-config-form .form-label {
@@ -2032,19 +2056,43 @@ body.ui-shell-body {
 
 .reports-config-form__submit {
   align-self: end;
+  min-width: 0;
 }
 
 .reports-config-form__submit .btn {
+  width: 100%;
   min-height: 2.55rem;
   border-radius: 0.78rem;
   font-weight: 700;
 }
 
 .reports-category-strip {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 0.8rem;
+}
+
+.reports-catalog-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.15rem 0 0.85rem;
+}
+
+.reports-category-filter {
+  display: grid;
+  gap: 0.28rem;
+  width: min(100%, 18rem);
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.reports-category-filter .form-select {
+  min-height: 2.45rem;
+  border-radius: 0.78rem;
+  border-color: rgba(15, 23, 42, 0.12);
+  font-size: 0.88rem;
 }
 
 .reports-category-pill {
@@ -2089,7 +2137,7 @@ body.ui-shell-body {
 
 .reports-catalog-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
@@ -2098,6 +2146,7 @@ body.ui-shell-body {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.75rem;
   width: 100%;
+  min-height: 11.25rem;
   padding: 0.85rem;
   text-align: left;
   color: inherit;
@@ -2147,6 +2196,7 @@ body.ui-shell-body {
 .reports-card__body {
   flex-direction: column;
   gap: 0.42rem;
+  height: 100%;
 }
 
 .reports-card__topline {
@@ -2170,6 +2220,7 @@ body.ui-shell-body {
 }
 
 .reports-card__description {
+  flex: 1 1 auto;
   color: var(--ui-text-muted);
   font-size: 0.8rem;
   line-height: 1.35;
@@ -2235,9 +2286,6 @@ body.ui-shell-body {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
-  .reports-layout {
-    grid-template-columns: minmax(22rem, 0.9fr) minmax(34rem, 1.4fr);
-  }
 }
 
 @media (min-width: 992px) {
@@ -2315,6 +2363,23 @@ body.ui-shell-body {
     grid-template-columns: 1fr;
   }
 
+  .reports-config-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reports-config-form__field--report,
+  .reports-config-form__field--proposal,
+  .reports-config-form__field--period,
+  .reports-config-form__field--month,
+  .reports-config-form__field--year,
+  .reports-config-form__field--date,
+  .reports-config-form__field--scope,
+  .reports-config-form__field--authorized,
+  .reports-config-form__field--output,
+  .reports-config-form__submit {
+    grid-column: span 1;
+  }
+
   .reports-dashboard__note {
     max-width: none;
     text-align: left;
@@ -2366,6 +2431,32 @@ body.ui-shell-body {
   .reports-card__topline {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .reports-config-form,
+  .reports-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-config-form__field--report,
+  .reports-config-form__field--proposal,
+  .reports-config-form__field--period,
+  .reports-config-form__field--month,
+  .reports-config-form__field--year,
+  .reports-config-form__field--date,
+  .reports-config-form__field--scope,
+  .reports-config-form__field--authorized,
+  .reports-config-form__field--output,
+  .reports-config-form__submit {
+    grid-column: 1 / -1;
+  }
+
+  .reports-catalog-toolbar {
+    justify-content: stretch;
+  }
+
+  .reports-category-filter {
+    width: 100%;
   }
 
   .reports-catalog-grid {

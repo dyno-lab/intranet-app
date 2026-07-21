@@ -51,8 +51,8 @@
         </div>
       </div>
 
-      <form method="get" action="/ui/reports/run" class="row g-3 align-items-end reports-config-form">
-        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+      <form method="get" action="/ui/reports/run" class="reports-config-form">
+        <div class="reports-config-form__field reports-config-form__field--report">
           <label class="form-label">Informe *</label>
           <select class="form-select" name="report_key" required>
             {% for option in report_options %}
@@ -60,7 +60,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+        <div class="reports-config-form__field reports-config-form__field--proposal">
           <label class="form-label">Propuesta *</label>
           <select class="form-select" name="proposal_id" required>
             <option value="">Selecciona...</option>
@@ -69,7 +69,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+        <div class="reports-config-form__field reports-config-form__field--period">
           <label class="form-label">Período *</label>
           <select class="form-select" name="period_type" id="periodType" required>
             {% for option in period_type_options %}
@@ -77,7 +77,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-xl-3 col-md-6 period-block period-monthly reports-config-form__field">
+        <div class="period-block period-monthly reports-config-form__field reports-config-form__field--month">
           <label class="form-label">Mes *</label>
           <select class="form-select" name="month">
             <option value="">Selecciona...</option>
@@ -86,7 +86,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-xl-3 col-md-6 period-block period-monthly reports-config-form__field">
+        <div class="period-block period-monthly reports-config-form__field reports-config-form__field--year">
           <label class="form-label">Año *</label>
           <select class="form-select" name="year">
             <option value="">Selecciona...</option>
@@ -95,15 +95,15 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-xl-3 col-md-6 period-block period-custom d-none reports-config-form__field">
+        <div class="period-block period-custom d-none reports-config-form__field reports-config-form__field--date">
           <label class="form-label">Fecha inicial *</label>
           <input type="date" class="form-control" name="start_date" value="{{ selected_start_date or '' }}">
         </div>
-        <div class="col-xl-3 col-md-6 period-block period-custom d-none reports-config-form__field">
+        <div class="period-block period-custom d-none reports-config-form__field reports-config-form__field--date">
           <label class="form-label">Fecha final *</label>
           <input type="date" class="form-control" name="end_date" value="{{ selected_end_date or '' }}">
         </div>
-        <div class="col-xl-3 col-md-6 reports-config-form__field">
+        <div class="reports-config-form__field reports-config-form__field--output">
           <label class="form-label">Formato de salida *</label>
           <select class="form-select" name="output" id="outputType" required>
             <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
@@ -111,7 +111,7 @@
             <option value="pdf" {% if selected_output == 'pdf' %}selected{% endif %}>PDF</option>
           </select>
         </div>
-        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+        <div class="reports-config-form__field reports-config-form__field--scope">
           <label class="form-label">Residencial / alcance *</label>
           {% if current_user.role in ['admin', 'supervisor'] %}
           <select class="form-select" name="employee_id" required>
@@ -126,11 +126,11 @@
           <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
           {% endif %}
         </div>
-        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+        <div class="reports-config-form__field reports-config-form__field--authorized">
           <label class="form-label">Funcionario autorizado</label>
           <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
         </div>
-        <div class="col-xl-4 col-lg-6 d-grid reports-config-form__submit">
+        <div class="reports-config-form__submit">
           <button class="btn btn-primary">
             <i class="bi bi-play-fill" aria-hidden="true"></i>
             <span>Generar</span>
@@ -147,12 +147,18 @@
         </div>
       </div>
 
-      <div class="reports-category-strip" aria-label="Categorías de reportes">
-        <span class="reports-category-pill reports-category-pill--participants">Participantes</span>
-        <span class="reports-category-pill reports-category-pill--operations">Operativos</span>
-        <span class="reports-category-pill reports-category-pill--academic">Académicos y seguimientos</span>
-        <span class="reports-category-pill reports-category-pill--stats">Estadísticos</span>
-        <span class="reports-category-pill reports-category-pill--bundle">Consolidado</span>
+      <div class="reports-catalog-toolbar">
+        <label class="reports-category-filter" for="reports-category-filter">
+          <span>Categoría</span>
+          <select class="form-select" id="reports-category-filter">
+            <option value="all">Todas las categorías</option>
+            <option value="participants">Participantes</option>
+            <option value="operations">Operativos</option>
+            <option value="academic">Académicos y seguimientos</option>
+            <option value="stats">Estadísticos</option>
+            <option value="bundle">Consolidado</option>
+          </select>
+        </label>
       </div>
 
       <div class="reports-catalog-grid">
@@ -161,6 +167,17 @@
           class="reports-card {% if selected_report_key == option.value %}is-selected{% endif %}"
           type="button"
           data-report-card="{{ option.value }}"
+          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+          data-report-category="participants"
+          {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
+          data-report-category="operations"
+          {% elif option.value in ['notas', 'desercion-escolar', 'embarazo'] %}
+          data-report-category="academic"
+          {% elif option.value == 'productividad' %}
+          data-report-category="stats"
+          {% else %}
+          data-report-category="bundle"
+          {% endif %}
           aria-pressed="{{ 'true' if selected_report_key == option.value else 'false' }}"
         >
           <span class="reports-card__icon" aria-hidden="true">
@@ -254,6 +271,7 @@
   const periodType = document.getElementById('periodType');
   const reportKey = document.querySelector('select[name="report_key"]');
   const outputType = document.getElementById('outputType');
+  const categoryFilter = document.getElementById('reports-category-filter');
   const reportCards = Array.from(document.querySelectorAll('[data-report-card]'));
   if (!periodType || !reportKey || !outputType) return;
 
@@ -273,6 +291,15 @@
       const isSelected = card.dataset.reportCard === reportKey.value;
       card.classList.toggle('is-selected', isSelected);
       card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+  };
+
+  const refreshCategoryFilter = () => {
+    if (!categoryFilter) return;
+    const category = categoryFilter.value;
+    reportCards.forEach(card => {
+      const isVisible = category === 'all' || card.dataset.reportCategory === category;
+      card.hidden = !isVisible;
     });
   };
 
@@ -298,8 +325,12 @@
 
   periodType.addEventListener('change', refreshPeriodUI);
   reportKey.addEventListener('change', refreshOutputUI);
+  if (categoryFilter) {
+    categoryFilter.addEventListener('change', refreshCategoryFilter);
+  }
   refreshPeriodUI();
   refreshOutputUI();
+  refreshCategoryFilter();
 })();
 </script>
 {% endblock %}
