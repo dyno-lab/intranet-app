@@ -1352,7 +1352,8 @@ body.ui-shell-body {
 }
 
 .attendance-section__header--compact {
-  gap: 0.45rem;
+  gap: 0.2rem;
+  margin-bottom: 0.1rem;
 }
 
 .attendance-section__header--tight {
@@ -1417,24 +1418,37 @@ body.ui-shell-body {
 .attendance-filter-card .form-text,
 .attendance-form-card .form-text,
 .attendance-form-note {
-  margin-top: 0.16rem;
-  font-size: 0.75rem;
-  line-height: 1.35;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
 }
 
 .attendance-filter-form,
 .attendance-create-form {
   --bs-gutter-x: 0.7rem;
-  --bs-gutter-y: 0.55rem;
+  --bs-gutter-y: 0.45rem;
 }
 
 .attendance-filter-form__note {
   margin-top: 0.05rem;
 }
 
+.attendance-create-form__field {
+  display: flex;
+  flex-direction: column;
+}
+
+.attendance-create-form__field .form-text {
+  min-height: 1.8rem;
+}
+
 .attendance-filter-form__action,
 .attendance-create-form__submit {
   align-self: end;
+}
+
+.attendance-create-form__submit {
+  padding-top: 1.2rem;
 }
 
 .attendance-submit-btn {
@@ -1691,6 +1705,14 @@ body.ui-shell-body {
 
   .attendance-table-card__intro {
     margin-bottom: 0.6rem;
+  }
+
+  .attendance-create-form__field .form-text {
+    min-height: 0;
+  }
+
+  .attendance-create-form__submit {
+    padding-top: 0;
   }
 
   .participants-expediente-card__header,

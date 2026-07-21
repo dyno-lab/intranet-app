@@ -63,7 +63,6 @@
     <div class="attendance-section__header attendance-section__header--compact">
       <div>
         <h2 class="attendance-section__title">Filtros de búsqueda</h2>
-        <p class="attendance-section__text">Todos los campos visibles y compactados para reducir scroll innecesario.</p>
       </div>
       <div class="attendance-list-meta">
         <span>Mostrando {{ sessions|length }} de {{ pagination.total_items }} sesiones</span>
@@ -135,20 +134,19 @@
     <div class="attendance-section__header attendance-section__header--compact">
       <div>
         <h2 class="attendance-section__title">Creación de sesión</h2>
-        <p class="attendance-section__text">Misma lógica de fechas, propuestas, actividades y empleados, con una distribución más compacta.</p>
       </div>
     </div>
 
     <div class="card shadow-sm border-0 attendance-form-card">
       <div class="card-body">
-        <form method="post" action="/ui/listado/create-session" class="row g-2 align-items-end attendance-create-form">
-          <div class="col-xl-2 col-lg-3 col-md-6">
+        <form method="post" action="/ui/listado/create-session" class="row g-2 align-items-start attendance-create-form">
+          <div class="col-xl-2 col-lg-3 col-md-6 attendance-create-form__field">
             <label class="form-label">Fecha *</label>
             <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
             <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
           </div>
 
-          <div class="col-xl-3 col-lg-4 col-md-6">
+          <div class="col-xl-3 col-lg-4 col-md-6 attendance-create-form__field">
             <label class="form-label">Propuesta</label>
             <select class="form-select" name="proposal_id" id="proposal_id_select">
               <option value="">Sin propuesta</option>
@@ -158,7 +156,7 @@
             </select>
           </div>
 
-          <div class="col-xl-3 col-lg-5 col-md-6">
+          <div class="col-xl-3 col-lg-5 col-md-6 attendance-create-form__field">
             <label class="form-label">Código de actividad *</label>
             <select class="form-select" name="activity_code_id" id="activity_code_select" required>
               <option value="">Selecciona...</option>
@@ -169,7 +167,7 @@
             <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales. No se permiten fechas futuras.</div>
           </div>
 
-          <div class="col-xl-2 col-lg-4 col-md-6">
+          <div class="col-xl-2 col-lg-4 col-md-6 attendance-create-form__field">
             <label class="form-label">Empleado *</label>
             <select class="form-select" name="employee_id" required>
               <option value="">Selecciona...</option>
@@ -179,12 +177,12 @@
             </select>
           </div>
 
-          <div class="col-xl-1 col-lg-2 col-md-6">
+          <div class="col-xl-1 col-lg-2 col-md-6 attendance-create-form__field">
             <label class="form-label">Minutos</label>
             <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ create_form.get('hours_minutes', '') }}" placeholder="5" data-hours-output="create-hours-preview">
           </div>
 
-          <div class="col-xl-1 col-lg-2 col-md-6">
+          <div class="col-xl-1 col-lg-2 col-md-6 attendance-create-form__field">
             <label class="form-label">Equivale a</label>
             <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
             <div class="form-text">Solo visual</div>
