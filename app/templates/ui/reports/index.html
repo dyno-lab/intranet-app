@@ -2,126 +2,251 @@
 {% block title %}Reportes{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Reportes</h4>
-</div>
+<div class="reports-page">
+  <section class="reports-hero">
+    <div class="reports-hero__copy">
+      <span class="reports-hero__eyebrow">Centro de informes</span>
+      <h1 class="reports-hero__title">Reportes</h1>
+      <p class="reports-hero__lead">Genera informes operativos y estadísticos del programa con filtros y formatos de salida disponibles.</p>
+    </div>
+  </section>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
-      <div class="col-md-3">
-        <label class="form-label">Informe *</label>
-        <select class="form-select" name="report_key" required>
-          {% for option in report_options %}
-          <option value="{{ option.value }}" {% if selected_report_key == option.value %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Mensual o Personalizado *</label>
-        <select class="form-select" name="period_type" id="periodType" required>
-          {% for option in period_type_options %}
-          <option value="{{ option.value }}" {% if selected_period_type == option.value %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2 period-block period-monthly">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month">
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2 period-block period-monthly">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year">
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2 period-block period-custom d-none">
-        <label class="form-label">Fecha inicial *</label>
-        <input type="date" class="form-control" name="start_date" value="{{ selected_start_date or '' }}">
-      </div>
-      <div class="col-md-2 period-block period-custom d-none">
-        <label class="form-label">Fecha final *</label>
-        <input type="date" class="form-control" name="end_date" value="{{ selected_end_date or '' }}">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Formato *</label>
-        <select class="form-select" name="output" id="outputType" required>
-          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
-          <option value="excel" {% if selected_output == 'excel' %}selected{% endif %}>Excel</option>
-          <option value="pdf" {% if selected_output == 'pdf' %}selected{% endif %}>PDF</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
-      </div>
-      <div class="col-md-3 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-12 small text-muted">
-        Motor principal actual: <strong>Mensual</strong>. Trimestral, anual y personalizado quedan visibles como diseño objetivo del módulo para seguimiento del programa y futuras implementaciones.
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+  <section class="reports-dashboard" aria-label="Dashboard mensual general en vivo">
+    <div class="reports-section-header">
       <div>
-        <h5 class="mb-1">Dashboard mensual general en vivo</h5>
-        <div class="small text-muted">{{ dashboard_period_label }} · Alcance: {{ dashboard_scope_label }}</div>
-        <div class="small text-muted mt-1">Este dashboard es informativo y no cambia automáticamente con los filtros del formulario superior.</div>
+        <h2 class="reports-section-title">Dashboard mensual general en vivo</h2>
+        <p class="reports-section-text">{{ dashboard_period_label }} · Alcance: {{ dashboard_scope_label }}</p>
       </div>
-      <div class="small text-muted">Actualizado al cargar esta página</div>
+      <span class="reports-dashboard__note">No cambia automáticamente con los filtros del formulario.</span>
     </div>
 
-    <div class="row g-3">
+    <div class="reports-dashboard__grid">
       {% for card in dashboard_cards %}
-      <div class="col-md-4">
-        <div class="card border-{{ card.tone }} h-100">
-          <div class="card-body">
-            <div class="text-muted small text-uppercase mb-2">{{ card.label }}</div>
-            <div class="display-6 fw-bold text-{{ card.tone }}">{{ card.value }}</div>
-            <div class="small text-muted mt-2">{{ card.subtitle }}</div>
-          </div>
+      <article class="reports-dashboard-card reports-dashboard-card--{{ card.tone }}">
+        <div class="reports-dashboard-card__icon" aria-hidden="true">
+          {% if card.key == 'no-duplicado' %}
+          <i class="bi bi-people-fill"></i>
+          {% elif card.key == 'duplicados' %}
+          <i class="bi bi-person-lines-fill"></i>
+          {% else %}
+          <i class="bi bi-calendar-check-fill"></i>
+          {% endif %}
         </div>
-      </div>
+        <div class="reports-dashboard-card__body">
+          <span class="reports-dashboard-card__label">{{ card.label }}</span>
+          <strong class="reports-dashboard-card__value">{{ card.value }}</strong>
+          <span class="reports-dashboard-card__text">{{ card.subtitle }}</span>
+        </div>
+      </article>
       {% endfor %}
     </div>
-  </div>
+  </section>
+
+  <section class="reports-layout">
+    <div class="reports-config-card">
+      <div class="reports-section-header reports-section-header--compact">
+        <div>
+          <h2 class="reports-section-title">Configuración del informe</h2>
+          <p class="reports-section-text">Selecciona el reporte, alcance, período y formato antes de generar.</p>
+        </div>
+      </div>
+
+      <form method="get" action="/ui/reports/run" class="row g-3 align-items-end reports-config-form">
+        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+          <label class="form-label">Informe *</label>
+          <select class="form-select" name="report_key" required>
+            {% for option in report_options %}
+            <option value="{{ option.value }}" {% if selected_report_key == option.value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+          <label class="form-label">Propuesta *</label>
+          <select class="form-select" name="proposal_id" required>
+            <option value="">Selecciona...</option>
+            {% for proposal in proposals %}
+            <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+          <label class="form-label">Período *</label>
+          <select class="form-select" name="period_type" id="periodType" required>
+            {% for option in period_type_options %}
+            <option value="{{ option.value }}" {% if selected_period_type == option.value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-3 col-md-6 period-block period-monthly reports-config-form__field">
+          <label class="form-label">Mes *</label>
+          <select class="form-select" name="month">
+            <option value="">Selecciona...</option>
+            {% for month_value, month_label in month_options %}
+            <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-3 col-md-6 period-block period-monthly reports-config-form__field">
+          <label class="form-label">Año *</label>
+          <select class="form-select" name="year">
+            <option value="">Selecciona...</option>
+            {% for option_year in year_options %}
+            <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-3 col-md-6 period-block period-custom d-none reports-config-form__field">
+          <label class="form-label">Fecha inicial *</label>
+          <input type="date" class="form-control" name="start_date" value="{{ selected_start_date or '' }}">
+        </div>
+        <div class="col-xl-3 col-md-6 period-block period-custom d-none reports-config-form__field">
+          <label class="form-label">Fecha final *</label>
+          <input type="date" class="form-control" name="end_date" value="{{ selected_end_date or '' }}">
+        </div>
+        <div class="col-xl-3 col-md-6 reports-config-form__field">
+          <label class="form-label">Formato de salida *</label>
+          <select class="form-select" name="output" id="outputType" required>
+            <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
+            <option value="excel" {% if selected_output == 'excel' %}selected{% endif %}>Excel</option>
+            <option value="pdf" {% if selected_output == 'pdf' %}selected{% endif %}>PDF</option>
+          </select>
+        </div>
+        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+          <label class="form-label">Residencial / alcance *</label>
+          {% if current_user.role in ['admin', 'supervisor'] %}
+          <select class="form-select" name="employee_id" required>
+            <option value="">Selecciona...</option>
+            <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+            {% for report_user in report_users %}
+            <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <input class="form-control" value="{{ residential_name or '' }}" readonly>
+          <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+          {% endif %}
+        </div>
+        <div class="col-xl-4 col-lg-6 reports-config-form__field">
+          <label class="form-label">Funcionario autorizado</label>
+          <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
+        </div>
+        <div class="col-xl-4 col-lg-6 d-grid reports-config-form__submit">
+          <button class="btn btn-primary">
+            <i class="bi bi-play-fill" aria-hidden="true"></i>
+            <span>Generar</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="reports-catalog-card">
+      <div class="reports-section-header reports-section-header--compact">
+        <div>
+          <h2 class="reports-section-title">Catálogo de reportes</h2>
+          <p class="reports-section-text">Elige visualmente el informe; el selector funcional se mantiene sincronizado.</p>
+        </div>
+      </div>
+
+      <div class="reports-category-strip" aria-label="Categorías de reportes">
+        <span class="reports-category-pill reports-category-pill--participants">Participantes</span>
+        <span class="reports-category-pill reports-category-pill--operations">Operativos</span>
+        <span class="reports-category-pill reports-category-pill--academic">Académicos y seguimientos</span>
+        <span class="reports-category-pill reports-category-pill--stats">Estadísticos</span>
+        <span class="reports-category-pill reports-category-pill--bundle">Consolidado</span>
+      </div>
+
+      <div class="reports-catalog-grid">
+        {% for option in report_options %}
+        <button
+          class="reports-card {% if selected_report_key == option.value %}is-selected{% endif %}"
+          type="button"
+          data-report-card="{{ option.value }}"
+          aria-pressed="{{ 'true' if selected_report_key == option.value else 'false' }}"
+        >
+          <span class="reports-card__icon" aria-hidden="true">
+            {% if option.value == 'bonafide' %}
+            <i class="bi bi-shield-check"></i>
+            {% elif option.value == 'productividad' %}
+            <i class="bi bi-bar-chart-line"></i>
+            {% elif option.value in ['no-duplicado', 'duplicados'] %}
+            <i class="bi bi-people"></i>
+            {% elif option.value == 'desercion-escolar' %}
+            <i class="bi bi-mortarboard"></i>
+            {% elif option.value == 'embarazo' %}
+            <i class="bi bi-heart-pulse"></i>
+            {% elif option.value == 'notas' %}
+            <i class="bi bi-journal-text"></i>
+            {% elif option.value == 'visitas' %}
+            <i class="bi bi-pin-map"></i>
+            {% elif option.value == 'por-programa' %}
+            <i class="bi bi-diagram-3"></i>
+            {% elif option.value == 'hoja-cotejo' %}
+            <i class="bi bi-clipboard-check"></i>
+            {% elif option.value == 'vca' %}
+            <i class="bi bi-table"></i>
+            {% elif option.value == 'adm' %}
+            <i class="bi bi-clipboard-data"></i>
+            {% else %}
+            <i class="bi bi-files"></i>
+            {% endif %}
+          </span>
+          <span class="reports-card__body">
+            <span class="reports-card__topline">
+              <strong class="reports-card__title">{{ option.label }}</strong>
+              {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+              <span class="reports-card__category reports-card__category--participants">Participantes</span>
+              {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
+              <span class="reports-card__category reports-card__category--operations">Operativos</span>
+              {% elif option.value in ['notas', 'desercion-escolar', 'embarazo'] %}
+              <span class="reports-card__category reports-card__category--academic">Académicos</span>
+              {% elif option.value == 'productividad' %}
+              <span class="reports-card__category reports-card__category--stats">Estadístico</span>
+              {% else %}
+              <span class="reports-card__category reports-card__category--bundle">Consolidado</span>
+              {% endif %}
+            </span>
+            <span class="reports-card__description">
+              {% if option.value == 'bonafide' %}
+              Lista bonafide de participantes del programa.
+              {% elif option.value == 'productividad' %}
+              Seguimiento de cumplimiento operativo por actividad.
+              {% elif option.value == 'no-duplicado' %}
+              Participantes únicos con asistencia confirmada.
+              {% elif option.value == 'duplicados' %}
+              Participaciones acumuladas con asistencia confirmada.
+              {% elif option.value == 'desercion-escolar' %}
+              Resumen de seguimiento de deserción escolar.
+              {% elif option.value == 'embarazo' %}
+              Resumen de seguimiento de embarazo.
+              {% elif option.value == 'notas' %}
+              Reporte académico con distribución de notas.
+              {% elif option.value == 'visitas' %}
+              Visitas registradas y referidos del período.
+              {% elif option.value == 'por-programa' %}
+              Participantes no duplicados agrupados por programa.
+              {% elif option.value == 'hoja-cotejo' %}
+              Hoja de cotejo generada desde el flujo actual.
+              {% elif option.value == 'vca' %}
+              Informe según columnas VCA configuradas.
+              {% elif option.value == 'adm' %}
+              Informe ADM según servicios configurados.
+              {% else %}
+              Paquete consolidado de reportes disponibles.
+              {% endif %}
+            </span>
+            <span class="reports-card__formats" aria-label="Formatos disponibles">
+              <span class="reports-format reports-format--screen">Pantalla</span>
+              {% if option.value not in ['productividad', 'hoja-cotejo'] %}
+              <span class="reports-format reports-format--excel">Excel</span>
+              <span class="reports-format reports-format--pdf">{% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}</span>
+              {% endif %}
+            </span>
+          </span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -129,6 +254,7 @@
   const periodType = document.getElementById('periodType');
   const reportKey = document.querySelector('select[name="report_key"]');
   const outputType = document.getElementById('outputType');
+  const reportCards = Array.from(document.querySelectorAll('[data-report-card]'));
   if (!periodType || !reportKey || !outputType) return;
 
   function refreshPeriodUI() {
@@ -142,6 +268,14 @@
     }
   }
 
+  const refreshReportCards = () => {
+    reportCards.forEach(card => {
+      const isSelected = card.dataset.reportCard === reportKey.value;
+      card.classList.toggle('is-selected', isSelected);
+      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+  };
+
   function refreshOutputUI() {
     const isProductividad = reportKey.value === 'productividad';
     Array.from(outputType.options).forEach(option => {
@@ -152,7 +286,15 @@
     if (isProductividad) {
       outputType.value = 'screen';
     }
+    refreshReportCards();
   }
+
+  reportCards.forEach(card => {
+    card.addEventListener('click', () => {
+      reportKey.value = card.dataset.reportCard;
+      reportKey.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
 
   periodType.addEventListener('change', refreshPeriodUI);
   reportKey.addEventListener('change', refreshOutputUI);
