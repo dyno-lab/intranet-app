@@ -574,6 +574,22 @@ def _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int):
     return stmt
 
 
+def _apply_session_residential_filter(
+    stmt,
+    current_user: User,
+    residential_id_int: int | None,
+    *,
+    user_joined: bool = False,
+):
+    if not is_admin_or_supervisor(current_user) or not residential_id_int:
+        return stmt
+
+    if not user_joined:
+        stmt = stmt.join(User, User.user_id == ActivitySession.created_by_user_id)
+
+    return stmt.where(User.residential_id == residential_id_int)
+
+
 def _build_filtered_session_ids_stmt(
     current_user: User,
     fd,
@@ -581,12 +597,20 @@ def _build_filtered_session_ids_stmt(
     proposal_id_int,
     month_int,
     year_int,
+    residential_id_int: int | None = None,
     control_number_text: str | None = None,
 ):
     stmt = select(ActivitySession.session_id)
 
     if not is_admin_or_supervisor(current_user):
         stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+    else:
+        stmt = _apply_session_residential_filter(
+            stmt,
+            current_user,
+            residential_id_int,
+            user_joined=False,
+        )
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
 
@@ -604,6 +628,7 @@ def _calculate_listado_metrics(
     proposal_id_int,
     month_int,
     year_int,
+    residential_id_int: int | None = None,
     control_number_text: str | None = None,
 ):
     filtered_session_ids = _build_filtered_session_ids_stmt(
@@ -613,6 +638,7 @@ def _calculate_listado_metrics(
         proposal_id_int=proposal_id_int,
         month_int=month_int,
         year_int=year_int,
+        residential_id_int=residential_id_int,
         control_number_text=control_number_text,
     ).subquery()
 
@@ -673,6 +699,7 @@ def _render_listado_selector(
     db: Session,
     current_user: User,
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -686,11 +713,19 @@ def _render_listado_selector(
     fd = _parse_date(from_date) if from_date else None
     td = _parse_date(to_date) if to_date else None
     control_number_text = (control_number or "").strip()
+    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    residential_id_int = _parse_optional_int(residential_id) if is_admin_supervisor else None
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
 
     base_stmt = _build_sessions_stmt(current_user)
+    base_stmt = _apply_session_residential_filter(
+        base_stmt,
+        current_user,
+        residential_id_int,
+        user_joined=True,
+    )
     base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
     if control_number_text:
         base_stmt = base_stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
@@ -707,6 +742,7 @@ def _render_listado_selector(
         proposal_id_int=proposal_id_int,
         month_int=month_int,
         year_int=year_int,
+        residential_id_int=residential_id_int,
         control_number_text=control_number_text,
     )
 
@@ -725,6 +761,13 @@ def _render_listado_selector(
     proposals = db.execute(
         select(Proposal).order_by(Proposal.code)
     ).scalars().all()
+    residentials = []
+    if is_admin_supervisor:
+        residentials = db.execute(
+            select(Residential)
+            .where(Residential.is_active == True)  # noqa: E712
+            .order_by(Residential.name)
+        ).scalars().all()
 
     month_options = [
         (1, "Enero"),
@@ -752,7 +795,9 @@ def _render_listado_selector(
             "activity_codes": activity_codes,
             "employees": employees,
             "proposals": proposals,
+            "residentials": residentials,
             "selected_proposal_id": proposal_id_int,
+            "selected_residential_id": residential_id_int,
             "selected_control_number": control_number_text,
             "selected_month": month_int,
             "selected_year": year_int,
@@ -769,7 +814,7 @@ def _render_listado_selector(
             "total_activities": metrics["total_activities"],
             "unique_participants": metrics["unique_participants"],
             "total_participations": metrics["total_participations"],
-            "is_admin_or_supervisor_view": is_admin_or_supervisor(current_user),
+            "is_admin_or_supervisor_view": is_admin_supervisor,
             "msg": msg,
             "create_form": create_form or {},
         },
@@ -1472,6 +1517,7 @@ async def edit_participant_save(
 def listado_selector(
     request: Request,
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1488,6 +1534,7 @@ def listado_selector(
         db=db,
         current_user=current_user,
         control_number=control_number,
+        residential_id=residential_id,
         from_date=from_date,
         to_date=to_date,
         proposal_id=proposal_id,
@@ -1502,6 +1549,7 @@ def listado_selector(
 @router.get("/listado/export.csv")
 def export_sessions_csv(
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1516,8 +1564,15 @@ def export_sessions_csv(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
     control_number_text = (control_number or "").strip()
+    residential_id_int = _parse_optional_int(residential_id) if is_admin_or_supervisor(current_user) else None
 
     stmt = _build_sessions_stmt(current_user)
+    stmt = _apply_session_residential_filter(
+        stmt,
+        current_user,
+        residential_id_int,
+        user_joined=True,
+    )
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
     if control_number_text:
         stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
@@ -1562,6 +1617,7 @@ def _render_open_session(
     db: Session,
     current_user: User,
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1602,6 +1658,7 @@ def _render_open_session(
 
     list_query_params = {
         "control_number": control_number or "",
+        "residential_id": residential_id or "",
         "proposal_id": proposal_id or "",
         "month": month or "",
         "year": year or "",
@@ -1647,6 +1704,7 @@ def _render_open_session(
 @router.get("/listado/export-attendance.csv")
 def export_attendance_csv(
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1661,6 +1719,7 @@ def export_attendance_csv(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
     control_number_text = (control_number or "").strip()
+    residential_id_int = _parse_optional_int(residential_id) if is_admin_or_supervisor(current_user) else None
 
     stmt = (
         select(
@@ -1698,6 +1757,13 @@ def export_attendance_csv(
 
     if not is_admin_or_supervisor(current_user):
         stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+    else:
+        stmt = _apply_session_residential_filter(
+            stmt,
+            current_user,
+            residential_id_int,
+            user_joined=False,
+        )
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
     if control_number_text:
@@ -1870,6 +1936,7 @@ def open_session(
     session_id: int,
     request: Request,
     control_number: str | None = None,
+    residential_id: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     proposal_id: str | None = None,
@@ -1909,6 +1976,7 @@ def open_session(
 
     list_query_params = {
         "control_number": control_number or "",
+        "residential_id": residential_id or "",
         "proposal_id": proposal_id or "",
         "month": month or "",
         "year": year or "",

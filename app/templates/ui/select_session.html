@@ -35,8 +35,8 @@
         {% if selected_proposal_id %}
         <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
         {% endif %}
-        <a class="btn btn-outline-success" href="/ui/listado/export.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
-        <a class="btn btn-outline-success" href="/ui/listado/export-attendance.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar asistencias CSV</a>
+        <a class="btn btn-outline-success" href="/ui/listado/export.csv?control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
+        <a class="btn btn-outline-success" href="/ui/listado/export-attendance.csv?control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar asistencias CSV</a>
       </div>
     </div>
 
@@ -77,6 +77,19 @@
             <label class="form-label">Número de control</label>
             <input type="text" class="form-control" name="control_number" value="{{ selected_control_number or '' }}" placeholder="Ej. AC672026">
           </div>
+          {% if is_admin_or_supervisor_view %}
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <label class="form-label">Residencial</label>
+            <select class="form-select" name="residential_id">
+              <option value="">Todos los residenciales</option>
+              {% for residential in residentials %}
+                <option value="{{ residential.residential_id }}" {% if selected_residential_id == residential.residential_id %}selected{% endif %}>
+                  {{ residential.code }} - {{ residential.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
           <div class="col-xl-3 col-lg-4 col-md-6">
             <label class="form-label">Propuesta</label>
             <select class="form-select" name="proposal_id">
@@ -263,7 +276,7 @@
                 <td>{% if s.hours is not none %}{{ (s.hours * 60)|round(0)|int }} min{% endif %}</td>
                 <td class="text-end">
                   <div class="attendance-actions">
-                    <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
+                    <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
 
                     {% if current_user.role in ['admin', 'supervisor'] and s.proposal_status != 'finalized' %}
                     <form method="post"
@@ -293,19 +306,19 @@
     <nav aria-label="Paginación sesiones" class="mt-2 attendance-pagination-wrap">
       <ul class="pagination pagination-sm justify-content-center flex-wrap attendance-pagination">
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="/ui/listado?page=1&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Primera</a>
+          <a class="page-link" href="/ui/listado?page=1&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Primera</a>
         </li>
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="/ui/listado?page={{ pagination.prev_page or 1 }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Anterior</a>
+          <a class="page-link" href="/ui/listado?page={{ pagination.prev_page or 1 }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Anterior</a>
         </li>
         <li class="page-item disabled">
           <span class="page-link">Página {{ pagination.page }} / {{ pagination.total_pages }}</span>
         </li>
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-          <a class="page-link" href="/ui/listado?page={{ pagination.next_page or pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Siguiente</a>
+          <a class="page-link" href="/ui/listado?page={{ pagination.next_page or pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Siguiente</a>
         </li>
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-          <a class="page-link" href="/ui/listado?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Ultima</a>
+          <a class="page-link" href="/ui/listado?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Ultima</a>
         </li>
       </ul>
     </nav>
