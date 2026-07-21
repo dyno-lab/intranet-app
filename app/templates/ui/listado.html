@@ -22,7 +22,10 @@
         <div class="attendance-detail-hero__copy">
           <span class="attendance-detail-hero__eyebrow">Operación de asistencia</span>
           <h1 class="attendance-detail-hero__title">Marcar asistencia</h1>
-          <div class="attendance-detail-hero__control">{{ session.control_number or '-' }}</div>
+          <div class="attendance-detail-hero__control-card">
+            <span class="attendance-detail-hero__control-label">Número de control</span>
+            <strong class="attendance-detail-hero__control">{{ session.control_number or '-' }}</strong>
+          </div>
         </div>
 
         <div class="attendance-detail-hero__metric">
@@ -34,14 +37,12 @@
 
       <div class="attendance-session-grid">
         <div class="attendance-session-item">
-          <span class="attendance-session-item__label">Número de control</span>
-          <div class="attendance-session-item__value">{{ session.control_number or '-' }}</div>
-        </div>
-        <div class="attendance-session-item">
+          <span class="attendance-session-item__icon"><i class="bi bi-calendar-event"></i></span>
           <span class="attendance-session-item__label">Fecha</span>
           <div class="attendance-session-item__value">{{ session.session_date }}</div>
         </div>
         <div class="attendance-session-item">
+          <span class="attendance-session-item__icon"><i class="bi bi-diagram-3"></i></span>
           <span class="attendance-session-item__label">Propuesta</span>
           <div class="attendance-session-item__value">
             {% if proposal %}
@@ -56,6 +57,7 @@
           </div>
         </div>
         <div class="attendance-session-item">
+          <span class="attendance-session-item__icon"><i class="bi bi-journal-text"></i></span>
           <span class="attendance-session-item__label">Actividad</span>
           <div class="attendance-session-item__value">
             {% if activity_code %}
@@ -66,6 +68,7 @@
           </div>
         </div>
         <div class="attendance-session-item">
+          <span class="attendance-session-item__icon"><i class="bi bi-person-badge"></i></span>
           <span class="attendance-session-item__label">Empleado</span>
           <div class="attendance-session-item__value">
             {% if employee %}
@@ -76,6 +79,7 @@
           </div>
         </div>
         <div class="attendance-session-item">
+          <span class="attendance-session-item__icon"><i class="bi bi-clock-history"></i></span>
           <span class="attendance-session-item__label">Duración</span>
           <div class="attendance-session-item__value">
             {% if session.hours is not none %}
@@ -88,42 +92,42 @@
       </div>
 
       <div class="attendance-detail-actions">
-        <div class="attendance-detail-actions__group attendance-detail-actions__group--primary">
-          {% if not session_read_only %}
-          <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
-            Editar sesión
-          </button>
-          {% else %}
-          <span class="badge bg-secondary attendance-detail-actions__badge">Solo lectura</span>
-          {% endif %}
-          <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a sesiones</a>
-        </div>
+        <div class="attendance-detail-actions__main">
+          <div class="attendance-detail-actions__group attendance-detail-actions__group--primary">
+            {% if not session_read_only %}
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
+              Editar sesión
+            </button>
+            {% else %}
+            <span class="badge bg-secondary attendance-detail-actions__badge">Solo lectura</span>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a sesiones</a>
+            {% if proposal %}
+            <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
+            {% endif %}
+          </div>
 
-        <div class="attendance-detail-actions__group attendance-detail-actions__group--secondary">
-          {% if proposal %}
-          <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
-          {% endif %}
-        </div>
-
-        <div class="attendance-detail-actions__group attendance-detail-actions__group--danger">
-          {% if current_user and current_user.role in ["admin", "supervisor"] and not session_read_only %}
-          <form method="post"
-                action="/ui/listado/{{ session.session_id }}/clear-attendance"
-                class="attendance-detail-actions__form"
-                onsubmit="return confirm('¿Eliminar todas las asistencias marcadas de esta sesión?');">
-            <button type="submit" class="btn btn-outline-warning">Eliminar asistencias</button>
-          </form>
-          <form method="post"
-                action="/ui/listado/{{ session.session_id }}/delete"
-                class="attendance-detail-actions__form"
-                onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
-            <button type="submit" class="btn btn-outline-danger">Eliminar sesión</button>
-          </form>
-          {% endif %}
+          <div class="attendance-detail-actions__group attendance-detail-actions__group--danger">
+            {% if current_user and current_user.role in ["admin", "supervisor"] and not session_read_only %}
+            <form method="post"
+                  action="/ui/listado/{{ session.session_id }}/clear-attendance"
+                  class="attendance-detail-actions__form"
+                  onsubmit="return confirm('¿Eliminar todas las asistencias marcadas de esta sesión?');">
+              <button type="submit" class="btn btn-outline-warning">Eliminar asistencias</button>
+            </form>
+            <form method="post"
+                  action="/ui/listado/{{ session.session_id }}/delete"
+                  class="attendance-detail-actions__form"
+                  onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
+              <button type="submit" class="btn btn-outline-danger">Eliminar sesión</button>
+            </form>
+            {% endif %}
+          </div>
         </div>
       </div>
 
       <div class="attendance-detail-note">
+        <div class="attendance-detail-note__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
         <p class="mb-0">
           Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
         </p>
@@ -198,7 +202,6 @@
         <div class="attendance-section__header attendance-section__header--compact">
           <div>
             <h2 class="attendance-section__title">Filtros de participantes</h2>
-            <p class="attendance-section__text">Filtra visualmente por edad antes de marcar asistencia. Las selecciones ya marcadas se conservan aunque limpies o cambies el filtro.</p>
           </div>
           <div class="attendance-participants-filter__meta">
             <span class="badge text-bg-secondary">
@@ -206,6 +209,7 @@
             </span>
           </div>
         </div>
+        <p class="attendance-section__text attendance-participants-filter__text">Filtra visualmente por edad antes de marcar asistencia. Las selecciones ya marcadas se conservan aunque limpies o cambies el filtro.</p>
         <div class="row g-2 align-items-end attendance-participants-filter__form">
           <div class="col-xl-3 col-lg-4 col-md-6">
             <label class="form-label">Rango de edad</label>
@@ -230,7 +234,7 @@
           <div class="col-xl-2 col-lg-2 col-md-6 d-grid">
             <button type="button" class="btn btn-outline-secondary w-100" id="clear-age-filter">Limpiar filtros</button>
           </div>
-          <div class="col-xl-1 col-lg-12 col-md-12">
+          <div class="col-xl-3 col-lg-12 col-md-12">
             <div class="form-check attendance-participants-filter__toggle">
               <input class="form-check-input" type="checkbox" id="hide-inactive-filter" checked>
               <label class="form-check-label" for="hide-inactive-filter">
