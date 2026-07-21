@@ -102,7 +102,7 @@
             <span class="badge bg-secondary attendance-detail-actions__badge">Solo lectura</span>
             {% endif %}
             <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a sesiones</a>
-            {% if proposal %}
+            {% if proposal and current_user and current_user.role in ["admin", "supervisor"] %}
             <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
             {% endif %}
           </div>
