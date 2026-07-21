@@ -32,7 +32,7 @@
       </div>
 
       <div class="attendance-hero__actions">
-        {% if selected_proposal_id %}
+        {% if selected_proposal_id and current_user and current_user.role in ["admin", "supervisor"] %}
         <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
         {% endif %}
         <a class="btn btn-outline-success" href="/ui/listado/export.csv?control_number={{ selected_control_number or '' }}&residential_id={{ selected_residential_id or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
