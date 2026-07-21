@@ -2,14 +2,29 @@
 {% block title %}Productividad{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Reporte de Productividad</h4>
-</div>
+<div class="productivity-page">
+  <section class="productivity-hero" aria-label="Reporte de Productividad">
+    <div class="productivity-hero__icon" aria-hidden="true">
+      <i class="bi bi-graph-up-arrow"></i>
+    </div>
+    <div class="productivity-hero__content">
+      <span class="productivity-eyebrow">Seguimiento de metas</span>
+      <h1 class="productivity-hero__title">Reporte de Productividad</h1>
+      <p class="productivity-hero__text">
+        Valida el cumplimiento de las metas mínimas por actividad y residencial.
+      </p>
+    </div>
+  </section>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/productividad" class="row g-3 align-items-end">
-      <div class="col-md-2">
+  <section class="productivity-filters" aria-label="Filtros del reporte">
+    <div class="productivity-section-header">
+      <div>
+        <h2 class="productivity-section-title">Filtros del reporte</h2>
+        <p class="productivity-section-text">Define propuesta, período, alcance y vista antes de consultar.</p>
+      </div>
+    </div>
+    <form method="get" action="/ui/reports/productividad" class="productivity-filter-form">
+      <div class="productivity-filter-field productivity-filter-field--wide">
         <label class="form-label">Propuesta *</label>
         <select class="form-select" name="proposal_id" required>
           <option value="">Selecciona...</option>
@@ -18,14 +33,14 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div class="productivity-filter-field">
         <label class="form-label">Tipo período *</label>
         <select class="form-select" name="period_type" id="period_type" onchange="toggleProductivityPeriodFields()">
           <option value="monthly" {% if selected_period_type != 'custom' %}selected{% endif %}>Mensual</option>
           <option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option>
         </select>
       </div>
-      <div class="col-md-2 productivity-monthly-field">
+      <div class="productivity-filter-field productivity-monthly-field">
         <label class="form-label">Mes *</label>
         <select class="form-select" name="month" id="productivity_month">
           <option value="">Selecciona...</option>
@@ -34,7 +49,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2 productivity-monthly-field">
+      <div class="productivity-filter-field productivity-monthly-field">
         <label class="form-label">Año *</label>
         <select class="form-select" name="year" id="productivity_year">
           <option value="">Selecciona...</option>
@@ -43,16 +58,16 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2 productivity-custom-field d-none">
+      <div class="productivity-filter-field productivity-custom-field d-none">
         <label class="form-label">Desde *</label>
         <input type="date" class="form-control" name="start_date" id="productivity_start_date" value="{{ selected_start_date or '' }}">
       </div>
-      <div class="col-md-2 productivity-custom-field d-none">
+      <div class="productivity-filter-field productivity-custom-field d-none">
         <label class="form-label">Hasta *</label>
         <input type="date" class="form-control" name="end_date" id="productivity_end_date" value="{{ selected_end_date or '' }}">
       </div>
-      <div class="col-md-2">
-        <label class="form-label">Residencial *</label>
+      <div class="productivity-filter-field productivity-filter-field--scope">
+        <label class="form-label">Residencial / alcance *</label>
         {% if current_user.role in ['admin', 'supervisor'] %}
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
@@ -66,267 +81,275 @@
         <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
         {% endif %}
       </div>
-      <div class="col-md-2">
+      <div class="productivity-filter-field">
         <label class="form-label">Vista</label>
         <select class="form-select" name="view_mode">
           <option value="activity" {% if selected_view_mode == 'activity' %}selected{% endif %}>Por actividad</option>
           <option value="residential" {% if selected_view_mode == 'residential' %}selected{% endif %}>Por residencial</option>
         </select>
       </div>
-      <div class="col-md-1 d-grid">
-        <button class="btn btn-primary">Ver</button>
+      <div class="productivity-filter-action">
+        <button class="btn btn-primary"><i class="bi bi-eye me-1" aria-hidden="true"></i>Ver</button>
       </div>
     </form>
+  </section>
+
+  {% for warning in warning_messages %}
+  <div class="productivity-warning alert alert-warning" role="alert">
+    {{ warning }}
   </div>
-</div>
+  {% endfor %}
 
-{% for warning in warning_messages %}
-<div class="alert alert-warning" role="alert">
-  {{ warning }}
-</div>
-{% endfor %}
+  {% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
+  <div class="productivity-info-band" role="alert">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <div>
+      <strong>Acumulada por período:</strong> estas actividades se evalúan por acumulado dentro del período completo de la propuesta y no deben interpretarse como atraso mensual.
+    </div>
+  </div>
+  {% endif %}
 
-{% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
-<div class="alert alert-info" role="alert">
-  <strong>Acumulada por período:</strong> estas actividades se evalúan por acumulado dentro del período completo de la propuesta y no deben interpretarse como atraso mensual.
-</div>
-{% endif %}
-
-{% if dashboard_cards %}
-<div class="alert alert-light border shadow-sm mb-4" role="alert">
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+  {% if dashboard_cards %}
+  <section class="productivity-insight" aria-label="Lectura rápida">
     <div>
       <strong>Lectura rápida para supervisión</strong>
-      <div class="small text-muted mt-1">
+      <p>
         {% if is_global %}
           Usa este panel para identificar residenciales con menor avance, actividades rezagadas y oportunidades de seguimiento inmediato.
         {% else %}
           Usa este panel para validar el desempeño del residencial, detectar actividades rezagadas y confirmar prioridades de seguimiento.
         {% endif %}
-      </div>
+      </p>
     </div>
     {% if period_label %}
-    <span class="badge bg-dark">{{ period_label }}</span>
+    <span class="productivity-period-badge">{{ period_label }}</span>
     {% endif %}
-  </div>
-</div>
+  </section>
 
-<div class="row g-3 mb-4">
-  {% for card in dashboard_cards %}
-  <div class="col-md-4 col-xl-2">
-    <div class="card border-{{ card.tone }} shadow-sm h-100">
-      <div class="card-body">
-        <div class="text-muted small text-uppercase mb-2">{{ card.label }}</div>
-        <div class="h4 mb-1 text-{{ card.tone }}">{{ card.value }}</div>
-        <div class="small text-muted">{{ card.subtitle }}</div>
+  <section class="productivity-kpi-grid" aria-label="Indicadores de productividad">
+    {% for card in dashboard_cards %}
+    <article class="productivity-kpi productivity-kpi--{{ card.tone }}">
+      <div class="productivity-kpi__icon" aria-hidden="true">
+        <i class="bi bi-list-check"></i>
       </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
+      <div>
+        <div class="productivity-kpi__label">{{ card.label }}</div>
+        <div class="productivity-kpi__value">{{ card.value }}</div>
+        <div class="productivity-kpi__subtitle">{{ card.subtitle }}</div>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
 
-<div class="row g-4 mb-4">
-  <div class="col-lg-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Avance global del período{% else %}Avance global del mes{% endif %}</strong>{% if period_label and not is_global %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}</div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between mb-2">
-          <span>{% if is_global %}Avance acumulado{% else %}Cumplimiento global{% endif %}</span>
-          <strong>{{ global_progress.percentage }}%</strong>
+  <section class="productivity-summary-grid" aria-label="Resumen de cumplimiento">
+    <article class="productivity-panel productivity-panel--progress">
+      <div class="productivity-panel__header">
+        <div>
+          <h2 class="productivity-section-title">{% if is_global %}Avance global del período{% else %}Avance global del mes{% endif %}</h2>
+          {% if period_label and not is_global %}<p class="productivity-section-text">{{ period_label }}</p>{% endif %}
         </div>
-        <div class="progress mb-3" style="height: 20px;">
-          <div class="progress-bar bg-success" role="progressbar" style="width: {{ global_progress.percentage if global_progress.percentage <= 100 else 100 }}%;" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">{{ global_progress.percentage }}%</div>
-        </div>
-        {% if is_global %}
-        <div class="small text-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</div>
-        {% else %}
-        <div class="small text-muted">{{ global_progress.cumple }} cumplen, {{ global_progress.no_cumple }} no cumplen{% if global_progress.no_aplica %} y {{ global_progress.no_aplica }} no aplican{% endif %}, de {{ global_progress.total }} actividades evaluadas este mes.</div>
-        {% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
-        <div class="small text-muted mt-1">Las actividades acumuladas por período se leen por avance acumulado y faltante real, no como atraso mensual.</div>
-        {% endif %}
-        {% endif %}
+        <span class="productivity-score">{{ global_progress.percentage }}%</span>
+      </div>
+      <div class="productivity-progress" role="progressbar" aria-valuenow="{{ global_progress.percentage }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="productivity-progress__bar productivity-progress__bar--success" style="width: {{ global_progress.percentage if global_progress.percentage <= 100 else 100 }}%;"></div>
+      </div>
+      <div class="productivity-progress-label">{% if is_global %}Avance acumulado{% else %}Cumplimiento global{% endif %}</div>
+      {% if is_global %}
+      <p class="productivity-muted">Actividades realizadas en el período consultado: {{ global_progress.cumple }} · Meta del período: {{ global_progress.total }} · Faltante: {{ global_progress.missing }}</p>
+      {% else %}
+      <p class="productivity-muted">{{ global_progress.cumple }} cumplen, {{ global_progress.no_cumple }} no cumplen{% if global_progress.no_aplica %} y {{ global_progress.no_aplica }} no aplican{% endif %}, de {{ global_progress.total }} actividades evaluadas este mes.</p>
+      {% if summary_rows and summary_rows | selectattr('is_period_accumulated') | list %}
+      <p class="productivity-muted">Las actividades acumuladas por período se leen por avance acumulado y faltante real, no como atraso mensual.</p>
+      {% endif %}
+      {% endif %}
 
-        <hr>
-
+      <div class="productivity-distribution">
         {% for item in compliance_distribution %}
-        <div class="mb-3">
-          <div class="d-flex justify-content-between small mb-1">
+        <div class="productivity-distribution__row">
+          <div class="productivity-distribution__meta">
             <span>{{ item.label }}</span>
             <span>{{ item.value }} · {{ item.percentage }}%</span>
           </div>
-          <div class="progress" style="height: 14px;">
-            <div class="progress-bar bg-{{ item.tone }}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
+          <div class="productivity-progress productivity-progress--thin">
+            <div class="productivity-progress__bar productivity-progress__bar--{{ item.tone }}" style="width: {{ item.percentage }}%;"></div>
           </div>
         </div>
         {% endfor %}
       </div>
-    </div>
-  </div>
+    </article>
 
-  <div class="col-lg-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Residencial destacado del filtro global{% else %}Resumen del residencial seleccionado{% endif %}</strong></div>
-      <div class="card-body">
-        {% if selected_residential_dashboard %}
-          {% set selected_no_aplica = selected_residential_dashboard.no_aplica if selected_residential_dashboard.no_aplica is defined else (selected_residential_dashboard.details | selectattr('status', 'equalto', 'No aplica') | list | length) %}
-          {% if is_global %}
-          <div class="small text-muted mb-2">Este bloque muestra el residencial destacado dentro del alcance global actual; no representa un residencial seleccionado manualmente.</div>
-          {% endif %}
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="mb-0">{{ selected_residential_dashboard.residential_name }}</h5>
-            <span class="badge bg-primary">{{ selected_residential_dashboard.percentage }}%</span>
-          </div>
-          <div class="progress mb-3" style="height: 18px;">
-            <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
-          </div>
-          <div class="row g-3 text-center">
-            <div class="col-6 col-md-3">
-              <div class="border rounded p-2 h-100">
-                <div class="small text-muted">Actividades</div>
-                <div class="h5 mb-0">{{ selected_residential_dashboard.total_activities }}</div>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="border rounded p-2 h-100">
-                <div class="small text-muted">Cumple</div>
-                <div class="h5 mb-0 text-success">{{ selected_residential_dashboard.cumple }}</div>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="border rounded p-2 h-100">
-                <div class="small text-muted">No cumple</div>
-                <div class="h5 mb-0 text-danger">{{ selected_residential_dashboard.no_cumple }}</div>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="border rounded p-2 h-100">
-                <div class="small text-muted">No aplica</div>
-                <div class="h5 mb-0 text-secondary">{{ selected_no_aplica }}</div>
-              </div>
-            </div>
-          </div>
-        {% else %}
-          <div class="text-muted">Selecciona filtros para ver el estado del residencial.</div>
-        {% endif %}
+    <article class="productivity-panel">
+      <div class="productivity-panel__header">
+        <div>
+          <h2 class="productivity-section-title">{% if is_global %}Residencial destacado del filtro global{% else %}Resumen del residencial seleccionado{% endif %}</h2>
+          <p class="productivity-section-text">Lectura compacta del alcance actual.</p>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<div class="row g-4 mb-4">
-  <div class="col-lg-6">
-    <div class="card shadow-sm h-100 border-danger-subtle">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>{% if is_global %}Atención prioritaria{% else %}Atención prioritaria del residencial{% endif %}</strong>
-        <span class="badge bg-danger">Seguimiento</span>
-      </div>
-      <div class="card-body">
-        {% if bottom_activities %}
-          <div class="small text-muted mb-3">Estas actividades requieren revisión inmediata porque no presentan ejecución o están en mayor rezago.</div>
-          {% for item in bottom_activities %}
-          <div class="border rounded p-3 mb-3 bg-light">
-            <div class="d-flex justify-content-between align-items-start gap-3">
-              <div>
-                <strong>{{ item.activity_code }}</strong>
-                <div class="small text-muted">{{ item.activity_description or '-' }}</div>
-              </div>
-              <span class="badge bg-danger">{{ item.status if item.status is defined else 'Revisar' }}</span>
-            </div>
-            <div class="row g-2 mt-2 small">
-              <div class="col-sm-4"><span class="text-muted">Realizadas:</span> {{ item.executed if item.executed is defined else item.global_executed }}</div>
-              <div class="col-sm-4"><span class="text-muted">Meta:</span> {{ item.goal if item.goal is not none else item.target if item.target is defined else '-' }}</div>
-              <div class="col-sm-4"><span class="text-muted">Avance:</span> {{ item.progress_percentage }}%</div>
-            </div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="text-muted">No se identificaron actividades críticas para los filtros seleccionados.</div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Actividades con avance mayor a 100%{% else %}Tus actividades con avance mayor a 100%{% endif %}</strong></div>
-      <div class="card-body">
-        {% if top_activities %}
-          {% for item in top_activities %}
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <div>
-                <strong>{{ item.activity_code }}</strong>
-                <div class="small text-muted">{{ item.activity_description or '-' }}</div>
-              </div>
-              <span class="badge text-dark" style="background-color: #d4af37;">{{ item.progress_percentage }}%</span>
-            </div>
-            <div class="progress" style="height: 12px;">
-              <div class="progress-bar" role="progressbar" style="width: {{ item.progress_percentage if item.progress_percentage <= 100 else 100 }}%; background-color: #d4af37;"></div>
-            </div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="text-muted">No hay actividades con avance mayor a 100% para los filtros seleccionados. Cumplir la meta (100%) no implica necesariamente superarla.</div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header"><strong>{% if is_global %}Residenciales prioritarios del filtro global{% else %}Estado del residencial seleccionado{% endif %}</strong></div>
-      <div class="card-body">
+      {% if selected_residential_dashboard %}
+        {% set selected_no_aplica = selected_residential_dashboard.no_aplica if selected_residential_dashboard.no_aplica is defined else (selected_residential_dashboard.details | selectattr('status', 'equalto', 'No aplica') | list | length) %}
         {% if is_global %}
-          {% if residential_ranking %}
+        <p class="productivity-muted">Este bloque muestra el residencial destacado dentro del alcance global actual; no representa un residencial seleccionado manualmente.</p>
+        {% endif %}
+        <div class="productivity-residential-head">
+          <h3>{{ selected_residential_dashboard.residential_name }}</h3>
+          <span class="productivity-score productivity-score--small">{{ selected_residential_dashboard.percentage }}%</span>
+        </div>
+        <div class="productivity-progress">
+          <div class="productivity-progress__bar {% if selected_residential_dashboard.percentage >= 80 %}productivity-progress__bar--success{% elif selected_residential_dashboard.percentage >= 50 %}productivity-progress__bar--warning{% else %}productivity-progress__bar--danger{% endif %}" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
+        </div>
+        <div class="productivity-mini-grid">
+          <div class="productivity-mini-stat">
+            <span>Actividades</span>
+            <strong>{{ selected_residential_dashboard.total_activities }}</strong>
+          </div>
+          <div class="productivity-mini-stat">
+            <span>Cumple</span>
+            <strong class="text-success">{{ selected_residential_dashboard.cumple }}</strong>
+          </div>
+          <div class="productivity-mini-stat">
+            <span>No cumple</span>
+            <strong class="text-danger">{{ selected_residential_dashboard.no_cumple }}</strong>
+          </div>
+          <div class="productivity-mini-stat">
+            <span>No aplica</span>
+            <strong class="text-secondary">{{ selected_no_aplica }}</strong>
+          </div>
+        </div>
+      {% else %}
+        <div class="productivity-empty">Selecciona filtros para ver el estado del residencial.</div>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="productivity-reading-grid" aria-label="Lecturas operativas">
+    <article class="productivity-panel productivity-panel--priority">
+      <div class="productivity-panel__header">
+        <div>
+          <h2 class="productivity-section-title">{% if is_global %}Atención prioritaria{% else %}Atención prioritaria del residencial{% endif %}</h2>
+          <p class="productivity-section-text">Actividades con menor avance para el alcance consultado.</p>
+        </div>
+        <span class="productivity-status-badge productivity-status-badge--danger">Seguimiento</span>
+      </div>
+      {% if bottom_activities %}
+        <p class="productivity-muted">Estas actividades requieren revisión inmediata porque no presentan ejecución o están en mayor rezago.</p>
+        <div class="productivity-activity-list">
+          {% for item in bottom_activities %}
+          <div class="productivity-activity-item">
+            <div class="productivity-activity-item__top">
+              <div>
+                <strong>{{ item.activity_code }}</strong>
+                <p>{{ item.activity_description or '-' }}</p>
+              </div>
+              <span class="productivity-status-badge productivity-status-badge--danger">{{ item.status if item.status is defined else 'Revisar' }}</span>
+            </div>
+            <div class="productivity-activity-item__metrics">
+              <span><b>Realizadas:</b> {{ item.executed if item.executed is defined else item.global_executed }}</span>
+              <span><b>Meta:</b> {{ item.goal if item.goal is not none else item.target if item.target is defined else '-' }}</span>
+              <span><b>Avance:</b> {{ item.progress_percentage }}%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="productivity-empty">No se identificaron actividades críticas para los filtros seleccionados.</div>
+      {% endif %}
+    </article>
+
+    <article class="productivity-panel">
+      <div class="productivity-panel__header">
+        <div>
+          <h2 class="productivity-section-title">{% if is_global %}Actividades con avance mayor a 100%{% else %}Tus actividades con avance mayor a 100%{% endif %}</h2>
+          <p class="productivity-section-text">Actividades que superan la meta para el filtro actual.</p>
+        </div>
+      </div>
+      {% if top_activities %}
+        <div class="productivity-activity-list">
+          {% for item in top_activities %}
+          <div class="productivity-activity-item productivity-activity-item--top">
+            <div class="productivity-activity-item__top">
+              <div>
+                <strong>{{ item.activity_code }}</strong>
+                <p>{{ item.activity_description or '-' }}</p>
+              </div>
+              <span class="productivity-status-badge productivity-status-badge--gold">{{ item.progress_percentage }}%</span>
+            </div>
+            <div class="productivity-progress productivity-progress--thin">
+              <div class="productivity-progress__bar productivity-progress__bar--gold" style="width: {{ item.progress_percentage if item.progress_percentage <= 100 else 100 }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="productivity-empty">No hay actividades con avance mayor a 100% para los filtros actuales.</div>
+      {% endif %}
+    </article>
+
+    <article class="productivity-panel">
+      <div class="productivity-panel__header">
+        <div>
+          <h2 class="productivity-section-title">{% if is_global %}Residenciales prioritarios del filtro global{% else %}Estado del residencial seleccionado{% endif %}</h2>
+          <p class="productivity-section-text">Desempeño por residencial según el alcance actual.</p>
+        </div>
+      </div>
+      {% if is_global %}
+        {% if residential_ranking %}
+          <div class="productivity-activity-list">
             {% for item in residential_ranking %}
-            <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="productivity-activity-item">
+              <div class="productivity-activity-item__top">
                 <div>
                   <strong>{{ item.residential_name }}</strong>
-                  <div class="small text-muted">Cumple {{ item.cumple }} · No cumple {{ item.no_cumple }}{% if item.no_aplica is defined and item.no_aplica %} · No aplica {{ item.no_aplica }}{% endif %} · Total {{ item.total_activities }}</div>
+                  <p>Cumple {{ item.cumple }} · No cumple {{ item.no_cumple }}{% if item.no_aplica is defined and item.no_aplica %} · No aplica {{ item.no_aplica }}{% endif %} · Total {{ item.total_activities }}</p>
                 </div>
-                <span class="badge {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ item.percentage }}%</span>
+                <span class="productivity-status-badge {% if item.percentage >= 80 %}productivity-status-badge--success{% elif item.percentage >= 50 %}productivity-status-badge--warning{% else %}productivity-status-badge--danger{% endif %}">{{ item.percentage }}%</span>
               </div>
-              <div class="progress" style="height: 12px;">
-                <div class="progress-bar {% if item.percentage >= 80 %}bg-success{% elif item.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ item.percentage }}%;"></div>
+              <div class="productivity-progress productivity-progress--thin">
+                <div class="productivity-progress__bar {% if item.percentage >= 80 %}productivity-progress__bar--success{% elif item.percentage >= 50 %}productivity-progress__bar--warning{% else %}productivity-progress__bar--danger{% endif %}" style="width: {{ item.percentage }}%;"></div>
               </div>
             </div>
             {% endfor %}
-          {% else %}
-            <div class="text-muted">Sin resultados para mostrar.</div>
-          {% endif %}
+          </div>
         {% else %}
-          {% if selected_residential_dashboard %}
-            <div class="mb-3">
-              <strong>{{ selected_residential_dashboard.residential_name }}</strong>
-              <div class="small text-muted">Cumple {{ selected_residential_dashboard.cumple }} · No cumple {{ selected_residential_dashboard.no_cumple }}{% if selected_residential_dashboard.no_aplica is defined and selected_residential_dashboard.no_aplica %} · No aplica {{ selected_residential_dashboard.no_aplica }}{% endif %} · Total {{ selected_residential_dashboard.total_activities }}</div>
-            </div>
-            <div class="progress mb-3" style="height: 12px;">
-              <div class="progress-bar {% if selected_residential_dashboard.percentage >= 80 %}bg-success{% elif selected_residential_dashboard.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
-            </div>
-            <div class="small text-muted">Porcentaje mensual: {{ selected_residential_dashboard.percentage }}%</div>
-          {% else %}
-            <div class="text-muted">Sin resultados para mostrar.</div>
-          {% endif %}
+          <div class="productivity-empty">Sin resultados para mostrar.</div>
         {% endif %}
+      {% else %}
+        {% if selected_residential_dashboard %}
+          <div class="productivity-activity-item">
+            <div class="productivity-activity-item__top">
+              <div>
+                <strong>{{ selected_residential_dashboard.residential_name }}</strong>
+                <p>Cumple {{ selected_residential_dashboard.cumple }} · No cumple {{ selected_residential_dashboard.no_cumple }}{% if selected_residential_dashboard.no_aplica is defined and selected_residential_dashboard.no_aplica %} · No aplica {{ selected_residential_dashboard.no_aplica }}{% endif %} · Total {{ selected_residential_dashboard.total_activities }}</p>
+              </div>
+              <span class="productivity-status-badge productivity-status-badge--success">{{ selected_residential_dashboard.percentage }}%</span>
+            </div>
+            <div class="productivity-progress productivity-progress--thin">
+              <div class="productivity-progress__bar {% if selected_residential_dashboard.percentage >= 80 %}productivity-progress__bar--success{% elif selected_residential_dashboard.percentage >= 50 %}productivity-progress__bar--warning{% else %}productivity-progress__bar--danger{% endif %}" style="width: {{ selected_residential_dashboard.percentage }}%;"></div>
+            </div>
+            <p class="productivity-muted">Porcentaje mensual: {{ selected_residential_dashboard.percentage }}%</p>
+          </div>
+        {% else %}
+          <div class="productivity-empty">Sin resultados para mostrar.</div>
+        {% endif %}
+      {% endif %}
+    </article>
+  </section>
+  {% endif %}
+
+  {% if selected_view_mode == 'residential' %}
+  <section class="productivity-table-card" aria-label="Resumen por residencial">
+    <div class="productivity-table-card__header">
+      <div>
+        <h2 class="productivity-section-title">Resumen por residencial</h2>
+        {% if period_label %}<p class="productivity-section-text">{{ period_label }}</p>{% endif %}
       </div>
     </div>
-  </div>
-</div>
-{% endif %}
-
-{% if selected_view_mode == 'residential' %}
-<div class="card shadow-sm mb-4">
-  <div class="card-header">
-    <strong>Resumen por residencial</strong>
-    {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
-  </div>
-  <div class="card-body">
     {% if residential_summary_rows %}
-    <div class="accordion" id="residentialProductivityAccordion">
+    <div class="accordion productivity-residential-accordion" id="residentialProductivityAccordion">
       {% for row in residential_summary_rows %}
-      <div class="accordion-item">
+      <div class="accordion-item productivity-residential-accordion__item">
         <h2 class="accordion-header" id="heading-{{ loop.index }}">
           <button class="accordion-button {{ '' if loop.first else 'collapsed' }}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ loop.index }}">
-            <div class="w-100 d-flex flex-wrap justify-content-between gap-3 me-3">
+            <div class="productivity-residential-summary">
               <span><strong>{{ row.residential_name }}</strong></span>
               <span>Total actividades: {{ row.total_activities }}</span>
               <span class="text-success">Cumple: {{ row.cumple }}</span>
@@ -338,212 +361,223 @@
         </h2>
         <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse {{ 'show' if loop.first else '' }}" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#residentialProductivityAccordion">
           <div class="accordion-body p-0">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Propuesta</th>
-                  <th>Actividad</th>
-                  <th>Meta</th>
-                  <th>Act. Realizadas</th>
-                  <th>Cumplimiento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for detail in row.details %}
-                <tr>
-                  <td>
-                    <strong>{{ detail.proposal_code }}</strong>
-                    <div class="small text-muted">{{ detail.proposal_name }}</div>
-                  </td>
-                  <td>
-                    <strong>{{ detail.activity_code }}</strong>
-                    <div class="small text-muted">{{ detail.activity_description or '-' }}</div>
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {{ detail.goal_label }}
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div class="small text-muted">Meta del período por residencial</div>
-                    {% elif detail.goal_type == 'per_residential_fixed' %}
-                    <div class="small text-muted">Meta mensual por residencial</div>
-                    {% elif detail.goal_type == 'per_residential_min_1' %}
-                    <div class="small text-muted">Frecuencia mínima mensual</div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {{ detail.executed }}
-                    {% if detail.goal_type == 'per_residential_period_fixed' %}
-                    <div class="small text-muted">Acumulado del período</div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span>
-                    {% if detail.goal_type == 'per_residential_period_fixed' and detail.goal %}
-                    <div class="small text-muted">Avance: {{ ((detail.executed / detail.goal) * 100) | round(2) }}%</div>
-                    <div class="small text-muted">Faltante: {{ (detail.goal - detail.executed) if detail.executed < detail.goal else 0 }}</div>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 productivity-table">
+                <thead class="table-light">
+                  <tr>
+                    <th>Propuesta</th>
+                    <th>Actividad</th>
+                    <th>Meta</th>
+                    <th>Act. Realizadas</th>
+                    <th>Cumplimiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for detail in row.details %}
+                  <tr>
+                    <td>
+                      <strong>{{ detail.proposal_code }}</strong>
+                      <div class="small text-muted">{{ detail.proposal_name }}</div>
+                    </td>
+                    <td>
+                      <strong>{{ detail.activity_code }}</strong>
+                      <div class="small text-muted">{{ detail.activity_description or '-' }}</div>
+                      {% if detail.goal_type == 'per_residential_period_fixed' %}
+                      <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ detail.goal_label }}
+                      {% if detail.goal_type == 'per_residential_period_fixed' %}
+                      <div class="small text-muted">Meta del período por residencial</div>
+                      {% elif detail.goal_type == 'per_residential_fixed' %}
+                      <div class="small text-muted">Meta mensual por residencial</div>
+                      {% elif detail.goal_type == 'per_residential_min_1' %}
+                      <div class="small text-muted">Frecuencia mínima mensual</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ detail.executed }}
+                      {% if detail.goal_type == 'per_residential_period_fixed' %}
+                      <div class="small text-muted">Acumulado del período</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="badge bg-{{ detail.status_badge }}">{{ detail.status }}</span>
+                      {% if detail.goal_type == 'per_residential_period_fixed' and detail.goal %}
+                      <div class="small text-muted">Avance: {{ ((detail.executed / detail.goal) * 100) | round(2) }}%</div>
+                      <div class="small text-muted">Faltante: {{ (detail.goal - detail.executed) if detail.executed < detail.goal else 0 }}</div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <div class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</div>
+    <div class="productivity-empty productivity-empty--table">Sin resultados para los filtros seleccionados.</div>
     {% endif %}
-  </div>
-</div>
-{% else %}
-<div class="card shadow-sm mb-4">
-  <div class="card-header">
-    <strong>{% if selected_period_type == 'custom' %}Resumen del período{% else %}Resumen mensual{% endif %}</strong>
-    {% if period_label %}<span class="text-muted ms-2">{{ period_label }}</span>{% endif %}
-  </div>
-  <div class="card-body p-0">
-    <div class="small text-muted px-3 pt-3">Lee primero las filas con <span class="badge bg-danger">No cumple</span> para priorizar seguimiento. Las filas <span class="badge bg-secondary">No aplica</span> no deben contarse como atraso.</div>
-    <table class="table table-hover mb-0 align-middle">
-      <thead class="table-light sticky-top">
-        <tr>
-          <th>Propuesta</th>
-          <th>Actividad</th>
-          <th>Meta</th>
-          <th>Act. Realizadas</th>
-          <th>Cumplimiento</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if summary_rows %}
-          {% for row in summary_rows %}
+  </section>
+  {% else %}
+  <section class="productivity-table-card" aria-label="Resumen de productividad">
+    <div class="productivity-table-card__header">
+      <div>
+        <h2 class="productivity-section-title">{% if selected_period_type == 'custom' %}Resumen del período{% else %}Resumen mensual{% endif %}</h2>
+        {% if period_label %}<p class="productivity-section-text">{{ period_label }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="productivity-table-card__note">
+      Lee primero las filas con <span class="badge bg-danger">No cumple</span> para priorizar seguimiento. Las filas <span class="badge bg-secondary">No aplica</span> no deben contarse como atraso.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle productivity-table">
+        <thead class="table-light sticky-top">
           <tr>
-            <td>
-              <strong>{{ row.proposal_code }}</strong>
-              <div class="small text-muted">{{ row.proposal_name }}</div>
-            </td>
-            <td>
-              <strong>{{ row.activity_code }}</strong>
-              <div class="small text-muted">{{ row.activity_description or '-' }}</div>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
-              {% endif %}
-            </td>
-            <td>
-              {{ row.goal_label }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Evaluación: acumulada por período</div>
-              {% elif row.goal_type == 'per_residential_fixed' %}
-              <div class="small text-muted">Evaluación: mensual</div>
-              {% elif row.goal_type == 'per_residential_min_1' %}
-              <div class="small text-muted">Evaluación: según necesidad</div>
-              {% endif %}
-            </td>
-            <td>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-                {{ row.global_executed }}
-                <div class="small text-muted">Meta por residencial del período: {{ row.residential_rows[0].goal if row.residential_rows else '-' }}</div>
-                <div class="small text-muted">Meta global del período: {{ row.period_goal if row.period_goal is not none else '-' }}</div>
-                <div class="small text-muted">Faltante global: {{ row.period_missing if row.period_missing is not none else '-' }}</div>
-                <div class="small text-muted">Avance del período: {{ row.period_percentage if row.period_percentage is not none else 0 }}%</div>
-              {% elif is_global and row.period_goal is not none %}
-                {{ row.period_executed }}
-                <div class="small text-muted">Meta período: {{ row.period_goal }}</div>
-                <div class="small text-muted">Faltante: {{ row.period_missing }}</div>
-                <div class="small text-muted">Avance: {{ row.period_percentage }}%</div>
-              {% else %}
-                {{ row.global_executed }}
-                {% if row.global_goal is not none %}
-                <div class="small text-muted">Meta global: {{ row.global_goal }}</div>
+            <th>Propuesta</th>
+            <th>Actividad</th>
+            <th>Meta</th>
+            <th>Act. Realizadas</th>
+            <th>Cumplimiento</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if summary_rows %}
+            {% for row in summary_rows %}
+            <tr>
+              <td>
+                <strong>{{ row.proposal_code }}</strong>
+                <div class="small text-muted">{{ row.proposal_name }}</div>
+              </td>
+              <td>
+                <strong>{{ row.activity_code }}</strong>
+                <div class="small text-muted">{{ row.activity_description or '-' }}</div>
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
                 {% endif %}
-              {% endif %}
-            </td>
-            <td>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-                <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
-                <div class="small text-muted">Cumplimiento acumulado del período</div>
-              {% elif is_global and row.period_goal is not none %}
-                <span class="badge bg-{{ row.period_compliance_badge }}">{{ row.period_compliance_label }}</span>
-              {% else %}
-                <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="5" class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-</div>
+              </td>
+              <td>
+                {{ row.goal_label }}
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div class="small text-muted">Evaluación: acumulada por período</div>
+                {% elif row.goal_type == 'per_residential_fixed' %}
+                <div class="small text-muted">Evaluación: mensual</div>
+                {% elif row.goal_type == 'per_residential_min_1' %}
+                <div class="small text-muted">Evaluación: según necesidad</div>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                  {{ row.global_executed }}
+                  <div class="small text-muted">Meta por residencial del período: {{ row.residential_rows[0].goal if row.residential_rows else '-' }}</div>
+                  <div class="small text-muted">Meta global del período: {{ row.period_goal if row.period_goal is not none else '-' }}</div>
+                  <div class="small text-muted">Faltante global: {{ row.period_missing if row.period_missing is not none else '-' }}</div>
+                  <div class="small text-muted">Avance del período: {{ row.period_percentage if row.period_percentage is not none else 0 }}%</div>
+                {% elif is_global and row.period_goal is not none %}
+                  {{ row.period_executed }}
+                  <div class="small text-muted">Meta período: {{ row.period_goal }}</div>
+                  <div class="small text-muted">Faltante: {{ row.period_missing }}</div>
+                  <div class="small text-muted">Avance: {{ row.period_percentage }}%</div>
+                {% else %}
+                  {{ row.global_executed }}
+                  {% if row.global_goal is not none %}
+                  <div class="small text-muted">Meta global: {{ row.global_goal }}</div>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td>
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                  <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
+                  <div class="small text-muted">Cumplimiento acumulado del período</div>
+                {% elif is_global and row.period_goal is not none %}
+                  <span class="badge bg-{{ row.period_compliance_badge }}">{{ row.period_compliance_label }}</span>
+                {% else %}
+                  <span class="badge bg-{{ row.compliance_badge }}">{{ row.compliance_label }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-<div class="card shadow-sm">
-  <div class="card-header">
-    <strong>Desglose por residencial</strong>
-  </div>
-  <div class="card-body p-0">
-    <div class="small text-muted px-3 pt-3">Úsalo para comparar residenciales rápidamente y detectar dónde el cumplimiento cae más.</div>
-    <table class="table table-hover mb-0 align-middle">
-      <thead class="table-light sticky-top">
-        <tr>
-          <th>Propuesta</th>
-          <th>Actividad</th>
-          <th>Residencial</th>
-          <th>Período</th>
-          <th>Act. Realizadas</th>
-          <th>Meta</th>
-          <th>Cumplimiento</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if rows %}
-          {% for row in rows %}
+  <section class="productivity-table-card" aria-label="Desglose por residencial">
+    <div class="productivity-table-card__header">
+      <div>
+        <h2 class="productivity-section-title">Desglose por residencial</h2>
+        <p class="productivity-section-text">Comparación de cumplimiento por residencial y actividad.</p>
+      </div>
+    </div>
+    <div class="productivity-table-card__note">
+      Úsalo para comparar residenciales rápidamente y detectar dónde el cumplimiento cae más.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle productivity-table">
+        <thead class="table-light sticky-top">
           <tr>
-            <td>{{ row.proposal_code }}</td>
-            <td>
-              {{ row.activity_code }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
-              {% endif %}
-            </td>
-            <td>{{ row.residential_name }}</td>
-            <td>{{ row.month_label if row.goal_type != 'per_residential_period_fixed' else 'Período de la propuesta' }}</td>
-            <td>
-              {{ row.executed }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Acumulado del período</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ row.goal if row.goal is not none else '-' }}
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Meta residencial del período</div>
-              {% endif %}
-            </td>
-            <td>
-              <span class="badge bg-{{ row.status_badge }}">{{ row.status }}</span>
-              {% if row.goal_type == 'per_residential_period_fixed' %}
-              <div class="small text-muted">Sin evaluación de atraso mensual</div>
-              {% endif %}
-            </td>
+            <th>Propuesta</th>
+            <th>Actividad</th>
+            <th>Residencial</th>
+            <th>Período</th>
+            <th>Act. Realizadas</th>
+            <th>Meta</th>
+            <th>Cumplimiento</th>
           </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="7" class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          {% if rows %}
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.proposal_code }}</td>
+              <td>
+                {{ row.activity_code }}
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div><span class="badge bg-info text-dark">Acumulada por período</span></div>
+                {% endif %}
+              </td>
+              <td>{{ row.residential_name }}</td>
+              <td>{{ row.month_label if row.goal_type != 'per_residential_period_fixed' else 'Período de la propuesta' }}</td>
+              <td>
+                {{ row.executed }}
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div class="small text-muted">Acumulado del período</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ row.goal if row.goal is not none else '-' }}
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div class="small text-muted">Meta residencial del período</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-{{ row.status_badge }}">{{ row.status }}</span>
+                {% if row.goal_type == 'per_residential_period_fixed' %}
+                <div class="small text-muted">Sin evaluación de atraso mensual</div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">Sin resultados para los filtros seleccionados.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
 </div>
-{% endif %}
 
 <script>
 function toggleProductivityPeriodFields() {
