@@ -22,12 +22,15 @@
   {% endif %}
 
   <section class="attendance-hero">
-    <div class="attendance-hero__content">
-      <span class="attendance-hero__eyebrow">Módulo operativo</span>
-      <h1 class="attendance-hero__title">Asistencias</h1>
-      <p class="attendance-hero__lead">
-        Crea sesiones, consulta el historial y conserva filtros, acciones y paginación del flujo actual.
-      </p>
+    <div class="attendance-hero__top">
+      <div class="attendance-hero__content">
+        <span class="attendance-hero__eyebrow">Módulo operativo</span>
+        <h1 class="attendance-hero__title">Asistencias</h1>
+        <p class="attendance-hero__lead">
+          Crea sesiones, consulta el historial y conserva filtros, acciones y paginación del flujo actual.
+        </p>
+      </div>
+
       <div class="attendance-hero__actions">
         {% if selected_proposal_id %}
         <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
@@ -37,14 +40,19 @@
       </div>
     </div>
 
-    <div class="attendance-hero__aside">
+    <div class="attendance-hero__summary">
       <article class="attendance-hero-card">
         <span class="attendance-hero-card__label">Sesiones visibles</span>
         <strong class="attendance-hero-card__value">{{ sessions|length }}</strong>
-        <p class="attendance-hero-card__text">de {{ pagination.total_items }} registradas</p>
+        <p class="attendance-hero-card__text">Resultados en esta vista</p>
       </article>
       <article class="attendance-hero-card">
-        <span class="attendance-hero-card__label">Paginación actual</span>
+        <span class="attendance-hero-card__label">Total registradas</span>
+        <strong class="attendance-hero-card__value">{{ pagination.total_items }}</strong>
+        <p class="attendance-hero-card__text">Según filtros aplicados</p>
+      </article>
+      <article class="attendance-hero-card">
+        <span class="attendance-hero-card__label">Página actual</span>
         <strong class="attendance-hero-card__value">Página {{ pagination.page }}</strong>
         <p class="attendance-hero-card__text">de {{ pagination.total_pages }}</p>
       </article>
@@ -52,7 +60,7 @@
   </section>
 
   <section class="attendance-section">
-    <div class="attendance-section__header">
+    <div class="attendance-section__header attendance-section__header--compact">
       <div>
         <h2 class="attendance-section__title">Filtros de búsqueda</h2>
         <p class="attendance-section__text">Todos los campos visibles y compactados para reducir scroll innecesario.</p>
@@ -65,7 +73,7 @@
 
     <div class="card shadow-sm border-0 attendance-filter-card">
       <div class="card-body">
-        <form method="get" class="row g-2 align-items-end">
+        <form method="get" class="row g-2 align-items-end attendance-filter-form">
           <div class="col-xl-3 col-lg-4 col-md-6">
             <label class="form-label">Número de control</label>
             <input type="text" class="form-control" name="control_number" value="{{ selected_control_number or '' }}" placeholder="Ej. AC672026">
@@ -81,7 +89,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-xl-2 col-lg-2 col-md-6">
+          <div class="col-xl-1 col-lg-2 col-md-4">
             <label class="form-label">Mes</label>
             <select class="form-select" name="month">
               <option value="">Todos</option>
@@ -90,7 +98,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-xl-2 col-lg-2 col-md-6">
+          <div class="col-xl-1 col-lg-2 col-md-4">
             <label class="form-label">Año</label>
             <select class="form-select" name="year">
               <option value="">Todos</option>
@@ -107,13 +115,13 @@
             <label class="form-label">Hasta</label>
             <input type="date" class="form-control" name="to_date" value="{{ to_date or '' }}">
           </div>
-          <div class="col-xl-1 col-lg-2 col-md-6 d-grid">
+          <div class="col-xl-1 col-lg-2 col-md-6 d-grid attendance-filter-form__action">
             <button class="btn btn-primary w-100">Buscar</button>
           </div>
-          <div class="col-xl-2 col-lg-3 col-md-6 d-grid">
+          <div class="col-xl-1 col-lg-2 col-md-6 d-grid attendance-filter-form__action">
             <a class="btn btn-outline-secondary w-100" href="/ui/listado">Limpiar</a>
           </div>
-          <div class="col-12">
+          <div class="col-12 attendance-filter-form__note">
             <div class="attendance-form-note">
               Puedes filtrar por propuesta, mes y año. Si además usas Desde/Hasta, se combinan ambos filtros.
             </div>
@@ -124,7 +132,7 @@
   </section>
 
   <section class="attendance-section">
-    <div class="attendance-section__header">
+    <div class="attendance-section__header attendance-section__header--compact">
       <div>
         <h2 class="attendance-section__title">Creación de sesión</h2>
         <p class="attendance-section__text">Misma lógica de fechas, propuestas, actividades y empleados, con una distribución más compacta.</p>
@@ -133,7 +141,7 @@
 
     <div class="card shadow-sm border-0 attendance-form-card">
       <div class="card-body">
-        <form method="post" action="/ui/listado/create-session" class="row g-2 align-items-start">
+        <form method="post" action="/ui/listado/create-session" class="row g-2 align-items-end attendance-create-form">
           <div class="col-xl-2 col-lg-3 col-md-6">
             <label class="form-label">Fecha *</label>
             <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
@@ -176,13 +184,13 @@
             <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ create_form.get('hours_minutes', '') }}" placeholder="5" data-hours-output="create-hours-preview">
           </div>
 
-          <div class="col-xl-1 col-lg-3 col-md-6">
+          <div class="col-xl-1 col-lg-2 col-md-6">
             <label class="form-label">Equivale a</label>
             <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
             <div class="form-text">Solo visual</div>
           </div>
 
-          <div class="col-12 mt-2">
+          <div class="col-xl-3 col-lg-4 col-md-6 d-grid attendance-create-form__submit">
             <button class="btn btn-success w-100 attendance-submit-btn" id="create-session-btn">Crear y Abrir Sesión</button>
           </div>
         </form>
@@ -191,7 +199,7 @@
   </section>
 
   <section class="attendance-section">
-    <div class="attendance-section__header">
+    <div class="attendance-section__header attendance-section__header--tight">
       <div>
         <h2 class="attendance-section__title">Sesiones registradas</h2>
         <p class="attendance-section__text">La tabla conserva columnas, acciones, bloqueos y permisos existentes.</p>
@@ -200,6 +208,12 @@
 
     <div class="card shadow-sm border-0 attendance-table-card">
       <div class="card-body">
+        <div class="attendance-table-card__intro">
+          <div class="attendance-list-meta attendance-list-meta--table">
+            <span>Mostrando {{ sessions|length }} de {{ pagination.total_items }} sesiones</span>
+            <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+          </div>
+        </div>
         <div class="table-responsive">
           <table class="table table-hover align-middle attendance-table mb-0">
             <thead>
@@ -278,7 +292,7 @@
     </div>
 
     {% if pagination.total_pages > 1 %}
-    <nav aria-label="Paginación sesiones" class="mt-3">
+    <nav aria-label="Paginación sesiones" class="mt-2 attendance-pagination-wrap">
       <ul class="pagination pagination-sm justify-content-center flex-wrap attendance-pagination">
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
           <a class="page-link" href="/ui/listado?page=1&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Primera</a>

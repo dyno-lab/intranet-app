@@ -1207,7 +1207,7 @@ body.ui-shell-body {
 .attendance-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .attendance-hero,
@@ -1220,24 +1220,35 @@ body.ui-shell-body {
 }
 
 .attendance-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
-  gap: 1.25rem;
-  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 1rem 1.05rem;
   border-radius: 28px;
   background:
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 34%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 251, 246, 0.98));
 }
 
+.attendance-hero__top,
 .attendance-hero__content,
-.attendance-hero__aside,
+.attendance-hero__summary,
 .attendance-section {
   display: flex;
+}
+
+.attendance-hero__top,
+.attendance-section {
   flex-direction: column;
 }
 
+.attendance-hero__top {
+  gap: 0.9rem;
+}
+
 .attendance-hero__content {
+  display: flex;
+  flex-direction: column;
   gap: 0.8rem;
   justify-content: center;
 }
@@ -1292,19 +1303,28 @@ body.ui-shell-body {
   align-items: center;
 }
 
-.attendance-hero__aside {
+.attendance-hero__actions {
+  justify-content: flex-start;
+}
+
+.attendance-hero__actions .btn {
+  min-height: 2.5rem;
+}
+
+.attendance-hero__summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
 }
 
 .attendance-hero-card {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.45rem;
-  padding: 1rem 1.05rem;
-  border-radius: 22px;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 0.85rem 0.9rem;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
 }
 
@@ -1323,12 +1343,20 @@ body.ui-shell-body {
 }
 
 .attendance-section {
-  gap: 0.8rem;
+  gap: 0.6rem;
 }
 
 .attendance-section__header {
   justify-content: space-between;
   align-items: flex-start;
+}
+
+.attendance-section__header--compact {
+  gap: 0.45rem;
+}
+
+.attendance-section__header--tight {
+  margin-bottom: -0.1rem;
 }
 
 .attendance-section__title {
@@ -1337,16 +1365,31 @@ body.ui-shell-body {
   margin-bottom: 0.1rem;
 }
 
+.attendance-section__text {
+  line-height: 1.45;
+}
+
 .attendance-list-meta {
   flex-wrap: wrap;
   justify-content: flex-end;
-  font-size: 0.93rem;
+  align-items: center;
+  font-size: 0.88rem;
+  row-gap: 0.25rem;
+}
+
+.attendance-list-meta--table {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.attendance-table-card__intro {
+  margin-bottom: 0.75rem;
 }
 
 .attendance-filter-card .card-body,
 .attendance-form-card .card-body,
 .attendance-table-card .card-body {
-  padding: 1rem 1.05rem;
+  padding: 0.95rem 1rem;
 }
 
 .attendance-filter-card,
@@ -1357,29 +1400,48 @@ body.ui-shell-body {
 
 .attendance-filter-card .form-label,
 .attendance-form-card .form-label {
-  margin-bottom: 0.3rem;
-  font-size: 0.92rem;
+  margin-bottom: 0.22rem;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .attendance-filter-card .form-control,
 .attendance-filter-card .form-select,
 .attendance-form-card .form-control,
 .attendance-form-card .form-select {
-  min-height: 2.45rem;
-  padding-top: 0.42rem;
-  padding-bottom: 0.42rem;
+  min-height: 2.32rem;
+  padding-top: 0.38rem;
+  padding-bottom: 0.38rem;
 }
 
 .attendance-filter-card .form-text,
 .attendance-form-card .form-text,
 .attendance-form-note {
-  font-size: 0.78rem;
+  margin-top: 0.16rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.attendance-filter-form,
+.attendance-create-form {
+  --bs-gutter-x: 0.7rem;
+  --bs-gutter-y: 0.55rem;
+}
+
+.attendance-filter-form__note {
+  margin-top: 0.05rem;
+}
+
+.attendance-filter-form__action,
+.attendance-create-form__submit {
+  align-self: end;
 }
 
 .attendance-submit-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 2.65rem;
 }
 
 .attendance-table {
@@ -1390,7 +1452,7 @@ body.ui-shell-body {
   border-bottom-width: 1px;
   white-space: nowrap;
   color: var(--ui-text);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1398,6 +1460,8 @@ body.ui-shell-body {
 
 .attendance-table tbody td {
   vertical-align: middle;
+  padding-top: 0.82rem;
+  padding-bottom: 0.82rem;
 }
 
 .attendance-table__control {
@@ -1405,17 +1469,46 @@ body.ui-shell-body {
   color: var(--ui-text);
 }
 
+.attendance-table__proposal .badge {
+  font-size: 0.72rem;
+}
+
 .attendance-actions {
   justify-content: flex-end;
+  gap: 0.45rem;
 }
 
 .attendance-actions__delete {
   display: inline-flex;
 }
 
+.attendance-pagination-wrap {
+  padding-top: 0.1rem;
+}
+
+.attendance-pagination {
+  gap: 0.2rem;
+}
+
 .attendance-pagination .page-link {
   border-radius: 999px;
-  padding-inline: 0.9rem;
+  padding: 0.42rem 0.78rem;
+  font-size: 0.84rem;
+}
+
+@media (min-width: 1200px) {
+  .attendance-hero__top {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .attendance-hero__actions {
+    justify-content: flex-end;
+    max-width: 40rem;
+    margin-left: auto;
+  }
 }
 
 @media (min-width: 992px) {
@@ -1449,8 +1542,7 @@ body.ui-shell-body {
 
   .participants-hero,
   .participants-summary-grid,
-  .attendance-hero,
-  .attendance-hero__aside {
+  .attendance-hero__summary {
     grid-template-columns: 1fr;
   }
 
@@ -1463,10 +1555,18 @@ body.ui-shell-body {
   .participants-expediente-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .attendance-hero__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 767.98px) {
   .participants-expediente-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-hero__summary {
     grid-template-columns: 1fr;
   }
 }
@@ -1587,6 +1687,10 @@ body.ui-shell-body {
   .attendance-hero,
   .attendance-hero-card {
     border-radius: 20px;
+  }
+
+  .attendance-table-card__intro {
+    margin-bottom: 0.6rem;
   }
 
   .participants-expediente-card__header,
