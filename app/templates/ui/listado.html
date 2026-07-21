@@ -4,285 +4,335 @@
 {% block content %}
 {% set session_edit_form = edit_form if edit_form is defined else {} %}
 {% set session_read_only = proposal_is_finalized or session_period_locked %}
-{% if proposal_is_finalized %}
-<div class="alert alert-warning" role="alert">
-  Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
-</div>
-{% elif session_period_locked %}
-<div class="alert alert-warning" role="alert">
-  Esta sesión pertenece a un <strong>periodo cerrado</strong>{% if session_period_lock_label %} hasta {{ session_period_lock_label }}{% endif %}. Se muestra en modo solo lectura.
-</div>
-{% endif %}
-<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
-  <h4 class="mb-0">Marcar Asistencia</h4>
-  <div class="d-flex gap-2 flex-wrap">
-    {% if proposal %}
-    <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
-    {% endif %}
-    {% if current_user and current_user.role in ["admin", "supervisor"] and not session_read_only %}
-    <form method="post"
-          action="/ui/listado/{{ session.session_id }}/clear-attendance"
-          style="display:inline;"
-          onsubmit="return confirm('¿Eliminar todas las asistencias marcadas de esta sesión?');">
-      <button type="submit" class="btn btn-outline-warning">Eliminar Asistencias</button>
-    </form>
-    <form method="post"
-          action="/ui/listado/{{ session.session_id }}/delete"
-          style="display:inline;"
-          onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
-      <button type="submit" class="btn btn-outline-danger">Eliminar Sesión</button>
-    </form>
-    {% endif %}
-    <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a Sesiones</a>
-  </div>
-</div>
 
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">Datos de la Sesión</h5>
+<div class="attendance-detail-page">
+  {% if proposal_is_finalized %}
+  <div class="alert alert-warning" role="alert">
+    Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
+  </div>
+  {% elif session_period_locked %}
+  <div class="alert alert-warning" role="alert">
+    Esta sesión pertenece a un <strong>periodo cerrado</strong>{% if session_period_lock_label %} hasta {{ session_period_lock_label }}{% endif %}. Se muestra en modo solo lectura.
+  </div>
+  {% endif %}
+
+  <section class="card shadow-sm border-0 attendance-detail-hero">
+    <div class="card-body">
+      <div class="attendance-detail-hero__top">
+        <div class="attendance-detail-hero__copy">
+          <span class="attendance-detail-hero__eyebrow">Operación de asistencia</span>
+          <h1 class="attendance-detail-hero__title">Marcar asistencia</h1>
+          <div class="attendance-detail-hero__control">{{ session.control_number or '-' }}</div>
+        </div>
+
+        <div class="attendance-detail-hero__metric">
+          <span class="attendance-detail-hero__metric-label">Asistencias marcadas</span>
+          <strong class="attendance-detail-hero__metric-value" id="attendance-counter-value">0</strong>
+          <span class="attendance-detail-hero__metric-text">Selecciones activas en la sesión</span>
+        </div>
+      </div>
+
+      <div class="attendance-session-grid">
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Número de control</span>
+          <div class="attendance-session-item__value">{{ session.control_number or '-' }}</div>
+        </div>
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Fecha</span>
+          <div class="attendance-session-item__value">{{ session.session_date }}</div>
+        </div>
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Propuesta</span>
+          <div class="attendance-session-item__value">
+            {% if proposal %}
+              {{ proposal.code }} - {{ proposal.name }}
+            {% else %}
+              <span class="text-muted">Sin propuesta</span>
+            {% endif %}
+          </div>
+          <div class="attendance-session-item__badges">
+            {% if proposal_is_finalized %}<span class="badge bg-secondary">Finalizada</span>{% endif %}
+            {% if session_period_locked %}<span class="badge bg-warning text-dark">Periodo cerrado</span>{% endif %}
+          </div>
+        </div>
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Actividad</span>
+          <div class="attendance-session-item__value">
+            {% if activity_code %}
+              {{ activity_code.code }} - {{ activity_code.description or '' }}
+            {% else %}
+              N/A
+            {% endif %}
+          </div>
+        </div>
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Empleado</span>
+          <div class="attendance-session-item__value">
+            {% if employee %}
+              {{ employee.full_name }}
+            {% else %}
+              N/A
+            {% endif %}
+          </div>
+        </div>
+        <div class="attendance-session-item">
+          <span class="attendance-session-item__label">Duración</span>
+          <div class="attendance-session-item__value">
+            {% if session.hours is not none %}
+              {{ (session.hours * 60)|round(0)|int }} min
+            {% else %}
+              -
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="attendance-detail-actions">
+        <div class="attendance-detail-actions__group attendance-detail-actions__group--primary">
+          {% if not session_read_only %}
+          <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
+            Editar sesión
+          </button>
+          {% else %}
+          <span class="badge bg-secondary attendance-detail-actions__badge">Solo lectura</span>
+          {% endif %}
+          <a class="btn btn-outline-secondary" href="{{ back_to_list_url or '/ui/listado' }}">Volver a sesiones</a>
+        </div>
+
+        <div class="attendance-detail-actions__group attendance-detail-actions__group--secondary">
+          {% if proposal %}
+          <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ proposal.proposal_id }}">Participantes de esta propuesta</a>
+          {% endif %}
+        </div>
+
+        <div class="attendance-detail-actions__group attendance-detail-actions__group--danger">
+          {% if current_user and current_user.role in ["admin", "supervisor"] and not session_read_only %}
+          <form method="post"
+                action="/ui/listado/{{ session.session_id }}/clear-attendance"
+                class="attendance-detail-actions__form"
+                onsubmit="return confirm('¿Eliminar todas las asistencias marcadas de esta sesión?');">
+            <button type="submit" class="btn btn-outline-warning">Eliminar asistencias</button>
+          </form>
+          <form method="post"
+                action="/ui/listado/{{ session.session_id }}/delete"
+                class="attendance-detail-actions__form"
+                onsubmit="return confirm('¿Eliminar esta sesión y toda su asistencia?');">
+            <button type="submit" class="btn btn-outline-danger">Eliminar sesión</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="attendance-detail-note">
+        <p class="mb-0">
+          Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
+        </p>
+      </div>
+
       {% if not session_read_only %}
-      <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">
-        ✏️ Editar Sesión
-      </button>
-      {% else %}
-      <span class="badge bg-secondary">Solo lectura</span>
+      <div class="collapse attendance-session-edit{% if open_edit_session_form is defined and open_edit_session_form %} show{% endif %}" id="editSessionForm">
+        <div class="attendance-section__header attendance-section__header--compact">
+          <div>
+            <h2 class="attendance-section__title">Editar sesión</h2>
+          </div>
+        </div>
+        <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2 attendance-create-form attendance-session-edit__form">
+          <div class="col-xl-2 col-lg-3 col-md-6 attendance-create-form__field">
+            <label class="form-label">Fecha *</label>
+            <input type="date" class="form-control session-date-input" name="session_date" value="{{ session_edit_form.get('session_date', session.session_date) }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
+            <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
+          </div>
+          <div class="col-xl-2 col-lg-3 col-md-6 attendance-create-form__field">
+            <label class="form-label">Propuesta</label>
+            <select class="form-select" name="proposal_id" id="edit_proposal_id_select">
+              <option value="">Sin propuesta</option>
+              {% for p in proposals %}
+                <option value="{{ p.proposal_id }}" {% if p.proposal_id == session_edit_form.get('proposal_id', session.proposal_id) %}selected{% endif %}>
+                  {{ p.code }} - {{ p.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-3 col-lg-4 col-md-6 attendance-create-form__field">
+            <label class="form-label">Código de actividad *</label>
+            <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
+              {% for c in activity_codes %}
+                <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
+                  {{ c.code }} - {{ c.description or '' }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-2 col-lg-4 col-md-6 attendance-create-form__field">
+            <label class="form-label">Empleado *</label>
+            <select class="form-select" name="employee_id" required>
+              {% for e in employees %}
+                <option value="{{ e.employee_id }}" {% if e.employee_id == session_edit_form.get('employee_id', session.employee_id) %}selected{% endif %}>
+                  {{ e.employee_code or '' }} - {{ e.full_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-1 col-lg-2 col-md-6 attendance-create-form__field">
+            <label class="form-label">Minutos</label>
+            <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ session_edit_form.get('hours_minutes', ((session.hours * 60)|round(0)|int) if session.hours is not none else '') }}" data-hours-output="edit-hours-preview">
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6 attendance-create-form__field">
+            <label class="form-label">Equivale a</label>
+            <input type="text" class="form-control bg-light" id="edit-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
+            <div class="form-text">Solo visual</div>
+          </div>
+          <div class="col-12 attendance-session-edit__submit">
+            <button class="btn btn-primary">Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
       {% endif %}
     </div>
+  </section>
 
-    <div class="row g-2">
-      <div class="col-md-3">
-        <strong>Numero de control:</strong> {{ session.control_number or '-' }}
-      </div>
-      <div class="col-md-2">
-        <strong>Fecha:</strong> {{ session.session_date }}
-      </div>
-      <div class="col-md-3">
-        <strong>Propuesta:</strong>
-        {% if proposal %}
-          {{ proposal.code }} - {{ proposal.name }}
-          {% if proposal_is_finalized %}<span class="badge bg-secondary ms-1">Finalizada</span>{% endif %}
-          {% if session_period_locked %}<span class="badge bg-warning text-dark ms-1">Periodo cerrado</span>{% endif %}
-        {% else %}
-          <span class="text-muted">Sin propuesta</span>
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <strong>Actividad:</strong>
-        {% if activity_code %}
-          {{ activity_code.code }} - {{ activity_code.description or '' }}
-        {% else %}
-          N/A
-        {% endif %}
-      </div>
-      <div class="col-md-2">
-        <strong>Empleado:</strong>
-        {% if employee %}
-          {{ employee.full_name }}
-        {% else %}
-          N/A
-        {% endif %}
-      </div>
-      <div class="col-md-2">
-        <strong>Minutos:</strong>
-          {% if session.hours is not none %}
-            {{ (session.hours * 60)|round(0)|int }} min
-          {% else %}
-            -
-          {% endif %}
-      </div>
-    </div>
-
-    {% if not session_read_only %}
-    <div class="collapse mt-3{% if open_edit_session_form is defined and open_edit_session_form %} show{% endif %}" id="editSessionForm">
-      <hr>
-      <form method="post" action="/ui/listado/{{ session.session_id }}/edit" class="row g-2">
-        <div class="col-md-2">
-          <label class="form-label">Fecha *</label>
-          <input type="date" class="form-control session-date-input" name="session_date" value="{{ session_edit_form.get('session_date', session.session_date) }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
-          <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
+  {% if session.proposal_id %}
+  <section class="attendance-section attendance-participants-section">
+    <div class="card shadow-sm border-0 attendance-filter-card attendance-participants-filter-card">
+      <div class="card-body">
+        <div class="attendance-section__header attendance-section__header--compact">
+          <div>
+            <h2 class="attendance-section__title">Filtros de participantes</h2>
+            <p class="attendance-section__text">Filtra visualmente por edad antes de marcar asistencia. Las selecciones ya marcadas se conservan aunque limpies o cambies el filtro.</p>
+          </div>
+          <div class="attendance-participants-filter__meta">
+            <span class="badge text-bg-secondary">
+              Mostrando: <span id="visible-participants-count">0</span>
+            </span>
+          </div>
         </div>
-        <div class="col-md-2">
-          <label class="form-label">Propuesta</label>
-          <select class="form-select" name="proposal_id" id="edit_proposal_id_select">
-            <option value="">Sin propuesta</option>
-            {% for p in proposals %}
-              <option value="{{ p.proposal_id }}" {% if p.proposal_id == session_edit_form.get('proposal_id', session.proposal_id) %}selected{% endif %}>
-                {{ p.code }} - {{ p.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Código de actividad *</label>
-          <select class="form-select" name="activity_code_id" id="edit_activity_code_select" required>
-            {% for c in activity_codes %}
-              <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if c.activity_code_id == session_edit_form.get('activity_code_id', session.activity_code_id) %}selected{% endif %}>
-                {{ c.code }} - {{ c.description or '' }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">Empleado *</label>
-          <select class="form-select" name="employee_id" required>
-            {% for e in employees %}
-              <option value="{{ e.employee_id }}" {% if e.employee_id == session_edit_form.get('employee_id', session.employee_id) %}selected{% endif %}>
-                {{ e.employee_code or '' }} - {{ e.full_name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-1">
-          <label class="form-label">Minutos</label>
-          <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ session_edit_form.get('hours_minutes', ((session.hours * 60)|round(0)|int) if session.hours is not none else '') }}" data-hours-output="edit-hours-preview">
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">Equivale a</label>
-          <input type="text" class="form-control bg-light" id="edit-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
-          <div class="form-text">Solo visual</div>
-        </div>
-        <div class="col-12 mt-2">
-          <button class="btn btn-primary">Guardar Cambios</button>
-        </div>
-      </form>
-    </div>
-    {% endif %}
-
-    <hr class="my-2">
-    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-      <p class="mb-0 text-muted flex-grow-1">
-        Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
-      </p>
-      <div class="d-flex gap-2 flex-wrap justify-content-md-end">
-        <span class="badge text-bg-success fs-6 px-3 py-2">
-          Numero de control: {{ session.control_number or '-' }}
-        </span>
-        <span class="badge text-bg-primary fs-6 px-3 py-2">
-          Asistencias marcadas: <span id="attendance-counter-value">0</span>
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
-
-{% if session.proposal_id %}
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
-      <div>
-        <h5 class="mb-1">Filtros de participantes</h5>
-        <div class="text-muted small">Filtra visualmente por edad antes de marcar asistencia. Las selecciones ya marcadas se conservan aunque limpies o cambies el filtro.</div>
-      </div>
-      <span class="badge text-bg-secondary fs-6 px-3 py-2">
-        Mostrando: <span id="visible-participants-count">0</span>
-      </span>
-    </div>
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label">Rango de edad</label>
-        <select class="form-select" id="age-range-filter">
-          <option value="">Todos los rangos</option>
-          {% for option in attendance_age_range_options %}
-            <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}">{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Edad desde</label>
-        <input type="number" min="0" class="form-control" id="age-min-filter" placeholder="Desde">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Edad hasta</label>
-        <input type="number" min="0" class="form-control" id="age-max-filter" placeholder="Hasta">
-      </div>
-      <div class="col-md-2">
-        <button type="button" class="btn btn-primary w-100" id="apply-age-filter">Filtrar</button>
-      </div>
-      <div class="col-md-2">
-        <button type="button" class="btn btn-outline-secondary w-100" id="clear-age-filter">Limpiar filtros</button>
-      </div>
-      <div class="col-md-12">
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" id="hide-inactive-filter" checked>
-          <label class="form-check-label" for="hide-inactive-filter">
-            Ocultar participantes inactivos
-          </label>
+        <div class="row g-2 align-items-end attendance-participants-filter__form">
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <label class="form-label">Rango de edad</label>
+            <select class="form-select" id="age-range-filter">
+              <option value="">Todos los rangos</option>
+              {% for option in attendance_age_range_options %}
+                <option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}">{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6">
+            <label class="form-label">Edad desde</label>
+            <input type="number" min="0" class="form-control" id="age-min-filter" placeholder="Desde">
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6">
+            <label class="form-label">Edad hasta</label>
+            <input type="number" min="0" class="form-control" id="age-max-filter" placeholder="Hasta">
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6 d-grid">
+            <button type="button" class="btn btn-primary w-100" id="apply-age-filter">Filtrar</button>
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6 d-grid">
+            <button type="button" class="btn btn-outline-secondary w-100" id="clear-age-filter">Limpiar filtros</button>
+          </div>
+          <div class="col-xl-1 col-lg-12 col-md-12">
+            <div class="form-check attendance-participants-filter__toggle">
+              <input class="form-check-input" type="checkbox" id="hide-inactive-filter" checked>
+              <label class="form-check-label" for="hide-inactive-filter">
+                Ocultar participantes inactivos
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
-{% endif %}
+  </section>
+  {% endif %}
 
-<form method="post">
-  <div class="card shadow-sm">
-    <div class="card-body table-responsive">
-      <table class="table table-sm table-hover align-middle">
-        <thead>
-          <tr>
-            <th>Expediente</th>
-            <th>Nombre</th>
-            <th>Inicial</th>
-            <th>Apellidos</th>
-            <th>Edad</th>
-            <th>Estado</th>
-            <th class="text-center">Asistió</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if session.proposal_id %}
-            {% for row in proposal_participant_rows %}
-            {% set pp = row.proposal_participant %}
-            {% set person = row.person %}
-            {% set is_active = row.is_active %}
-            <tr class="{{ '' if is_active else 'table-danger' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}" data-is-active="{{ '1' if is_active else '0' }}">
-              <td>{{ pp.expediente_num or '—' }}</td>
-              <td>{{ person.nombre }}</td>
-              <td>{{ person.inicial or '' }}</td>
-              <td>{{ person.apellido_paterno }} {{ person.apellido_materno or '' }}</td>
-              <td>{{ row.age if row.age is not none else '—' }}</td>
-              <td>
-                {% if is_active %}
-                  <span class="badge bg-success">● Activo</span>
+  <form method="post">
+    <section class="attendance-section attendance-participants-section">
+      <div class="card shadow-sm border-0 attendance-participants-card">
+        <div class="card-body">
+          <div class="attendance-section__header attendance-section__header--tight">
+            <div>
+              <h2 class="attendance-section__title">Participantes de la sesión</h2>
+              <p class="attendance-section__text">Se conservan columnas, bloqueos, participantes inactivos y la lógica actual de guardado.</p>
+            </div>
+          </div>
+
+          <div class="table-responsive attendance-participants-table-wrap">
+            <table class="table table-sm table-hover align-middle attendance-table attendance-participants-table mb-0">
+              <thead>
+                <tr>
+                  <th>Expediente</th>
+                  <th>Nombre</th>
+                  <th>Inicial</th>
+                  <th>Apellidos</th>
+                  <th>Edad</th>
+                  <th>Estado</th>
+                  <th class="text-center">Asistió</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if session.proposal_id %}
+                  {% for row in proposal_participant_rows %}
+                  {% set pp = row.proposal_participant %}
+                  {% set person = row.person %}
+                  {% set is_active = row.is_active %}
+                  <tr class="attendance-participants-row {{ '' if is_active else 'table-danger attendance-participants-row--inactive' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}" data-is-active="{{ '1' if is_active else '0' }}">
+                    <td>{{ pp.expediente_num or '—' }}</td>
+                    <td>{{ person.nombre }}</td>
+                    <td>{{ person.inicial or '' }}</td>
+                    <td>{{ person.apellido_paterno }} {{ person.apellido_materno or '' }}</td>
+                    <td>{{ row.age if row.age is not none else '—' }}</td>
+                    <td>
+                      {% if is_active %}
+                        <span class="badge bg-success">Activo</span>
+                      {% else %}
+                        <span class="badge bg-danger">Inactivo</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      <input type="checkbox"
+                             class="attendance-participants-checkbox"
+                             name="present"
+                             value="{{ pp.proposal_participant_id }}"
+                             {% if pp.proposal_participant_id in attended_ids %}checked{% endif %}
+                             {% if not is_active or session_read_only %}disabled{% endif %}>
+                    </td>
+                  </tr>
+                  {% endfor %}
                 {% else %}
-                  <span class="badge bg-danger">● Inactivo</span>
+                  <tr>
+                    <td colspan="7" class="text-muted text-center py-4">
+                      Esta sesión no tiene propuesta. La nueva Fase 2 de asistencia opera solo con sesiones asociadas a propuesta.
+                    </td>
+                  </tr>
                 {% endif %}
-              </td>
-              <td class="text-center">
-                <input type="checkbox"
-                       name="present"
-                       value="{{ pp.proposal_participant_id }}"
-                       {% if pp.proposal_participant_id in attended_ids %}checked{% endif %}
-                       {% if not is_active or session_read_only %}disabled{% endif %}>
-              </td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="7" class="text-muted text-center py-4">
-                Esta sesión no tiene propuesta. La nueva Fase 2 de asistencia opera solo con sesiones asociadas a propuesta.
-              </td>
-            </tr>
-          {% endif %}
-          {% if session.proposal_id %}
-            <tr id="no-age-filter-results-row" class="d-none">
-              <td colspan="7" class="text-muted text-center py-4">
-                No hay participantes que coincidan con el filtro de edad seleccionado.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+                {% if session.proposal_id %}
+                  <tr id="no-age-filter-results-row" class="d-none">
+                    <td colspan="7" class="text-muted text-center py-4">
+                      No hay participantes que coincidan con el filtro de edad seleccionado.
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
 
-      {% if not session_read_only %}
-      <button class="btn btn-success mt-2">Guardar Asistencia</button>
-      {% else %}
-      <button class="btn btn-secondary mt-2" disabled>Sesión en solo lectura</button>
-      {% endif %}
-    </div>
-  </div>
-</form>
+          <div class="attendance-participants-savebar">
+            <div class="attendance-participants-savebar__copy">
+              <span class="attendance-participants-savebar__label">Guardar asistencia</span>
+              <span class="attendance-participants-savebar__text">Las selecciones visibles y ocultas por filtro se conservan hasta guardar.</span>
+            </div>
+            <div class="attendance-participants-savebar__actions">
+              {% if not session_read_only %}
+              <button class="btn btn-success">Guardar Asistencia</button>
+              {% else %}
+              <button class="btn btn-secondary" disabled>Sesión en solo lectura</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+</div>
 
 <script>
 (function () {
