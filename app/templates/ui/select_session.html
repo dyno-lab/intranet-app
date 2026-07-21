@@ -10,251 +10,296 @@
 </div>
 {% endif %}
 
-{% if selected_proposal_id %}
-  {% for proposal in proposals %}
-    {% if proposal.proposal_id == selected_proposal_id and proposal.status == 'finalized' %}
-    <div class="alert alert-warning" role="alert">
-      La propuesta seleccionada está <strong>finalizada</strong>. Su operación queda en modo solo lectura.
+<div class="attendance-page">
+  {% if selected_proposal_id %}
+    {% for proposal in proposals %}
+      {% if proposal.proposal_id == selected_proposal_id and proposal.status == 'finalized' %}
+      <div class="alert alert-warning" role="alert">
+        La propuesta seleccionada está <strong>finalizada</strong>. Su operación queda en modo solo lectura.
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <section class="attendance-hero">
+    <div class="attendance-hero__content">
+      <span class="attendance-hero__eyebrow">Módulo operativo</span>
+      <h1 class="attendance-hero__title">Asistencias</h1>
+      <p class="attendance-hero__lead">
+        Crea sesiones, consulta el historial y conserva filtros, acciones y paginación del flujo actual.
+      </p>
+      <div class="attendance-hero__actions">
+        {% if selected_proposal_id %}
+        <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
+        {% endif %}
+        <a class="btn btn-outline-success" href="/ui/listado/export.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
+        <a class="btn btn-outline-success" href="/ui/listado/export-attendance.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar asistencias CSV</a>
+      </div>
     </div>
-    {% endif %}
-  {% endfor %}
-{% endif %}
 
-<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
-  <h4 class="mb-0">Listado - Sesiones</h4>
-  <div class="d-flex gap-2 flex-wrap">
-    {% if selected_proposal_id %}
-    <a class="btn btn-outline-secondary btn-sm" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
-    {% endif %}
-    <a class="btn btn-outline-success btn-sm" href="/ui/listado/export.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar sesiones CSV</a>
-    <a class="btn btn-outline-success btn-sm" href="/ui/listado/export-attendance.csv?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Exportar asistencias CSV</a>
-  </div>
-</div>
+    <div class="attendance-hero__aside">
+      <article class="attendance-hero-card">
+        <span class="attendance-hero-card__label">Sesiones visibles</span>
+        <strong class="attendance-hero-card__value">{{ sessions|length }}</strong>
+        <p class="attendance-hero-card__text">de {{ pagination.total_items }} registradas</p>
+      </article>
+      <article class="attendance-hero-card">
+        <span class="attendance-hero-card__label">Paginación actual</span>
+        <strong class="attendance-hero-card__value">Página {{ pagination.page }}</strong>
+        <p class="attendance-hero-card__text">de {{ pagination.total_pages }}</p>
+      </article>
+    </div>
+  </section>
 
-<div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap small text-muted">
-  <div>
-    Mostrando {{ sessions|length }} de {{ pagination.total_items }} sesiones
-  </div>
-  <div>
-    Página {{ pagination.page }} de {{ pagination.total_pages }}
-  </div>
-</div>
+  <section class="attendance-section">
+    <div class="attendance-section__header">
+      <div>
+        <h2 class="attendance-section__title">Filtros de búsqueda</h2>
+        <p class="attendance-section__text">Todos los campos visibles y compactados para reducir scroll innecesario.</p>
+      </div>
+      <div class="attendance-list-meta">
+        <span>Mostrando {{ sessions|length }} de {{ pagination.total_items }} sesiones</span>
+        <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      </div>
+    </div>
 
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <form method="get" class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label class="form-label">Numero de control</label>
-        <input type="text" class="form-control" name="control_number" value="{{ selected_control_number or '' }}" placeholder="Ej. AC672026">
+    <div class="card shadow-sm border-0 attendance-filter-card">
+      <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <label class="form-label">Número de control</label>
+            <input type="text" class="form-control" name="control_number" value="{{ selected_control_number or '' }}" placeholder="Ej. AC672026">
+          </div>
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <label class="form-label">Propuesta</label>
+            <select class="form-select" name="proposal_id">
+              <option value="">Todas</option>
+              {% for proposal in proposals %}
+                <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>
+                  {{ proposal.code }} - {{ proposal.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6">
+            <label class="form-label">Mes</label>
+            <select class="form-select" name="month">
+              <option value="">Todos</option>
+              {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-2 col-lg-2 col-md-6">
+            <label class="form-label">Año</label>
+            <select class="form-select" name="year">
+              <option value="">Todos</option>
+              {% for option_year in filter_years %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-xl-2 col-lg-3 col-md-6">
+            <label class="form-label">Desde</label>
+            <input type="date" class="form-control" name="from_date" value="{{ from_date or '' }}">
+          </div>
+          <div class="col-xl-2 col-lg-3 col-md-6">
+            <label class="form-label">Hasta</label>
+            <input type="date" class="form-control" name="to_date" value="{{ to_date or '' }}">
+          </div>
+          <div class="col-xl-1 col-lg-2 col-md-6 d-grid">
+            <button class="btn btn-primary w-100">Buscar</button>
+          </div>
+          <div class="col-xl-2 col-lg-3 col-md-6 d-grid">
+            <a class="btn btn-outline-secondary w-100" href="/ui/listado">Limpiar</a>
+          </div>
+          <div class="col-12">
+            <div class="attendance-form-note">
+              Puedes filtrar por propuesta, mes y año. Si además usas Desde/Hasta, se combinan ambos filtros.
+            </div>
+          </div>
+        </form>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Propuesta</label>
-        <select class="form-select" name="proposal_id">
-          <option value="">Todas</option>
-          {% for proposal in proposals %}
-            <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>
-              {{ proposal.code }} - {{ proposal.name }}
-            </option>
-          {% endfor %}
-        </select>
+    </div>
+  </section>
+
+  <section class="attendance-section">
+    <div class="attendance-section__header">
+      <div>
+        <h2 class="attendance-section__title">Creación de sesión</h2>
+        <p class="attendance-section__text">Misma lógica de fechas, propuestas, actividades y empleados, con una distribución más compacta.</p>
       </div>
-      <div class="col-md-2">
-        <label class="form-label">Mes</label>
-        <select class="form-select" name="month">
-          <option value="">Todos</option>
-          {% for month_value, month_label in month_options %}
-            <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
+    </div>
+
+    <div class="card shadow-sm border-0 attendance-form-card">
+      <div class="card-body">
+        <form method="post" action="/ui/listado/create-session" class="row g-2 align-items-start">
+          <div class="col-xl-2 col-lg-3 col-md-6">
+            <label class="form-label">Fecha *</label>
+            <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
+            <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
+          </div>
+
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <label class="form-label">Propuesta</label>
+            <select class="form-select" name="proposal_id" id="proposal_id_select">
+              <option value="">Sin propuesta</option>
+              {% for proposal in proposals if proposal.is_active %}
+                <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}" data-locked-through="{{ proposal.locked_through_year or '' }}-{{ proposal.locked_through_month or '' }}" {% if create_form.get('proposal_id') == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-xl-3 col-lg-5 col-md-6">
+            <label class="form-label">Código de actividad *</label>
+            <select class="form-select" name="activity_code_id" id="activity_code_select" required>
+              <option value="">Selecciona...</option>
+              {% for c in activity_codes %}
+                <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales. No se permiten fechas futuras.</div>
+          </div>
+
+          <div class="col-xl-2 col-lg-4 col-md-6">
+            <label class="form-label">Empleado *</label>
+            <select class="form-select" name="employee_id" required>
+              <option value="">Selecciona...</option>
+              {% for e in employees %}
+                <option value="{{ e.employee_id }}" {% if create_form.get('employee_id') == e.employee_id %}selected{% endif %}>{{ e.employee_code }} - {{ e.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-xl-1 col-lg-2 col-md-6">
+            <label class="form-label">Minutos</label>
+            <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ create_form.get('hours_minutes', '') }}" placeholder="5" data-hours-output="create-hours-preview">
+          </div>
+
+          <div class="col-xl-1 col-lg-3 col-md-6">
+            <label class="form-label">Equivale a</label>
+            <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
+            <div class="form-text">Solo visual</div>
+          </div>
+
+          <div class="col-12 mt-2">
+            <button class="btn btn-success w-100 attendance-submit-btn" id="create-session-btn">Crear y Abrir Sesión</button>
+          </div>
+        </form>
       </div>
-      <div class="col-md-2">
-        <label class="form-label">Año</label>
-        <select class="form-select" name="year">
-          <option value="">Todos</option>
-          {% for option_year in filter_years %}
-            <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
+    </div>
+  </section>
+
+  <section class="attendance-section">
+    <div class="attendance-section__header">
+      <div>
+        <h2 class="attendance-section__title">Sesiones registradas</h2>
+        <p class="attendance-section__text">La tabla conserva columnas, acciones, bloqueos y permisos existentes.</p>
       </div>
-      <div class="col-md-2">
-        <label class="form-label">Desde</label>
-        <input type="date" class="form-control" name="from_date" value="{{ from_date or '' }}">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Hasta</label>
-        <input type="date" class="form-control" name="to_date" value="{{ to_date or '' }}">
-      </div>
-      <div class="col-md-1 d-grid">
-        <button class="btn btn-outline-primary w-100">Buscar</button>
-      </div>
-      <div class="col-md-12">
-        <div class="small text-muted mt-1">
-          Puedes filtrar por propuesta, mes y año. Si además usas Desde/Hasta, se combinan ambos filtros.
+    </div>
+
+    <div class="card shadow-sm border-0 attendance-table-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle attendance-table mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Número de control</th>
+                <th>Propuesta</th>
+                <th>Código</th>
+                <th>Actividad</th>
+                <th>Participación</th>
+                <th>Empleado</th>
+                {% if is_admin_or_supervisor_view %}<th>Creado por</th>{% endif %}
+                <th>Minutos</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in sessions %}
+              <tr>
+                <td>{{ s.session_date }}</td>
+                <td><span class="attendance-table__control">{{ s.control_number or '-' }}</span></td>
+                <td>
+                  {% if s.proposal_code %}
+                    <div class="attendance-table__proposal">
+                      <span class="badge bg-info text-dark">{{ s.proposal_code }}</span>
+                      {% if s.proposal_status == 'finalized' %}
+                        <span class="badge bg-secondary">Finalizada</span>
+                      {% endif %}
+                    </div>
+                    <div class="small text-muted">{{ s.proposal_name }}</div>
+                  {% else %}
+                    <span class="text-muted">Sin propuesta</span>
+                  {% endif %}
+                </td>
+                <td>{{ s.code }}</td>
+                <td>
+                  <span title="{{ s.description }}">
+                    {{ s.description[:120] }}{% if s.description and s.description|length > 120 %}...{% endif %}
+                  </span>
+                </td>
+                <td>{{ s.participation_count }}</td>
+                <td>{{ s.employee_code }}</td>
+                {% if is_admin_or_supervisor_view %}
+                <td>
+                  <div>{{ s.created_by_username or '-' }}</div>
+                  <div class="small text-muted">{{ s.created_by_residential or '' }}</div>
+                </td>
+                {% endif %}
+                <td>{% if s.hours is not none %}{{ (s.hours * 60)|round(0)|int }} min{% endif %}</td>
+                <td class="text-end">
+                  <div class="attendance-actions">
+                    <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
+
+                    {% if current_user.role in ['admin', 'supervisor'] and s.proposal_status != 'finalized' %}
+                    <form method="post"
+                          action="/ui/listado/{{ s.session_id }}/delete"
+                          class="attendance-actions__delete"
+                          onsubmit="return confirm('¿Eliminar esta sesión?');">
+                      <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+
+              {% if sessions|length == 0 %}
+              <tr>
+                <td colspan="{{ 10 if is_admin_or_supervisor_view else 9 }}" class="text-muted text-center py-4">No hay sesiones para ese filtro.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div class="col-md-2">
-        <a class="btn btn-outline-secondary w-100" href="/ui/listado">Limpiar</a>
-      </div>
-    </form>
-  </div>
+    </div>
+
+    {% if pagination.total_pages > 1 %}
+    <nav aria-label="Paginación sesiones" class="mt-3">
+      <ul class="pagination pagination-sm justify-content-center flex-wrap attendance-pagination">
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="/ui/listado?page=1&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Primera</a>
+        </li>
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="/ui/listado?page={{ pagination.prev_page or 1 }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Anterior</a>
+        </li>
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ pagination.page }} / {{ pagination.total_pages }}</span>
+        </li>
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="/ui/listado?page={{ pagination.next_page or pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Siguiente</a>
+        </li>
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="/ui/listado?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Ultima</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+  </section>
 </div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <h5 class="mb-3">Crear Sesión</h5>
-
-    <form method="post" action="/ui/listado/create-session" class="row g-2">
-      <div class="col-md-2">
-        <label class="form-label">Fecha *</label>
-        <input type="date" class="form-control session-date-input" name="session_date" value="{{ create_form.get('session_date', '') }}" min="{{ session_date_min }}" max="{{ session_date_max }}" required>
-        <div class="form-text">Permitido entre {{ session_date_min }} y {{ session_date_max }}. No se permiten fechas futuras.</div>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Propuesta</label>
-        <select class="form-select" name="proposal_id" id="proposal_id_select">
-          <option value="">Sin propuesta</option>
-          {% for proposal in proposals if proposal.is_active %}
-            <option value="{{ proposal.proposal_id }}" data-status="{{ proposal.status }}" data-locked-through="{{ proposal.locked_through_year or '' }}-{{ proposal.locked_through_month or '' }}" {% if create_form.get('proposal_id') == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label">Código de actividad *</label>
-        <select class="form-select" name="activity_code_id" id="activity_code_select" required>
-          <option value="">Selecciona...</option>
-          {% for c in activity_codes %}
-            <option value="{{ c.activity_code_id }}" data-proposal-id="{{ c.proposal_id or '' }}" data-proposal-ids="{{ c.assigned_proposal_ids | join(',') }}" {% if create_form.get('activity_code_id') == c.activity_code_id %}selected{% endif %}>{{ c.code }} - {{ c.description }}</option>
-          {% endfor %}
-        </select>
-        <div class="form-text">Si eliges una propuesta, solo verás sus actividades. Si no eliges propuesta, solo verás actividades globales. No se permiten fechas futuras.</div>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Empleado *</label>
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          {% for e in employees %}
-            <option value="{{ e.employee_id }}" {% if create_form.get('employee_id') == e.employee_id %}selected{% endif %}>{{ e.employee_code }} - {{ e.full_name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-md-1">
-        <label class="form-label">Minutos</label>
-        <input type="number" step="5" min="5" class="form-control minutes-to-hours-input" name="hours_minutes" value="{{ create_form.get('hours_minutes', '') }}" placeholder="5" data-hours-output="create-hours-preview">
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Equivale a</label>
-        <input type="text" class="form-control bg-light" id="create-hours-preview" value="" placeholder="0 minutos" readonly tabindex="-1">
-        <div class="form-text">Solo visual</div>
-      </div>
-
-      <div class="col-12 mt-2">
-        <button class="btn btn-success w-100" id="create-session-btn">Crear y Abrir Sesión</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <h5 class="mb-3">Sesiones Registradas</h5>
-
-    <table class="table table-sm table-hover align-middle">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Numero de control</th>
-          <th>Propuesta</th>
-          <th>Código</th>
-          <th>Actividad</th>
-          <th>Participación</th>
-          <th>Empleado</th>
-          {% if is_admin_or_supervisor_view %}<th>Creado por</th>{% endif %}
-          <th>Minutos</th>
-          <th class="text-end">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in sessions %}
-        <tr>
-          <td>{{ s.session_date }}</td>
-          <td><span class="fw-semibold">{{ s.control_number or '-' }}</span></td>
-          <td>
-            {% if s.proposal_code %}
-              <span class="badge bg-info text-dark">{{ s.proposal_code }}</span>
-              {% if s.proposal_status == 'finalized' %}
-                <span class="badge bg-secondary">Finalizada</span>
-              {% endif %}
-              <div class="small text-muted">{{ s.proposal_name }}</div>
-            {% else %}
-              <span class="text-muted">Sin propuesta</span>
-            {% endif %}
-          </td>
-          <td>{{ s.code }}</td>
-          <td>
-            <span title="{{ s.description }}">
-              {{ s.description[:120] }}{% if s.description and s.description|length > 120 %}...{% endif %}
-            </span>
-          </td>
-          <td>{{ s.participation_count }}</td>
-          <td>{{ s.employee_code }}</td>
-          {% if is_admin_or_supervisor_view %}
-          <td>
-            <div>{{ s.created_by_username or '—' }}</div>
-            <div class="small text-muted">{{ s.created_by_residential or '' }}</div>
-          </td>
-          {% endif %}
-          <td>{% if s.hours is not none %}{{ (s.hours * 60)|round(0)|int }} min{% endif %}</td>
-          <td class="text-end">
-            <a class="btn btn-sm btn-primary" href="/ui/listado/{{ s.session_id }}?control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}&page={{ pagination.page }}&per_page={{ pagination.per_page }}">Abrir</a>
-
-            {% if current_user.role in ['admin', 'supervisor'] and s.proposal_status != 'finalized' %}
-            <form method="post"
-                  action="/ui/listado/{{ s.session_id }}/delete"
-                  style="display:inline;"
-                  onsubmit="return confirm('¿Eliminar esta sesión?');">
-              <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-
-        {% if sessions|length == 0 %}
-        <tr>
-          <td colspan="{{ 10 if is_admin_or_supervisor_view else 9 }}" class="text-muted">No hay sesiones para ese filtro.</td>
-        </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-{% if pagination.total_pages > 1 %}
-<nav aria-label="Paginación sesiones" class="mt-3">
-  <ul class="pagination pagination-sm justify-content-center flex-wrap">
-    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/listado?page=1&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Primera</a>
-    </li>
-    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-      <a class="page-link" href="/ui/listado?page={{ pagination.prev_page or 1 }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Anterior</a>
-    </li>
-    <li class="page-item disabled">
-      <span class="page-link">Página {{ pagination.page }} / {{ pagination.total_pages }}</span>
-    </li>
-    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/listado?page={{ pagination.next_page or pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Siguiente</a>
-    </li>
-    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-      <a class="page-link" href="/ui/listado?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}&control_number={{ selected_control_number or '' }}&proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}&from_date={{ from_date or '' }}&to_date={{ to_date or '' }}">Última</a>
-    </li>
-  </ul>
-</nav>
-{% endif %}
 
 <script>
 (function () {
