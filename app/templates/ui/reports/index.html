@@ -220,9 +220,8 @@
 
       <div class="reports-catalog-grid">
         {% for option in report_options %}
-        <button
+        <article
           class="reports-card {% if selected_report_key == option.value %}is-selected{% endif %}"
-          type="button"
           data-report-card="{{ option.value }}"
           {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
           data-report-category="participants"
@@ -235,8 +234,6 @@
           {% else %}
           data-report-category="bundle"
           {% endif %}
-          aria-pressed="{{ 'true' if selected_report_key == option.value else 'false' }}"
-          aria-label="Configurar reporte {{ option.label }}"
         >
           <span class="reports-card__icon" aria-hidden="true">
             {% if option.value == 'bonafide' %}
@@ -310,18 +307,42 @@
               {% endif %}
             </span>
             <span class="reports-card__formats" aria-label="Formatos disponibles">
-              <span class="reports-format reports-format--screen">Pantalla</span>
+              <button
+                class="reports-format reports-format--screen"
+                type="button"
+                data-format-button
+                data-output-format="screen"
+                aria-pressed="{{ 'true' if selected_report_key == option.value and selected_output == 'screen' else 'false' }}"
+              >Pantalla</button>
               {% if option.value not in ['productividad', 'hoja-cotejo'] %}
-              <span class="reports-format reports-format--excel">Excel</span>
-              <span class="reports-format reports-format--pdf">{% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}</span>
+              <button
+                class="reports-format reports-format--excel"
+                type="button"
+                data-format-button
+                data-output-format="excel"
+                aria-pressed="{{ 'true' if selected_report_key == option.value and selected_output == 'excel' else 'false' }}"
+              >Excel</button>
+              <button
+                class="reports-format reports-format--pdf"
+                type="button"
+                data-format-button
+                data-output-format="pdf"
+                aria-pressed="{{ 'true' if selected_report_key == option.value and selected_output == 'pdf' else 'false' }}"
+              >{% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}</button>
               {% endif %}
             </span>
-            <span class="reports-card__action">
+            <button
+              class="reports-card__action"
+              type="button"
+              data-report-configure
+              aria-pressed="{{ 'true' if selected_report_key == option.value else 'false' }}"
+              aria-label="Configurar reporte {{ option.label }}"
+            >
               <span>Configurar reporte</span>
               <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-            </span>
+            </button>
           </span>
-        </button>
+        </article>
         {% endfor %}
       </div>
     </div>
@@ -343,6 +364,11 @@
   const monthSelect = document.querySelector('select[name="month"]');
   const yearSelect = document.querySelector('select[name="year"]');
   const proposalSelect = document.querySelector('select[name="proposal_id"]');
+  const outputLabels = {
+    screen: 'Pantalla',
+    excel: 'Excel',
+    pdf: 'PDF'
+  };
 
   function refreshPeriodUI() {
     const value = periodType.value;
@@ -359,7 +385,10 @@
     reportCards.forEach(card => {
       const isSelected = card.dataset.reportCard === reportKey.value;
       card.classList.toggle('is-selected', isSelected);
-      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      const configureButton = card.querySelector('[data-report-configure]');
+      if (configureButton) {
+        configureButton.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      }
     });
   };
 
@@ -411,25 +440,78 @@
     refreshPeriodUI();
   };
 
-  function refreshOutputUI() {
-    const isProductividad = reportKey.value === 'productividad';
-    Array.from(outputType.options).forEach(option => {
-      const isScreen = option.value === 'screen';
-      option.hidden = isProductividad && !isScreen;
-      option.disabled = isProductividad && !isScreen;
+  const getSelectedCard = () => reportCards.find(card => card.dataset.reportCard === reportKey.value);
+
+  const getAvailableOutputs = (card) => {
+    if (!card) return ['screen'];
+    const values = Array.from(card.querySelectorAll('[data-format-button]'))
+      .map(button => button.dataset.outputFormat)
+      .filter(Boolean);
+    return values.length ? values : ['screen'];
+  };
+
+  const isOutputAvailable = (card, output) => getAvailableOutputs(card).includes(output);
+
+  const refreshFormatButtons = () => {
+    reportCards.forEach(card => {
+      const isSelectedCard = card.dataset.reportCard === reportKey.value;
+      card.querySelectorAll('[data-format-button]').forEach(button => {
+        const isPressed = isSelectedCard && button.dataset.outputFormat === outputType.value;
+        button.classList.toggle('is-selected', isPressed);
+        button.setAttribute('aria-pressed', isPressed ? 'true' : 'false');
+      });
     });
-    if (isProductividad) {
+  };
+
+  function refreshOutputUI() {
+    const selectedCard = getSelectedCard();
+    const availableOutputs = getAvailableOutputs(selectedCard);
+    Array.from(outputType.options).forEach(option => {
+      const isAvailable = availableOutputs.includes(option.value);
+      option.hidden = !isAvailable;
+      option.disabled = !isAvailable;
+      option.textContent = outputLabels[option.value] || option.textContent;
+    });
+    if (!isOutputAvailable(selectedCard, outputType.value)) {
       outputType.value = 'screen';
     }
     refreshReportCards();
+    refreshFormatButtons();
     refreshSelectedSummary();
   }
 
-  reportCards.forEach(card => {
-    card.addEventListener('click', () => {
+  const selectReport = (card, outputFormat, shouldFocusConfig) => {
+    if (!card) return;
+    const previousReport = reportKey.value;
+    if (reportKey.value !== card.dataset.reportCard) {
       reportKey.value = card.dataset.reportCard;
       reportKey.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (outputFormat && isOutputAvailable(card, outputFormat)) {
+      outputType.value = outputFormat;
+    }
+    if (previousReport === reportKey.value) {
+      refreshOutputUI();
+    } else {
+      refreshFormatButtons();
+    }
+    if (shouldFocusConfig) {
       focusConfigPanel();
+    }
+  };
+
+  reportCards.forEach(card => {
+    const configureButton = card.querySelector('[data-report-configure]');
+    if (configureButton) {
+      configureButton.addEventListener('click', () => {
+        selectReport(card, null, true);
+      });
+    }
+
+    card.querySelectorAll('[data-format-button]').forEach(button => {
+      button.addEventListener('click', () => {
+        selectReport(card, button.dataset.outputFormat, false);
+      });
     });
   });
 
@@ -438,6 +520,7 @@
     applyReportDefaults();
     refreshOutputUI();
   });
+  outputType.addEventListener('change', refreshOutputUI);
   if (categoryFilter) {
     categoryFilter.addEventListener('change', refreshCategoryFilter);
   }
