@@ -1093,7 +1093,7 @@ BEGIN
         person_id INT IDENTITY(1,1) PRIMARY KEY,
         legacy_participant_id INT NULL,
         nombre VARCHAR(150) NOT NULL,
-        inicial VARCHAR(10) NULL,
+        inicial VARCHAR(12) NULL,
         apellido_paterno VARCHAR(150) NOT NULL,
         apellido_materno VARCHAR(150) NULL,
         genero VARCHAR(10) NULL,

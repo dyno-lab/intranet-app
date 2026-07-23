@@ -186,6 +186,12 @@ def _normalized_sync_value(value):
     return str(value).strip()
 
 
+def _participant_initial_error(value: str | None) -> str | None:
+    if value is not None and len(value) > 12:
+        return "Error: Inicial permite hasta 12 caracteres."
+    return None
+
+
 def _proposal_participant_needs_sync(
     proposal_participant: ProposalParticipant,
     person: Person,
@@ -1026,6 +1032,10 @@ async def create_participant(
     if exists:
         return _redirect_with_msg("/ui/new-list", "Error: El expediente ya existe.")
 
+    initial_error = _participant_initial_error(inicial)
+    if initial_error:
+        return _redirect_with_msg("/ui/new-list", initial_error)
+
     profile_fields = load_active_new_list_fields(db)
     form_data: FormData = await request.form()
     profile_field_values = extract_profile_field_inputs(form_data, profile_fields)
@@ -1451,6 +1461,10 @@ async def edit_participant_save(
     ).scalar_one_or_none()
     if exists:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El expediente ya existe.")
+
+    initial_error = _participant_initial_error(inicial)
+    if initial_error:
+        return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", initial_error)
 
     profile_fields = load_active_new_list_fields(db)
     form_data: FormData = await request.form()

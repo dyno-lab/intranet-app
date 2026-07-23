@@ -1,11 +1,11 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PersonCreate(BaseModel):
     nombre: str
-    inicial: str | None = None
+    inicial: str | None = Field(default=None, max_length=12)
     apellido_paterno: str
     apellido_materno: str | None = None
     genero: str | None = None

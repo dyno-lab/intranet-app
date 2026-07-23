@@ -14,7 +14,7 @@ class Person(Base):
     person_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     legacy_participant_id: Mapped[int | None] = mapped_column(nullable=True, unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
-    inicial: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    inicial: Mapped[str | None] = mapped_column(String(12), nullable=True)
     apellido_paterno: Mapped[str] = mapped_column(String(150), nullable=False)
     apellido_materno: Mapped[str | None] = mapped_column(String(150), nullable=True)
     genero: Mapped[str | None] = mapped_column(String(10), nullable=True)

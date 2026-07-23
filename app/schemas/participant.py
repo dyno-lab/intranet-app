@@ -11,7 +11,7 @@ class ParticipantCreate(BaseModel):
     exp_seq4: str | None = Field(default=None, max_length=4)
 
     nombre: str
-    inicial: str | None = None
+    inicial: str | None = Field(default=None, max_length=12)
     apellido_paterno: str
     apellido_materno: str | None = None
     genero: str | None = None

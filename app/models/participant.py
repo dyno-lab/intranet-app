@@ -31,7 +31,7 @@ class Participant(Base):
     # Identificación / Nombre
     expediente_num: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
-    inicial: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    inicial: Mapped[str | None] = mapped_column(String(12), nullable=True)
     apellido_paterno: Mapped[str] = mapped_column(String(150), nullable=False)
     apellido_materno: Mapped[str | None] = mapped_column(String(150), nullable=True)
 
