@@ -2487,6 +2487,15 @@ body.ui-shell-body {
   gap: 1rem;
 }
 
+.bonafide-panel--filters,
+.bonafide-summary,
+.bonafide-signatures,
+.bonafide-filter-field--wide,
+.bonafide-monthly-fields,
+.bonafide-custom-fields {
+  min-width: 0;
+}
+
 .bonafide-panel,
 .bonafide-empty,
 .bonafide-official-note {
