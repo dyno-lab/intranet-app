@@ -2069,7 +2069,7 @@ def _build_notes_context(
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
     rows = []
-    age_labels = ["Menos de 5 años", "5 - 7 años", "8 - 10 años", "11 - 15 años", "16 - 21 años"]
+    age_labels = ["0–5 años", "6–7 años", "8 - 10 años", "11 - 15 años", "16 - 21 años"]
     note_letters = ["A", "B", "C", "D", "F"]
     table_rows = {label: {letter: 0 for letter in note_letters} | {"Especial": 0, "K": 0, "TOTAL": 0} for label in age_labels}
     residential_chart_rows = []

@@ -452,7 +452,7 @@ def _participant_profile_context(
 
 
 ATTENDANCE_AGE_RANGE_OPTIONS = [
-    {"value": "lt5", "label": "Menos de 5 años", "min": None, "max": 4},
+    {"value": "lt5", "label": "0–5 años", "min": 0, "max": 5},
     {"value": "6_7", "label": "6 – 7 años", "min": 6, "max": 7},
     {"value": "8_10", "label": "8 – 10 años", "min": 8, "max": 10},
     {"value": "11_15", "label": "11 – 15 años", "min": 11, "max": 15},

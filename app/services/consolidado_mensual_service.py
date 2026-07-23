@@ -20,8 +20,8 @@ from app.services.report_programs import resolve_effective_program_activity_code
 
 
 AGE_BUCKETS = [
-    ("under_5", "Menos de 5 años", lambda age: age is not None and age < 5),
-    ("6_7", "6 - 7 años", lambda age: age is not None and 6 <= age <= 7),
+    ("under_5", "0–5 años", lambda age: age is not None and 0 <= age <= 5),
+    ("6_7", "6–7 años", lambda age: age is not None and 6 <= age <= 7),
     ("8_10", "8 - 10 años", lambda age: age is not None and 8 <= age <= 10),
     ("11_15", "11 - 15 años", lambda age: age is not None and 11 <= age <= 15),
     ("16_21", "16 - 21 años", lambda age: age is not None and 16 <= age <= 21),

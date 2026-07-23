@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime
 
 AGE_BUCKETS = [
-    ("under_5", "Menos de 5 años"),
-    ("5_7", "5 - 7 años"),
+    ("under_5", "0–5 años"),
+    ("5_7", "6–7 años"),
     ("8_10", "8 - 10 años"),
     ("11_15", "11 - 15 años"),
     ("16_21", "16 - 21 años"),
@@ -34,7 +34,7 @@ def chunk_rows(rows: list[dict], size: int) -> list[list[dict]]:
 def get_age_bucket(age: int | None) -> str | None:
     if age is None or age < 0:
         return None
-    if age < 5:
+    if age <= 5:
         return "under_5"
     if age <= 7:
         return "5_7"
@@ -121,10 +121,10 @@ def grade_letter_from_average(average: float | int | None) -> str:
 def notes_age_bucket(age: int | None) -> str | None:
     if age is None or age < 0:
         return None
-    if age <= 4:
-        return "Menos de 5 años"
+    if age <= 5:
+        return "0–5 años"
     if age <= 7:
-        return "5 - 7 años"
+        return "6–7 años"
     if age <= 10:
         return "8 - 10 años"
     if age <= 15:
