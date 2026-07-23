@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup Reporte Bonafide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --border: rgba(15, 23, 42, 0.1);
+      --border-strong: rgba(15, 23, 42, 0.16);
+      --text: #111827;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --blue-soft: rgba(37, 99, 235, 0.09);
+      --green: #15803d;
+      --red: #b91c1c;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1280px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    .mockup-shell {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      padding: 24px 18px;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .brand-mark {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 40px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav-item.is-active {
+      color: #fff;
+      background: rgba(37, 99, 235, 0.26);
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.7;
+    }
+
+    .page {
+      padding: 26px 30px 36px;
+    }
+
+    .breadcrumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: start;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), #fff 58%);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--blue);
+      box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.13);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .hero-badge {
+      display: grid;
+      gap: 5px;
+      min-width: 220px;
+      padding: 14px;
+      border: 1px solid rgba(37, 99, 235, 0.14);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .hero-badge strong {
+      color: #1d4ed8;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .hero-badge span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 0;
+    }
+
+    .panel-header h2 {
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .panel-header p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .filters {
+      display: grid;
+      gap: 13px;
+      padding: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .control.is-readonly {
+      color: #475569;
+      background: #f8fafc;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .conditional-note {
+      padding: 10px 12px;
+      border: 1px dashed rgba(37, 99, 235, 0.28);
+      border-radius: 8px;
+      color: #1d4ed8;
+      background: rgba(37, 99, 235, 0.06);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      padding: 0 18px 18px;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background: var(--blue);
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-green {
+      color: #166534;
+      border-color: rgba(22, 163, 74, 0.2);
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    .btn-red {
+      color: #991b1b;
+      border-color: rgba(220, 38, 38, 0.2);
+      background: rgba(220, 38, 38, 0.09);
+    }
+
+    .btn-secondary {
+      color: #1d4ed8;
+      border-color: rgba(37, 99, 235, 0.16);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding: 18px;
+    }
+
+    .summary-item {
+      min-height: 76px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+
+    .summary-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .summary-item strong {
+      display: block;
+      margin-top: 4px;
+      color: #0f172a;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .results {
+      margin-top: 18px;
+      overflow: hidden;
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-toolbar h2 {
+      font-size: 18px;
+    }
+
+    .result-toolbar p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .count-pill {
+      padding: 7px 10px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: 999px;
+      color: #1d4ed8;
+      background: rgba(37, 99, 235, 0.08);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-strong);
+      color: #334155;
+      background: #eef2f7;
+      font-size: 11px;
+      font-weight: 900;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    tbody td {
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+      vertical-align: middle;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafcff;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .name-cell {
+      font-weight: 800;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .document-note {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+      padding: 14px 16px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: 14px;
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    .note-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      color: #1d4ed8;
+      background: rgba(37, 99, 235, 0.12);
+      font-weight: 900;
+    }
+
+    .document-note strong {
+      font-size: 14px;
+    }
+
+    .document-note p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .signatures {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .signature-card {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-soft);
+      text-align: center;
+    }
+
+    .signature-line {
+      height: 1px;
+      margin: 12px 12px 10px;
+      background: #0f172a;
+    }
+
+    .signature-card strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .signature-card span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .empty-reference,
+    .mobile-reference {
+      padding: 18px;
+    }
+
+    .empty-box {
+      display: grid;
+      place-items: center;
+      min-height: 148px;
+      margin-top: 14px;
+      padding: 18px;
+      border: 1px dashed rgba(100, 116, 139, 0.36);
+      border-radius: 12px;
+      background: #f8fafc;
+      text-align: center;
+    }
+
+    .empty-box strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .empty-box p,
+    .mobile-reference li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .mobile-reference ul {
+      display: grid;
+      gap: 8px;
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    .focus-ring {
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <span class="brand-mark">FE</span>
+        <span>Faro de Esperanza</span>
+      </div>
+      <nav class="nav-group">
+        <div class="nav-item"><span class="nav-dot"></span>Inicio</div>
+        <div class="nav-item"><span class="nav-dot"></span>Participantes</div>
+        <div class="nav-item"><span class="nav-dot"></span>Asistencias</div>
+        <div class="nav-item is-active"><span class="nav-dot"></span>Reportes</div>
+        <div class="nav-item"><span class="nav-dot"></span>Administración</div>
+      </nav>
+    </aside>
+
+    <main class="page">
+      <div class="breadcrumb">Centro de reportes <span aria-hidden="true">/</span> Bonafide</div>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Participantes bonafide</span>
+          <h1>Reporte Bonafide</h1>
+          <p>Consulta participantes con asistencia confirmada para la propuesta y el periodo seleccionado, con salidas separadas para vista previa web, PDF oficial y exportación.</p>
+        </div>
+        <div class="hero-badge">
+          <strong>42</strong>
+          <span>participantes en la selección actual</span>
+        </div>
+      </section>
+
+      <section class="layout">
+        <div class="side-stack">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Filtros del reporte</h2>
+                <p>Conserva los campos actuales y expone el tipo de periodo.</p>
+              </div>
+            </div>
+            <div class="filters">
+              <div class="field">
+                <label>Propuesta *</label>
+                <div class="control">2026-AVP-01 - Servicios comunitarios</div>
+              </div>
+              <div class="field">
+                <label>Tipo de periodo *</label>
+                <div class="control focus-ring">Mensual</div>
+              </div>
+              <div class="two-col">
+                <div class="field">
+                  <label>Mes *</label>
+                  <div class="control">Julio</div>
+                </div>
+                <div class="field">
+                  <label>Año *</label>
+                  <div class="control">2026</div>
+                </div>
+              </div>
+              <div class="conditional-note">Si el periodo es personalizado, esta zona cambia a Fecha inicial y Fecha final.</div>
+              <div class="two-col">
+                <div class="field">
+                  <label>Fecha inicial</label>
+                  <div class="control is-readonly">01/07/2026</div>
+                </div>
+                <div class="field">
+                  <label>Fecha final</label>
+                  <div class="control is-readonly">31/07/2026</div>
+                </div>
+              </div>
+              <div class="field">
+                <label>Empleado / residencial *</label>
+                <div class="control">PJR = Pedro J. Rosaly</div>
+              </div>
+              <div class="conditional-note">Para usuario normal, este control se muestra como residencial fijo de solo lectura.</div>
+            </div>
+            <div class="actions">
+              <div class="btn btn-primary">Vista previa</div>
+              <div class="button-row">
+                <div class="btn btn-red">Descargar PDF oficial</div>
+                <div class="btn btn-green">Descargar Excel</div>
+              </div>
+              <div class="btn btn-secondary">Abrir versión imprimible oficial</div>
+            </div>
+          </section>
+
+          <section class="panel empty-reference">
+            <div class="panel-header" style="padding:0;">
+              <div>
+                <h2>Estado vacío</h2>
+                <p>Referencia para filtros sin participantes.</p>
+              </div>
+            </div>
+            <div class="empty-box">
+              <div>
+                <strong>No hay participantes bonafide para este criterio.</strong>
+                <p>Conserva los filtros visibles y ofrece ajustar propuesta, periodo o residencial.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel mobile-reference">
+            <h2>Adaptación móvil</h2>
+            <ul>
+              <li>Filtros apilados y acciones con ancho completo o wrap.</li>
+              <li>Resumen en bloques de lectura rápida.</li>
+              <li>Tabla con desplazamiento horizontal controlado.</li>
+              <li>Encabezados visibles, foco azul y áreas táctiles amplias.</li>
+            </ul>
+          </section>
+        </div>
+
+        <div>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Resumen del reporte</h2>
+                <p>Contexto visible antes de revisar o descargar.</p>
+              </div>
+            </div>
+            <div class="summary-grid">
+              <div class="summary-item"><span>Propuesta</span><strong>2026-AVP-01</strong></div>
+              <div class="summary-item"><span>Periodo</span><strong>Julio 2026</strong></div>
+              <div class="summary-item"><span>Residencial</span><strong>Pedro J. Rosaly</strong></div>
+              <div class="summary-item"><span>Municipio</span><strong>Ponce</strong></div>
+              <div class="summary-item"><span>Empleado</span><strong>PJR</strong></div>
+            </div>
+          </section>
+
+          <section class="panel results">
+            <div class="result-toolbar">
+              <div>
+                <h2>Vista previa web</h2>
+                <p>Participantes con al menos una asistencia confirmada en el periodo. Esta tabla es solo una vista de pantalla.</p>
+              </div>
+              <span class="count-pill">42 resultados</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:6%;">#</th>
+                  <th style="width:16%;">Expediente</th>
+                  <th style="width:34%;">Nombre</th>
+                  <th class="center" colspan="2" style="width:12%;">Género</th>
+                  <th class="center" style="width:8%;">Edad</th>
+                  <th class="center" style="width:12%;">Edif.</th>
+                  <th class="center" style="width:12%;">Apto.</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th class="center">F</th>
+                  <th class="center">M</th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="center">1</td>
+                  <td>FE-2026-PJR-0007</td>
+                  <td class="name-cell">María L. Rivera Sánchez *</td>
+                  <td class="center">X</td>
+                  <td class="center"></td>
+                  <td class="center">34</td>
+                  <td class="center">12</td>
+                  <td class="center">3B</td>
+                </tr>
+                <tr>
+                  <td class="center">2</td>
+                  <td>FE-2026-PJR-0014</td>
+                  <td class="name-cell">José A. Torres Méndez</td>
+                  <td class="center"></td>
+                  <td class="center">X</td>
+                  <td class="center">48</td>
+                  <td class="center">8</td>
+                  <td class="center">2A</td>
+                </tr>
+                <tr>
+                  <td class="center">3</td>
+                  <td>FE-2026-PJR-0021</td>
+                  <td class="name-cell">Carmen I. Ortiz Pagán</td>
+                  <td class="center">X</td>
+                  <td class="center"></td>
+                  <td class="center">62</td>
+                  <td class="center">5</td>
+                  <td class="center">1C</td>
+                </tr>
+                <tr>
+                  <td class="center">4</td>
+                  <td>FE-2026-PJR-0032</td>
+                  <td class="name-cell">Luis M. Delgado Cruz</td>
+                  <td class="center"></td>
+                  <td class="center">X</td>
+                  <td class="center">27</td>
+                  <td class="center">14</td>
+                  <td class="center">4D</td>
+                </tr>
+                <tr>
+                  <td class="center">5</td>
+                  <td>FE-2026-PJR-0048</td>
+                  <td class="name-cell">Ana C. Santiago Vega *</td>
+                  <td class="center">X</td>
+                  <td class="center"></td>
+                  <td class="center">19</td>
+                  <td class="center">2</td>
+                  <td class="center">6A</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="document-note">
+            <div class="note-mark">PDF</div>
+            <div>
+              <strong>El PDF descargable conserva exactamente el formato oficial estipulado por el agente auspiciador.</strong>
+              <p>La vista previa web puede variar visualmente. El archivo PDF mantiene la hoja oficial sin alteraciones.</p>
+            </div>
+          </section>
+
+          <section class="panel signatures">
+            <h2>Firmas institucionales</h2>
+            <div class="signature-grid">
+              <div class="signature-card">
+                <div class="signature-line"></div>
+                <strong>Karla Santiago Pérez</strong>
+                <span>Coordinadora Educativa</span>
+              </div>
+              <div class="signature-card">
+                <div class="signature-line"></div>
+                <strong>Alice E. Beard García</strong>
+                <span>Coordinadora Prevención</span>
+              </div>
+              <div class="signature-card">
+                <div class="signature-line"></div>
+                <strong>Annjellyn Arroyo Pagán</strong>
+                <span>Coordinadora de Arte, Cultura y Recreación</span>
+              </div>
+              <div class="signature-card">
+                <div class="signature-line"></div>
+                <strong>Josmary Cosme</strong>
+                <span>Coordinadora Desarrollo Económico y Servicio al Residente</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
