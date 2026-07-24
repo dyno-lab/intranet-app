@@ -1,149 +1,312 @@
 {% extends "ui/_base.html" %}
-{% block title %}Participación por programa{% endblock %}
+{% block title %}Reporte por Programa{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Participación por programa</h4>
-</div>
+{% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
+{% set has_programs = program_sections|length > 0 %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin empleado seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
+{% endif %}
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
-      {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-      <div class="col-md-2">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/por-programa/excel">Excel</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/por-programa/pdf" formtarget="_blank">PDF</button>
-      </div>
-    </form>
-  </div>
-</div>
+<div class="por-programa-page">
+  <a class="por-programa-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Centro de reportes</span>
+  </a>
 
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-<div class="card shadow-sm">
-  <div class="card-body p-4">
-    <div class="text-center mb-4">
-      <h5 class="mb-1 fw-bold">Informe mensual de participantes</h5>
-      <div class="small text-muted">Participación no duplicada por programa, edad y sexo en los proyectos impactados</div>
+  <section class="por-programa-hero" aria-label="Reporte por Programa">
+    <div class="por-programa-hero__content">
+      <span class="por-programa-eyebrow">Programas, edad y sexo</span>
+      <h1 class="por-programa-hero__title">Reporte por Programa</h1>
+      <p class="por-programa-hero__text">
+        Consulta participantes &uacute;nicos dentro de cada programa activo para la propuesta, periodo y residencial seleccionados.
+      </p>
     </div>
-
-    <div class="row mb-3 small">
-      <div class="col-md-3"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-3"><strong>Municipio:</strong> {{ municipality or '' }}</div>
-      <div class="col-md-3"><strong>RQ:</strong> {{ rq_code or '' }}</div>
-      <div class="col-md-3"><strong>Periodo reportado:</strong> {{ period_label }}</div>
+    {% if has_selection %}
+    <div class="por-programa-hero__metric" aria-label="Total acumulado por programas">
+      <strong>{{ overall_total_all }}</strong>
+      <span>Total acumulado por programas</span>
     </div>
-
-    {% if authorized_name %}
-    <div class="small mb-3"><strong>Funcionario autorizado:</strong> {{ authorized_name }}</div>
     {% endif %}
+  </section>
 
-    {% if program_sections %}
-      <div class="d-flex flex-column gap-4">
-        {% for section in program_sections %}
-        <div>
-          <div class="mb-2">
-            <div class="fw-bold">Programa: {{ section.program_display_name }}</div>
-            <div class="small text-muted">Actividades adjudicadas: {{ section.assigned_activity_count }}</div>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-bordered table-sm align-middle mb-0">
-              <thead class="table-light text-center">
-                <tr>
-                  <th rowspan="2">Clasificación</th>
-                  <th colspan="2">Número de participantes por edad y sexo</th>
-                  <th rowspan="2">Total de participantes</th>
-                </tr>
-                <tr>
-                  <th>F</th>
-                  <th>M</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in section.rows %}
-                <tr>
-                  <td>{{ row.label }}</td>
-                  <td class="text-center">{{ row.f }}</td>
-                  <td class="text-center">{{ row.m }}</td>
-                  <td class="text-center">{{ row.total }}</td>
-                </tr>
-                {% endfor %}
-                <tr class="fw-bold table-light">
-                  <td>TOTAL</td>
-                  <td class="text-center">{{ section.total_f }}</td>
-                  <td class="text-center">{{ section.total_m }}</td>
-                  <td class="text-center">{{ section.total_all }}</td>
-                </tr>
-              </tbody>
-            </table>
+  <section class="por-programa-layout">
+    <div class="por-programa-side">
+      <section class="por-programa-panel por-programa-panel--filters" aria-label="Filtros del reporte">
+        <div class="por-programa-panel__header">
+          <div>
+            <h2 class="por-programa-section-title">Filtros del reporte</h2>
+            <p class="por-programa-section-text">Define propuesta, periodo, residencial y funcionario autorizado antes de consultar o exportar.</p>
           </div>
         </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="alert alert-warning mb-0">No hay programas configurados o no existen participaciones para los filtros seleccionados.</div>
-    {% endif %}
-  </div>
+
+        <form method="get" action="/ui/reports/por-programa" class="por-programa-filter-form" id="por-programa-report-form">
+          <div class="por-programa-filter-field por-programa-filter-field--wide">
+            <label class="form-label" for="por_programa_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="por_programa_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="por-programa-filter-field">
+            <label class="form-label" for="por_programa_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="por_programa_period_type" required>
+              <option value="monthly" {% if selected_period_type != 'custom' %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="por-programa-filter-row por-programa-monthly-fields {% if selected_period_type == 'custom' %}d-none{% endif %}">
+            <div class="por-programa-filter-field">
+              <label class="form-label" for="por_programa_month">Mes *</label>
+              <select class="form-select" name="month" id="por_programa_month" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="por-programa-filter-field">
+              <label class="form-label" for="por_programa_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="por_programa_year" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="por-programa-filter-row por-programa-custom-fields {% if selected_period_type != 'custom' %}d-none{% endif %}">
+            <div class="por-programa-filter-field">
+              <label class="form-label" for="por_programa_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="por_programa_start_date" value="{{ selected_start_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+
+            <div class="por-programa-filter-field">
+              <label class="form-label" for="por_programa_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="por_programa_end_date" value="{{ selected_end_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="por-programa-filter-field por-programa-filter-field--wide">
+            <label class="form-label" for="por_programa_employee_id">Residencial *</label>
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <select class="form-select" name="employee_id" id="por_programa_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="por_programa_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="por-programa-filter-field por-programa-filter-field--wide">
+            <label class="form-label" for="por_programa_authorized_name">Funcionario autorizado</label>
+            <input class="form-control" type="text" name="authorized_name" id="por_programa_authorized_name" value="{{ authorized_name or '' }}">
+          </div>
+
+          <div class="por-programa-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary por-programa-action por-programa-action--primary" type="submit" formaction="/ui/reports/por-programa">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn por-programa-action por-programa-action--pdf" type="submit" formaction="/ui/reports/por-programa/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn por-programa-action por-programa-action--excel" type="submit" formaction="/ui/reports/por-programa/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn por-programa-action por-programa-action--print" type="submit" formaction="/ui/reports/por-programa/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="por-programa-official-note" aria-label="Nota institucional">
+        <div class="por-programa-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="por-programa-main">
+      <section class="por-programa-panel por-programa-summary" aria-label="Resumen del reporte">
+        <div class="por-programa-panel__header">
+          <div>
+            <h2 class="por-programa-section-title">Resumen del reporte</h2>
+            <p class="por-programa-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+        <div class="por-programa-summary-grid">
+          <div class="por-programa-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="por-programa-summary-item">
+            <span>Periodo</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="por-programa-summary-item">
+            <span>Residencial</span>
+            <strong>{{ residential_name or 'Sin residencial seleccionado' }}</strong>
+          </div>
+          <div class="por-programa-summary-item">
+            <span>Municipio</span>
+            <strong>{{ municipality or 'Sin municipio disponible' }}</strong>
+          </div>
+          <div class="por-programa-summary-item">
+            <span>Empleado seleccionado</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="por-programa-summary-item">
+            <span>Funcionario autorizado</span>
+            <strong>{{ authorized_name or 'Sin funcionario autorizado' }}</strong>
+          </div>
+          <div class="por-programa-summary-item por-programa-summary-item--metric">
+            <span>Total femenino</span>
+            <strong>{{ overall_total_f if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="por-programa-summary-item por-programa-summary-item--metric">
+            <span>Total masculino</span>
+            <strong>{{ overall_total_m if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="por-programa-summary-item por-programa-summary-item--metric por-programa-summary-item--total">
+            <span>Total acumulado por programas</span>
+            <strong>{{ overall_total_all if has_selection else 'Sin consulta' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      {% if has_selection and has_programs %}
+      <section class="por-programa-panel por-programa-results" aria-label="Vista previa web">
+        <div class="por-programa-results__header">
+          <div>
+            <h2 class="por-programa-section-title">Vista previa web</h2>
+            <p class="por-programa-section-text">Participantes &uacute;nicos dentro de cada programa. Un participante puede aparecer en varios programas distintos.</p>
+          </div>
+          <span class="por-programa-count-pill">{{ overall_total_all }} acumulado</span>
+        </div>
+
+        <div class="por-programa-program-stack">
+          {% for section in program_sections %}
+          <article class="por-programa-program" aria-label="Programa {{ section.program_display_name }}">
+            <div class="por-programa-program__header">
+              <div>
+                <h3>Programa: {{ section.program_display_name }}</h3>
+                <p>Actividades adjudicadas: {{ section.assigned_activity_count }}</p>
+              </div>
+              <span>{{ section.total_all }} participantes</span>
+            </div>
+
+            <div class="por-programa-table-wrap">
+              <table class="table table-hover align-middle por-programa-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Clasificaci&oacute;n</th>
+                    <th scope="col" class="text-center">F</th>
+                    <th scope="col" class="text-center">M</th>
+                    <th scope="col" class="text-center">Total de participantes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in section.rows %}
+                  <tr>
+                    <td>{{ row.label }}</td>
+                    <td class="text-center">{{ row.f }}</td>
+                    <td class="text-center">{{ row.m }}</td>
+                    <td class="text-center">{{ row.total }}</td>
+                  </tr>
+                  {% endfor %}
+                  <tr class="por-programa-total-row">
+                    <td>TOTAL</td>
+                    <td class="text-center">{{ section.total_f }}</td>
+                    <td class="text-center">{{ section.total_m }}</td>
+                    <td class="text-center">{{ section.total_all }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% elif has_selection %}
+      <section class="por-programa-empty" aria-label="Sin resultados">
+        <div class="por-programa-empty__icon" aria-hidden="true">
+          <i class="bi bi-search"></i>
+        </div>
+        <div>
+          <h2 class="por-programa-section-title">No hay programas configurados o no existen participaciones para los filtros seleccionados.</h2>
+          <p class="por-programa-section-text">Ajusta la propuesta, el periodo o el residencial para volver a consultar.</p>
+        </div>
+      </section>
+      {% else %}
+      <section class="por-programa-empty" aria-label="Selecci&oacute;n pendiente">
+        <div class="por-programa-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h2 class="por-programa-section-title">Selecciona los filtros para generar la vista previa.</h2>
+          <p class="por-programa-section-text">Los filtros permanecen disponibles para consultar, descargar PDF, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </section>
 </div>
-{% endif %}
+
+<script>
+(() => {
+  const periodType = document.getElementById('por_programa_period_type');
+  const monthlyFields = document.querySelectorAll('.por-programa-monthly-fields');
+  const customFields = document.querySelectorAll('.por-programa-custom-fields');
+  const monthInput = document.getElementById('por_programa_month');
+  const yearInput = document.getElementById('por_programa_year');
+  const startInput = document.getElementById('por_programa_start_date');
+  const endInput = document.getElementById('por_programa_end_date');
+
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
+
+    if (monthInput) monthInput.required = !isCustom;
+    if (yearInput) yearInput.required = !isCustom;
+    if (startInput) startInput.required = isCustom;
+    if (endInput) endInput.required = isCustom;
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+</script>
 {% endblock %}
