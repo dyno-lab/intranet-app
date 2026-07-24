@@ -3088,9 +3088,9 @@ body.ui-shell-body {
 
 .no-duplicado-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
-  margin-top: 0.15rem;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  padding-top: 0.2rem;
 }
 
 .no-duplicado-action {
@@ -3098,53 +3098,54 @@ body.ui-shell-body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.7rem;
-  border-radius: 12px;
-  font-weight: 760;
+  min-height: 2.65rem;
+  border-radius: 0.5rem;
+  font-weight: 800;
+  line-height: 1.25;
   white-space: normal;
 }
 
 .no-duplicado-action--primary {
-  background: #2563eb;
-  border-color: #2563eb;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
 }
 
 .no-duplicado-action--pdf {
-  color: #ffffff;
-  background: #8a5a12;
-  border-color: #8a5a12;
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.09);
 }
 
 .no-duplicado-action--pdf:hover,
 .no-duplicado-action--pdf:focus-visible {
-  color: #ffffff;
-  background: #73480d;
-  border-color: #73480d;
+  color: #7f1d1d;
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.13);
 }
 
 .no-duplicado-action--excel {
-  color: #047857;
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(4, 120, 87, 0.25);
+  color: #166534;
+  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(22, 163, 74, 0.1);
 }
 
 .no-duplicado-action--excel:hover,
 .no-duplicado-action--excel:focus-visible {
-  color: #065f46;
-  background: rgba(16, 185, 129, 0.16);
-  border-color: rgba(4, 120, 87, 0.35);
+  color: #14532d;
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.14);
 }
 
 .no-duplicado-action--print {
-  color: #334155;
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.14);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .no-duplicado-action--print:hover,
 .no-duplicado-action--print:focus-visible {
-  color: #0f172a;
-  background: #eef2f7;
+  color: #1e40af;
+  border-color: rgba(37, 99, 235, 0.26);
+  background: rgba(37, 99, 235, 0.12);
 }
 
 .no-duplicado-summary-grid {
