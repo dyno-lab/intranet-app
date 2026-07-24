@@ -1538,6 +1538,7 @@ def _render_report_pdf_response(
     template_name: str,
     context: dict,
     filename: str,
+    error_detail: str | None = None,
 ) -> Response:
     pdf_context = {**context, "request": request}
     try:
@@ -1548,9 +1549,9 @@ def _render_report_pdf_response(
             request=request,
         )
     except PDFBackendUnavailableError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail=error_detail or str(exc)) from exc
     except PDFRenderError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=error_detail or str(exc)) from exc
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -3216,6 +3217,31 @@ def no_duplicado_report_pdf(
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado_pdf.html", context)
+
+
+@router.get("/no-duplicado/pdf/download")
+def no_duplicado_report_pdf_download(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"current_user": current_user})
+    return _render_report_pdf_response(
+        request,
+        "ui/reports/no_duplicado_pdf.html",
+        context,
+        _pdf_download_filename("no_duplicado", context),
+        error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la versión imprimible.",
+    )
 
 
 @router.get("/no-duplicado/excel")
