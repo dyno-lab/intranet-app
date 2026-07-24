@@ -2,131 +2,285 @@
 {% block title %}Reporte Duplicado{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Reporte Duplicado</h4>
-</div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
-      {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-      <div class="col-md-2">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <input type="hidden" name="authorized_name" value="{{ authorized_name or '' }}">
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/duplicado/excel">Excel</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/duplicado/pdf" formtarget="_blank">PDF</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-<div class="card shadow-sm">
-  <div class="card-body p-4">
-    <div class="text-center mb-4">
-      <h5 class="mb-1 fw-bold">Informe mensual de participantes</h5>
-      <div class="small text-muted">Duplicado por edad y sexo en los proyectos impactados (se cuentan participaciones, no personas únicas)</div>
-    </div>
-
-    <div class="row mb-3 small">
-      <div class="col-md-3"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-3"><strong>Municipio:</strong> {{ municipality or '' }}</div>
-      <div class="col-md-3"><strong>RQ:</strong> {{ rq_code or '' }}</div>
-      <div class="col-md-3"><strong>Periodo reportado:</strong> {{ period_label }}</div>
-    </div>
-
-    {% if authorized_name %}
-    <div class="small mb-3"><strong>Funcionario autorizado:</strong> {{ authorized_name }}</div>
-    {% endif %}
-
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm align-middle">
-        <thead class="table-light text-center">
-          <tr>
-            <th rowspan="2">Clasificación</th>
-            <th colspan="2">Número de participaciones por edad y sexo</th>
-            <th rowspan="2">Total de participaciones</th>
-          </tr>
-          <tr>
-            <th>F</th>
-            <th>M</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-          <tr>
-            <td>{{ row.label }}</td>
-            <td class="text-center">{{ row.f }}</td>
-            <td class="text-center">{{ row.m }}</td>
-            <td class="text-center">{{ row.total }}</td>
-          </tr>
-          {% endfor %}
-          <tr class="fw-bold table-light">
-            <td>TOTAL</td>
-            <td class="text-center">{{ total_f }}</td>
-            <td class="text-center">{{ total_m }}</td>
-            <td class="text-center">{{ total_all }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+{% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin empleado seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
+
+<div class="duplicado-page">
+  <a class="duplicado-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Centro de reportes</span>
+  </a>
+
+  <section class="duplicado-hero" aria-label="Reporte Duplicado">
+    <div class="duplicado-hero__content">
+      <span class="duplicado-eyebrow">Resumen por edad y sexo</span>
+      <h1 class="duplicado-hero__title">Reporte Duplicado</h1>
+      <p class="duplicado-hero__text">
+        Consulta participaciones acumuladas por clasificaci&oacute;n de edad y sexo para la propuesta, periodo y residencial seleccionados.
+      </p>
+    </div>
+    {% if has_selection %}
+    <div class="duplicado-hero__metric" aria-label="Total general de participaciones">
+      <strong>{{ total_all }}</strong>
+      <span>participaciones acumuladas</span>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="duplicado-layout">
+    <div class="duplicado-side">
+      <section class="duplicado-panel duplicado-panel--filters" aria-label="Filtros del reporte">
+        <div class="duplicado-panel__header">
+          <div>
+            <h2 class="duplicado-section-title">Filtros del reporte</h2>
+            <p class="duplicado-section-text">Define propuesta, periodo, residencial y nombre autorizado antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/duplicado" class="duplicado-filter-form" id="duplicado-report-form">
+          <div class="duplicado-filter-field duplicado-filter-field--wide">
+            <label class="form-label" for="duplicado_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="duplicado_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="duplicado-filter-field">
+            <label class="form-label" for="duplicado_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="duplicado_period_type" required>
+              <option value="monthly" {% if selected_period_type != 'custom' %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="duplicado-filter-row duplicado-monthly-fields {% if selected_period_type == 'custom' %}d-none{% endif %}">
+            <div class="duplicado-filter-field">
+              <label class="form-label" for="duplicado_month">Mes *</label>
+              <select class="form-select" name="month" id="duplicado_month" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="duplicado-filter-field">
+              <label class="form-label" for="duplicado_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="duplicado_year" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="duplicado-filter-row duplicado-custom-fields {% if selected_period_type != 'custom' %}d-none{% endif %}">
+            <div class="duplicado-filter-field">
+              <label class="form-label" for="duplicado_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="duplicado_start_date" value="{{ selected_start_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+
+            <div class="duplicado-filter-field">
+              <label class="form-label" for="duplicado_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="duplicado_end_date" value="{{ selected_end_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="duplicado-filter-field duplicado-filter-field--wide">
+            <label class="form-label" for="duplicado_employee_id">Residencial *</label>
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <select class="form-select" name="employee_id" id="duplicado_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="duplicado_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="duplicado-filter-field duplicado-filter-field--wide">
+            <label class="form-label" for="duplicado_authorized_name">Nombre autorizado</label>
+            <input class="form-control" type="text" name="authorized_name" id="duplicado_authorized_name" value="{{ authorized_name or '' }}">
+          </div>
+
+          <div class="duplicado-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary duplicado-action duplicado-action--primary" type="submit" formaction="/ui/reports/duplicado">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn duplicado-action duplicado-action--pdf" type="submit" formaction="/ui/reports/duplicado/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn duplicado-action duplicado-action--excel" type="submit" formaction="/ui/reports/duplicado/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn duplicado-action duplicado-action--print" type="submit" formaction="/ui/reports/duplicado/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="duplicado-official-note" aria-label="Nota institucional">
+        <div class="duplicado-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="duplicado-main">
+      <section class="duplicado-panel duplicado-summary" aria-label="Resumen del reporte">
+        <div class="duplicado-panel__header">
+          <div>
+            <h2 class="duplicado-section-title">Resumen del reporte</h2>
+            <p class="duplicado-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+        <div class="duplicado-summary-grid">
+          <div class="duplicado-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="duplicado-summary-item">
+            <span>Periodo</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="duplicado-summary-item">
+            <span>Residencial</span>
+            <strong>{{ residential_name or 'Sin residencial seleccionado' }}</strong>
+          </div>
+          <div class="duplicado-summary-item">
+            <span>Municipio</span>
+            <strong>{{ municipality or 'Sin municipio disponible' }}</strong>
+          </div>
+          <div class="duplicado-summary-item">
+            <span>Empleado seleccionado</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="duplicado-summary-item">
+            <span>Nombre autorizado</span>
+            <strong>{{ authorized_name or 'Sin nombre autorizado' }}</strong>
+          </div>
+          <div class="duplicado-summary-item duplicado-summary-item--metric">
+            <span>Total femenino</span>
+            <strong>{{ total_f if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="duplicado-summary-item duplicado-summary-item--metric">
+            <span>Total masculino</span>
+            <strong>{{ total_m if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="duplicado-summary-item duplicado-summary-item--metric duplicado-summary-item--total">
+            <span>Total general</span>
+            <strong>{{ total_all if has_selection else 'Sin consulta' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      {% if has_selection %}
+      <section class="duplicado-panel duplicado-results" aria-label="Vista previa web">
+        <div class="duplicado-results__header">
+          <div>
+            <h2 class="duplicado-section-title">Vista previa web</h2>
+            <p class="duplicado-section-text">Participaciones por edad y sexo. Esta tabla es solo una vista de pantalla.</p>
+          </div>
+          <span class="duplicado-count-pill">{{ total_all }} participaciones</span>
+        </div>
+        <div class="duplicado-table-wrap">
+          <table class="table table-hover align-middle duplicado-table">
+            <thead>
+              <tr>
+                <th scope="col">Clasificaci&oacute;n</th>
+                <th scope="col" class="text-center">F</th>
+                <th scope="col" class="text-center">M</th>
+                <th scope="col" class="text-center">Total de participaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="text-center">{{ row.f }}</td>
+                <td class="text-center">{{ row.m }}</td>
+                <td class="text-center">{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="duplicado-total-row">
+                <td>TOTAL</td>
+                <td class="text-center">{{ total_f }}</td>
+                <td class="text-center">{{ total_m }}</td>
+                <td class="text-center">{{ total_all }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <section class="duplicado-empty" aria-label="Selecci&oacute;n pendiente">
+        <div class="duplicado-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h2 class="duplicado-section-title">Selecciona los filtros para generar la vista previa.</h2>
+          <p class="duplicado-section-text">Los filtros permanecen disponibles para consultar, descargar PDF, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const periodType = document.getElementById('duplicado_period_type');
+  const monthlyFields = document.querySelectorAll('.duplicado-monthly-fields');
+  const customFields = document.querySelectorAll('.duplicado-custom-fields');
+  const monthInput = document.getElementById('duplicado_month');
+  const yearInput = document.getElementById('duplicado_year');
+  const startInput = document.getElementById('duplicado_start_date');
+  const endInput = document.getElementById('duplicado_end_date');
+
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
+
+    if (monthInput) monthInput.required = !isCustom;
+    if (yearInput) yearInput.required = !isCustom;
+    if (startInput) startInput.required = isCustom;
+    if (endInput) endInput.required = isCustom;
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+</script>
 {% endblock %}
