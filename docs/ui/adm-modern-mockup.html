@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup Moderno - Reporte ADM</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --page: #f4f6f8;
+      --surface: #ffffff;
+      --surface-soft: #f8faf9;
+      --line: #d7dfdc;
+      --line-strong: #a9b8b3;
+      --text: #182521;
+      --muted: #61706b;
+      --brand: #0f5f56;
+      --brand-dark: #0a433d;
+      --brand-soft: #e5f2ef;
+      --accent: #b9822b;
+      --accent-soft: #f7ead8;
+      --focus: #1b6fd8;
+      --shadow: 0 14px 38px rgba(26, 42, 37, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    .mockup-frame {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .app-shell {
+      min-height: 1080px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 252px 1fr;
+    }
+
+    .sidebar {
+      background: #10241f;
+      color: #e7f0ec;
+      padding: 22px 18px;
+    }
+
+    .brand-lockup {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f0c15a, #4ca48d);
+      margin-bottom: 12px;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .brand-context {
+      color: #aec1bb;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-section-title {
+      color: #91a69f;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin: 22px 8px 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #d8e4e0;
+      font-size: 14px;
+    }
+
+    .nav-item.active {
+      background: rgba(240, 193, 90, 0.16);
+      color: #ffffff;
+      border: 1px solid rgba(240, 193, 90, 0.28);
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.78;
+      flex: 0 0 auto;
+    }
+
+    .content {
+      min-width: 0;
+      background: linear-gradient(180deg, #f8faf9 0, #ffffff 160px);
+    }
+
+    .topbar {
+      height: 64px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 28px;
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .breadcrumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .breadcrumb span:last-child {
+      color: var(--text);
+    }
+
+    .user-chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: var(--muted);
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .page-content {
+      padding: 28px;
+    }
+
+    .report-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .header-main,
+    .total-panel,
+    .filters-panel,
+    .summary-panel,
+    .preview-panel,
+    .institutional-note,
+    .reference-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .header-main {
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--brand);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .header-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .description {
+      margin: 8px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .report-badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid var(--brand);
+      color: var(--brand-dark);
+      background: var(--brand-soft);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .total-panel {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(180deg, #123f38, #0d2d28);
+      color: #ffffff;
+      border-color: #123f38;
+    }
+
+    .total-label {
+      font-size: 13px;
+      color: #c8ddd7;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .total-value {
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 800;
+      margin-top: 12px;
+    }
+
+    .total-caption {
+      color: #d5e6e1;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .filters-panel {
+      padding: 18px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #33443f;
+    }
+
+    .control {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 9px 11px;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control.focus-example {
+      outline: 3px solid rgba(27, 111, 216, 0.24);
+      border-color: var(--focus);
+    }
+
+    .period-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px;
+      background: #eef3f1;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .toggle-option {
+      text-align: center;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .toggle-option.active {
+      background: #ffffff;
+      color: var(--brand-dark);
+      box-shadow: 0 1px 3px rgba(20, 42, 36, 0.12);
+    }
+
+    .conditional-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hidden-condition {
+      display: none;
+    }
+
+    .role-note {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--surface-soft);
+      border: 1px dashed var(--line-strong);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .button {
+      min-height: 42px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 14px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .button i {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .button.primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .button.export-primary {
+      color: #991b1b;
+      border-color: rgba(220, 38, 38, 0.2);
+      background: rgba(220, 38, 38, 0.09);
+    }
+
+    .button.success {
+      color: #166534;
+      border-color: rgba(22, 163, 74, 0.2);
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    .button.secondary {
+      color: #1d4ed8;
+      border-color: rgba(37, 99, 235, 0.16);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .button:focus-visible,
+    .back-link:focus-visible {
+      outline: 3px solid rgba(27, 111, 216, 0.35);
+      outline-offset: 2px;
+    }
+
+    .main-stack {
+      display: grid;
+      gap: 20px;
+      min-width: 0;
+    }
+
+    .institutional-note {
+      border-color: #d9c49f;
+      background: #fffaf2;
+      padding: 14px 16px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .institutional-note strong {
+      color: #583b12;
+      font-size: 14px;
+    }
+
+    .institutional-note span {
+      color: #6c5c43;
+      font-size: 13px;
+    }
+
+    .summary-panel {
+      padding: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .summary-item {
+      border-left: 3px solid var(--line-strong);
+      background: var(--surface-soft);
+      padding: 10px 12px;
+      border-radius: 6px;
+      min-width: 0;
+    }
+
+    .summary-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin-top: 3px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .summary-item.metric {
+      border-left-color: var(--brand);
+      background: #eef8f5;
+    }
+
+    .summary-item.metric.total {
+      border-left-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .preview-panel {
+      overflow: hidden;
+    }
+
+    .preview-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .section-stack {
+      display: grid;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .data-section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .data-section-header {
+      padding: 14px 16px;
+      background: #f8faf9;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .data-section-title {
+      font-weight: 900;
+    }
+
+    .data-section-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 620px;
+      font-size: 14px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #edf4f1;
+      border-bottom: 1px solid var(--line-strong);
+      color: #2b4039;
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    thead th:not(:first-child),
+    tbody td:not(:first-child) {
+      text-align: center;
+    }
+
+    tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #fbfcfb;
+    }
+
+    tbody tr.total-row td {
+      background: #f7ead8;
+      border-top: 2px solid #c99139;
+      border-bottom: 0;
+      font-weight: 900;
+      color: #35230c;
+    }
+
+    .reference-docs {
+      max-width: 1440px;
+      margin: 22px auto 40px;
+      padding: 0 28px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .reference-panel {
+      padding: 18px;
+    }
+
+    .reference-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .empty-state-demo {
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 20px;
+      background: #fbfcfb;
+    }
+
+    .empty-state-demo h3,
+    .responsive-note h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .empty-state-demo p,
+    .responsive-note p,
+    .responsive-note li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .responsive-note ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    @media (max-width: 1020px) {
+      .mockup-frame {
+        padding: 16px;
+      }
+
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .report-header,
+      .layout-grid,
+      .summary-grid,
+      .reference-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filters-panel {
+        position: static;
+      }
+
+      .conditional-row {
+        grid-template-columns: 1fr;
+      }
+
+      .header-title-row,
+      .preview-head,
+      .data-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .actions .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="mockup-frame" aria-label="Mockup visual de Reporte ADM">
+    <section class="app-shell" aria-label="Vista principal propuesta">
+      <aside class="sidebar" aria-label="Navegacion principal">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div class="brand-name">Faro de Esperanza</div>
+          <div class="brand-context">Gestion programatica</div>
+        </div>
+
+        <div class="nav-section-title">Operacion</div>
+        <div class="nav-item"><span class="nav-dot"></span>Inicio</div>
+        <div class="nav-item active"><span class="nav-dot"></span>Centro de reportes</div>
+        <div class="nav-item"><span class="nav-dot"></span>Participantes</div>
+        <div class="nav-item"><span class="nav-dot"></span>Asistencias</div>
+
+        <div class="nav-section-title">Administracion</div>
+        <div class="nav-item"><span class="nav-dot"></span>Propuestas</div>
+        <div class="nav-item"><span class="nav-dot"></span>Plantillas</div>
+      </aside>
+
+      <div class="content">
+        <div class="topbar">
+          <div class="breadcrumb" aria-label="Ruta">
+            <span>Reportes</span>
+            <span>/</span>
+            <span>ADM</span>
+          </div>
+          <div class="user-chip">Rol: Supervisor</div>
+        </div>
+
+        <div class="page-content">
+          <section class="report-header" aria-labelledby="page-title">
+            <div class="header-main">
+              <a class="back-link" href="#">Volver al Centro de reportes</a>
+              <div class="header-title-row">
+                <div>
+                  <h1 id="page-title">Reporte ADM</h1>
+                  <p class="description">Consulta el informe ADM seg&uacute;n los tipos de servicio configurados para la propuesta, con servicios realizados, asistencias duplicadas y participantes &uacute;nicos.</p>
+                </div>
+                <div class="report-badge">Servicios configurados</div>
+              </div>
+            </div>
+
+            <aside class="total-panel" aria-label="Participantes unicos ADM">
+              <div>
+                <div class="total-label">Participantes &uacute;nicos ADM</div>
+                <div class="total-value">142</div>
+              </div>
+              <div class="total-caption">Personas &uacute;nicas con asistencia confirmada en servicios ADM.</div>
+            </aside>
+          </section>
+
+          <section class="layout-grid">
+            <aside class="filters-panel" aria-labelledby="filters-title">
+              <div class="panel-heading">
+                <h2 id="filters-title">Filtros</h2>
+                <span class="panel-note">Campos reales del formulario</span>
+              </div>
+
+              <div class="field-stack">
+                <div class="field">
+                  <label for="proposal">Propuesta</label>
+                  <div id="proposal" class="control focus-example">2026-01 - Servicios FARO</div>
+                </div>
+
+                <div class="field">
+                  <label>Tipo de periodo</label>
+                  <div class="period-toggle" aria-label="Tipo de periodo">
+                    <div class="toggle-option active">Mensual</div>
+                    <div class="toggle-option">Personalizado</div>
+                  </div>
+                </div>
+
+                <div class="conditional-row" aria-label="Campos visibles cuando el periodo es mensual">
+                  <div class="field">
+                    <label for="month">Mes</label>
+                    <div id="month" class="control">Julio</div>
+                  </div>
+                  <div class="field">
+                    <label for="year">A&ntilde;o</label>
+                    <div id="year" class="control">2026</div>
+                  </div>
+                </div>
+
+                <div class="conditional-row hidden-condition" aria-label="Campos visibles cuando el periodo es personalizado">
+                  <div class="field">
+                    <label for="start-date">Fecha inicial</label>
+                    <div id="start-date" class="control">2026-07-01</div>
+                  </div>
+                  <div class="field">
+                    <label for="end-date">Fecha final</label>
+                    <div id="end-date" class="control">2026-07-24</div>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="employee">Residencial</label>
+                  <div id="employee" class="control">Global</div>
+                </div>
+
+                <div class="role-note">Admin y supervisor pueden seleccionar residencial o Global. Un usuario normal mantiene su alcance asignado sin seleccion libre.</div>
+
+                <div class="field">
+                  <label for="authorized">Funcionario autorizado</label>
+                  <div id="authorized" class="control">Maria Rivera</div>
+                </div>
+              </div>
+
+              <div class="actions" aria-label="Acciones del reporte">
+                <button class="button primary" type="button"><i class="bi bi-eye" aria-hidden="true"></i><span>Vista previa</span></button>
+                <button class="button export-primary" type="button"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i><span>Descargar PDF</span></button>
+                <button class="button success" type="button"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i><span>Descargar Excel</span></button>
+                <button class="button secondary" type="button"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span>Versi&oacute;n imprimible</span></button>
+              </div>
+            </aside>
+
+            <div class="main-stack">
+              <section class="institutional-note" aria-label="Nota institucional">
+                <strong>Descargables protegidos</strong>
+                <span>El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.</span>
+              </section>
+
+              <section class="summary-panel" aria-labelledby="summary-title">
+                <div class="panel-heading">
+                  <h2 id="summary-title">Resumen del reporte</h2>
+                  <span class="panel-note">Periodo mensual seleccionado</span>
+                </div>
+
+                <div class="summary-grid">
+                  <div class="summary-item">
+                    <div class="summary-label">Propuesta</div>
+                    <div class="summary-value">2026-01 - Servicios FARO</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Periodo</div>
+                    <div class="summary-value">Julio 2026</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Residencial</div>
+                    <div class="summary-value">Global</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Empleado</div>
+                    <div class="summary-value">Global</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Funcionario autorizado</div>
+                    <div class="summary-value">Maria Rivera</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Tipos de servicio</div>
+                    <div class="summary-value">4</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Servicios</div>
+                    <div class="summary-value">38</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Duplicados</div>
+                    <div class="summary-value">214</div>
+                  </div>
+                  <div class="summary-item metric total">
+                    <div class="summary-label">No Duplicados</div>
+                    <div class="summary-value">142</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="preview-panel" aria-labelledby="preview-title">
+                <div class="preview-head">
+                  <div>
+                    <h2 id="preview-title">Vista previa web</h2>
+                    <div class="preview-subtitle">Tablas reales del informe ADM: resumen por tipo de servicio, socio-demogr&aacute;fico y composici&oacute;n familiar.</div>
+                  </div>
+                  <span class="panel-note">Columnas y orden existentes</span>
+                </div>
+
+                <div class="section-stack">
+                  <article class="data-section">
+                    <div class="data-section-header">
+                      <div>
+                        <div class="data-section-title">Resumen ADM</div>
+                        <div class="data-section-meta">Tipos de servicio ADM activos de la propuesta</div>
+                      </div>
+                      <div class="data-section-meta">No Duplicados: 142</div>
+                    </div>
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Tipo de Servicio</th>
+                            <th>Servicios</th>
+                            <th>Duplicados</th>
+                            <th>No Duplicados</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr><td>Tipo de servicio ADM configurado 1</td><td>12</td><td>76</td><td>51</td></tr>
+                          <tr><td>Tipo de servicio ADM configurado 2</td><td>9</td><td>54</td><td>39</td></tr>
+                          <tr><td>Tipo de servicio ADM configurado 3</td><td>10</td><td>62</td><td>41</td></tr>
+                          <tr><td>Tipo de servicio ADM configurado 4</td><td>7</td><td>22</td><td>11</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+
+                  <article class="data-section">
+                    <div class="data-section-header">
+                      <div>
+                        <div class="data-section-title">Socio-Demogr&aacute;fico</div>
+                        <div class="data-section-meta">Participantes &uacute;nicos de los servicios ADM seleccionados</div>
+                      </div>
+                      <div class="data-section-meta">Total: 142</div>
+                    </div>
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Edad</th>
+                            <th>F</th>
+                            <th>M</th>
+                            <th>Por Ciento</th>
+                            <th>Diversidad Funcional</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr><td>0-5</td><td>6</td><td>5</td><td>7.75%</td><td>1</td></tr>
+                          <tr><td>6-11</td><td>11</td><td>10</td><td>14.79%</td><td>2</td></tr>
+                          <tr><td>12-17</td><td>15</td><td>13</td><td>19.72%</td><td>3</td></tr>
+                          <tr><td>18-21</td><td>9</td><td>8</td><td>11.97%</td><td>1</td></tr>
+                          <tr><td>22-25</td><td>7</td><td>6</td><td>9.15%</td><td>1</td></tr>
+                          <tr><td>26-45</td><td>13</td><td>11</td><td>16.90%</td><td>4</td></tr>
+                          <tr><td>46-59</td><td>8</td><td>7</td><td>10.56%</td><td>1</td></tr>
+                          <tr><td>60-74</td><td>5</td><td>4</td><td>6.34%</td><td>1</td></tr>
+                          <tr><td>75+</td><td>2</td><td>1</td><td>2.11%</td><td>0</td></tr>
+                          <tr class="total-row"><td>TOTAL</td><td>76</td><td>65</td><td>100.00%</td><td>14</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+
+                  <article class="data-section">
+                    <div class="data-section-header">
+                      <div>
+                        <div class="data-section-title">Composici&oacute;n Familiar</div>
+                        <div class="data-section-meta">Categor&iacute;as del cat&aacute;logo vigente</div>
+                      </div>
+                      <div class="data-section-meta">Total: 142</div>
+                    </div>
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Composici&oacute;n familiar</th>
+                            <th>Cantidad</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr><td>Categor&iacute;a configurada 1</td><td>58</td></tr>
+                          <tr><td>Categor&iacute;a configurada 2</td><td>46</td></tr>
+                          <tr><td>Categor&iacute;a configurada 3</td><td>25</td></tr>
+                          <tr><td>No especificado</td><td>13</td></tr>
+                          <tr class="total-row"><td>TOTAL</td><td>142</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="reference-docs" aria-label="Documentacion de comportamiento fuera del mockup principal">
+    <div class="reference-panel">
+      <h2>Referencias de comportamiento</h2>
+      <div class="reference-grid">
+        <div class="empty-state-demo">
+          <h3>Estado sin datos</h3>
+          <p>Cuando no haya tipos de servicio ADM configurados o no haya datos para los filtros seleccionados, esta referencia sustituye la vista previa. Mantiene los filtros y permite ajustar la seleccion.</p>
+          <button class="button secondary" type="button">Ajustar filtros</button>
+        </div>
+
+        <div class="responsive-note">
+          <h3>Adaptacion movil</h3>
+          <ul>
+            <li>Filtros apilados en una sola columna.</li>
+            <li>Acciones con wrap o ancho completo segun espacio disponible.</li>
+            <li>Resumen dividido en bloques legibles.</li>
+            <li>Tablas con desplazamiento horizontal controlado.</li>
+            <li>Areas tactiles amplias, contraste suficiente y foco visible.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
