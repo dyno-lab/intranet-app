@@ -3151,7 +3151,7 @@ def hoja_cotejo_report_pdf_download(
         error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la versi\u00f3n imprimible.",
         wkhtmltopdf_args=[
             "--page-size", "Letter",
-            "--orientation", "Landscape",
+            "--orientation", "Portrait",
             "--margin-top", "0.24in",
             "--margin-right", "0.28in",
             "--margin-bottom", "0.20in",
