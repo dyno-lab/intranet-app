@@ -1539,6 +1539,7 @@ def _render_report_pdf_response(
     context: dict,
     filename: str,
     error_detail: str | None = None,
+    wkhtmltopdf_args: list[str] | None = None,
 ) -> Response:
     pdf_context = {**context, "request": request}
     try:
@@ -1547,6 +1548,7 @@ def _render_report_pdf_response(
             template_name=template_name,
             context=pdf_context,
             request=request,
+            wkhtmltopdf_args=wkhtmltopdf_args,
         )
     except PDFBackendUnavailableError as exc:
         raise HTTPException(status_code=503, detail=error_detail or str(exc)) from exc
@@ -3147,6 +3149,16 @@ def hoja_cotejo_report_pdf_download(
         context,
         _pdf_download_filename("hoja_cotejo", context),
         error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la versi\u00f3n imprimible.",
+        wkhtmltopdf_args=[
+            "--page-size", "Letter",
+            "--orientation", "Landscape",
+            "--margin-top", "0.24in",
+            "--margin-right", "0.28in",
+            "--margin-bottom", "0.20in",
+            "--margin-left", "0.28in",
+            "--zoom", "1.0",
+            "--disable-smart-shrinking",
+        ],
     )
 
 
