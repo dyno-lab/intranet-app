@@ -3152,13 +3152,13 @@ def hoja_cotejo_report_pdf_download(
         wkhtmltopdf_args=[
             "--page-size", "Letter",
             "--orientation", "Portrait",
-            "--margin-top", "0.24in",
-            "--margin-right", "0.28in",
-            "--margin-bottom", "0.20in",
-            "--margin-left", "0.28in",
+            "--margin-top", "0.12in",
+            "--margin-right", "0.12in",
+            "--margin-bottom", "0.12in",
+            "--margin-left", "0.12in",
             "--print-media-type",
             "--background",
-            "--zoom", "1.0",
+            "--zoom", "1.15",
         ],
     )
 
