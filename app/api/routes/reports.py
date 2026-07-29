@@ -3156,8 +3156,9 @@ def hoja_cotejo_report_pdf_download(
             "--margin-right", "0.28in",
             "--margin-bottom", "0.20in",
             "--margin-left", "0.28in",
+            "--print-media-type",
+            "--background",
             "--zoom", "1.0",
-            "--disable-smart-shrinking",
         ],
     )
 

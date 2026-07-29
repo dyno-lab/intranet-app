@@ -17,24 +17,12 @@
       background: #fff;
     }
 
-    .cotejo-fixed-header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 0.92in;
-      text-align: center;
-      background: #fff;
-      z-index: 10;
-    }
-
     .cotejo-page {
       display: block;
       page-break-after: always;
       break-after: page;
       margin: 0;
-      padding: 0.94in 0 0 0;
-      min-height: 9.25in;
+      padding: 0;
     }
 
     .cotejo-page:last-child {
@@ -46,7 +34,6 @@
       display: block;
       margin: 0;
       padding: 0;
-      min-height: 9.25in;
     }
 
     .cotejo-header,
@@ -239,17 +226,14 @@
   {% set header_config = report_template_config.header if report_template_config and report_template_config.header else {} %}
   {% set footer_config = report_template_config.footer if report_template_config and report_template_config.footer else {} %}
   {% set columns = report_template_columns or [] %}
-  <div class="cotejo-fixed-header">
+  {% for program_block in program_blocks %}
+  <div class="cotejo-page">
+    <div class="cotejo-page-inner">
     <div class="cotejo-header">
       <img class="cotejo-header-image" src="{{ header_config.image or '/static/img/bonafide-header-avp.png' }}" alt="Header Reporte">
       <div class="line-1">{{ header_config.line_1 or 'ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES' }}</div>
       <div class="line-2">{{ header_config.line_2 or 'PROGRAMA DE AUTOSUFICIENCIA ECONOMICA Y SOCIAL, APOYO Y PREVENCIÓN' }}</div>
     </div>
-  </div>
-
-  {% for program_block in program_blocks %}
-  <div class="cotejo-page">
-    <div class="cotejo-page-inner">
       <div class="cotejo-meta">
         <table class="cotejo-meta-table">
           <tr>
