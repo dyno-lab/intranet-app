@@ -2,6 +2,26 @@
 {% block title %}Visitas{% endblock %}
 
 {% block content %}
+{% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
+{% set is_custom_period = selected_period_type == 'custom' %}
+{% set can_manage_referrals = has_selection and not is_custom_period %}
+{% set has_visit_rows = rows|length > 0 %}
+{% set has_mapped_visits = mapped_activity_ids|length > 0 %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin residencial seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
+{% endif %}
+
 {% if msg %}
 <div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
   {{ msg }}
@@ -9,219 +29,418 @@
 </div>
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Reporte de Visitas</h4>
-</div>
+<div class="visitas-page">
+  <a class="visitas-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Regreso a Centro de reportes</span>
+  </a>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
-      <input type="hidden" name="report_key" value="visitas">
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
-      {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
+  <section class="visitas-hero" aria-label="Reporte de Visitas">
+    <div class="visitas-hero__content">
+      <span class="visitas-eyebrow">Visitas y referidos</span>
+      <h1 class="visitas-hero__title">Reporte de Visitas</h1>
+      <p class="visitas-hero__text">
+        Resume las actividades configuradas como visitas para la propuesta seleccionada, agrupando visitas registradas, asistencias acumuladas y horas acumuladas por empleado.
+      </p>
+    </div>
+    <div class="visitas-hero__metric" aria-label="Visitas registradas">
+      <strong>{{ summary.visits if has_selection else 0 }}</strong>
+      <span>visitas registradas</span>
+    </div>
+  </section>
+
+  <section class="visitas-layout">
+    <div class="visitas-side">
+      <section class="visitas-panel visitas-panel--filters" aria-label="Filtros del reporte">
+        <div class="visitas-panel__header">
+          <div>
+            <h2 class="visitas-section-title">Filtros del reporte</h2>
+            <p class="visitas-section-text">Define propuesta, periodo, residencial y funcionario autorizado antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/visitas" class="visitas-filter-form" id="visitas-report-form">
+          <div class="visitas-filter-field visitas-filter-field--wide">
+            <label class="form-label" for="visitas_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="visitas_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="visitas-filter-field">
+            <label class="form-label" for="visitas_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="visitas_period_type" required>
+              <option value="monthly" {% if not is_custom_period %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if is_custom_period %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="visitas-filter-row visitas-monthly-fields {% if is_custom_period %}d-none{% endif %}">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="visitas_month">Mes *</label>
+              <select class="form-select" name="month" id="visitas_month" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="visitas-filter-field">
+              <label class="form-label" for="visitas_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="visitas_year" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="visitas-filter-row visitas-custom-fields {% if not is_custom_period %}d-none{% endif %}">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="visitas_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="visitas_start_date" value="{{ selected_start_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+
+            <div class="visitas-filter-field">
+              <label class="form-label" for="visitas_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="visitas_end_date" value="{{ selected_end_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="visitas-filter-field visitas-filter-field--wide">
+            <label class="form-label" for="visitas_employee_id">Residencial *</label>
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <select class="form-select" name="employee_id" id="visitas_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="visitas_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="visitas-filter-note">
+            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+          </div>
+
+          <div class="visitas-filter-field visitas-filter-field--wide">
+            <label class="form-label" for="visitas_authorized_name">Funcionario autorizado</label>
+            <input class="form-control" type="text" name="authorized_name" id="visitas_authorized_name" value="{{ authorized_name or '' }}">
+          </div>
+
+          <div class="visitas-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary visitas-action visitas-action--primary" type="submit" formaction="/ui/reports/visitas">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn visitas-action visitas-action--excel" type="submit" formaction="/ui/reports/visitas/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn visitas-action visitas-action--print" type="submit" formaction="/ui/reports/visitas/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="visitas-official-note" aria-label="Nota institucional">
+        <div class="visitas-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="visitas-main">
+      {% if visits_period_locked %}
+      <div class="visitas-alert visitas-alert--warning" role="status">
+        <i class="bi bi-lock" aria-hidden="true"></i>
+        <span>Este periodo est&aacute; en solo lectura para referidos. {{ visits_period_lock_message }}</span>
       </div>
       {% endif %}
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
+
+      <section class="visitas-panel visitas-summary" aria-label="Resumen del reporte">
+        <div class="visitas-panel__header">
+          <div>
+            <h2 class="visitas-section-title">Resumen del reporte</h2>
+            <p class="visitas-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+        <div class="visitas-summary-grid">
+          <div class="visitas-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="visitas-summary-item">
+            <span>Periodo reportado</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="visitas-summary-item">
+            <span>Residencial</span>
+            <strong>{{ residential_name or 'Sin residencial seleccionado' }}</strong>
+          </div>
+          <div class="visitas-summary-item">
+            <span>Empleado seleccionado</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="visitas-summary-item">
+            <span>Funcionario autorizado</span>
+            <strong>{{ authorized_name or 'Sin funcionario autorizado' }}</strong>
+          </div>
+          <div class="visitas-summary-item visitas-summary-item--metric visitas-summary-item--total">
+            <span>Visitas</span>
+            <strong>{{ summary.visits if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="visitas-summary-item visitas-summary-item--metric">
+            <span>Asistencias</span>
+            <strong>{{ summary.attendances if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="visitas-summary-item visitas-summary-item--metric">
+            <span>Horas</span>
+            <strong>{{ '%.2f'|format(summary.hours) if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="visitas-summary-item visitas-summary-item--metric">
+            <span>Referidos guardados</span>
+            <strong>{{ referral_count if has_selection else 'Sin consulta' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      {% if has_selection %}
+      <section class="visitas-panel visitas-referrals" aria-label="Referidos manuales">
+        <div class="visitas-panel__header">
+          <div>
+            <h2 class="visitas-section-title">Referidos manuales</h2>
+            <p class="visitas-section-text">La gesti&oacute;n de referidos solo aplica a periodos mensuales.</p>
+          </div>
+          <span class="visitas-count-pill">Formulario mensual</span>
+        </div>
+
+        {% if can_manage_referrals %}
+        <form method="post" action="/ui/reports/visitas/referrals/save" id="visitReferralsForm" class="visitas-referral-form">
+          <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
+          <input type="hidden" name="month" value="{{ selected_month or 0 }}">
+          <input type="hidden" name="year" value="{{ selected_year or 0 }}">
+          <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
+          <input type="hidden" name="authorized_name" value="{{ authorized_name or '' }}">
+
+          <div class="visitas-referral-controls">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="referralCountInput">Cantidad de referidos</label>
+              <input class="form-control" type="number" min="0" max="20" id="referralCountInput" name="referral_count" value="{{ referral_count or 0 }}">
+            </div>
+            <button class="btn visitas-action visitas-action--print" type="button" id="buildReferralRows">
+              <i class="bi bi-layout-text-window" aria-hidden="true"></i>
+              <span>Preparar espacios</span>
+            </button>
+            {% if not visits_period_locked %}
+            <button class="btn visitas-action visitas-action--save" type="submit">
+              <i class="bi bi-check2-circle" aria-hidden="true"></i>
+              <span>Guardar referidos</span>
+            </button>
+            {% endif %}
+          </div>
+
+          <div id="referralRowsContainer" class="visitas-referral-rows"></div>
+        </form>
         {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/visitas/excel">Excel</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/visitas/pdf" formtarget="_blank">PDF</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-{% if visits_period_locked %}
-<div class="alert alert-warning">Este periodo está en solo lectura para referidos. {{ visits_period_lock_message }}</div>
-{% endif %}
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <div class="row g-2">
-      <div class="col-md-3"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-3"><strong>Periodo reportado:</strong> {{ period_label }}</div>
-      <div class="col-md-2"><strong>Visitas:</strong> {{ summary.visits }}</div>
-      <div class="col-md-2"><strong>Asistencias:</strong> {{ summary.attendances }}</div>
-      <div class="col-md-2"><strong>Horas:</strong> {{ '%.2f'|format(summary.hours) }}</div>
-    </div>
-  </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <h5 class="mb-3">Referidos manuales</h5>
-    <form method="post" action="/ui/reports/visitas/referrals/save" id="visitReferralsForm">
-      <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
-      <input type="hidden" name="month" value="{{ selected_month or 0 }}">
-      <input type="hidden" name="year" value="{{ selected_year or 0 }}">
-      <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
-      <input type="hidden" name="authorized_name" value="{{ authorized_name or '' }}">
-      <div class="row g-3 align-items-end mb-3">
-        <div class="col-md-3">
-          <label class="form-label">Cantidad de referidos</label>
-          <input class="form-control" type="number" min="0" max="20" id="referralCountInput" name="referral_count" value="{{ referral_count or 0 }}">
-        </div>
-        <div class="col-md-3 d-grid">
-          <button class="btn btn-outline-primary" type="button" id="buildReferralRows">Preparar espacios</button>
-        </div>
-        {% if not visits_period_locked %}
-        <div class="col-md-3 d-grid">
-          <button class="btn btn-success" type="submit">Guardar referidos</button>
+        <div class="visitas-disabled-note">
+          <i class="bi bi-calendar-range" aria-hidden="true"></i>
+          <span>Periodo personalizado activo: los referidos manuales solo se preparan, guardan o eliminan desde periodos mensuales.</span>
         </div>
         {% endif %}
-        {% if visit_report or (is_global and referral_rows|length > 0) %}
-        {% if not visits_period_locked %}
-        <div class="col-md-3 d-grid">
-          <button
-            class="btn btn-outline-danger w-100"
-            type="submit"
-            formaction="/ui/reports/visitas/delete"
-            formmethod="post"
-            onclick="return confirm('¿Eliminar solamente los referidos guardados de este informe?');"
-          >
-            Eliminar referidos
-          </button>
+
+        <article class="visitas-data-section">
+          <div class="visitas-data-section__header">
+            <div>
+              <h3>Referidos guardados</h3>
+              <p>Tipos disponibles: Interno, Externo y Visita Agencia.</p>
+            </div>
+            {% if can_manage_referrals and (visit_report or (is_global and referral_rows|length > 0)) and not visits_period_locked %}
+            <form method="post" action="/ui/reports/visitas/delete" class="visitas-delete-form">
+              <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
+              <input type="hidden" name="month" value="{{ selected_month or 0 }}">
+              <input type="hidden" name="year" value="{{ selected_year or 0 }}">
+              <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
+              <input type="hidden" name="authorized_name" value="{{ authorized_name or '' }}">
+              <button
+                class="btn visitas-action visitas-action--danger"
+                type="submit"
+                onclick="return confirm('&iquest;Eliminar solamente los referidos guardados de este informe?');"
+              >
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+                <span>Eliminar referidos</span>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+
+          {% if referral_rows %}
+          <div class="visitas-table-wrap">
+            <table class="table table-hover align-middle visitas-table">
+              <thead>
+                <tr>
+                  {% if is_global %}<th scope="col">Residencial</th>{% endif %}
+                  <th scope="col">Tipo referido</th>
+                  <th scope="col">Agencia</th>
+                  <th scope="col">N&uacute;mero de referido o prop&oacute;sito</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for referral in referral_rows %}
+                <tr>
+                  {% if is_global %}<td>{{ referral.residential_name }}</td>{% endif %}
+                  <td>{{ referral.referral_type }}</td>
+                  <td>{{ referral.agency }}</td>
+                  <td>{{ referral.reference_or_purpose }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="visitas-empty visitas-empty--inline">
+            <div class="visitas-empty__icon" aria-hidden="true">
+              <i class="bi bi-inbox"></i>
+            </div>
+            <div>
+              <h3>Sin referidos guardados</h3>
+              <p>No hay referidos guardados para el contexto seleccionado.</p>
+            </div>
+          </div>
+          {% endif %}
+        </article>
+      </section>
+
+      <section class="visitas-panel visitas-results" aria-label="Vista previa web">
+        <div class="visitas-results__header">
+          <div>
+            <h2 class="visitas-section-title">Vista previa web</h2>
+            <p class="visitas-section-text">Resumen por empleado calculado desde sesiones de actividades configuradas como visitas.</p>
+          </div>
+          <span class="visitas-count-pill">{{ summary.visits }} visitas</span>
+        </div>
+
+        {% if not has_mapped_visits %}
+        <div class="visitas-results__body">
+          <div class="visitas-empty">
+            <div class="visitas-empty__icon" aria-hidden="true">
+              <i class="bi bi-pin-map"></i>
+            </div>
+            <div>
+              <h3>Sin actividades configuradas como visitas</h3>
+              <p>La propuesta seleccionada no tiene actividades configuradas como visitas todav&iacute;a.</p>
+            </div>
+          </div>
+        </div>
+        {% elif not has_visit_rows %}
+        <div class="visitas-results__body">
+          <div class="visitas-empty">
+            <div class="visitas-empty__icon" aria-hidden="true">
+              <i class="bi bi-search"></i>
+            </div>
+            <div>
+              <h3>Sin visitas registradas</h3>
+              <p>No hay visitas registradas para los criterios seleccionados.</p>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="visitas-table-wrap">
+          <table class="table table-hover align-middle text-center visitas-table">
+            <thead>
+              <tr>
+                {% if is_global %}<th scope="col" class="text-start">Residencial</th>{% endif %}
+                <th scope="col" class="text-start">Empleado</th>
+                <th scope="col">Visitas registradas</th>
+                <th scope="col">Asistencias acumuladas</th>
+                <th scope="col">Horas acumuladas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                {% if is_global %}<td class="text-start">{{ row.residential_name }}</td>{% endif %}
+                <td class="text-start">{{ row.employee_name }}</td>
+                <td>{{ row.visits }}</td>
+                <td>{{ row.attendances }}</td>
+                <td>{{ '%.2f'|format(row.hours) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="visitas-total-row">
+                {% if is_global %}<td></td>{% endif %}
+                <td class="text-start">TOTALES</td>
+                <td>{{ summary.visits }}</td>
+                <td>{{ summary.attendances }}</td>
+                <td>{{ '%.2f'|format(summary.hours) }}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
         {% endif %}
-        {% endif %}
-      </div>
-      <div id="referralRowsContainer" class="row g-3"></div>
-    </form>
-
-    {% if referral_rows %}
-    <div class="table-responsive mt-4">
-      <h6 class="mb-2">Referidos guardados</h6>
-      <table class="table table-sm table-bordered align-middle">
-        <thead>
-          <tr>
-            {% if is_global %}<th>Residencial</th>{% endif %}
-            <th>Tipo referido</th>
-            <th>Agencia</th>
-            <th>Número de referido o propósito</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for referral in referral_rows %}
-          <tr>
-            {% if is_global %}<td>{{ referral.residential_name }}</td>{% endif %}
-            <td>{{ referral.referral_type }}</td>
-            <td>{{ referral.agency }}</td>
-            <td>{{ referral.reference_or_purpose }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <h5 class="mb-3">Resumen por empleado</h5>
-    {% if mapped_activity_ids|length == 0 %}
-    <div class="alert alert-warning mb-0">La propuesta seleccionada no tiene actividades configuradas como visitas todavía.</div>
-    {% else %}
-    <table class="table table-sm table-bordered align-middle text-center">
-      <thead>
-        <tr>
-          {% if is_global %}<th class="text-start">Residencial</th>{% endif %}
-          <th class="text-start">Empleado</th>
-          <th>Visitas registradas</th>
-          <th>Asistencias acumuladas</th>
-          <th>Horas acumuladas</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          {% if is_global %}<td class="text-start">{{ row.residential_name }}</td>{% endif %}
-          <td class="text-start">{{ row.employee_name }}</td>
-          <td>{{ row.visits }}</td>
-          <td>{{ row.attendances }}</td>
-          <td>{{ '%.2f'|format(row.hours) }}</td>
-        </tr>
-        {% endfor %}
-        {% if rows|length == 0 %}
-        <tr>
-          <td colspan="{{ 5 if is_global else 4 }}" class="text-muted">No hay visitas registradas para los criterios seleccionados.</td>
-        </tr>
-        {% endif %}
-      </tbody>
-      {% if rows|length > 0 %}
-      <tfoot>
-        <tr class="fw-bold">
-          {% if is_global %}<td></td>{% endif %}
-          <td class="text-start">TOTALES</td>
-          <td>{{ summary.visits }}</td>
-          <td>{{ summary.attendances }}</td>
-          <td>{{ '%.2f'|format(summary.hours) }}</td>
-        </tr>
-      </tfoot>
+      </section>
+      {% else %}
+      <section class="visitas-empty" aria-label="Sin consulta">
+        <div class="visitas-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h3>Selecciona los filtros para generar la vista previa</h3>
+          <p>El reporte mantiene visibles sus filtros y acciones para consultar pantalla, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
       {% endif %}
-    </table>
-    {% endif %}
-  </div>
+    </div>
+  </section>
 </div>
-{% endif %}
 
 <script>
+(function () {
+  const periodType = document.getElementById('visitas_period_type');
+  const monthlyFields = document.querySelector('.visitas-monthly-fields');
+  const customFields = document.querySelector('.visitas-custom-fields');
+  const monthInput = document.getElementById('visitas_month');
+  const yearInput = document.getElementById('visitas_year');
+  const startInput = document.getElementById('visitas_start_date');
+  const endInput = document.getElementById('visitas_end_date');
+
+  function setFieldState(fields, enabled) {
+    fields.forEach((field) => {
+      if (!field) return;
+      field.required = enabled;
+    });
+  }
+
+  function syncPeriodFields() {
+    if (!periodType || !monthlyFields || !customFields) return;
+    const isCustom = periodType.value === 'custom';
+    monthlyFields.classList.toggle('d-none', isCustom);
+    customFields.classList.toggle('d-none', !isCustom);
+    setFieldState([monthInput, yearInput], !isCustom);
+    setFieldState([startInput, endInput], isCustom);
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+
 (function () {
   const countInput = document.getElementById('referralCountInput');
   const buildButton = document.getElementById('buildReferralRows');
@@ -231,30 +450,42 @@
   const typeOptions = {{ referral_type_options | tojson }};
   const existingRows = {{ referral_rows | tojson }};
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function buildRows() {
     const total = Math.max(0, parseInt(countInput.value || '0', 10));
     container.innerHTML = '';
     for (let idx = 0; idx < total; idx++) {
       const row = existingRows[idx] || { referral_type: '', agency: '', reference_or_purpose: '' };
+      const selectId = `referral_type_${idx}`;
+      const agencyId = `agency_${idx}`;
+      const purposeId = `reference_or_purpose_${idx}`;
       const col = document.createElement('div');
-      col.className = 'col-12';
+      col.className = 'visitas-referral-row';
       col.innerHTML = `
-        <div class="border rounded p-3">
-          <div class="row g-3">
-            <div class="col-md-3">
-              <label class="form-label">Tipo referido ${idx + 1}</label>
-              <select class="form-select" name="referral_type_${idx}">
+        <div class="visitas-referral-card">
+          <div class="visitas-referral-card__grid">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="${selectId}">Tipo referido ${idx + 1}</label>
+              <select class="form-select" name="${selectId}" id="${selectId}">
                 <option value="">Selecciona...</option>
-                ${typeOptions.map(option => `<option value="${option}" ${row.referral_type === option ? 'selected' : ''}>${option}</option>`).join('')}
+                ${typeOptions.map((option) => `<option value="${escapeHtml(option)}" ${row.referral_type === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Agencia</label>
-              <input class="form-control" type="text" name="agency_${idx}" value="${(row.agency || '').replace(/"/g, '&quot;')}">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="${agencyId}">Agencia</label>
+              <input class="form-control" type="text" name="${agencyId}" id="${agencyId}" value="${escapeHtml(row.agency)}">
             </div>
-            <div class="col-md-5">
-              <label class="form-label">Número de referido o propósito</label>
-              <input class="form-control" type="text" name="reference_or_purpose_${idx}" value="${(row.reference_or_purpose || '').replace(/"/g, '&quot;')}">
+            <div class="visitas-filter-field">
+              <label class="form-label" for="${purposeId}">N&uacute;mero de referido o prop&oacute;sito</label>
+              <input class="form-control" type="text" name="${purposeId}" id="${purposeId}" value="${escapeHtml(row.reference_or_purpose)}">
             </div>
           </div>
         </div>`;

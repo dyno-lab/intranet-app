@@ -5445,6 +5445,611 @@ body.ui-shell-body {
   }
 }
 
+.visitas-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.visitas-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  color: #1d4ed8;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.visitas-back-link:hover,
+.visitas-back-link:focus-visible {
+  color: #1e40af;
+}
+
+.visitas-hero,
+.visitas-panel,
+.visitas-empty,
+.visitas-official-note,
+.visitas-alert {
+  border: 1px solid var(--ui-border);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.visitas-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.2rem;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.13), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(240, 253, 250, 0.98));
+}
+
+.visitas-hero__content {
+  min-width: 0;
+}
+
+.visitas-eyebrow {
+  display: block;
+  color: #047857;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.visitas-hero__title {
+  margin: 0.15rem 0 0;
+  color: var(--ui-text);
+  font-size: 2.35rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.visitas-hero__text,
+.visitas-section-text {
+  color: var(--ui-text-muted);
+}
+
+.visitas-hero__text {
+  max-width: 58rem;
+  margin: 0.45rem 0 0;
+  line-height: 1.55;
+}
+
+.visitas-hero__metric {
+  display: grid;
+  min-width: 12rem;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #065f46, #0f766e);
+  box-shadow: 0 16px 34px rgba(6, 95, 70, 0.18);
+}
+
+.visitas-hero__metric strong {
+  font-size: 2.75rem;
+  line-height: 1;
+}
+
+.visitas-hero__metric span {
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.visitas-layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.visitas-side,
+.visitas-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.visitas-panel--filters,
+.visitas-summary,
+.visitas-filter-field--wide,
+.visitas-monthly-fields,
+.visitas-custom-fields {
+  min-width: 0;
+}
+
+.visitas-panel,
+.visitas-empty,
+.visitas-official-note,
+.visitas-alert {
+  padding: 1rem;
+}
+
+.visitas-panel__header,
+.visitas-results__header,
+.visitas-data-section__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.visitas-panel__header {
+  margin-bottom: 0.9rem;
+}
+
+.visitas-section-title {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 1.05rem;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.visitas-section-text {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.visitas-filter-form,
+.visitas-referral-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.visitas-filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.visitas-filter-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.visitas-filter-field .form-label {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.visitas-filter-field .form-control,
+.visitas-filter-field .form-select {
+  min-height: 2.45rem;
+  border-color: var(--ui-border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.visitas-filter-field .form-control[readonly] {
+  background: #f8fafc;
+}
+
+.visitas-filter-note,
+.visitas-disabled-note {
+  padding: 0.7rem 0.8rem;
+  border: 1px dashed rgba(15, 23, 42, 0.18);
+  border-radius: 12px;
+  color: var(--ui-text-muted);
+  background: #f8fafc;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.visitas-disabled-note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.visitas-disabled-note i {
+  color: #1d4ed8;
+}
+
+.visitas-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  padding-top: 0.2rem;
+}
+
+.visitas-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.65rem;
+  border-radius: 0.5rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.visitas-action--primary {
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+}
+
+.visitas-action--excel {
+  color: #166534;
+  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.visitas-action--excel:hover,
+.visitas-action--excel:focus-visible {
+  color: #14532d;
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.14);
+}
+
+.visitas-action--print {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.visitas-action--print:hover,
+.visitas-action--print:focus-visible {
+  color: #1e40af;
+  border-color: rgba(37, 99, 235, 0.26);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.visitas-action--save {
+  color: #ffffff;
+  border-color: #0f766e;
+  background: #0f766e;
+}
+
+.visitas-action--save:hover,
+.visitas-action--save:focus-visible {
+  color: #ffffff;
+  border-color: #115e59;
+  background: #115e59;
+}
+
+.visitas-action--danger {
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.09);
+}
+
+.visitas-action--danger:hover,
+.visitas-action--danger:focus-visible {
+  color: #7f1d1d;
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.13);
+}
+
+.visitas-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.visitas-summary-item {
+  min-width: 0;
+  padding: 0.85rem;
+  border-left: 3px solid rgba(15, 23, 42, 0.18);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.visitas-summary-item span {
+  display: block;
+  color: var(--ui-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.visitas-summary-item strong {
+  display: block;
+  min-width: 0;
+  margin-top: 0.25rem;
+  color: var(--ui-text);
+  font-size: 0.98rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.visitas-summary-item--metric {
+  border-left-color: #047857;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.visitas-summary-item--total {
+  border-left-color: #8a5a12;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.visitas-alert {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.visitas-alert--warning {
+  color: #713f12;
+  background: rgba(245, 158, 11, 0.11);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.visitas-referrals,
+.visitas-results {
+  overflow: hidden;
+}
+
+.visitas-results {
+  padding: 0;
+}
+
+.visitas-results__header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.visitas-results__body {
+  padding: 1rem;
+}
+
+.visitas-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(4, 120, 87, 0.18);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.visitas-referral-controls {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(10rem, 1fr) minmax(10rem, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.visitas-referral-rows {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.visitas-referral-card {
+  padding: 0.85rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.visitas-referral-card__grid {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.75fr) minmax(12rem, 1fr) minmax(14rem, 1.35fr);
+  gap: 0.75rem;
+}
+
+.visitas-data-section {
+  overflow: hidden;
+  margin-top: 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.visitas-data-section__header {
+  padding: 0.9rem 1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.visitas-data-section__header h3 {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.visitas-data-section__header p {
+  margin: 0.2rem 0 0;
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+}
+
+.visitas-delete-form {
+  flex: 0 0 auto;
+}
+
+.visitas-table-wrap {
+  overflow-x: auto;
+}
+
+.visitas-table {
+  min-width: 640px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.visitas-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--ui-text);
+  background: #eef7f4;
+  border-bottom: 1px solid rgba(4, 120, 87, 0.2);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.visitas-table tbody td {
+  vertical-align: middle;
+}
+
+.visitas-table tbody tr:nth-child(even) {
+  --bs-table-bg: #fbfefd;
+}
+
+.visitas-total-row {
+  --bs-table-bg: rgba(245, 158, 11, 0.15);
+  font-weight: 800;
+}
+
+.visitas-total-row td {
+  border-top: 2px solid rgba(138, 90, 18, 0.55);
+}
+
+.visitas-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  min-height: 9rem;
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.visitas-empty--inline {
+  min-height: 7rem;
+  margin: 1rem;
+  box-shadow: none;
+}
+
+.visitas-empty h3 {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.visitas-empty p {
+  margin: 0.25rem 0 0;
+  color: var(--ui-text-muted);
+  font-size: 0.9rem;
+}
+
+.visitas-empty__icon,
+.visitas-official-note__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 14px;
+  font-size: 1.2rem;
+}
+
+.visitas-empty__icon {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.visitas-official-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: flex-start;
+  color: #713f12;
+  background: rgba(245, 158, 11, 0.11);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.visitas-official-note__icon {
+  color: #a16207;
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.visitas-official-note p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 1199.98px) {
+  .visitas-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .visitas-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 991.98px) {
+  .visitas-hero,
+  .visitas-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visitas-hero__metric {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .visitas-hero,
+  .visitas-panel,
+  .visitas-empty,
+  .visitas-official-note,
+  .visitas-alert {
+    padding: 0.9rem;
+  }
+
+  .visitas-filter-row,
+  .visitas-actions,
+  .visitas-referral-controls,
+  .visitas-referral-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visitas-action,
+  .visitas-actions .btn {
+    width: 100%;
+  }
+
+  .visitas-results__header,
+  .visitas-data-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .visitas-count-pill {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .visitas-empty,
+  .visitas-official-note {
+    grid-template-columns: 1fr;
+  }
+
+  .visitas-hero__title {
+    font-size: 1.65rem;
+  }
+}
+
 
 @media (min-width: 1200px) {
   .attendance-hero__top {
