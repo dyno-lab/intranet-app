@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
@@ -92,6 +93,7 @@ from app.services.report_pdf import (
     PDFBackendUnavailableError,
     PDFRenderError,
     build_zip_bytes,
+    render_template_to_chromium_pdf_bytes,
     render_template_to_pdf_bytes,
 )
 from app.services.notes_chart_svg import build_notes_pdf_chart_images
@@ -108,6 +110,7 @@ from app.services.visits import (
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+logger = logging.getLogger(__name__)
 
 MONTH_OPTIONS = [
     (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
@@ -2498,11 +2501,27 @@ def visits_report_pdf_download(
 ):
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
+    filename = _pdf_download_filename("visitas", context)
+    try:
+        pdf_bytes = render_template_to_chromium_pdf_bytes(
+            templates=templates,
+            template_name="ui/reports/visitas_pdf.html",
+            context={**context, "request": request},
+            request=request,
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except (PDFBackendUnavailableError, PDFRenderError):
+        logger.exception("Chromium PDF renderer failed for Visitas; falling back to wkhtmltopdf.")
+
     return _render_report_pdf_response(
         request,
         "ui/reports/visitas_pdf.html",
         context,
-        _pdf_download_filename("visitas", context),
+        filename,
         error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la version imprimible.",
     )
 
