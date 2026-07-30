@@ -3142,7 +3142,7 @@ def hoja_cotejo_report_pdf_download(
     current_user: User = Depends(get_current_user),
 ):
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"current_user": current_user})
+    context.update({"current_user": current_user, "pdf_download_mode": True})
     return _render_report_pdf_response(
         request,
         "ui/reports/hoja_cotejo_pdf.html",
@@ -3158,7 +3158,7 @@ def hoja_cotejo_report_pdf_download(
             "--margin-left", "0.12in",
             "--print-media-type",
             "--background",
-            "--zoom", "1.15",
+            "--zoom", "1.0",
         ],
     )
 

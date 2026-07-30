@@ -220,14 +220,100 @@
       display: inline-block;
       object-fit: contain;
     }
+
+    .cotejo-pdf-download .cotejo-header {
+      margin-bottom: 5px;
+    }
+
+    .cotejo-pdf-download .cotejo-header .line-1,
+    .cotejo-pdf-download .cotejo-header .line-2 {
+      font-size: 9.4px;
+      line-height: 1.08;
+    }
+
+    .cotejo-pdf-download .cotejo-meta {
+      margin: 3px 0 5px 0;
+    }
+
+    .cotejo-pdf-download .cotejo-meta-table td {
+      padding-top: 1.2px;
+      padding-bottom: 1.2px;
+      line-height: 1.08;
+    }
+
+    .cotejo-pdf-download .cotejo-page--normal .cotejo-main-table th,
+    .cotejo-pdf-download .cotejo-page--normal .cotejo-main-table td {
+      padding-top: 1.5px;
+      padding-bottom: 1.5px;
+      font-size: 7.8px;
+      line-height: 1.16;
+    }
+
+    .cotejo-pdf-download .cotejo-page--normal .cotejo-main-table thead th {
+      font-size: 7.4px;
+      line-height: 1.16;
+    }
+
+    .cotejo-pdf-download .cotejo-page--normal .cotejo-empty-row td {
+      font-size: 7.4px;
+      padding-top: 1.5px;
+      padding-bottom: 1.5px;
+    }
+
+    .cotejo-pdf-download .cotejo-page--dense .cotejo-main-table th,
+    .cotejo-pdf-download .cotejo-page--dense .cotejo-main-table td {
+      padding-top: 0.8px;
+      padding-bottom: 0.8px;
+      font-size: 7.6px;
+      line-height: 1.08;
+    }
+
+    .cotejo-pdf-download .cotejo-page--dense .cotejo-main-table thead th {
+      font-size: 7.2px;
+      line-height: 1.08;
+    }
+
+    .cotejo-pdf-download .cotejo-page--dense .cotejo-empty-row td {
+      font-size: 7.2px;
+      padding-top: 0.8px;
+      padding-bottom: 0.8px;
+    }
+
+    .cotejo-pdf-download .cotejo-total {
+      margin-top: 3px;
+      font-size: 7.8px;
+      line-height: 1.08;
+    }
+
+    .cotejo-pdf-download .cotejo-signatures {
+      margin-top: 14px;
+      padding-top: 5px;
+    }
+
+    .cotejo-pdf-download .cotejo-signature-table {
+      margin-top: 6px;
+    }
+
+    .cotejo-pdf-download .cotejo-signature-table td {
+      padding-bottom: 12px;
+    }
+
+    .cotejo-pdf-download .cotejo-footer {
+      margin-top: 14px;
+      padding-top: 5px;
+    }
   </style>
 </head>
-<body>
+<body class="{% if pdf_download_mode %}cotejo-pdf-download{% endif %}">
   {% set header_config = report_template_config.header if report_template_config and report_template_config.header else {} %}
   {% set footer_config = report_template_config.footer if report_template_config and report_template_config.footer else {} %}
   {% set columns = report_template_columns or [] %}
   {% for program_block in program_blocks %}
-  <div class="cotejo-page">
+  {% set page_density = namespace(row_count=0) %}
+  {% for population_block in program_block.population_blocks %}
+    {% set page_density.row_count = page_density.row_count + ((population_block.rows|length) if population_block.rows else 1) %}
+  {% endfor %}
+  <div class="cotejo-page{% if pdf_download_mode %} {% if page_density.row_count >= 30 %}cotejo-page--dense{% else %}cotejo-page--normal{% endif %}{% endif %}">
     <div class="cotejo-page-inner">
     <div class="cotejo-header">
       <img class="cotejo-header-image" src="{{ header_config.image or '/static/img/bonafide-header-avp.png' }}" alt="Header Reporte">
