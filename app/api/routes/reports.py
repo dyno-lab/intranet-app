@@ -3186,24 +3186,35 @@ def hoja_cotejo_report_pdf_download(
     current_user: User = Depends(get_current_user),
 ):
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"current_user": current_user, "pdf_download_mode": True})
+    context.update({"current_user": current_user})
+    filename = _pdf_download_filename("hoja_cotejo", context)
+    try:
+        pdf_bytes = render_template_to_chromium_pdf_bytes(
+            templates=templates,
+            template_name="ui/reports/hoja_cotejo_pdf.html",
+            context={**context, "request": request},
+            request=request,
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except PDFBackendUnavailableError:
+        logger.exception("Chromium PDF renderer is unavailable for Hoja de Cotejo; falling back to wkhtmltopdf.")
+    except PDFRenderError as exc:
+        logger.exception("Chromium PDF renderer failed for Hoja de Cotejo.")
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo generar el PDF. Intenta nuevamente o usa la version imprimible.",
+        ) from exc
+
     return _render_report_pdf_response(
         request,
         "ui/reports/hoja_cotejo_pdf.html",
         context,
-        _pdf_download_filename("hoja_cotejo", context),
+        filename,
         error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la versi\u00f3n imprimible.",
-        wkhtmltopdf_args=[
-            "--page-size", "Letter",
-            "--orientation", "Portrait",
-            "--margin-top", "0.12in",
-            "--margin-right", "0.12in",
-            "--margin-bottom", "0.12in",
-            "--margin-left", "0.12in",
-            "--print-media-type",
-            "--background",
-            "--zoom", "1.0",
-        ],
     )
 
 
