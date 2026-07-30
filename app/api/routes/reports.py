@@ -2482,6 +2482,31 @@ def visits_report_pdf(
     return templates.TemplateResponse("ui/reports/visitas_pdf.html", context)
 
 
+@router.get("/visitas/pdf/download")
+def visits_report_pdf_download(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    authorized_name: str | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"current_user": current_user})
+    return _render_report_pdf_response(
+        request,
+        "ui/reports/visitas_pdf.html",
+        context,
+        _pdf_download_filename("visitas", context),
+        error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la version imprimible.",
+    )
+
+
 @router.get("/visitas/excel")
 def visits_report_excel(
     proposal_id: int | None = None,

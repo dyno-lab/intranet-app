@@ -5682,6 +5682,19 @@ body.ui-shell-body {
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
 }
 
+.visitas-action--pdf {
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.09);
+}
+
+.visitas-action--pdf:hover,
+.visitas-action--pdf:focus-visible {
+  color: #7f1d1d;
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.13);
+}
+
 .visitas-action--excel {
   color: #166534;
   border-color: rgba(22, 163, 74, 0.2);
@@ -5992,7 +6005,7 @@ body.ui-shell-body {
   }
 
   .visitas-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
