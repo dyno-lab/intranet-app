@@ -2,190 +2,442 @@
 {% block title %}Notas{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Informe de Notas</h4>
-</div>
+{% set is_custom_period = selected_period_type == 'custom' %}
+{% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
+{% set has_report_rows = rows|length > 0 %}
+{% set total_evaluated = total_row.TOTAL if total_row else 0 %}
+{% set has_evaluated_rows = has_selection and total_evaluated > 0 %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin residencial seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
+{% endif %}
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
-      <input type="hidden" name="report_key" value="notas">
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
+<div class="notas-page">
+  <a class="notas-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Regreso a Centro de reportes</span>
+  </a>
+
+  <section class="notas-hero" aria-label="Informe de Notas">
+    <div class="notas-hero__content">
+      <span class="notas-eyebrow">Notas escolares</span>
+      <h1 class="notas-hero__title">Informe de Notas</h1>
+      <p class="notas-hero__text">
+        Resume la distribuci&oacute;n acad&eacute;mica de informes de notas capturados por propuesta, periodo y residencial o Global. El reporte usa el &uacute;ltimo informe disponible por participante para clasificar promedio, sal&oacute;n contenido, grado K y materias.
+      </p>
+    </div>
+    <div class="notas-hero__metric" aria-label="Total evaluados">
+      <strong>{{ total_evaluated if has_selection else 0 }}</strong>
+      <span>Participantes incluidos en la selecci&oacute;n actual.</span>
+    </div>
+  </section>
+
+  <section class="notas-layout">
+    <div class="notas-side">
+      <section class="notas-panel notas-panel--filters" aria-label="Filtros del reporte">
+        <div class="notas-panel__header">
+          <div>
+            <h2 class="notas-section-title">Filtros del reporte</h2>
+            <p class="notas-section-text">Define propuesta, periodo y residencial antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/notas" class="notas-filter-form" id="notas-report-form">
+          <div class="notas-filter-field notas-filter-field--wide">
+            <label class="form-label" for="notas_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="notas_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="notas-filter-field">
+            <label class="form-label" for="notas_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="notas_period_type" required>
+              <option value="monthly" {% if not is_custom_period %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if is_custom_period %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="notas-filter-row notas-monthly-fields {% if is_custom_period %}d-none{% endif %}">
+            <div class="notas-filter-field">
+              <label class="form-label" for="notas_month">Mes *</label>
+              <select class="form-select" name="month" id="notas_month" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="notas-filter-field">
+              <label class="form-label" for="notas_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="notas_year" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="notas-filter-row notas-custom-fields {% if not is_custom_period %}d-none{% endif %}">
+            <div class="notas-filter-field">
+              <label class="form-label" for="notas_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="notas_start_date" value="{{ selected_start_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+
+            <div class="notas-filter-field">
+              <label class="form-label" for="notas_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="notas_end_date" value="{{ selected_end_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="notas-filter-field notas-filter-field--wide">
+            <label class="form-label" for="notas_employee_id">Residencial *</label>
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <select class="form-select" name="employee_id" id="notas_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="notas_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="notas-filter-note">
+            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+          </div>
+
+          <div class="notas-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary notas-action notas-action--primary" type="submit" formaction="/ui/reports/notas">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn notas-action notas-action--pdf" type="submit" formaction="/ui/reports/notas/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn notas-action notas-action--excel" type="submit" formaction="/ui/reports/notas/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn notas-action notas-action--print" type="submit" formaction="/ui/reports/notas/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="notas-official-note" aria-label="Nota institucional">
+        <div class="notas-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="notas-main">
+      <section class="notas-panel notas-summary" aria-label="Resumen del reporte">
+        <div class="notas-panel__header">
+          <div>
+            <h2 class="notas-section-title">Resumen del reporte</h2>
+            <p class="notas-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+        <div class="notas-summary-grid">
+          <div class="notas-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="notas-summary-item">
+            <span>Periodo reportado</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="notas-summary-item">
+            <span>Residencial</span>
+            <strong>{{ residential_name or 'Sin residencial seleccionado' }}</strong>
+          </div>
+          <div class="notas-summary-item notas-summary-item--metric notas-summary-item--total">
+            <span>Total evaluados</span>
+            <strong>{{ total_evaluated if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="notas-summary-item notas-summary-item--metric">
+            <span>Distribuci&oacute;n general</span>
+            <strong>
+              {% if has_selection %}
+                A {{ total_row.A }}, B {{ total_row.B }}, C {{ total_row.C }}, D {{ total_row.D }}, F {{ total_row.F }}
+              {% else %}
+                Sin consulta
+              {% endif %}
+            </strong>
+          </div>
+          <div class="notas-summary-item notas-summary-item--metric">
+            <span>Rango de edad</span>
+            <strong>0-21 a&ntilde;os</strong>
+          </div>
+          <div class="notas-summary-item">
+            <span>Alcance</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="notas-summary-item">
+            <span>Origen</span>
+            <strong>Informes de notas guardados</strong>
+          </div>
+        </div>
+        <div class="notas-state-tags" aria-label="Naturaleza de datos">
+          <span class="notas-tag notas-tag--manual">Notas por materia: manuales</span>
+          <span class="notas-tag notas-tag--manual">Grado y sal&oacute;n: manuales</span>
+          <span class="notas-tag notas-tag--saved">Promedio: calculado y almacenado</span>
+          <span class="notas-tag notas-tag--calculated">Letras, porcentajes y totales: calculados</span>
+        </div>
+      </section>
+
+      <section class="notas-panel notas-contract" aria-label="Como se construye el reporte">
+        <div class="notas-panel__header">
+          <div>
+            <h2 class="notas-section-title">C&oacute;mo se construye el reporte</h2>
+            <p class="notas-section-text">El informe regular es de consulta y exportaci&oacute;n; la captura de notas permanece en su m&oacute;dulo correspondiente.</p>
+          </div>
+          <span class="notas-count-pill">Sin edici&oacute;n en esta pantalla</span>
+        </div>
+        <div class="notas-state-tags" aria-label="Proceso del reporte">
+          <span class="notas-tag notas-tag--saved">&Uacute;ltimo informe disponible por participante</span>
+          <span class="notas-tag notas-tag--calculated">Distribuci&oacute;n por promedio</span>
+          <span class="notas-tag notas-tag--calculated">Distribuci&oacute;n por materia</span>
+          <span class="notas-tag notas-tag--saved">Sin edici&oacute;n en esta pantalla</span>
+        </div>
+      </section>
+
+      {% if has_selection and has_evaluated_rows %}
+      <section class="notas-panel notas-results" aria-label="Vista previa web">
+        <div class="notas-results__header">
+          <div>
+            <h2 class="notas-section-title">Vista previa web</h2>
+            <p class="notas-section-text">Distribuci&oacute;n general, promedio por edad, residencial y materias.</p>
+          </div>
+          <span class="notas-count-pill">{{ total_evaluated }} evaluados</span>
+        </div>
+
+        <div class="notas-chart-panel">
+          <div class="notas-pie-wrap">
+            <canvas id="notesGeneralPie"></canvas>
+          </div>
+          <div class="notas-grade-grid" aria-label="Distribucion general de notas">
+            {% for segment in general_chart_segments %}
+            <div class="notas-grade-card notas-grade-card--{{ segment.label|lower }}">
+              <span>{{ segment.label }}</span>
+              <strong>{{ segment.value }}</strong>
+              <small>{{ '%.2f'|format(segment.percentage) }}%</small>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <article class="notas-data-section">
+          <div class="notas-data-section__header">
+            <div>
+              <h3>Promedio obtenido por edad</h3>
+              <p>Rangos reales del informe para participantes de 0 a 21 a&ntilde;os.</p>
+            </div>
+          </div>
+          <div class="notas-table-wrap">
+            <table class="table table-hover align-middle text-center notas-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="text-start">Edad</th>
+                  <th scope="col">A</th>
+                  <th scope="col">B</th>
+                  <th scope="col">C</th>
+                  <th scope="col">D</th>
+                  <th scope="col">F</th>
+                  <th scope="col">Especial</th>
+                  <th scope="col">K</th>
+                  <th scope="col">TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr>
+                  <td class="text-start">{{ row.age_label }}</td>
+                  <td>{{ row.A }}</td>
+                  <td>{{ row.B }}</td>
+                  <td>{{ row.C }}</td>
+                  <td>{{ row.D }}</td>
+                  <td>{{ row.F }}</td>
+                  <td>{{ row.Especial }}</td>
+                  <td>{{ row.K }}</td>
+                  <td>{{ row.TOTAL }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="notas-total-row">
+                  <td class="text-start">TOTALES</td>
+                  <td>{{ total_row.A }}</td>
+                  <td>{{ total_row.B }}</td>
+                  <td>{{ total_row.C }}</td>
+                  <td>{{ total_row.D }}</td>
+                  <td>{{ total_row.F }}</td>
+                  <td>{{ total_row.Especial }}</td>
+                  <td>{{ total_row.K }}</td>
+                  <td>{{ total_row.TOTAL }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="notas-panel notas-results" aria-label="Notas academicas por residencial">
+        <div class="notas-results__header">
+          <div>
+            <h2 class="notas-section-title">Notas Acad&eacute;micas por Residencial</h2>
+            <p class="notas-section-text">Distribuci&oacute;n por residencial seg&uacute;n el alcance seleccionado.</p>
+          </div>
+        </div>
+        <div class="notas-bar-wrap">
+          <canvas id="notesResidentialBar" height="110"></canvas>
+        </div>
+        <div class="notas-table-wrap">
+          <table class="table table-hover align-middle text-center notas-table">
+            <thead>
+              <tr>
+                <th scope="col" class="text-start">Residencial</th>
+                <th scope="col">A</th>
+                <th scope="col">B</th>
+                <th scope="col">C</th>
+                <th scope="col">D</th>
+                <th scope="col">F</th>
+                <th scope="col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for residential_row in residential_chart_rows %}
+              <tr>
+                <td class="text-start">{{ residential_row.residential_name }}</td>
+                <td>{{ residential_row.A }}</td>
+                <td>{{ residential_row.B }}</td>
+                <td>{{ residential_row.C }}</td>
+                <td>{{ residential_row.D }}</td>
+                <td>{{ residential_row.F }}</td>
+                <td>{{ residential_row.total }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="notas-panel notas-subjects" aria-label="Notas por materia">
+        <div class="notas-results__header">
+          <div>
+            <h2 class="notas-section-title">Notas por materia</h2>
+            <p class="notas-section-text">Resumen para Espa&ntilde;ol, Ingl&eacute;s, Matem&aacute;ticas y Ciencias.</p>
+          </div>
+        </div>
+        <div class="notas-subject-grid">
+          {% for subject_card in subject_chart_cards %}
+          <article class="notas-subject-card">
+            <h3>{{ subject_card.subject_name }}</h3>
+            <div class="notas-subject-chart">
+              <canvas id="subjectChart{{ loop.index }}"></canvas>
+            </div>
+            <div class="notas-subject-breakdown">
+              {% for segment in subject_card.segments %}
+              <div>
+                <span>{{ segment.label }}</span>
+                <strong>{{ segment.value }} ({{ '%.2f'|format(segment.percentage) }}%)</strong>
+              </div>
+              {% endfor %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% elif has_selection and not has_report_rows %}
+      <section class="notas-empty" aria-label="Sin informes de notas">
+        <div class="notas-empty__icon" aria-hidden="true">
+          <i class="bi bi-folder-x"></i>
+        </div>
+        <div>
+          <h2 class="notas-section-title">Sin informes de notas para los filtros</h2>
+          <p class="notas-section-text">No hay informes de notas guardados para la propuesta, periodo y residencial seleccionados.</p>
+        </div>
+      </section>
+      {% elif has_selection %}
+      <section class="notas-empty" aria-label="Sin participantes evaluados">
+        <div class="notas-empty__icon" aria-hidden="true">
+          <i class="bi bi-search"></i>
+        </div>
+        <div>
+          <h2 class="notas-section-title">Sin participantes evaluados</h2>
+          <p class="notas-section-text">Hay contexto de consulta, pero el total evaluado es cero para los criterios seleccionados.</p>
+        </div>
+      </section>
       {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      <section class="notas-empty" aria-label="Sin propuesta o periodo valido">
+        <div class="notas-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h2 class="notas-section-title">Selecciona una propuesta y periodo v&aacute;lido.</h2>
+          <p class="notas-section-text">Los filtros permanecen disponibles para consultar, descargar PDF, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
       {% endif %}
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Formato *</label>
-        <select class="form-select" name="output" required>
-          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
-          <option value="excel">Excel</option>
-          <option value="pdf">PDF</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="" disabled>
-      </div>
-      <div class="col-12 col-lg-5 ms-lg-auto">
-        <div class="row g-2">
-          <div class="col-md-4 d-grid">
-            <button class="btn btn-primary">Generar</button>
-          </div>
-          <div class="col-md-4 d-grid">
-            <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/notas/excel">Excel</button>
-          </div>
-          <div class="col-md-4 d-grid">
-            <button class="btn btn-outline-danger" type="button" id="notesPdfButton">PDF</button>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-<form id="notesPdfExportForm" method="post" action="/ui/reports/notas/pdf" target="_blank" class="d-none">
-  <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
-  <input type="hidden" name="month" value="{{ selected_month or '' }}">
-  <input type="hidden" name="year" value="{{ selected_year or '' }}">
-  <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
-  <input type="hidden" name="period_type" value="{{ selected_period_type }}">
-  <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-  <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-  <input type="hidden" name="general_chart_image" id="generalChartImageInput">
-  <input type="hidden" name="residential_chart_image" id="residentialChartImageInput">
-  <input type="hidden" name="subject_chart_images" id="subjectChartImagesInput">
-</form>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <div class="row g-2 mb-3">
-      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
-      <div class="col-md-4"><strong>Total evaluados:</strong> {{ total_row.TOTAL }}</div>
     </div>
-    <div style="max-width: 420px; margin: 0 auto;">
-      <canvas id="notesGeneralPie"></canvas>
-    </div>
-    <div class="row row-cols-2 row-cols-md-5 g-2 mt-3">
-      {% for segment in general_chart_segments %}
-      <div class="col">
-        <div class="border rounded p-2 text-center h-100">
-          <div class="fw-bold">{{ segment.label }}</div>
-          <div>{{ segment.value }}</div>
-          <div class="text-muted small">{{ '%.2f'|format(segment.percentage) }}%</div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
+  </section>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body table-responsive">
-    <h5 class="mb-3">Promedio obtenido por edad</h5>
-    <table class="table table-sm table-bordered align-middle text-center">
-      <thead>
-        <tr>
-          <th>Edad</th>
-          <th>A</th><th>B</th><th>C</th><th>D</th><th>F</th><th>Especial</th><th>K</th><th>TOTAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          <td class="text-start">{{ row.age_label }}</td>
-          <td>{{ row.A }}</td><td>{{ row.B }}</td><td>{{ row.C }}</td><td>{{ row.D }}</td><td>{{ row.F }}</td><td>{{ row.Especial }}</td><td>{{ row.K }}</td><td>{{ row.TOTAL }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr class="fw-bold">
-          <td class="text-start">TOTALES</td>
-          <td>{{ total_row.A }}</td><td>{{ total_row.B }}</td><td>{{ total_row.C }}</td><td>{{ total_row.D }}</td><td>{{ total_row.F }}</td><td>{{ total_row.Especial }}</td><td>{{ total_row.K }}</td><td>{{ total_row.TOTAL }}</td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</div>
+<script>
+(() => {
+  const periodType = document.getElementById('notas_period_type');
+  const monthlyFields = document.querySelectorAll('.notas-monthly-fields');
+  const customFields = document.querySelectorAll('.notas-custom-fields');
+  const monthInput = document.getElementById('notas_month');
+  const yearInput = document.getElementById('notas_year');
+  const startInput = document.getElementById('notas_start_date');
+  const endInput = document.getElementById('notas_end_date');
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <h5 class="mb-3">Notas Académicas por Residencial</h5>
-    <canvas id="notesResidentialBar" height="110"></canvas>
-  </div>
-</div>
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
 
-<div class="row g-3">
-  {% for subject_card in subject_chart_cards %}
-  <div class="col-md-6 col-lg-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-center">{{ subject_card.subject_name }}</h6>
-        <canvas id="subjectChart{{ loop.index }}"></canvas>
-        <div class="mt-3 small">
-          {% for segment in subject_card.segments %}
-          <div class="d-flex justify-content-between">
-            <span>{{ segment.label }}</span>
-            <span>{{ segment.value }} ({{ '%.2f'|format(segment.percentage) }}%)</span>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
+    if (monthInput) monthInput.required = !isCustom;
+    if (yearInput) yearInput.required = !isCustom;
+    if (startInput) startInput.required = isCustom;
+    if (endInput) endInput.required = isCustom;
+  }
 
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+</script>
+
+{% if has_selection and has_evaluated_rows %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
@@ -194,9 +446,6 @@
 
   const gradeColors = { A: '#198754', B: '#0dcaf0', C: '#ffc107', D: '#6c757d', F: '#dc3545' };
   const noteLetters = ['A','B','C','D','F'];
-  let notesGeneralPieChart = null;
-  let notesResidentialBarChart = null;
-  const subjectPieCharts = [];
 
   function formatTooltip(context, totalResolver) {
     const label = context.label || '';
@@ -223,7 +472,7 @@
     return `${percentage.toFixed(1)}%`;
   }
 
-  notesGeneralPieChart = new Chart(document.getElementById('notesGeneralPie'), {
+  new Chart(document.getElementById('notesGeneralPie'), {
     type: 'pie',
     data: {
       labels: {{ pie_labels | tojson }},
@@ -244,10 +493,7 @@
         datalabels: {
           formatter: percentageDataLabelFormatter,
           color: '#ffffff',
-          font: {
-            weight: 'bold',
-            size: 12
-          },
+          font: { weight: 'bold', size: 12 },
           textStrokeColor: 'rgba(0, 0, 0, 0.35)',
           textStrokeWidth: 2
         }
@@ -256,7 +502,7 @@
   });
 
   const residentialRows = {{ residential_chart_rows | tojson }};
-  notesResidentialBarChart = new Chart(document.getElementById('notesResidentialBar'), {
+  new Chart(document.getElementById('notesResidentialBar'), {
     type: 'bar',
     data: {
       labels: residentialRows.map(r => r.residential_name),
@@ -282,7 +528,7 @@
 
   const subjectCards = {{ subject_chart_cards | tojson }};
   subjectCards.forEach((subjectCard, idx) => {
-    const subjectChart = new Chart(document.getElementById(`subjectChart${idx + 1}`), {
+    new Chart(document.getElementById(`subjectChart${idx + 1}`), {
       type: 'pie',
       data: {
         labels: noteLetters,
@@ -303,53 +549,14 @@
           datalabels: {
             formatter: percentageDataLabelFormatter,
             color: '#ffffff',
-            font: {
-              weight: 'bold',
-              size: 11
-            },
+            font: { weight: 'bold', size: 11 },
             textStrokeColor: 'rgba(0, 0, 0, 0.35)',
             textStrokeWidth: 2
           }
         }
       }
     });
-    subjectPieCharts.push(subjectChart);
   });
-
-  const pdfButton = document.getElementById('notesPdfButton');
-  const pdfForm = document.getElementById('notesPdfExportForm');
-  const generalChartImageInput = document.getElementById('generalChartImageInput');
-  const residentialChartImageInput = document.getElementById('residentialChartImageInput');
-  const subjectChartImagesInput = document.getElementById('subjectChartImagesInput');
-
-  function safeChartImage(chart) {
-    if (!chart || typeof chart.toBase64Image !== 'function') {
-      return '';
-    }
-    try {
-      return chart.toBase64Image('image/png', 1) || '';
-    } catch (error) {
-      console.warn('No se pudo serializar gráfica para PDF:', error);
-      return '';
-    }
-  }
-
-  if (pdfButton && pdfForm) {
-    pdfButton.addEventListener('click', function () {
-      if (generalChartImageInput) {
-        generalChartImageInput.value = safeChartImage(notesGeneralPieChart);
-      }
-      if (residentialChartImageInput) {
-        residentialChartImageInput.value = safeChartImage(notesResidentialBarChart);
-      }
-      if (subjectChartImagesInput) {
-        subjectChartImagesInput.value = subjectPieCharts
-          .map(chart => safeChartImage(chart))
-          .join('||');
-      }
-      pdfForm.submit();
-    });
-  }
 })();
 </script>
 {% endif %}
