@@ -2972,6 +2972,46 @@ def pregnancy_summary_report_pdf(
     return templates.TemplateResponse("ui/reports/embarazo_pdf.html", context)
 
 
+@router.get("/embarazo/pdf/download")
+def pregnancy_summary_report_pdf_download(
+    request: Request,
+    proposal_id: int | None = None,
+    month: str | None = None,
+    year: str | None = None,
+    employee_id: int | None = None,
+    period_type: str = "monthly",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
+    context.update({"current_user": current_user})
+    filename = _pdf_download_filename("embarazo", context)
+    try:
+        pdf_bytes = render_template_to_chromium_pdf_bytes(
+            templates=templates,
+            template_name="ui/reports/embarazo_pdf.html",
+            context={**context, "request": request},
+            request=request,
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except (PDFBackendUnavailableError, PDFRenderError):
+        logger.exception("Chromium PDF renderer failed for Embarazo; falling back to wkhtmltopdf.")
+
+    return _render_report_pdf_response(
+        request,
+        "ui/reports/embarazo_pdf.html",
+        context,
+        filename,
+        error_detail="No se pudo generar el PDF. Intenta nuevamente o usa la version imprimible.",
+    )
+
+
 @router.get("/embarazo/excel")
 def pregnancy_summary_report_excel(
     proposal_id: int | None = None,

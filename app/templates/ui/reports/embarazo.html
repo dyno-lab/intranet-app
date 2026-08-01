@@ -2,196 +2,339 @@
 {% block title %}Embarazo{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Informe de Embarazo</h4>
-</div>
+{% set is_custom_period = selected_period_type == 'custom' %}
+{% set has_period = period_label %}
+{% set has_scope = selected_user or is_global %}
+{% set has_selection = selected_proposal_id and has_period and has_scope %}
+{% set has_rows = rows|length > 0 %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin residencial seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
+{% endif %}
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
-      <input type="hidden" name="report_key" value="embarazo">
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
+<div class="embarazo-page">
+  <a class="embarazo-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Regreso a Centro de reportes</span>
+  </a>
+
+  <section class="embarazo-hero" aria-label="Informe de Embarazo">
+    <div class="embarazo-hero__content">
+      <span class="embarazo-eyebrow">Seguimiento agregado</span>
+      <h1 class="embarazo-hero__title">Informe de Embarazo</h1>
+      <p class="embarazo-hero__text">
+        Resume el seguimiento de embarazo capturado en informes mensuales por propuesta, periodo y residencial o Global. La vista conserva informacion agregada por residencial y muestra solo los conteos del reporte regular.
+      </p>
+    </div>
+    <div class="embarazo-hero__metric" aria-label="Participacion total">
+      <strong>{{ total.participation if has_selection else 0 }}</strong>
+      <span>Participantes con talleres reportados en la selecci&oacute;n actual.</span>
+    </div>
+  </section>
+
+  <section class="embarazo-layout">
+    <div class="embarazo-side">
+      <section class="embarazo-panel embarazo-panel--filters" aria-label="Filtros del reporte">
+        <div class="embarazo-panel__header">
+          <div>
+            <h2 class="embarazo-section-title">Filtros del reporte</h2>
+            <p class="embarazo-section-text">Define propuesta, periodo y residencial antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/embarazo" class="embarazo-filter-form" id="embarazo-report-form">
+          <div class="embarazo-filter-field embarazo-filter-field--wide">
+            <label class="form-label" for="embarazo_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="embarazo_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="embarazo-filter-field">
+            <label class="form-label" for="embarazo_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="embarazo_period_type" required>
+              <option value="monthly" {% if not is_custom_period %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if is_custom_period %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="embarazo-filter-row embarazo-monthly-fields {% if is_custom_period %}d-none{% endif %}">
+            <div class="embarazo-filter-field">
+              <label class="form-label" for="embarazo_month">Mes *</label>
+              <select class="form-select" name="month" id="embarazo_month" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="embarazo-filter-field">
+              <label class="form-label" for="embarazo_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="embarazo_year" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="embarazo-filter-row embarazo-custom-fields {% if not is_custom_period %}d-none{% endif %}">
+            <div class="embarazo-filter-field">
+              <label class="form-label" for="embarazo_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="embarazo_start_date" value="{{ selected_start_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+
+            <div class="embarazo-filter-field">
+              <label class="form-label" for="embarazo_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="embarazo_end_date" value="{{ selected_end_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="embarazo-filter-field embarazo-filter-field--wide">
+            <label class="form-label" for="embarazo_employee_id">Residencial *</label>
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <select class="form-select" name="employee_id" id="embarazo_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="embarazo_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="embarazo-filter-note">
+            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+          </div>
+
+          <div class="embarazo-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary embarazo-action embarazo-action--primary" type="submit" formaction="/ui/reports/embarazo">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn embarazo-action embarazo-action--pdf" type="submit" formaction="/ui/reports/embarazo/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn embarazo-action embarazo-action--excel" type="submit" formaction="/ui/reports/embarazo/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn embarazo-action embarazo-action--print" type="submit" formaction="/ui/reports/embarazo/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="embarazo-official-note" aria-label="Nota institucional">
+        <div class="embarazo-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="embarazo-main">
+      <section class="embarazo-panel embarazo-summary" aria-label="Resumen del reporte">
+        <div class="embarazo-panel__header">
+          <div>
+            <h2 class="embarazo-section-title">Resumen del reporte</h2>
+            <p class="embarazo-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+        <div class="embarazo-summary-grid">
+          <div class="embarazo-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="embarazo-summary-item">
+            <span>Periodo reportado</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="embarazo-summary-item">
+            <span>Residencial</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric embarazo-summary-item--total">
+            <span>Participaci&oacute;n total</span>
+            <strong>{{ total.participation if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>Total reclutados</span>
+            <strong>{{ total.recruited if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>F</span>
+            <strong>{{ total.f if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>M</span>
+            <strong>{{ total.m if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>Participantes femeninas embarazadas</span>
+            <strong>{{ total.pregnant_f if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>Participantes masculinos que han embarazado</span>
+            <strong>{{ total.pregnant_m if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="embarazo-summary-item embarazo-summary-item--metric">
+            <span>% Prevenci&oacute;n</span>
+            <strong>{% if has_selection %}{{ '%.2f'|format(total.prevention_pct) }}%{% else %}Sin consulta{% endif %}</strong>
+          </div>
+        </div>
+        <div class="embarazo-state-tags" aria-label="Naturaleza de datos">
+          <span class="embarazo-tag embarazo-tag--manual">Participaci&oacute;n en talleres: manual</span>
+          <span class="embarazo-tag embarazo-tag--manual">Embarazo reportado: manual</span>
+          <span class="embarazo-tag embarazo-tag--saved">Informes mensuales: almacenados</span>
+          <span class="embarazo-tag embarazo-tag--calculated">Totales y porcentajes: calculados</span>
+        </div>
+      </section>
+
+      {% if has_selection and has_rows %}
+      <section class="embarazo-panel embarazo-results" aria-label="Vista previa web">
+        <div class="embarazo-results__header">
+          <div>
+            <h2 class="embarazo-section-title">Vista previa web</h2>
+            <p class="embarazo-section-text">La tabla conserva el orden visible actual y resume los conteos agregados por residencial.</p>
+          </div>
+          <span class="embarazo-count-pill">{{ total.participation }} participantes</span>
+        </div>
+
+        <div class="embarazo-table-wrap">
+          <table class="table table-hover align-middle text-center embarazo-table">
+            <thead>
+              <tr>
+                <th scope="col" class="text-start">Residencial</th>
+                <th scope="col">Total reclutados</th>
+                <th scope="col">F</th>
+                <th scope="col">M</th>
+                <th scope="col">Participantes femeninas embarazadas</th>
+                <th scope="col">Participantes masculinos que han embarazado</th>
+                <th scope="col">% Prevenci&oacute;n</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td class="text-start">{{ row.residential_name }}</td>
+                <td>{{ row.recruited }}</td>
+                <td>{{ row.f }}</td>
+                <td>{{ row.m }}</td>
+                <td>{{ row.pregnant_f }}</td>
+                <td>{{ row.pregnant_m }}</td>
+                <td>{{ '%.2f'|format(row.prevention_pct) }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="embarazo-total-row">
+                <td class="text-start">TOTAL</td>
+                <td>{{ total.recruited }}</td>
+                <td>{{ total.f }}</td>
+                <td>{{ total.m }}</td>
+                <td>{{ total.pregnant_f }}</td>
+                <td>{{ total.pregnant_m }}</td>
+                <td>{{ '%.2f'|format(total.prevention_pct) }}%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+      {% elif has_selection %}
+      <section class="embarazo-empty" aria-label="Sin datos para los filtros seleccionados">
+        <div class="embarazo-empty__icon" aria-hidden="true">
+          <i class="bi bi-search"></i>
+        </div>
+        <div>
+          <h2 class="embarazo-section-title">Sin datos para los filtros seleccionados</h2>
+          <p class="embarazo-section-text">No hay registros agregados de embarazo para la propuesta, periodo y residencial seleccionados.</p>
+        </div>
+      </section>
+      {% elif not selected_proposal_id or not period_label %}
+      <section class="embarazo-empty" aria-label="Sin propuesta o periodo valido">
+        <div class="embarazo-empty__icon" aria-hidden="true">
+          <i class="bi bi-calendar2-check"></i>
+        </div>
+        <div>
+          <h2 class="embarazo-section-title">Sin propuesta o periodo v&aacute;lido</h2>
+          <p class="embarazo-section-text">Selecciona una propuesta y completa el periodo mensual o personalizado para consultar el informe.</p>
+        </div>
+      </section>
       {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      <section class="embarazo-empty" aria-label="Sin criterios completos">
+        <div class="embarazo-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h2 class="embarazo-section-title">Sin criterios completos</h2>
+          <p class="embarazo-section-text">Los filtros permanecen disponibles para consultar, descargar PDF, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
       {% endif %}
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Formato *</label>
-        <select class="form-select" name="output" required>
-          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
-          <option value="excel">Excel</option>
-          <option value="pdf">PDF</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="" disabled>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/embarazo/excel">Excel</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/embarazo/pdf" formtarget="_blank">PDF</button>
-      </div>
-      <div class="col-12 small text-muted">
-        Pantalla y Excel quedan activos; PDF lo ajustamos a continuación con esta misma lógica consolidada.
-      </div>
-    </form>
-  </div>
-</div>
 
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="row g-2">
-      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
-      <div class="col-md-4"><strong>Participación total:</strong> {{ total.participation }}</div>
+      <section class="embarazo-reference" aria-label="Referencia responsive">
+        <div class="embarazo-reference__item">
+          <h2 class="embarazo-section-title">Estados secundarios</h2>
+          <p class="embarazo-section-text">La vista distingue criterios incompletos, ausencia de datos y propuesta o periodo pendiente.</p>
+        </div>
+        <div class="embarazo-reference__item">
+          <h2 class="embarazo-section-title">Responsive</h2>
+          <p class="embarazo-section-text">Filtros, resumen y acciones se apilan en pantallas estrechas; la tabla conserva desplazamiento horizontal controlado.</p>
+        </div>
+      </section>
     </div>
-  </div>
+  </section>
 </div>
 
-<div class="card shadow-sm mb-4">
-  <div class="card-body table-responsive">
-    <table class="table table-sm table-bordered align-middle text-center">
-      <thead>
-        <tr>
-          <th>Residencial</th>
-          <th>Total reclutados</th>
-          <th>F</th>
-          <th>M</th>
-          <th>Participantes femeninas embarazadas</th>
-          <th>Participantes masculinos que han embarazado</th>
-          <th>% Prevención</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          <td class="text-start">{{ row.residential_name }}</td>
-          <td>{{ row.recruited }}</td>
-          <td>{{ row.f }}</td>
-          <td>{{ row.m }}</td>
-          <td>{{ row.pregnant_f }}</td>
-          <td>{{ row.pregnant_m }}</td>
-          <td>{{ '%.2f'|format(row.prevention_pct) }}%</td>
-        </tr>
-        {% endfor %}
-        {% if rows|length == 0 %}
-        <tr>
-          <td colspan="7" class="text-muted">No hay registros de pregnancy para los criterios seleccionados.</td>
-        </tr>
-        {% endif %}
-      </tbody>
-      {% if rows|length > 0 %}
-      <tfoot>
-        <tr class="fw-bold">
-          <td class="text-start">TOTAL</td>
-          <td>{{ total.recruited }}</td>
-          <td>{{ total.f }}</td>
-          <td>{{ total.m }}</td>
-          <td>{{ total.pregnant_f }}</td>
-          <td>{{ total.pregnant_m }}</td>
-          <td>{{ '%.2f'|format(total.prevention_pct) }}%</td>
-        </tr>
-      </tfoot>
-      {% endif %}
-    </table>
-  </div>
-</div>
-
-{% if rows|length > 0 %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="mb-0">Gráfica de embarazo</h5>
-      <div class="small text-muted">Base: participación vs embarazos reportados</div>
-    </div>
-    <div style="max-width: 420px; margin: 0 auto;">
-      <canvas id="pregnancyPieChart"></canvas>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-(function () {
-  const ctx = document.getElementById('pregnancyPieChart');
-  if (!ctx) return;
+(() => {
+  const periodType = document.getElementById('embarazo_period_type');
+  const monthlyFields = document.querySelectorAll('.embarazo-monthly-fields');
+  const customFields = document.querySelectorAll('.embarazo-custom-fields');
+  const monthInput = document.getElementById('embarazo_month');
+  const yearInput = document.getElementById('embarazo_year');
+  const startInput = document.getElementById('embarazo_start_date');
+  const endInput = document.getElementById('embarazo_end_date');
 
-  new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: {{ chart_labels | tojson }},
-      datasets: [{
-        data: {{ chart_values | tojson }},
-        backgroundColor: ['#dc3545', '#198754'],
-        borderColor: '#ffffff',
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'bottom'
-        }
-      }
-    }
-  });
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
+
+    if (monthInput) monthInput.required = !isCustom;
+    if (yearInput) yearInput.required = !isCustom;
+    if (startInput) startInput.required = isCustom;
+    if (endInput) endInput.required = isCustom;
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
 })();
 </script>
-{% endif %}
-{% endif %}
 {% endblock %}
