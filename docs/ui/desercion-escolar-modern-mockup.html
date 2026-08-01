@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup Moderno - Informe de Desercion Escolar</title>
+  <style>
+    :root {
+      --page: #f4f6f8;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #d8e0dd;
+      --line-strong: #aebbb7;
+      --text: #182521;
+      --muted: #61706b;
+      --brand: #0f5f56;
+      --brand-dark: #0a433d;
+      --brand-soft: #e5f2ef;
+      --accent: #b9822b;
+      --accent-soft: #f7ead8;
+      --focus: #1b6fd8;
+      --danger: #991b1b;
+      --success: #166534;
+      --shadow: 0 14px 38px rgba(26, 42, 37, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    .mockup-frame {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .app-shell {
+      min-height: 1120px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 252px 1fr;
+    }
+
+    .sidebar {
+      background: #10241f;
+      color: #e7f0ec;
+      padding: 22px 18px;
+    }
+
+    .brand-lockup {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f0c15a, #4ca48d);
+      margin-bottom: 12px;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .brand-context {
+      color: #aec1bb;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-section-title {
+      color: #91a69f;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin: 22px 8px 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #d8e4e0;
+      font-size: 14px;
+    }
+
+    .nav-item.active {
+      background: rgba(240, 193, 90, 0.16);
+      color: #ffffff;
+      border: 1px solid rgba(240, 193, 90, 0.28);
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.78;
+      flex: 0 0 auto;
+    }
+
+    .content {
+      min-width: 0;
+      background: linear-gradient(180deg, #f8faf9 0, #ffffff 160px);
+    }
+
+    .topbar {
+      height: 64px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 28px;
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .breadcrumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .breadcrumb span:last-child {
+      color: var(--text);
+    }
+
+    .user-chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: var(--muted);
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .page-content {
+      padding: 28px;
+    }
+
+    .report-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .header-main,
+    .total-panel,
+    .filters-panel,
+    .summary-panel,
+    .preview-panel,
+    .institutional-note,
+    .reference-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .header-main {
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--brand);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .header-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-size: 18px;
+    }
+
+    h3 {
+      font-size: 15px;
+    }
+
+    .description {
+      margin-top: 8px;
+      max-width: 820px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .report-badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid #c7e2db;
+      color: var(--brand-dark);
+      background: var(--brand-soft);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .total-panel {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #fffaf2;
+      border-color: #ead5b6;
+    }
+
+    .total-label {
+      color: #694614;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .total-value {
+      color: #35230c;
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 900;
+      margin-top: 6px;
+    }
+
+    .total-caption {
+      color: #7a5b2b;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .filters-panel {
+      padding: 18px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field-stack,
+    .main-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .main-stack {
+      gap: 20px;
+      min-width: 0;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #33443f;
+    }
+
+    .control {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 9px 11px;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control.focus-example {
+      outline: 3px solid rgba(27, 111, 216, 0.24);
+      border-color: var(--focus);
+    }
+
+    .period-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px;
+      background: #eef3f1;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .toggle-option {
+      text-align: center;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .toggle-option.active {
+      background: #ffffff;
+      color: var(--brand-dark);
+      box-shadow: 0 1px 3px rgba(20, 42, 36, 0.12);
+    }
+
+    .conditional-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .role-note {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--surface-soft);
+      border: 1px dashed var(--line-strong);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .button {
+      min-height: 42px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 14px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .button.primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .button.pdf {
+      color: var(--danger);
+      border-color: rgba(220, 38, 38, 0.2);
+      background: rgba(220, 38, 38, 0.09);
+    }
+
+    .button.success {
+      color: var(--success);
+      border-color: rgba(22, 163, 74, 0.2);
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    .button.secondary {
+      color: #1d4ed8;
+      border-color: rgba(37, 99, 235, 0.16);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .button:focus-visible,
+    .back-link:focus-visible {
+      outline: 3px solid rgba(27, 111, 216, 0.35);
+      outline-offset: 2px;
+    }
+
+    .institutional-note {
+      border-color: #d9c49f;
+      background: #fffaf2;
+      padding: 14px 16px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .institutional-note strong {
+      color: #583b12;
+      font-size: 14px;
+    }
+
+    .institutional-note span {
+      color: #6c5c43;
+      font-size: 13px;
+    }
+
+    .summary-panel {
+      padding: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .summary-item {
+      border-left: 3px solid var(--line-strong);
+      background: var(--surface-soft);
+      padding: 10px 12px;
+      border-radius: 6px;
+      min-width: 0;
+    }
+
+    .summary-item.metric {
+      border-left-color: var(--brand);
+      background: #eef8f5;
+    }
+
+    .summary-item.total {
+      border-left-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .summary-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin-top: 3px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .data-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .preview-panel {
+      overflow: hidden;
+    }
+
+    .preview-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .preview-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .count-pill {
+      border-radius: 999px;
+      border: 1px solid #c7e2db;
+      color: var(--brand-dark);
+      background: var(--brand-soft);
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+      min-width: 1320px;
+      font-size: 11px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #edf4f1;
+      border-bottom: 1px solid var(--line-strong);
+      color: #2b4039;
+      text-align: center;
+      padding: 9px 7px;
+      font-size: 10px;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
+    tbody td,
+    tfoot td {
+      padding: 9px 7px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    thead th:first-child,
+    tbody td:first-child,
+    tfoot td:first-child {
+      text-align: left;
+      width: 150px;
+    }
+
+    thead th:nth-child(n+2),
+    tbody td:nth-child(n+2),
+    tfoot td:nth-child(n+2) {
+      width: 46px;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #fbfcfb;
+    }
+
+    tfoot td {
+      background: #fffaf2;
+      border-top: 2px solid #c99139;
+      font-weight: 900;
+      color: #35230c;
+    }
+
+    .reference-docs {
+      max-width: 1480px;
+      margin: 22px auto 40px;
+      padding: 0 28px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .reference-panel {
+      padding: 18px;
+    }
+
+    .reference-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .empty-state-demo {
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fbfcfb;
+    }
+
+    .empty-state-demo h3,
+    .responsive-note h3 {
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    .empty-state-demo p,
+    .responsive-note p,
+    .responsive-note li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .responsive-note ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    @media (max-width: 1020px) {
+      .mockup-frame {
+        padding: 16px;
+      }
+
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .report-header,
+      .layout-grid,
+      .summary-grid,
+      .reference-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filters-panel {
+        position: static;
+      }
+
+      .conditional-row {
+        grid-template-columns: 1fr;
+      }
+
+      .header-title-row,
+      .preview-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .actions .button {
+        width: 100%;
+      }
+
+      .count-pill {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="mockup-frame" aria-label="Mockup visual de Informe de Desercion Escolar">
+    <section class="app-shell" aria-label="Vista principal propuesta">
+      <aside class="sidebar" aria-label="Navegacion principal">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div class="brand-name">Dyno-Lab Intranet</div>
+          <div class="brand-context">Gestion programatica</div>
+        </div>
+
+        <div class="nav-section-title">Operacion</div>
+        <div class="nav-item"><span class="nav-dot"></span>Inicio</div>
+        <div class="nav-item active"><span class="nav-dot"></span>Centro de reportes</div>
+        <div class="nav-item"><span class="nav-dot"></span>Desercion escolar</div>
+        <div class="nav-item"><span class="nav-dot"></span>Participantes</div>
+
+        <div class="nav-section-title">Administracion</div>
+        <div class="nav-item"><span class="nav-dot"></span>Propuestas</div>
+        <div class="nav-item"><span class="nav-dot"></span>Plantillas de reportes</div>
+      </aside>
+
+      <div class="content">
+        <div class="topbar">
+          <div class="breadcrumb" aria-label="Ruta">
+            <span>Reportes</span>
+            <span>/</span>
+            <span>Informe de Deserci&oacute;n Escolar</span>
+          </div>
+          <div class="user-chip">Rol: Supervisor</div>
+        </div>
+
+        <div class="page-content">
+          <section class="report-header" aria-labelledby="page-title">
+            <div class="header-main">
+              <a class="back-link" href="#">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Regreso a Centro de reportes</span>
+              </a>
+              <div class="header-title-row">
+                <div>
+                  <h1 id="page-title">Informe de Deserci&oacute;n Escolar</h1>
+                  <p class="description">Resume participantes a&ntilde;adidos a informes mensuales de deserci&oacute;n escolar por propuesta, periodo y residencial o Global. La vista agrega los registros por residencial e informa grado, tutor&iacute;as, asistencia escolar y reportes de notas de 10, 20, 30 y 40 semanas.</p>
+                </div>
+                <div class="report-badge">Seguimiento escolar</div>
+              </div>
+            </div>
+
+            <aside class="total-panel" aria-label="Reclutados totales">
+              <div>
+                <div class="total-label">Reclutados totales</div>
+                <div class="total-value">42</div>
+              </div>
+              <div class="total-caption">Participantes agregados al informe en la selecci&oacute;n actual.</div>
+            </aside>
+          </section>
+
+          <section class="layout-grid">
+            <aside class="filters-panel" aria-labelledby="filters-title">
+              <div class="panel-heading">
+                <h2 id="filters-title">Filtros</h2>
+              </div>
+
+              <div class="field-stack">
+                <div class="field">
+                  <label for="proposal">Propuesta</label>
+                  <div id="proposal" class="control focus-example">PR-2026-DEM - Propuesta demostrativa</div>
+                </div>
+
+                <div class="field">
+                  <label>Tipo de periodo</label>
+                  <div class="period-toggle" aria-label="Tipo de periodo">
+                    <div class="toggle-option active">Mensual</div>
+                    <div class="toggle-option">Personalizado</div>
+                  </div>
+                </div>
+
+                <div class="conditional-row" aria-label="Campos visibles cuando el periodo es mensual">
+                  <div class="field">
+                    <label for="month">Mes</label>
+                    <div id="month" class="control">Agosto</div>
+                  </div>
+                  <div class="field">
+                    <label for="year">A&ntilde;o</label>
+                    <div id="year" class="control">2026</div>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="residential">Residencial</label>
+                  <div id="residential" class="control">Global</div>
+                </div>
+
+                <div class="role-note">Admin y supervisor pueden consultar residencial o Global en el reporte regular. El usuario regular conserva su alcance asignado por backend.</div>
+              </div>
+
+              <div class="actions" aria-label="Acciones del reporte">
+                <button class="button primary" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                  <span>Vista previa</span>
+                </button>
+                <button class="button pdf" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6M8 16h8M8 12h3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                  <span>Descargar PDF</span>
+                </button>
+                <button class="button success" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                  <span>Descargar Excel</span>
+                </button>
+                <button class="button secondary" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM14 3h7v7M21 3l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Versi&oacute;n imprimible</span>
+                </button>
+              </div>
+            </aside>
+
+            <div class="main-stack">
+              <section class="institutional-note" aria-label="Nota institucional">
+                <strong>Descargables protegidos</strong>
+                <span>El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.</span>
+              </section>
+
+              <section class="summary-panel" aria-labelledby="summary-title">
+                <div class="panel-heading">
+                  <h2 id="summary-title">Resumen del reporte</h2>
+                </div>
+
+                <div class="summary-grid">
+                  <div class="summary-item">
+                    <div class="summary-label">Propuesta</div>
+                    <div class="summary-value">PR-2026-DEM - Propuesta demostrativa</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Periodo reportado</div>
+                    <div class="summary-value">Agosto 2026</div>
+                  </div>
+                  <div class="summary-item">
+                    <div class="summary-label">Residencial</div>
+                    <div class="summary-value">Global</div>
+                  </div>
+                  <div class="summary-item metric total">
+                    <div class="summary-label">Reclutados totales</div>
+                    <div class="summary-value">42</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">F</div>
+                    <div class="summary-value">24</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">M</div>
+                    <div class="summary-value">18</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Asistieron tutor&iacute;as</div>
+                    <div class="summary-value">31 / 73.81%</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Asistieron escuela</div>
+                    <div class="summary-value">36 / 85.71%</div>
+                  </div>
+                  <div class="summary-item metric">
+                    <div class="summary-label">Reportes de notas</div>
+                    <div class="summary-value">10: 29, 20: 23, 30: 18, 40: 12</div>
+                  </div>
+                </div>
+
+                <div class="data-note">Participantes, tutor&iacute;as, grado, asistencia escolar y reportes por semanas son datos manuales almacenados en informes mensuales. Totales y porcentajes son calculados por el reporte.</div>
+              </section>
+
+              <section class="preview-panel" aria-labelledby="preview-title">
+                <div class="preview-head">
+                  <div>
+                    <h2 id="preview-title">Vista previa web</h2>
+                    <div class="preview-subtitle">La tabla conserva las agrupaciones reales: participantes reclutados, grados, tutor&iacute;as, escuela y reportes de notas.</div>
+                  </div>
+                  <span class="count-pill">42 reclutados</span>
+                </div>
+
+                <div class="table-wrap">
+                  <table aria-label="Informe de Desercion Escolar por residencial">
+                    <thead>
+                      <tr>
+                        <th rowspan="2">Residencial</th>
+                        <th colspan="3">Participantes reclutados</th>
+                        <th colspan="15">Participantes por grado</th>
+                        <th colspan="2">Asistieron tutor&iacute;as</th>
+                        <th colspan="2">Asistieron escuela</th>
+                        <th colspan="4">Entregaron reporte de notas</th>
+                      </tr>
+                      <tr>
+                        <th>Total</th>
+                        <th>F</th>
+                        <th>M</th>
+                        <th>SC</th>
+                        <th>EE</th>
+                        <th>K</th>
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                        <th>5</th>
+                        <th>6</th>
+                        <th>7</th>
+                        <th>8</th>
+                        <th>9</th>
+                        <th>10</th>
+                        <th>11</th>
+                        <th>12</th>
+                        <th>Cant.</th>
+                        <th>%</th>
+                        <th>Cant.</th>
+                        <th>%</th>
+                        <th>10</th>
+                        <th>20</th>
+                        <th>30</th>
+                        <th>40</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Residencial Norte</td>
+                        <td>15</td>
+                        <td>9</td>
+                        <td>6</td>
+                        <td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>1</td><td>2</td><td>1</td><td>2</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td>
+                        <td>12</td>
+                        <td>80.00%</td>
+                        <td>14</td>
+                        <td>93.33%</td>
+                        <td>11</td>
+                        <td>8</td>
+                        <td>6</td>
+                        <td>4</td>
+                      </tr>
+                      <tr>
+                        <td>Residencial Central</td>
+                        <td>14</td>
+                        <td>8</td>
+                        <td>6</td>
+                        <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>2</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td>
+                        <td>10</td>
+                        <td>71.43%</td>
+                        <td>12</td>
+                        <td>85.71%</td>
+                        <td>10</td>
+                        <td>8</td>
+                        <td>6</td>
+                        <td>4</td>
+                      </tr>
+                      <tr>
+                        <td>Residencial Sur</td>
+                        <td>13</td>
+                        <td>7</td>
+                        <td>6</td>
+                        <td>0</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td>
+                        <td>9</td>
+                        <td>69.23%</td>
+                        <td>10</td>
+                        <td>76.92%</td>
+                        <td>8</td>
+                        <td>7</td>
+                        <td>6</td>
+                        <td>4</td>
+                      </tr>
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td>TOTAL</td>
+                        <td>42</td>
+                        <td>24</td>
+                        <td>18</td>
+                        <td>1</td><td>2</td><td>2</td><td>2</td><td>3</td><td>2</td><td>4</td><td>4</td><td>4</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>1</td>
+                        <td>31</td>
+                        <td>73.81%</td>
+                        <td>36</td>
+                        <td>85.71%</td>
+                        <td>29</td>
+                        <td>23</td>
+                        <td>18</td>
+                        <td>12</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="reference-docs" aria-label="Referencias fuera del cuerpo principal">
+    <div class="reference-panel">
+      <h2>Estados secundarios</h2>
+      <div class="reference-grid">
+        <div class="empty-state-demo">
+          <h3>Sin criterios completos</h3>
+          <p>La vista previa no se muestra hasta tener propuesta, periodo v&aacute;lido y residencial o Global.</p>
+        </div>
+        <div class="empty-state-demo">
+          <h3>Sin datos para este filtro</h3>
+          <p>La tabla conserva encabezados y muestra el mensaje actual cuando no hay registros para los criterios seleccionados.</p>
+        </div>
+        <div class="empty-state-demo">
+          <h3>PDF descargable pendiente</h3>
+          <p>No se localiz&oacute; una ruta individual <code>/ui/reports/desercion-escolar/pdf/download</code>; la versi&oacute;n actual <code>/pdf</code> es HTML imprimible.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reference-panel responsive-note">
+      <h2>Periodo personalizado</h2>
+      <ul>
+        <li>Personalizado oculta Mes/A&ntilde;o en el Centro de reportes.</li>
+        <li>Personalizado muestra Fecha inicial y Fecha final.</li>
+        <li>El filtro compara el primer d&iacute;a del mes del informe contra el rango seleccionado.</li>
+      </ul>
+    </div>
+
+    <div class="reference-panel responsive-note">
+      <h2>Responsive</h2>
+      <ul>
+        <li>Filtros, resumen y vista previa pasan a una columna en pantallas estrechas.</li>
+        <li>Las acciones mantienen el orden aprobado: Vista previa, Descargar PDF, Descargar Excel y Versi&oacute;n imprimible.</li>
+        <li>La tabla conserva su estructura actual y usa desplazamiento horizontal controlado.</li>
+      </ul>
+    </div>
+  </section>
+</body>
+</html>

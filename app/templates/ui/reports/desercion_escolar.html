@@ -1,185 +1,361 @@
 {% extends "ui/_base.html" %}
-{% block title %}Deserción Escolar{% endblock %}
+{% block title %}Deserci&oacute;n Escolar{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Informe de Deserción Escolar</h4>
-</div>
-
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <form method="get" action="/ui/reports/run" class="row g-3 align-items-end">
-      <input type="hidden" name="report_key" value="desercion-escolar">
-      {% if selected_period_type == 'custom' %}
-      <input type="hidden" name="period_type" value="custom">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <div class="col-md-4">
-        <label class="form-label">Periodo</label>
-        <input class="form-control" value="{{ period_label }}" readonly>
-      </div>
-      {% else %}
-      <input type="hidden" name="period_type" value="monthly">
-      <div class="col-md-2">
-        <label class="form-label">Mes *</label>
-        <select class="form-select" name="month" required>
-          <option value="">Selecciona...</option>
-          {% for month_value, month_label in month_options %}
-          <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Año *</label>
-        <select class="form-select" name="year" required>
-          <option value="">Selecciona...</option>
-          {% for option_year in year_options %}
-          <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-      <div class="col-md-4">
-        <label class="form-label">Propuesta *</label>
-        <select class="form-select" name="proposal_id" required>
-          <option value="">Selecciona...</option>
-          {% for proposal in proposals %}
-          <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Formato *</label>
-        <select class="form-select" name="output" required>
-          <option value="screen" {% if selected_output == 'screen' %}selected{% endif %}>Pantalla</option>
-          <option value="excel">Excel</option>
-          <option value="pdf">PDF</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Residencial *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
-        <select class="form-select" name="employee_id" required>
-          <option value="">Selecciona...</option>
-          <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
-          {% for report_user in report_users %}
-          <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
-          {% endfor %}
-        </select>
-        {% else %}
-        <input class="form-control" value="{{ residential_name or '' }}" readonly>
-        <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Funcionario autorizado</label>
-        <input class="form-control" type="text" name="authorized_name" value="" disabled>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary">Generar</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/desercion-escolar/excel">Excel</button>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-danger" type="submit" formaction="/ui/reports/desercion-escolar/pdf" formtarget="_blank">PDF</button>
-      </div>
-      <div class="col-12 small text-muted">
-        Este informe usa la misma entrada central de reportes. Pantalla y Excel quedan activos; PDF lo ajustamos a continuación.
-      </div>
-    </form>
-  </div>
-</div>
-
-{% if selected_proposal_id and period_label and (selected_user or is_global) %}
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="row g-2">
-      <div class="col-md-4"><strong>Residencial:</strong> {{ residential_name or '' }}</div>
-      <div class="col-md-4"><strong>Periodo reportado:</strong> {{ period_label }}</div>
-      <div class="col-md-4"><strong>Reclutados totales:</strong> {{ total.recruited }}</div>
-    </div>
-  </div>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <table class="table table-sm table-bordered align-middle text-center">
-      <thead>
-        <tr>
-          <th rowspan="2">Residencial</th>
-          <th colspan="3">Participantes reclutados</th>
-          <th colspan="15">Participantes por grado</th>
-          <th colspan="2">Asistieron tutorías</th>
-          <th colspan="2">Asistieron escuela</th>
-          <th colspan="4">Entregaron reporte de notas</th>
-        </tr>
-        <tr>
-          <th>Total</th>
-          <th>F</th>
-          <th>M</th>
-          {% for grade in grade_columns %}
-          <th>{{ grade }}</th>
-          {% endfor %}
-          <th>Cant.</th>
-          <th>%</th>
-          <th>Cant.</th>
-          <th>%</th>
-          <th>10</th>
-          <th>20</th>
-          <th>30</th>
-          <th>40</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          <td class="text-start">{{ row.residential_name }}</td>
-          <td>{{ row.recruited }}</td>
-          <td>{{ row.f }}</td>
-          <td>{{ row.m }}</td>
-          {% for grade in grade_columns %}
-          <td>{{ row.grades.get(grade, 0) }}</td>
-          {% endfor %}
-          <td>{{ row.tutoring }}</td>
-          <td>{{ '%.2f'|format(row.tutoring_pct) }}%</td>
-          <td>{{ row.school }}</td>
-          <td>{{ '%.2f'|format(row.school_pct) }}%</td>
-          <td>{{ row.report_10 }}</td>
-          <td>{{ row.report_20 }}</td>
-          <td>{{ row.report_30 }}</td>
-          <td>{{ row.report_40 }}</td>
-        </tr>
-        {% endfor %}
-        {% if rows|length == 0 %}
-        <tr>
-          <td colspan="27" class="text-muted">No hay registros de school-dropout para los criterios seleccionados.</td>
-        </tr>
-        {% endif %}
-      </tbody>
-      {% if rows|length > 0 %}
-      <tfoot>
-        <tr class="fw-bold">
-          <td class="text-start">TOTAL</td>
-          <td>{{ total.recruited }}</td>
-          <td>{{ total.f }}</td>
-          <td>{{ total.m }}</td>
-          {% for grade in grade_columns %}
-          <td>{{ total.grades.get(grade, 0) }}</td>
-          {% endfor %}
-          <td>{{ total.tutoring }}</td>
-          <td>{{ '%.2f'|format(total.tutoring_pct) }}%</td>
-          <td>{{ total.school }}</td>
-          <td>{{ '%.2f'|format(total.school_pct) }}%</td>
-          <td>{{ total.report_10 }}</td>
-          <td>{{ total.report_20 }}</td>
-          <td>{{ total.report_30 }}</td>
-          <td>{{ total.report_40 }}</td>
-        </tr>
-      </tfoot>
-      {% endif %}
-    </table>
-  </div>
-</div>
+{% set is_custom_period = selected_period_type == 'custom' %}
+{% set has_period = period_label %}
+{% set has_scope = selected_user or is_global %}
+{% set has_selection = selected_proposal_id and has_period and has_scope %}
+{% set has_rows = rows|length > 0 %}
+{% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
+{% for proposal in proposals %}
+  {% if selected_proposal_id == proposal.proposal_id %}
+    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% endif %}
+{% endfor %}
+{% set selected_scope_label = 'Sin residencial seleccionado' %}
+{% if is_global %}
+  {% set selected_scope_label = 'Global' %}
+{% elif selected_user %}
+  {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
+{% elif current_user.role not in ['admin', 'supervisor'] %}
+  {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
+
+<div class="desercion-page">
+  <a class="desercion-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Regreso a Centro de reportes</span>
+  </a>
+
+  <section class="desercion-hero" aria-label="Informe de Desercion Escolar">
+    <div class="desercion-hero__content">
+      <span class="desercion-eyebrow">Seguimiento escolar</span>
+      <h1 class="desercion-hero__title">Informe de Deserci&oacute;n Escolar</h1>
+      <p class="desercion-hero__text">
+        Resume participantes agregados a informes mensuales de deserci&oacute;n escolar por propuesta, periodo y residencial o Global. La vista conserva informaci&oacute;n agregada por residencial sobre grado, tutor&iacute;as, asistencia escolar y reportes de notas.
+      </p>
+    </div>
+    <div class="desercion-hero__metric" aria-label="Participantes reclutados">
+      <strong>{{ total.recruited if has_selection else 0 }}</strong>
+      <span>Participantes agregados al informe en la selecci&oacute;n actual.</span>
+    </div>
+  </section>
+
+  <section class="desercion-layout">
+    <div class="desercion-side">
+      <section class="desercion-panel desercion-panel--filters" aria-label="Filtros del reporte">
+        <div class="desercion-panel__header">
+          <div>
+            <h2 class="desercion-section-title">Filtros del reporte</h2>
+            <p class="desercion-section-text">Define propuesta, periodo y residencial antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/desercion-escolar" class="desercion-filter-form" id="desercion-report-form">
+          <div class="desercion-filter-field desercion-filter-field--wide">
+            <label class="form-label" for="desercion_proposal_id">Propuesta *</label>
+            <select class="form-select" name="proposal_id" id="desercion_proposal_id" required>
+              <option value="">Selecciona...</option>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="desercion-filter-field">
+            <label class="form-label" for="desercion_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="desercion_period_type" required>
+              <option value="monthly" {% if not is_custom_period %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if is_custom_period %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="desercion-filter-row desercion-monthly-fields {% if is_custom_period %}d-none{% endif %}">
+            <div class="desercion-filter-field">
+              <label class="form-label" for="desercion_month">Mes *</label>
+              <select class="form-select" name="month" id="desercion_month" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="desercion-filter-field">
+              <label class="form-label" for="desercion_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="desercion_year" {% if not is_custom_period %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="desercion-filter-row desercion-custom-fields {% if not is_custom_period %}d-none{% endif %}">
+            <div class="desercion-filter-field">
+              <label class="form-label" for="desercion_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="desercion_start_date" value="{{ selected_start_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+
+            <div class="desercion-filter-field">
+              <label class="form-label" for="desercion_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="desercion_end_date" value="{{ selected_end_date or '' }}" {% if is_custom_period %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="desercion-filter-field desercion-filter-field--wide">
+            {% if current_user.role in ['admin', 'supervisor'] %}
+            <label class="form-label" for="desercion_employee_id">Residencial *</label>
+            <select class="form-select" name="employee_id" id="desercion_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <label class="form-label" for="desercion_employee_display">Residencial *</label>
+            <input class="form-control" id="desercion_employee_display" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ current_user.user_id }}">
+            {% endif %}
+          </div>
+
+          <div class="desercion-filter-note">
+            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+          </div>
+
+          <div class="desercion-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary desercion-action desercion-action--primary" type="submit" formaction="/ui/reports/desercion-escolar">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn desercion-action desercion-action--pdf" type="submit" formaction="/ui/reports/desercion-escolar/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn desercion-action desercion-action--excel" type="submit" formaction="/ui/reports/desercion-escolar/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn desercion-action desercion-action--print" type="submit" formaction="/ui/reports/desercion-escolar/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="desercion-official-note" aria-label="Nota institucional">
+        <div class="desercion-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El documento PDF, Excel y la versi&oacute;n imprimible conservan exactamente los formatos ya establecidos.
+        </p>
+      </section>
+    </div>
+
+    <div class="desercion-main">
+      <section class="desercion-panel desercion-summary" aria-label="Resumen del reporte">
+        <div class="desercion-panel__header">
+          <div>
+            <h2 class="desercion-section-title">Resumen del reporte</h2>
+            <p class="desercion-section-text">Contexto visible antes de revisar o descargar.</p>
+          </div>
+        </div>
+
+        <div class="desercion-summary-grid">
+          <div class="desercion-summary-item">
+            <span>Propuesta</span>
+            <strong>{{ report_state.proposal_label }}</strong>
+          </div>
+          <div class="desercion-summary-item">
+            <span>Periodo reportado</span>
+            <strong>{{ period_label or 'Sin periodo seleccionado' }}</strong>
+          </div>
+          <div class="desercion-summary-item">
+            <span>Residencial</span>
+            <strong>{{ selected_scope_label }}</strong>
+          </div>
+          <div class="desercion-summary-item desercion-summary-item--metric desercion-summary-item--total">
+            <span>Reclutados totales</span>
+            <strong>{{ total.recruited if has_selection else 'Sin consulta' }}</strong>
+          </div>
+          <div class="desercion-summary-item desercion-summary-item--metric desercion-summary-item--gender">
+            <span>Femenino | Masculino</span>
+            <div class="desercion-gender-pair" aria-label="Distribucion por genero">
+              <div>
+                <small>F</small>
+                <strong>{{ total.f if has_selection else 'Sin consulta' }}</strong>
+              </div>
+              <div>
+                <small>M</small>
+                <strong>{{ total.m if has_selection else 'Sin consulta' }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="desercion-summary-item desercion-summary-item--metric">
+            <span>Asistieron tutor&iacute;as</span>
+            <strong>{% if has_selection %}{{ total.tutoring }} / {{ '%.2f'|format(total.tutoring_pct) }}%{% else %}Sin consulta{% endif %}</strong>
+          </div>
+          <div class="desercion-summary-item desercion-summary-item--metric">
+            <span>Asistieron escuela</span>
+            <strong>{% if has_selection %}{{ total.school }} / {{ '%.2f'|format(total.school_pct) }}%{% else %}Sin consulta{% endif %}</strong>
+          </div>
+          <div class="desercion-summary-item desercion-summary-item--metric">
+            <span>Reportes de notas</span>
+            <strong>{% if has_selection %}10: {{ total.report_10 }}, 20: {{ total.report_20 }}, 30: {{ total.report_30 }}, 40: {{ total.report_40 }}{% else %}Sin consulta{% endif %}</strong>
+          </div>
+        </div>
+
+        <div class="desercion-data-note" aria-label="Naturaleza de datos">
+          Participantes, grado, tutor&iacute;as, asistencia escolar y reportes de notas son datos manuales almacenados. Totales y porcentajes son calculados por el reporte.
+        </div>
+      </section>
+
+      {% if has_selection and has_rows %}
+      <section class="desercion-panel desercion-results" aria-label="Vista previa web">
+        <div class="desercion-results__header">
+          <div>
+            <h2 class="desercion-section-title">Vista previa web</h2>
+            <p class="desercion-section-text">La tabla conserva las agrupaciones reales por residencial, grado, tutor&iacute;as, escuela y reportes de notas.</p>
+          </div>
+          <span class="desercion-count-pill">{{ total.recruited }} reclutados</span>
+        </div>
+
+        <div class="desercion-table-wrap">
+          <table class="table table-hover align-middle text-center desercion-table">
+            <thead>
+              <tr>
+                <th scope="col" rowspan="2" class="text-start">Residencial</th>
+                <th scope="colgroup" colspan="3">Participantes reclutados</th>
+                <th scope="colgroup" colspan="{{ grade_columns|length }}">Participantes por grado</th>
+                <th scope="colgroup" colspan="2">Asistieron tutor&iacute;as</th>
+                <th scope="colgroup" colspan="2">Asistieron escuela</th>
+                <th scope="colgroup" colspan="4">Entregaron reporte de notas</th>
+              </tr>
+              <tr>
+                <th scope="col">Total</th>
+                <th scope="col">F</th>
+                <th scope="col">M</th>
+                {% for grade in grade_columns %}
+                <th scope="col">{{ grade }}</th>
+                {% endfor %}
+                <th scope="col">Cant.</th>
+                <th scope="col">%</th>
+                <th scope="col">Cant.</th>
+                <th scope="col">%</th>
+                <th scope="col">10</th>
+                <th scope="col">20</th>
+                <th scope="col">30</th>
+                <th scope="col">40</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td class="text-start">{{ row.residential_name }}</td>
+                <td>{{ row.recruited }}</td>
+                <td>{{ row.f }}</td>
+                <td>{{ row.m }}</td>
+                {% for grade in grade_columns %}
+                <td>{{ row.grades.get(grade, 0) }}</td>
+                {% endfor %}
+                <td>{{ row.tutoring }}</td>
+                <td>{{ '%.2f'|format(row.tutoring_pct) }}%</td>
+                <td>{{ row.school }}</td>
+                <td>{{ '%.2f'|format(row.school_pct) }}%</td>
+                <td>{{ row.report_10 }}</td>
+                <td>{{ row.report_20 }}</td>
+                <td>{{ row.report_30 }}</td>
+                <td>{{ row.report_40 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="desercion-total-row">
+                <td class="text-start">TOTAL</td>
+                <td>{{ total.recruited }}</td>
+                <td>{{ total.f }}</td>
+                <td>{{ total.m }}</td>
+                {% for grade in grade_columns %}
+                <td>{{ total.grades.get(grade, 0) }}</td>
+                {% endfor %}
+                <td>{{ total.tutoring }}</td>
+                <td>{{ '%.2f'|format(total.tutoring_pct) }}%</td>
+                <td>{{ total.school }}</td>
+                <td>{{ '%.2f'|format(total.school_pct) }}%</td>
+                <td>{{ total.report_10 }}</td>
+                <td>{{ total.report_20 }}</td>
+                <td>{{ total.report_30 }}</td>
+                <td>{{ total.report_40 }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+      {% elif has_selection %}
+      <section class="desercion-empty" aria-label="Sin datos para los filtros seleccionados">
+        <div class="desercion-empty__icon" aria-hidden="true">
+          <i class="bi bi-search"></i>
+        </div>
+        <div>
+          <h2 class="desercion-section-title">Sin datos para los filtros seleccionados</h2>
+          <p class="desercion-section-text">No hay registros de school-dropout para los criterios seleccionados.</p>
+        </div>
+      </section>
+      {% elif not selected_proposal_id or not period_label %}
+      <section class="desercion-empty" aria-label="Sin propuesta o periodo valido">
+        <div class="desercion-empty__icon" aria-hidden="true">
+          <i class="bi bi-calendar2-check"></i>
+        </div>
+        <div>
+          <h2 class="desercion-section-title">Sin propuesta o periodo v&aacute;lido</h2>
+          <p class="desercion-section-text">Selecciona una propuesta y completa el periodo mensual o personalizado para consultar el informe.</p>
+        </div>
+      </section>
+      {% else %}
+      <section class="desercion-empty" aria-label="Sin criterios completos">
+        <div class="desercion-empty__icon" aria-hidden="true">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <h2 class="desercion-section-title">Sin criterios completos</h2>
+          <p class="desercion-section-text">Los filtros permanecen disponibles para consultar, descargar PDF, descargar Excel o abrir la versi&oacute;n imprimible.</p>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const periodType = document.getElementById('desercion_period_type');
+  const monthlyFields = document.querySelectorAll('.desercion-monthly-fields');
+  const customFields = document.querySelectorAll('.desercion-custom-fields');
+  const monthInput = document.getElementById('desercion_month');
+  const yearInput = document.getElementById('desercion_year');
+  const startInput = document.getElementById('desercion_start_date');
+  const endInput = document.getElementById('desercion_end_date');
+
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
+
+    if (monthInput) monthInput.required = !isCustom;
+    if (yearInput) yearInput.required = !isCustom;
+    if (startInput) startInput.required = isCustom;
+    if (endInput) endInput.required = isCustom;
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+</script>
 {% endblock %}
