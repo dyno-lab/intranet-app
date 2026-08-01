@@ -7,6 +7,7 @@
 {% set has_scope = selected_user or is_global %}
 {% set has_selection = selected_proposal_id and has_period and has_scope %}
 {% set has_rows = rows|length > 0 %}
+{% set chart_total = total.pregnancy_cases + total.non_pregnant %}
 {% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
 {% for proposal in proposals %}
   {% if selected_proposal_id == proposal.proposal_id %}
@@ -185,13 +186,18 @@
             <span>Total reclutados</span>
             <strong>{{ total.recruited if has_selection else 'Sin consulta' }}</strong>
           </div>
-          <div class="embarazo-summary-item embarazo-summary-item--metric">
-            <span>F</span>
-            <strong>{{ total.f if has_selection else 'Sin consulta' }}</strong>
-          </div>
-          <div class="embarazo-summary-item embarazo-summary-item--metric">
-            <span>M</span>
-            <strong>{{ total.m if has_selection else 'Sin consulta' }}</strong>
+          <div class="embarazo-summary-item embarazo-summary-item--metric embarazo-summary-item--gender">
+            <span>Femenino | Masculino</span>
+            <div class="embarazo-gender-pair" aria-label="Distribucion por genero">
+              <div>
+                <small>F</small>
+                <strong>{{ total.f if has_selection else 'Sin consulta' }}</strong>
+              </div>
+              <div>
+                <small>M</small>
+                <strong>{{ total.m if has_selection else 'Sin consulta' }}</strong>
+              </div>
+            </div>
           </div>
           <div class="embarazo-summary-item embarazo-summary-item--metric">
             <span>Participantes femeninas embarazadas</span>
@@ -206,11 +212,8 @@
             <strong>{% if has_selection %}{{ '%.2f'|format(total.prevention_pct) }}%{% else %}Sin consulta{% endif %}</strong>
           </div>
         </div>
-        <div class="embarazo-state-tags" aria-label="Naturaleza de datos">
-          <span class="embarazo-tag embarazo-tag--manual">Participaci&oacute;n en talleres: manual</span>
-          <span class="embarazo-tag embarazo-tag--manual">Embarazo reportado: manual</span>
-          <span class="embarazo-tag embarazo-tag--saved">Informes mensuales: almacenados</span>
-          <span class="embarazo-tag embarazo-tag--calculated">Totales y porcentajes: calculados</span>
+        <div class="embarazo-data-note" aria-label="Naturaleza de datos">
+          Participaci&oacute;n en talleres: manual. Embarazo reportado: manual. Informes mensuales: almacenados. Totales y porcentajes: calculados.
         </div>
       </section>
 
@@ -222,6 +225,37 @@
             <p class="embarazo-section-text">La tabla conserva el orden visible actual y resume los conteos agregados por residencial.</p>
           </div>
           <span class="embarazo-count-pill">{{ total.participation }} participantes</span>
+        </div>
+
+        <div class="embarazo-preview-grid">
+          <section class="embarazo-chart-card" aria-label="Grafico de embarazo y prevencion">
+            <div class="embarazo-chart-wrap">
+              <canvas id="embarazoPregnancyChart"></canvas>
+            </div>
+            <div class="embarazo-chart-legend" aria-label="Valores del grafico">
+              <div class="embarazo-chart-legend__item embarazo-chart-legend__item--pregnancy">
+                <span class="embarazo-chart-legend__marker" aria-hidden="true"></span>
+                <div>
+                  <strong>Embarazos</strong>
+                  <small>{{ total.pregnancy_cases }} casos{% if chart_total %} &middot; {{ '%.2f'|format((total.pregnancy_cases / chart_total) * 100) }}%{% else %} &middot; 0.00%{% endif %}</small>
+                </div>
+              </div>
+              <div class="embarazo-chart-legend__item embarazo-chart-legend__item--prevention">
+                <span class="embarazo-chart-legend__marker" aria-hidden="true"></span>
+                <div>
+                  <strong>No embarazos</strong>
+                  <small>{{ total.non_pregnant }} participantes{% if chart_total %} &middot; {{ '%.2f'|format((total.non_pregnant / chart_total) * 100) }}%{% else %} &middot; 0.00%{% endif %}</small>
+                </div>
+              </div>
+              <div class="embarazo-chart-legend__item embarazo-chart-legend__item--rate">
+                <span class="embarazo-chart-legend__marker" aria-hidden="true"></span>
+                <div>
+                  <strong>% Prevenci&oacute;n</strong>
+                  <small>{{ '%.2f'|format(total.prevention_pct) }}%</small>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
 
         <div class="embarazo-table-wrap">
@@ -296,20 +330,13 @@
       </section>
       {% endif %}
 
-      <section class="embarazo-reference" aria-label="Referencia responsive">
-        <div class="embarazo-reference__item">
-          <h2 class="embarazo-section-title">Estados secundarios</h2>
-          <p class="embarazo-section-text">La vista distingue criterios incompletos, ausencia de datos y propuesta o periodo pendiente.</p>
-        </div>
-        <div class="embarazo-reference__item">
-          <h2 class="embarazo-section-title">Responsive</h2>
-          <p class="embarazo-section-text">Filtros, resumen y acciones se apilan en pantallas estrechas; la tabla conserva desplazamiento horizontal controlado.</p>
-        </div>
-      </section>
     </div>
   </section>
 </div>
 
+{% if has_selection and has_rows %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endif %}
 <script>
 (() => {
   const periodType = document.getElementById('embarazo_period_type');
@@ -336,5 +363,55 @@
     syncPeriodFields();
   }
 })();
+
+{% if has_selection and has_rows %}
+(() => {
+  const chartElement = document.getElementById('embarazoPregnancyChart');
+  if (!chartElement || typeof Chart === 'undefined') return;
+
+  const values = [
+    {{ total.pregnancy_cases | tojson }},
+    {{ total.non_pregnant | tojson }}
+  ];
+  const labels = ['Embarazos', 'No embarazos'];
+  const total = values.reduce((sum, value) => sum + value, 0);
+
+  new Chart(chartElement, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: ['rgba(220, 38, 38, 0.36)', 'rgba(22, 163, 74, 0.72)'],
+        borderColor: ['rgba(153, 27, 27, 0.36)', 'rgba(22, 101, 52, 0.48)'],
+        borderWidth: 1,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const value = context.parsed || 0;
+              const percentage = total ? ((value / total) * 100).toFixed(2) : '0.00';
+              return `${context.label}: ${value} (${percentage}%)`;
+            },
+            afterBody() {
+              return "% Prevenci\u00f3n: {{ '%.2f'|format(total.prevention_pct) }}%";
+            }
+          }
+        }
+      }
+    }
+  });
+})();
+{% endif %}
 </script>
 {% endblock %}

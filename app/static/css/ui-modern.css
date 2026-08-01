@@ -8242,8 +8242,7 @@ body.ui-shell-body {
 .embarazo-hero,
 .embarazo-panel,
 .embarazo-empty,
-.embarazo-official-note,
-.embarazo-reference {
+.embarazo-official-note {
   border: 1px solid var(--ui-border);
   border-radius: 18px;
   background: #ffffff;
@@ -8340,8 +8339,7 @@ body.ui-shell-body {
 
 .embarazo-panel,
 .embarazo-empty,
-.embarazo-official-note,
-.embarazo-reference {
+.embarazo-official-note {
   padding: 1rem;
 }
 
@@ -8524,43 +8522,48 @@ body.ui-shell-body {
   background: rgba(245, 158, 11, 0.12);
 }
 
-.embarazo-state-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.embarazo-summary-item--gender {
+  padding-bottom: 0.75rem;
+}
+
+.embarazo-gender-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
   margin-top: 0.9rem;
 }
 
-.embarazo-tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0.4rem 0.65rem;
+.embarazo-gender-pair > div {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--ui-border);
-  border-radius: 999px;
-  color: var(--ui-text-muted);
+  border-radius: 12px;
   background: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1.2;
 }
 
-.embarazo-tag--manual {
-  color: #713f12;
-  border-color: rgba(245, 158, 11, 0.28);
-  background: rgba(245, 158, 11, 0.1);
+.embarazo-gender-pair small {
+  display: block;
+  color: var(--ui-text-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.embarazo-tag--saved {
-  color: #1d4ed8;
-  border-color: rgba(37, 99, 235, 0.2);
-  background: rgba(37, 99, 235, 0.08);
+.embarazo-gender-pair strong {
+  margin-top: 0.15rem;
+  font-size: 1.05rem;
 }
 
-.embarazo-tag--calculated {
-  color: #0f766e;
-  border-color: rgba(15, 118, 110, 0.22);
-  background: rgba(20, 184, 166, 0.09);
+.embarazo-data-note {
+  margin-top: 0.9rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed rgba(15, 23, 42, 0.16);
+  border-radius: 12px;
+  color: var(--ui-text-muted);
+  background: #f8fafc;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .embarazo-results {
@@ -8585,6 +8588,82 @@ body.ui-shell-body {
   font-size: 0.82rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.embarazo-preview-grid {
+  padding: 1rem;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.embarazo-chart-card {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.38fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  background: #fbfefd;
+}
+
+.embarazo-chart-wrap {
+  position: relative;
+  min-height: 14rem;
+}
+
+.embarazo-chart-legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.embarazo-chart-legend__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.embarazo-chart-legend__marker {
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-top: 0.2rem;
+  border-radius: 999px;
+}
+
+.embarazo-chart-legend__item--pregnancy .embarazo-chart-legend__marker {
+  background: rgba(220, 38, 38, 0.36);
+  border: 1px solid rgba(153, 27, 27, 0.36);
+}
+
+.embarazo-chart-legend__item--prevention .embarazo-chart-legend__marker {
+  background: rgba(22, 163, 74, 0.72);
+  border: 1px solid rgba(22, 101, 52, 0.48);
+}
+
+.embarazo-chart-legend__item--rate .embarazo-chart-legend__marker {
+  background: #1d4ed8;
+}
+
+.embarazo-chart-legend strong {
+  display: block;
+  color: var(--ui-text);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.embarazo-chart-legend small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .embarazo-table-wrap {
@@ -8676,17 +8755,6 @@ body.ui-shell-body {
   line-height: 1.45;
 }
 
-.embarazo-reference {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-  border-style: dashed;
-}
-
-.embarazo-reference__item {
-  min-width: 0;
-}
-
 @media (max-width: 1199.98px) {
   .embarazo-layout {
     grid-template-columns: 1fr;
@@ -8700,7 +8768,8 @@ body.ui-shell-body {
 @media (max-width: 991.98px) {
   .embarazo-hero,
   .embarazo-summary-grid,
-  .embarazo-reference {
+  .embarazo-chart-card,
+  .embarazo-chart-legend {
     grid-template-columns: 1fr;
   }
 
@@ -8713,8 +8782,7 @@ body.ui-shell-body {
   .embarazo-hero,
   .embarazo-panel,
   .embarazo-empty,
-  .embarazo-official-note,
-  .embarazo-reference {
+  .embarazo-official-note {
     padding: 0.9rem;
   }
 
