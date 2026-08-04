@@ -9355,3 +9355,259 @@ body.ui-shell-body {
     transform: none;
   }
 }
+
+/* Public program portal */
+body.program-hub-body {
+  min-width: 0;
+  margin: 0;
+  color: #17324d;
+  background: #f4f7fb;
+  font-family: Arial, sans-serif;
+}
+
+.program-hub {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.program-hub__shell {
+  width: min(1060px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.program-hub__header {
+  padding: 3.25rem 0 2rem;
+  text-align: center;
+}
+
+.program-hub__logo {
+  display: block;
+  width: min(230px, 60vw);
+  height: auto;
+  margin: 0 auto 1.75rem;
+  object-fit: contain;
+}
+
+.program-hub__title {
+  margin: 0;
+  color: #0d3b66;
+  font-size: 2.35rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.program-hub__subtitle {
+  margin: 0.75rem 0 0;
+  color: #5d7286;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.program-hub__main {
+  flex: 1 0 auto;
+  padding: 0 0 3.5rem;
+}
+
+.program-hub__section-label {
+  margin: 0 0 1.1rem;
+  color: #526b80;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.program-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.program-card {
+  min-width: 0;
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border: 1px solid #dce6ef;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(13, 59, 102, 0.06);
+  color: #17324d;
+  text-decoration: none;
+}
+
+.program-card--active {
+  border-color: rgba(42, 157, 143, 0.34);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.program-card--active:hover {
+  border-color: rgba(42, 157, 143, 0.68);
+  box-shadow: 0 16px 34px rgba(13, 59, 102, 0.11);
+  color: #17324d;
+  transform: translateY(-3px);
+}
+
+.program-card--active:focus-visible {
+  outline: 3px solid rgba(42, 157, 143, 0.3);
+  outline-offset: 3px;
+  border-color: #2a9d8f;
+  color: #17324d;
+}
+
+.program-card--active:active {
+  box-shadow: 0 8px 20px rgba(13, 59, 102, 0.08);
+  transform: translateY(0);
+}
+
+.program-card--disabled {
+  border-style: dashed;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.program-card__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: #167d73;
+  background: #e8f6f4;
+  font-size: 1.45rem;
+}
+
+.program-card--disabled .program-card__icon {
+  color: #61788b;
+  background: #e9eff4;
+}
+
+.program-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 1.2rem;
+}
+
+.program-card__title {
+  margin: 0;
+  color: #0d3b66;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.program-card--disabled .program-card__title {
+  color: #405a70;
+}
+
+.program-card__description {
+  margin: 0;
+  color: #5d7286;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.program-card__footer {
+  width: 100%;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.program-card__action {
+  color: #0d3b66;
+  font-weight: 700;
+}
+
+.program-card__status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid #cdd9e3;
+  border-radius: 999px;
+  color: #526b80;
+  background: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.program-hub__footer {
+  flex: 0 0 auto;
+  padding: 1.4rem 0 1.75rem;
+  border-top: 1px solid #dce6ef;
+  color: #687f92;
+  text-align: center;
+}
+
+.program-hub__footer p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 767.98px) {
+  .program-hub__shell {
+    width: min(100% - 32px, 1060px);
+  }
+
+  .program-hub__header {
+    padding: 2.5rem 0 1.75rem;
+  }
+
+  .program-hub__logo {
+    width: min(190px, 56vw);
+    margin-bottom: 1.35rem;
+  }
+
+  .program-hub__title {
+    font-size: 1.9rem;
+  }
+
+  .program-hub__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .program-card {
+    min-height: 210px;
+  }
+}
+
+@media (max-width: 420px) {
+  .program-hub__title {
+    font-size: 1.65rem;
+  }
+
+  .program-hub__subtitle {
+    font-size: 0.98rem;
+  }
+
+  .program-card {
+    padding: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .program-card--active {
+    transition: none;
+  }
+
+  .program-card--active:hover {
+    transform: none;
+  }
+}
