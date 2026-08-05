@@ -1047,7 +1047,7 @@ async def create_participant(
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
     marked_as_head_of_household = is_head_of_household == "on"
 
-    if marked_as_head_of_household:
+    if marked_as_head_of_household and participant_is_active:
         try:
             require_head_of_household_allowed(
                 db,
@@ -1477,7 +1477,7 @@ async def edit_participant_save(
     participant_is_active = normalized_estatus.lower() in {"activo", "active"}
     marked_as_head_of_household = is_head_of_household == "on"
 
-    if marked_as_head_of_household:
+    if marked_as_head_of_household and participant_is_active:
         owner = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
         try:
             require_head_of_household_allowed(

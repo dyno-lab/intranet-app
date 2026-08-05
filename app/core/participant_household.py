@@ -40,6 +40,7 @@ def require_head_of_household_allowed(
         .where(
             User.residential_id == residential_id,
             Participant.is_head_of_household == True,  # noqa: E712
+            Participant.is_active == True,  # noqa: E712
         )
     )
     if exclude_participant_id is not None:
@@ -53,5 +54,5 @@ def require_head_of_household_allowed(
         ):
             raise HTTPException(
                 status_code=409,
-                detail="Error: Ya existe un jefe de familia marcado para ese residencial, edificio y apartamento.",
+                detail="Error: Ya existe un jefe de familia activo para ese residencial, edificio y apartamento.",
             )
