@@ -46,13 +46,43 @@ SELECT
     ac.activity_code_id,
     ac.code AS activity_code,
     ac.description AS activity_description,
+    pac.proposal_id,
+    p.code AS proposal_code,
+    p.name AS proposal_name,
+    CAST(
+        CASE
+            WHEN ac.is_active = 1 AND pac.is_active = 1 THEN 1
+            ELSE 0
+        END
+        AS bit
+    ) AS is_active
+FROM dbo.proposal_activity_codes pac
+INNER JOIN dbo.activity_codes ac
+    ON ac.activity_code_id = pac.activity_code_id
+INNER JOIN dbo.proposals p
+    ON p.proposal_id = pac.proposal_id
+
+UNION ALL
+
+/* Compatibilidad con códigos legados aún no migrados a la tabla puente. */
+SELECT
+    ac.activity_code_id,
+    ac.code AS activity_code,
+    ac.description AS activity_description,
     ac.proposal_id,
     p.code AS proposal_code,
     p.name AS proposal_name,
     ac.is_active
 FROM dbo.activity_codes ac
-LEFT JOIN dbo.proposals p
-    ON p.proposal_id = ac.proposal_id;
+INNER JOIN dbo.proposals p
+    ON p.proposal_id = ac.proposal_id
+WHERE ac.proposal_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dbo.proposal_activity_codes pac
+      WHERE pac.proposal_id = ac.proposal_id
+        AND pac.activity_code_id = ac.activity_code_id
+  );
 GO
 
 CREATE OR ALTER VIEW dbo.bi_dim_participant
