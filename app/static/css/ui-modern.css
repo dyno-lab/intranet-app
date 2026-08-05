@@ -9384,7 +9384,7 @@ body.program-hub-body {
 
 .program-hub__logo {
   display: block;
-  width: min(230px, 60vw);
+  width: min(320px, 70vw);
   height: auto;
   margin: 0 auto 1.75rem;
   object-fit: contain;
@@ -9571,7 +9571,7 @@ body.program-hub-body {
   }
 
   .program-hub__logo {
-    width: min(190px, 56vw);
+    width: min(240px, 68vw);
     margin-bottom: 1.35rem;
   }
 
