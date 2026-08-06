@@ -280,31 +280,84 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 date(2026, 8, 6),
             )
 
-    def test_duplicate_aggregation_counts_only_additional_complete_people(self):
+    def test_duplicate_aggregation_counts_exact_person_duplicates(self):
+        reference_date = date(2026, 12, 31)
+        rows = [
+            (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
+            (2, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
+            (3, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
+        ]
+
+        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+
+        self.assertGreater(aggregates[3], 0)
+        self.assertEqual(aggregates[3], 2)
+
+    def test_duplicate_aggregation_excludes_people_with_null_birth_date(self):
+        reference_date = date(2026, 12, 31)
+        rows = [
+            (1, None, None, None, "Ana", "Pérez", "Ríos"),
+            (2, None, None, None, "Ana", "Pérez", "Ríos"),
+        ]
+
+        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+
+        self.assertEqual(aggregates[3], 0)
+
+    def test_duplicate_aggregation_ignores_different_or_empty_maternal_surnames(self):
         reference_date = date(2026, 12, 31)
 
-        for group_size, expected_duplicates in ((1, 0), (2, 1), (3, 2)):
+        for second_maternal_surname in ("Rivera", ""):
             rows = [
+                (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
                 (
-                    person_id,
+                    2,
                     date(2010, 5, 10),
                     None,
                     None,
-                    " Ana " if person_id % 2 else "ANA",
-                    " Pérez " if person_id % 2 else "PÉREZ",
-                    " Ríos " if person_id % 2 else "RÍOS",
-                )
-                for person_id in range(1, group_size + 1)
+                    "Ana",
+                    "Pérez",
+                    second_maternal_surname,
+                ),
             ]
-            with self.subTest(group_size=group_size):
-                aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
-                self.assertEqual(aggregates[3], expected_duplicates)
 
+            with self.subTest(second_maternal_surname=second_maternal_surname):
+                aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+                self.assertEqual(aggregates[3], 1)
+
+    def test_duplicate_aggregation_normalizes_accents_whitespace_and_case(self):
+        reference_date = date(2026, 12, 31)
+        rows = [
+            (1, date(2010, 5, 10), None, None, " Juan   Carlos ", " Pérez ", "Ríos"),
+            (2, date(2010, 5, 10), None, None, "JUAN CARLOS", "PEREZ", "Rivera"),
+        ]
+
+        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+
+        self.assertEqual(aggregates[3], 1)
+
+    def test_duplicate_aggregation_counts_each_person_id_only_once(self):
+        reference_date = date(2026, 12, 31)
+        rows = [
+            (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
+            (1, date(2010, 5, 10), None, "Caguas", "Ana", "Pérez", "Ríos"),
+            (2, date(2010, 5, 10), None, None, "Ana", "Pérez", "Rivera"),
+        ]
+
+        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+
+        self.assertEqual(aggregates[0], 2)
+        self.assertEqual(aggregates[3], 1)
+
+    def test_duplicate_aggregation_requires_name_and_paternal_surname(self):
+        reference_date = date(2026, 12, 31)
         incomplete_rows = [
             (1, date(2010, 5, 10), None, None, "", "Pérez", "Ríos"),
-            (2, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
-            (3, None, None, None, "Ana", "Pérez", "Ríos"),
+            (2, date(2010, 5, 10), None, None, "", "Pérez", "Ríos"),
+            (3, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
+            (4, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
         ]
+
         aggregates = institutional_reports._aggregate_unique_people(
             incomplete_rows,
             reference_date,

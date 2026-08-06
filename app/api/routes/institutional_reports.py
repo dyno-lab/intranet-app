@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import time
+import unicodedata
 from collections.abc import Sequence
 from datetime import date
 
@@ -194,7 +195,15 @@ def _normalize_education(value: str | None) -> str | None:
 
 
 def _normalize_duplicate_text(value: str | None) -> str:
-    return value.strip().casefold() if value else ""
+    if not value:
+        return ""
+    collapsed_whitespace = " ".join(value.split())
+    casefolded = collapsed_whitespace.casefold()
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFKD", casefolded)
+        if not unicodedata.combining(character)
+    )
 
 
 def _aggregate_unique_people(
@@ -211,7 +220,7 @@ def _aggregate_unique_people(
     birth_dates_by_person: dict[int, date | None] = {}
     education_by_person: dict[int, str | None] = {}
     municipality_by_person: dict[int, str | None] = {}
-    duplicate_key_by_person: dict[int, tuple[str, str, str, date] | None] = {}
+    duplicate_key_by_person: dict[int, tuple[str, str, date] | None] = {}
     for (
         person_id,
         birth_date,
@@ -219,7 +228,7 @@ def _aggregate_unique_people(
         municipality,
         first_name,
         paternal_surname,
-        maternal_surname,
+        _maternal_surname,
     ) in person_rows:
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
@@ -228,12 +237,10 @@ def _aggregate_unique_people(
 
             normalized_first_name = _normalize_duplicate_text(first_name)
             normalized_paternal_surname = _normalize_duplicate_text(paternal_surname)
-            normalized_maternal_surname = _normalize_duplicate_text(maternal_surname)
             if normalized_first_name and normalized_paternal_surname and birth_date is not None:
                 duplicate_key_by_person[person_id] = (
                     normalized_first_name,
                     normalized_paternal_surname,
-                    normalized_maternal_surname,
                     birth_date,
                 )
             else:
@@ -282,7 +289,7 @@ def _aggregate_unique_people(
         if label != "No informado" and count > 0
     )
 
-    duplicate_groups: dict[tuple[str, str, str, date], int] = {}
+    duplicate_groups: dict[tuple[str, str, date], int] = {}
     for duplicate_key in duplicate_key_by_person.values():
         if duplicate_key is not None:
             duplicate_groups[duplicate_key] = duplicate_groups.get(duplicate_key, 0) + 1
