@@ -10133,6 +10133,21 @@ body.institutional-report-body {
   gap: 0.45rem;
 }
 
+.institutional-report-proposal-options {
+  max-height: 12rem;
+  display: grid;
+  gap: 0.45rem;
+  overflow-y: auto;
+  padding: 0.15rem 0.4rem 0.15rem 0;
+}
+
+.institutional-report-filter__empty {
+  margin: 0;
+  color: var(--institutional-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .institutional-report-check {
   display: flex !important;
   align-items: center;
@@ -10185,6 +10200,11 @@ body.institutional-report-body {
   border-radius: 18px;
 }
 
+.institutional-report-kpi--real {
+  border-color: rgba(42, 157, 143, 0.42);
+  box-shadow: 0 12px 30px rgba(42, 157, 143, 0.1);
+}
+
 .institutional-report-kpi__icon {
   width: 3rem;
   height: 3rem;
@@ -10200,10 +10220,40 @@ body.institutional-report-body {
 
 .institutional-report-kpi__label {
   margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   color: var(--institutional-muted);
   font-size: 0.83rem;
   font-weight: 700;
   line-height: 1.4;
+}
+
+.institutional-report-source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.12rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.institutional-report-source-badge--real {
+  border-color: rgba(42, 157, 143, 0.28);
+  color: #155f59;
+  background: #e7f7f4;
+}
+
+.institutional-report-source-badge--demo {
+  border-color: #d9e1e8;
+  color: #5d6975;
+  background: #f3f6f8;
 }
 
 .institutional-report-kpi__value {

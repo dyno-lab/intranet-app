@@ -10,7 +10,11 @@
   <script src="{{ request.url_for('static', path='js/institutional-report-faro.js') }}" defer></script>
 </head>
 <body class="institutional-report-body">
-  <div class="institutional-report" data-institutional-report>
+  <div
+    class="institutional-report"
+    data-institutional-report
+    data-report-data-url="/reporteinstitucionales/farodeesperanza/data"
+  >
     <header class="institutional-report__header">
       <div class="institutional-report__shell institutional-report__header-content">
         <div class="institutional-report__heading-group">
@@ -47,48 +51,67 @@
       <div class="institutional-report__shell">
         <div class="institutional-report-alert institutional-report-alert--info" role="status">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
-          <span>Datos demostrativos para validación visual. No contienen información personal.</span>
+          <span>
+            <strong>Datos reales parciales:</strong> solo el KPI "Actividades registradas" usa datos reales.
+            Los demás indicadores permanecen demostrativos y no contienen información personal.
+          </span>
         </div>
 
         <section class="institutional-report__filters" aria-labelledby="institutional-report-filters-title">
           <div class="institutional-report__section-heading">
             <div>
-              <span class="institutional-report__section-kicker">Explorar demostración</span>
+              <span class="institutional-report__section-kicker">Consultar datos</span>
               <h2 id="institutional-report-filters-title">Filtros del reporte</h2>
             </div>
-            <p>Seleccione una combinación para actualizar los indicadores ilustrativos.</p>
+            <p>
+              Todos los filtros aplican a actividades reales. Las visualizaciones demostrativas responden solo al
+              período y no representan las propuestas seleccionadas.
+            </p>
           </div>
 
           <form class="institutional-report-filter-form" data-report-filter-form>
             <fieldset class="institutional-report-filter institutional-report-filter--proposals">
               <legend>Propuestas</legend>
-              <label class="institutional-report-check">
-                <input type="checkbox" name="proposal" value="demo-a" checked>
-                <span>Propuesta demostrativa A</span>
-              </label>
-              <label class="institutional-report-check">
-                <input type="checkbox" name="proposal" value="demo-b" checked>
-                <span>Propuesta demostrativa B</span>
-              </label>
+              <div class="institutional-report-proposal-options">
+                {% for proposal in proposals %}
+                <label class="institutional-report-check">
+                  <input type="checkbox" name="proposal" value="{{ proposal.proposal_id }}" checked>
+                  <span>{{ proposal.code }} - {{ proposal.name }}</span>
+                </label>
+                {% else %}
+                <p class="institutional-report-filter__empty">No hay propuestas activas disponibles.</p>
+                {% endfor %}
+              </div>
             </fieldset>
 
             <div class="institutional-report-filter">
               <label for="institutional-report-year">Año</label>
               <select id="institutional-report-year" name="year">
                 <option value="">Todos los años</option>
-                <option value="2025">2025</option>
-                <option value="2026" selected>2026</option>
+                {% for year in year_options %}
+                <option value="{{ year }}" {% if year == default_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
               </select>
             </div>
 
             <div class="institutional-report-filter">
               <label for="institutional-report-start-date">Fecha inicial</label>
-              <input id="institutional-report-start-date" name="startDate" type="date" value="2026-01-01">
+              <input
+                id="institutional-report-start-date"
+                name="startDate"
+                type="date"
+                value="{{ default_start_date }}"
+              >
             </div>
 
             <div class="institutional-report-filter">
               <label for="institutional-report-end-date">Fecha final</label>
-              <input id="institutional-report-end-date" name="endDate" type="date" value="2026-12-31">
+              <input
+                id="institutional-report-end-date"
+                name="endDate"
+                type="date"
+                value="{{ default_end_date }}"
+              >
             </div>
 
             <div class="institutional-report-filter-form__actions">
@@ -109,28 +132,40 @@
           <article class="institutional-report-kpi">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">Personas únicas atendidas</p>
+              <p class="institutional-report-kpi__label">
+                Personas únicas atendidas
+                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+              </p>
               <p class="institutional-report-kpi__value" data-kpi="people">0</p>
             </div>
           </article>
           <article class="institutional-report-kpi">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-files"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">Registros duplicados</p>
+              <p class="institutional-report-kpi__label">
+                Registros duplicados
+                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+              </p>
               <p class="institutional-report-kpi__value" data-kpi="duplicates">0</p>
             </div>
           </article>
-          <article class="institutional-report-kpi">
+          <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-clipboard-data"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">Actividades registradas</p>
-              <p class="institutional-report-kpi__value" data-kpi="activities">0</p>
+              <p class="institutional-report-kpi__label">
+                Actividades registradas
+                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
+              </p>
+              <p class="institutional-report-kpi__value" data-kpi="activities" aria-live="polite">&hellip;</p>
             </div>
           </article>
           <article class="institutional-report-kpi">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">Pueblos alcanzados</p>
+              <p class="institutional-report-kpi__label">
+                Pueblos alcanzados
+                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+              </p>
               <p class="institutional-report-kpi__value" data-kpi="towns">0</p>
             </div>
           </article>
@@ -138,15 +173,15 @@
 
         <div class="institutional-report-empty" data-report-empty hidden>
           <i class="bi bi-bar-chart" aria-hidden="true"></i>
-          <h2>No hay datos demostrativos para esos filtros</h2>
-          <p>Pruebe otro año, período o selección de propuestas.</p>
+          <h2 data-empty-title>No hay datos demostrativos para ese período</h2>
+          <p data-empty-description>Pruebe otro año o rango de fechas.</p>
         </div>
 
         <section class="institutional-report__grid" data-report-content>
           <article class="institutional-report-card institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Distribución</span>
+                <span class="institutional-report__section-kicker">Distribución · Dato demostrativo</span>
                 <h2>Población única por rangos de edad</h2>
               </div>
               <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
@@ -157,7 +192,7 @@
           <article class="institutional-report-card institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Perfil agregado</span>
+                <span class="institutional-report__section-kicker">Perfil agregado · Dato demostrativo</span>
                 <h2>Escolaridad</h2>
               </div>
               <i class="bi bi-mortarboard" aria-hidden="true"></i>
@@ -168,7 +203,7 @@
           <article class="institutional-report-card institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Promedio demostrativo</span>
+                <span class="institutional-report__section-kicker">Promedio · Dato demostrativo</span>
                 <h2>Notas por materia</h2>
               </div>
               <i class="bi bi-journal-check" aria-hidden="true"></i>
@@ -179,7 +214,7 @@
           <article class="institutional-report-card">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Resumen agregado</span>
+                <span class="institutional-report__section-kicker">Resumen agregado · Dato demostrativo</span>
                 <h2>Indicadores de embarazo</h2>
               </div>
               <i class="bi bi-heart-pulse" aria-hidden="true"></i>
@@ -203,7 +238,7 @@
           <article class="institutional-report-card institutional-report-card--wide">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Cobertura geográfica</span>
+                <span class="institutional-report__section-kicker">Cobertura geográfica · Dato demostrativo</span>
                 <h2>Población única atendida por pueblo</h2>
               </div>
               <i class="bi bi-map" aria-hidden="true"></i>
@@ -226,7 +261,7 @@
 
     <footer class="institutional-report__footer">
       <div class="institutional-report__shell">
-        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Datos demostrativos</p>
+        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Datos reales parciales y visualizaciones demostrativas</p>
       </div>
     </footer>
   </div>

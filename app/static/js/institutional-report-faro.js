@@ -12,7 +12,6 @@
       date: "2025-04-15",
       people: 74,
       duplicates: 9,
-      activities: 18,
       age: { "0 a 12": 18, "13 a 18": 21, "19 a 59": 29, "60 o más": 6 },
       education: { Elemental: 22, Intermedia: 18, Superior: 13, "No informado": 21 },
       grades: { Español: 81, Matemáticas: 77, Inglés: 79, Ciencias: 83 },
@@ -24,7 +23,6 @@
       date: "2025-06-15",
       people: 69,
       duplicates: 7,
-      activities: 16,
       age: { "0 a 12": 15, "13 a 18": 19, "19 a 59": 28, "60 o más": 7 },
       education: { Elemental: 19, Intermedia: 17, Superior: 14, "No informado": 19 },
       grades: { Español: 83, Matemáticas: 79, Inglés: 80, Ciencias: 82 },
@@ -36,7 +34,6 @@
       date: "2026-01-15",
       people: 82,
       duplicates: 10,
-      activities: 20,
       age: { "0 a 12": 20, "13 a 18": 24, "19 a 59": 31, "60 o más": 7 },
       education: { Elemental: 25, Intermedia: 20, Superior: 15, "No informado": 22 },
       grades: { Español: 82, Matemáticas: 78, Inglés: 81, Ciencias: 84 },
@@ -48,7 +45,6 @@
       date: "2026-03-15",
       people: 77,
       duplicates: 8,
-      activities: 19,
       age: { "0 a 12": 17, "13 a 18": 22, "19 a 59": 32, "60 o más": 6 },
       education: { Elemental: 21, Intermedia: 19, Superior: 17, "No informado": 20 },
       grades: { Español: 84, Matemáticas: 80, Inglés: 82, Ciencias: 85 },
@@ -60,7 +56,6 @@
       date: "2026-04-15",
       people: 91,
       duplicates: 11,
-      activities: 23,
       age: { "0 a 12": 23, "13 a 18": 25, "19 a 59": 35, "60 o más": 8 },
       education: { Elemental: 27, Intermedia: 22, Superior: 18, "No informado": 24 },
       grades: { Español: 85, Matemáticas: 81, Inglés: 83, Ciencias: 86 },
@@ -72,7 +67,6 @@
       date: "2026-05-15",
       people: 88,
       duplicates: 9,
-      activities: 21,
       age: { "0 a 12": 21, "13 a 18": 24, "19 a 59": 36, "60 o más": 7 },
       education: { Elemental: 24, Intermedia: 23, Superior: 18, "No informado": 23 },
       grades: { Español: 86, Matemáticas: 82, Inglés: 84, Ciencias: 87 },
@@ -84,7 +78,6 @@
       date: "2026-06-15",
       people: 95,
       duplicates: 12,
-      activities: 24,
       age: { "0 a 12": 24, "13 a 18": 27, "19 a 59": 37, "60 o más": 7 },
       education: { Elemental: 28, Intermedia: 24, Superior: 20, "No informado": 23 },
       grades: { Español: 84, Matemáticas: 83, Inglés: 85, Ciencias: 86 },
@@ -96,7 +89,6 @@
       date: "2026-07-15",
       people: 102,
       duplicates: 13,
-      activities: 26,
       age: { "0 a 12": 25, "13 a 18": 29, "19 a 59": 40, "60 o más": 8 },
       education: { Elemental: 29, Intermedia: 26, Superior: 21, "No informado": 26 },
       grades: { Español: 86, Matemáticas: 84, Inglés: 85, Ciencias: 88 },
@@ -108,8 +100,18 @@
   const form = root.querySelector("[data-report-filter-form]");
   const statusMessage = root.querySelector("[data-filter-status]");
   const emptyState = root.querySelector("[data-report-empty]");
+  const emptyTitle = root.querySelector("[data-empty-title]");
+  const emptyDescription = root.querySelector("[data-empty-description]");
   const reportContent = root.querySelector("[data-report-content]");
+  const activityValue = root.querySelector('[data-kpi="activities"]');
+  const submitButton = form?.querySelector('button[type="submit"]');
+  const dataUrl = root.dataset.reportDataUrl;
   const numberFormatter = new Intl.NumberFormat("es-PR");
+  let activeRequest = null;
+
+  if (!form || !activityValue || !dataUrl) {
+    return;
+  }
 
   const addValues = (target, source) => {
     Object.entries(source).forEach(([label, value]) => {
@@ -121,7 +123,6 @@
     const aggregate = {
       people: 0,
       duplicates: 0,
-      activities: 0,
       age: {},
       education: {},
       gradeTotals: {},
@@ -133,7 +134,6 @@
     records.forEach((record) => {
       aggregate.people += record.people;
       aggregate.duplicates += record.duplicates;
-      aggregate.activities += record.activities;
       addValues(aggregate.age, record.age);
       addValues(aggregate.education, record.education);
       addValues(aggregate.towns, record.towns);
@@ -208,26 +208,53 @@
       });
   };
 
-  const renderDashboard = (records) => {
+  const setStatus = (message, isError = false) => {
+    statusMessage.textContent = message;
+    statusMessage.classList.toggle("institutional-report-filter-status--error", isError);
+  };
+
+  const setLoading = (isLoading) => {
+    if (submitButton) {
+      submitButton.disabled = isLoading;
+    }
+    form.setAttribute("aria-busy", String(isLoading));
+  };
+
+  const showEmptyState = (title, description) => {
+    emptyTitle.textContent = title;
+    emptyDescription.textContent = description;
+    emptyState.hidden = false;
+    reportContent.hidden = true;
+  };
+
+  const renderDemoDashboard = (records) => {
     const hasRecords = records.length > 0;
-    emptyState.hidden = hasRecords;
-    reportContent.hidden = !hasRecords;
+    if (!hasRecords) {
+      root.querySelector('[data-kpi="people"]').textContent = "—";
+      root.querySelector('[data-kpi="duplicates"]').textContent = "—";
+      root.querySelector('[data-kpi="towns"]').textContent = "—";
+      root.querySelector('[data-pregnancy="women"]').textContent = "—";
+      root.querySelector('[data-pregnancy="men"]').textContent = "—";
+      root.querySelector('[data-pregnancy="followups"]').textContent = "—";
+      showEmptyState(
+        "No hay visualización demostrativa para ese período",
+        "El KPI de actividades conserva su resultado real. Pruebe otro año o rango para ver los ejemplos visuales.",
+      );
+      return;
+    }
+
+    emptyState.hidden = true;
+    reportContent.hidden = false;
 
     const aggregate = aggregateRecords(records);
     root.querySelector('[data-kpi="people"]').textContent = numberFormatter.format(aggregate.people);
     root.querySelector('[data-kpi="duplicates"]').textContent = numberFormatter.format(aggregate.duplicates);
-    root.querySelector('[data-kpi="activities"]').textContent = numberFormatter.format(aggregate.activities);
     root.querySelector('[data-kpi="towns"]').textContent = numberFormatter.format(aggregate.townCount);
-
     root.querySelector('[data-pregnancy="women"]').textContent = numberFormatter.format(aggregate.pregnancy.women);
     root.querySelector('[data-pregnancy="men"]').textContent = numberFormatter.format(aggregate.pregnancy.men);
     root.querySelector('[data-pregnancy="followups"]').textContent = numberFormatter.format(
       aggregate.pregnancy.followups,
     );
-
-    if (!hasRecords) {
-      return;
-    }
 
     renderBars(root.querySelector('[data-chart="age"]'), aggregate.age);
     renderBars(root.querySelector('[data-chart="education"]'), aggregate.education);
@@ -235,43 +262,122 @@
     renderTownTable(aggregate.towns);
   };
 
-  const applyFilters = () => {
-    const selectedProposals = new Set(
-      Array.from(form.querySelectorAll('input[name="proposal"]:checked')).map((input) => input.value),
-    );
+  const filterDemoRecords = (selectedYear, startDate, endDate) => mockRecords.filter((record) => {
+    const matchesYear = !selectedYear || record.date.startsWith(`${selectedYear}-`);
+    const matchesStart = !startDate || record.date >= startDate;
+    const matchesEnd = !endDate || record.date <= endDate;
+    return matchesYear && matchesStart && matchesEnd;
+  });
+
+  const buildDataUrl = (proposalIds, selectedYear, startDate, endDate) => {
+    const url = new URL(dataUrl, window.location.origin);
+    proposalIds.forEach((proposalId) => url.searchParams.append("proposal_ids", proposalId));
+    if (selectedYear) {
+      url.searchParams.set("year", selectedYear);
+    }
+    if (startDate) {
+      url.searchParams.set("start_date", startDate);
+    }
+    if (endDate) {
+      url.searchParams.set("end_date", endDate);
+    }
+    return url;
+  };
+
+  const applyFilters = async () => {
+    if (activeRequest) {
+      activeRequest.abort();
+      activeRequest = null;
+    }
+
+    const proposalIds = Array.from(form.querySelectorAll('input[name="proposal"]:checked'))
+      .map((input) => input.value);
     const selectedYear = form.elements.year.value;
     const startDate = form.elements.startDate.value;
     const endDate = form.elements.endDate.value;
 
-    if (startDate && endDate && startDate > endDate) {
-      statusMessage.textContent = "La fecha inicial no puede ser posterior a la fecha final.";
-      statusMessage.classList.add("institutional-report-filter-status--error");
+    if (!proposalIds.length) {
+      setLoading(false);
+      activityValue.textContent = "—";
+      renderDemoDashboard([]);
+      showEmptyState(
+        "Seleccione al menos una propuesta",
+        "Marque una o más propuestas y vuelva a aplicar los filtros.",
+      );
+      setStatus("Seleccione al menos una propuesta para consultar actividades reales.", true);
       return;
     }
 
-    statusMessage.classList.remove("institutional-report-filter-status--error");
-    const filteredRecords = mockRecords.filter((record) => {
-      const matchesProposal = selectedProposals.has(record.proposal);
-      const matchesYear = !selectedYear || record.date.startsWith(`${selectedYear}-`);
-      const matchesStart = !startDate || record.date >= startDate;
-      const matchesEnd = !endDate || record.date <= endDate;
-      return matchesProposal && matchesYear && matchesStart && matchesEnd;
-    });
+    if (startDate && endDate && startDate > endDate) {
+      setLoading(false);
+      activityValue.textContent = "—";
+      renderDemoDashboard([]);
+      showEmptyState(
+        "Revise el rango de fechas",
+        "La fecha inicial debe ser anterior o igual a la fecha final.",
+      );
+      setStatus("La fecha inicial no puede ser posterior a la fecha final.", true);
+      return;
+    }
 
-    statusMessage.textContent = filteredRecords.length
-      ? `Mostrando ${filteredRecords.length} períodos demostrativos según los filtros seleccionados.`
-      : "No se encontraron períodos demostrativos para la selección actual.";
-    renderDashboard(filteredRecords);
+    const filteredRecords = filterDemoRecords(selectedYear, startDate, endDate);
+    renderDemoDashboard(filteredRecords);
+    activityValue.textContent = "…";
+    setStatus("Consultando actividades reales…");
+    setLoading(true);
+
+    const controller = new AbortController();
+    activeRequest = controller;
+
+    try {
+      const response = await fetch(buildDataUrl(proposalIds, selectedYear, startDate, endDate), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message = response.status === 403
+          ? "La sesión del reporte expiró. Vuelva a ingresar el PIN."
+          : payload.detail || "No fue posible consultar las actividades reales.";
+        throw new Error(message);
+      }
+
+      const activities = Number(payload.real?.activities);
+      if (!Number.isFinite(activities)) {
+        throw new Error("La respuesta de actividades reales no tiene el formato esperado.");
+      }
+
+      activityValue.textContent = numberFormatter.format(activities);
+      const proposalLabel = proposalIds.length === 1 ? "1 propuesta" : `${proposalIds.length} propuestas`;
+      const demoLabel = filteredRecords.length
+        ? "Las demás métricas son demostrativas y reflejan solo el período seleccionado."
+        : "No hay visualización demostrativa para el período seleccionado.";
+      setStatus(`Actividades reales actualizadas para ${proposalLabel}. ${demoLabel}`);
+    } catch (error) {
+      if (error.name === "AbortError") {
+        return;
+      }
+      activityValue.textContent = "—";
+      setStatus(error.message || "No fue posible consultar las actividades reales.", true);
+    } finally {
+      if (activeRequest === controller) {
+        activeRequest = null;
+        setLoading(false);
+      }
+    }
   };
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    applyFilters();
+    void applyFilters();
   });
 
   form.addEventListener("reset", () => {
-    window.setTimeout(applyFilters, 0);
+    window.setTimeout(() => void applyFilters(), 0);
   });
 
-  applyFilters();
+  void applyFilters();
 })();
