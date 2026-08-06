@@ -52,9 +52,9 @@
         <div class="institutional-report-alert institutional-report-alert--info" role="status">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
           <span>
-            <strong>Datos reales parciales:</strong> actividades registradas, personas únicas atendidas, personas
-            duplicadas, pueblos/municipios, rangos de edad, escolaridad y notas por materia usan agregados reales. Los
-            indicadores de embarazo permanecen demostrativos y no contienen información personal.
+            <strong>Datos reales agregados:</strong> actividades registradas, personas únicas atendidas, personas
+            duplicadas, pueblos/municipios, rangos de edad, escolaridad, notas por materia e indicadores de embarazo
+            usan datos reales agregados y no contienen información personal.
           </span>
         </div>
 
@@ -65,8 +65,7 @@
               <h2 id="institutional-report-filters-title">Filtros del reporte</h2>
             </div>
             <p>
-              Todos los filtros aplican a los indicadores reales. Las visualizaciones demostrativas responden solo
-              al período y no representan las propuestas seleccionadas.
+              Todos los filtros aplican a los indicadores reales agregados por propuesta y período seleccionado.
             </p>
           </div>
 
@@ -215,7 +214,7 @@
           <article class="institutional-report-card">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Resumen agregado · Dato demostrativo</span>
+                <span class="institutional-report__section-kicker">Resumen agregado · Dato real</span>
                 <h2>Indicadores de embarazo</h2>
               </div>
               <i class="bi bi-heart-pulse" aria-hidden="true"></i>
@@ -223,15 +222,15 @@
             <div class="institutional-report-mini-kpis">
               <div class="institutional-report-mini-kpi">
                 <span>Mujeres embarazadas</span>
-                <strong data-pregnancy="women">0</strong>
+                <strong data-pregnancy="women" aria-live="polite">0</strong>
               </div>
               <div class="institutional-report-mini-kpi">
                 <span>Hombres asociados a embarazo reportado</span>
-                <strong data-pregnancy="men">0</strong>
+                <strong data-pregnancy="men" aria-live="polite">0</strong>
               </div>
               <div class="institutional-report-mini-kpi">
-                <span>Seguimientos registrados</span>
-                <strong data-pregnancy="followups">0</strong>
+                <span>Participaron en talleres</span>
+                <strong data-pregnancy="followups" aria-live="polite">0</strong>
               </div>
             </div>
           </article>
@@ -262,7 +261,7 @@
 
     <footer class="institutional-report__footer">
       <div class="institutional-report__shell">
-        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Datos reales parciales y visualizaciones demostrativas</p>
+        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Datos reales agregados sin información personal</p>
       </div>
     </footer>
   </div>

@@ -17,6 +17,8 @@ from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
 from app.models.person import Person
+from app.models.pregnancy_report import PregnancyReport
+from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
@@ -44,9 +46,10 @@ _FARO_REAL_METRICS = [
     "age",
     "education",
     "grades",
+    "pregnancy",
     "towns_by_municipality",
 ]
-_FARO_DEMO_METRICS = ["pregnancy"]
+_FARO_DEMO_METRICS = []
 _FARO_AGE_BUCKETS = ("0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado")
 _FARO_GRADE_SUBJECTS = ("Español", "Matemáticas", "Ciencias", "Inglés")
 
@@ -250,6 +253,63 @@ def _aggregate_subject_grades(grade_rows) -> dict[str, int]:
             else 0
         )
         for subject in _FARO_GRADE_SUBJECTS
+    }
+
+
+def _aggregate_pregnancy_summary(pregnancy_rows) -> dict[str, int]:
+    pregnancy_by_person: dict[tuple[str, int], dict] = {}
+    for row in pregnancy_rows:
+        (
+            participated_workshops,
+            is_pregnant,
+            report_year,
+            report_month,
+            report_id,
+            participant_id,
+            gender,
+            person_id,
+        ) = row
+        person_key = (
+            ("person", int(person_id))
+            if person_id is not None
+            else ("participant", int(participant_id))
+        )
+        report_order = (int(report_year), int(report_month), int(report_id))
+        normalized_gender = str(gender).strip().casefold() if gender is not None else ""
+        summary = pregnancy_by_person.setdefault(
+            person_key,
+            {
+                "participated_workshops": False,
+                "is_pregnant": False,
+                "gender": "",
+                "latest_report": None,
+            },
+        )
+        summary["participated_workshops"] = bool(
+            summary["participated_workshops"] or participated_workshops
+        )
+        summary["is_pregnant"] = bool(summary["is_pregnant"] or is_pregnant)
+        if summary["latest_report"] is None or report_order >= summary["latest_report"]:
+            summary["latest_report"] = report_order
+            summary["gender"] = normalized_gender or summary["gender"]
+
+    women = 0
+    men = 0
+    workshop_participants = 0
+    for summary in pregnancy_by_person.values():
+        if summary["participated_workshops"]:
+            workshop_participants += 1
+        if not summary["is_pregnant"]:
+            continue
+        if summary["gender"].startswith("f"):
+            women += 1
+        elif summary["gender"].startswith("m"):
+            men += 1
+
+    return {
+        "women": women,
+        "men": men,
+        "followups": workshop_participants,
     }
 
 
@@ -598,6 +658,44 @@ def faro_institutional_report_data(
         grades_stmt = grades_stmt.where(report_date <= normalized_end_date)
     subject_grade_averages = _aggregate_subject_grades(db.execute(grades_stmt).all())
 
+    pregnancy_report_date = func.datefromparts(
+        PregnancyReport.report_year,
+        PregnancyReport.report_month,
+        1,
+    )
+    pregnancy_stmt = (
+        select(
+            PregnancyReportItem.participated_workshops,
+            PregnancyReportItem.is_pregnant,
+            PregnancyReport.report_year,
+            PregnancyReport.report_month,
+            PregnancyReport.report_id,
+            Participant.participant_id,
+            Participant.genero,
+            Person.person_id,
+        )
+        .select_from(PregnancyReportItem)
+        .join(
+            PregnancyReport,
+            PregnancyReport.report_id == PregnancyReportItem.report_id,
+        )
+        .join(
+            Participant,
+            Participant.participant_id == PregnancyReportItem.participant_id,
+        )
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .where(PregnancyReport.proposal_id.in_(normalized_proposal_ids))
+    )
+    if normalized_year is not None:
+        pregnancy_stmt = pregnancy_stmt.where(PregnancyReport.report_year == normalized_year)
+    if normalized_start_date is not None:
+        pregnancy_stmt = pregnancy_stmt.where(
+            pregnancy_report_date >= normalized_start_date
+        )
+    if normalized_end_date is not None:
+        pregnancy_stmt = pregnancy_stmt.where(pregnancy_report_date <= normalized_end_date)
+    pregnancy_summary = _aggregate_pregnancy_summary(db.execute(pregnancy_stmt).all())
+
     return _no_store_json(
         {
             "real": {
@@ -608,6 +706,7 @@ def faro_institutional_report_data(
                 "age": age_buckets,
                 "education": education_buckets,
                 "grades": subject_grade_averages,
+                "pregnancy": pregnancy_summary,
                 "towns_by_municipality": towns_by_municipality,
             },
             "filters": {

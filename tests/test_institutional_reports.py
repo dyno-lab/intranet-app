@@ -121,6 +121,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(values=[]),
             _Result(values=[]),
             _Result(values=[]),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -150,6 +151,11 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             list(payload["real"]["grades"]),
             ["Español", "Matemáticas", "Ciencias", "Inglés"],
         )
+        self.assertEqual(payload["real"]["pregnancy"], {
+            "women": 0,
+            "men": 0,
+            "followups": 0,
+        })
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
         self.assertEqual(payload["meta"]["real_metrics"], [
             "activities",
@@ -159,13 +165,14 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "age",
             "education",
             "grades",
+            "pregnancy",
             "towns_by_municipality",
         ])
-        self.assertEqual(payload["meta"]["demo_metrics"], ["pregnancy"])
+        self.assertEqual(payload["meta"]["demo_metrics"], [])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
-        self.assertEqual(len(db.statements), 5)
+        self.assertEqual(len(db.statements), 6)
 
     def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
@@ -192,6 +199,16 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 (90_102, 2, 2026, 1, 3, 92, 80, 70, 60),
                 (None, 30, 2026, 1, 4, 50, 50, 50, 50),
                 (None, 30, 2026, 2, 5, 100, 100, 100, 100),
+            ]),
+            _Result(values=[
+                (True, True, 2026, 1, 10, 1, " Femenino ", 90_101),
+                (False, False, 2026, 3, 11, 1, " masculino ", 90_101),
+                (False, True, 2026, 2, 20, 2, "M", 90_102),
+                (False, True, 2026, 2, 21, 2, " femenino ", 90_102),
+                (False, False, 2026, 1, 30, 30, "F", None),
+                (True, True, 2026, 4, 31, 30, " Femenino ", None),
+                (True, True, 2026, 5, 40, 4, "No informado", 90_104),
+                (False, True, 2026, 5, 41, 5, None, 90_105),
             ]),
         ])
 
@@ -233,6 +250,11 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "Ciencias": 85,
             "Inglés": 80,
         })
+        self.assertEqual(payload["real"]["pregnancy"], {
+            "women": 2,
+            "men": 1,
+            "followups": 3,
+        })
         self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 8)
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
         self.assertNotIn("duplicates", payload["meta"]["demo_metrics"])
@@ -242,7 +264,9 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("education", payload["meta"]["demo_metrics"])
         self.assertIn("grades", payload["meta"]["real_metrics"])
         self.assertNotIn("grades", payload["meta"]["demo_metrics"])
-        self.assertEqual(payload["meta"]["demo_metrics"], ["pregnancy"])
+        self.assertIn("pregnancy", payload["meta"]["real_metrics"])
+        self.assertNotIn("pregnancy", payload["meta"]["demo_metrics"])
+        self.assertEqual(payload["meta"]["demo_metrics"], [])
 
         attendance_sql = str(db.statements[2]).lower()
         self.assertIn("count(attendance.attendance_id)", attendance_sql)
@@ -289,6 +313,21 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         grades_sql_server = str(db.statements[4].compile(dialect=mssql.dialect())).lower()
         self.assertIn("datefromparts", grades_sql_server)
 
+        pregnancy_sql = str(db.statements[5]).lower()
+        self.assertIn("pregnancy_report_items", pregnancy_sql)
+        self.assertIn("pregnancy_reports", pregnancy_sql)
+        self.assertIn("pregnancy_reports.proposal_id in", pregnancy_sql)
+        self.assertIn("join participants", pregnancy_sql)
+        self.assertIn("left outer join persons", pregnancy_sql)
+        self.assertIn("datefromparts", pregnancy_sql)
+        self.assertIn("pregnancy_reports.report_year =", pregnancy_sql)
+        self.assertIn("datefromparts(pregnancy_reports.report_year", pregnancy_sql)
+        self.assertIn(" >= ", pregnancy_sql)
+        self.assertIn(" <= ", pregnancy_sql)
+        self.assertNotIn("attendance", pregnancy_sql)
+        pregnancy_sql_server = str(db.statements[5].compile(dialect=mssql.dialect())).lower()
+        self.assertIn("datefromparts", pregnancy_sql_server)
+
         forbidden_keys = {
             "person_id",
             "participant_id",
@@ -307,10 +346,19 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "phone",
             "fecha_nacimiento",
             "report_id",
+            "report_item_id",
             "spanish_grade",
             "english_grade",
             "math_grade",
             "science_grade",
+            "genero",
+            "is_pregnant",
+            "participated_workshops",
+            "gestation_time",
+            "has_children",
+            "children_count",
+            "children_ages",
+            "created_by_user_id",
             "escolaridad_participante",
             "residential",
             "residencial",
@@ -343,6 +391,27 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 "Matemáticas": 90,
                 "Ciencias": 85,
                 "Inglés": 80,
+            },
+        )
+
+    def test_pregnancy_summary_deduplicates_and_uses_latest_available_gender(self):
+        pregnancy_rows = [
+            (True, True, 2026, 1, 10, 1, " Femenino ", 101),
+            (False, False, 2026, 3, 11, 1, " masculino ", 101),
+            (False, True, 2026, 2, 20, 2, "M", 102),
+            (False, True, 2026, 2, 21, 2, " femenino ", 102),
+            (False, False, 2026, 1, 30, 30, "F", None),
+            (True, True, 2026, 4, 31, 30, " Femenino ", None),
+            (True, True, 2026, 5, 40, 4, "No informado", 104),
+            (False, True, 2026, 5, 41, 5, None, 105),
+        ]
+
+        self.assertEqual(
+            institutional_reports._aggregate_pregnancy_summary(pregnancy_rows),
+            {
+                "women": 2,
+                "men": 1,
+                "followups": 3,
             },
         )
 

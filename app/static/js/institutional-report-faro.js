@@ -6,49 +6,6 @@
     return;
   }
 
-  const mockRecords = [
-    {
-      proposal: "demo-a",
-      date: "2025-04-15",
-      pregnancy: { women: 3, men: 2, followups: 8 },
-    },
-    {
-      proposal: "demo-b",
-      date: "2025-06-15",
-      pregnancy: { women: 2, men: 2, followups: 6 },
-    },
-    {
-      proposal: "demo-a",
-      date: "2026-01-15",
-      pregnancy: { women: 3, men: 2, followups: 7 },
-    },
-    {
-      proposal: "demo-b",
-      date: "2026-03-15",
-      pregnancy: { women: 3, men: 1, followups: 8 },
-    },
-    {
-      proposal: "demo-a",
-      date: "2026-04-15",
-      pregnancy: { women: 4, men: 2, followups: 10 },
-    },
-    {
-      proposal: "demo-a",
-      date: "2026-05-15",
-      pregnancy: { women: 3, men: 3, followups: 9 },
-    },
-    {
-      proposal: "demo-b",
-      date: "2026-06-15",
-      pregnancy: { women: 5, men: 2, followups: 12 },
-    },
-    {
-      proposal: "demo-b",
-      date: "2026-07-15",
-      pregnancy: { women: 4, men: 3, followups: 11 },
-    },
-  ];
-
   const form = root.querySelector("[data-report-filter-form]");
   const statusMessage = root.querySelector("[data-filter-status]");
   const emptyState = root.querySelector("[data-report-empty]");
@@ -62,6 +19,9 @@
   const ageChart = root.querySelector('[data-chart="age"]');
   const educationChart = root.querySelector('[data-chart="education"]');
   const gradesChart = root.querySelector('[data-chart="grades"]');
+  const pregnancyWomenValue = root.querySelector('[data-pregnancy="women"]');
+  const pregnancyMenValue = root.querySelector('[data-pregnancy="men"]');
+  const pregnancyWorkshopValue = root.querySelector('[data-pregnancy="followups"]');
   const townTable = root.querySelector("[data-town-table]");
   const submitButton = form?.querySelector('button[type="submit"]');
   const dataUrl = root.dataset.reportDataUrl;
@@ -79,28 +39,14 @@
     || !ageChart
     || !educationChart
     || !gradesChart
+    || !pregnancyWomenValue
+    || !pregnancyMenValue
+    || !pregnancyWorkshopValue
     || !townTable
     || !dataUrl
   ) {
     return;
   }
-
-  const addValues = (target, source) => {
-    Object.entries(source).forEach(([label, value]) => {
-      target[label] = (target[label] || 0) + value;
-    });
-  };
-
-  const aggregateRecords = (records) => {
-    const aggregate = {
-      pregnancy: { women: 0, men: 0, followups: 0 },
-    };
-
-    records.forEach((record) => {
-      addValues(aggregate.pregnancy, record.pregnancy);
-    });
-    return aggregate;
-  };
 
   const renderBars = (container, values, options = {}) => {
     container.replaceChildren();
@@ -196,32 +142,10 @@
     reportContent.hidden = true;
   };
 
-  const renderDemoDashboard = (records) => {
+  const showReportContent = () => {
     emptyState.hidden = true;
     reportContent.hidden = false;
-
-    const hasRecords = records.length > 0;
-    if (!hasRecords) {
-      root.querySelector('[data-pregnancy="women"]').textContent = "—";
-      root.querySelector('[data-pregnancy="men"]').textContent = "—";
-      root.querySelector('[data-pregnancy="followups"]').textContent = "—";
-      return;
-    }
-
-    const aggregate = aggregateRecords(records);
-    root.querySelector('[data-pregnancy="women"]').textContent = numberFormatter.format(aggregate.pregnancy.women);
-    root.querySelector('[data-pregnancy="men"]').textContent = numberFormatter.format(aggregate.pregnancy.men);
-    root.querySelector('[data-pregnancy="followups"]').textContent = numberFormatter.format(
-      aggregate.pregnancy.followups,
-    );
   };
-
-  const filterDemoRecords = (selectedYear, startDate, endDate) => mockRecords.filter((record) => {
-    const matchesYear = !selectedYear || record.date.startsWith(`${selectedYear}-`);
-    const matchesStart = !startDate || record.date >= startDate;
-    const matchesEnd = !endDate || record.date <= endDate;
-    return matchesYear && matchesStart && matchesEnd;
-  });
 
   const buildDataUrl = (proposalIds, selectedYear, startDate, endDate) => {
     const url = new URL(dataUrl, window.location.origin);
@@ -290,6 +214,23 @@
     return grades;
   };
 
+  const normalizeRealPregnancy = (payload) => {
+    const source = payload?.real?.pregnancy;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new Error("La respuesta real de embarazo no tiene el formato esperado.");
+    }
+
+    const pregnancy = {};
+    ["women", "men", "followups"].forEach((field) => {
+      const value = source[field];
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error("La respuesta real de embarazo no tiene el formato esperado.");
+      }
+      pregnancy[field] = value;
+    });
+    return pregnancy;
+  };
+
   const normalizeRealMunicipalities = (payload) => {
     const source = payload?.real?.towns_by_municipality;
     if (!source || typeof source !== "object" || Array.isArray(source)) {
@@ -328,6 +269,9 @@
     educationChart.removeAttribute("aria-busy");
     gradesChart.replaceChildren();
     gradesChart.removeAttribute("aria-busy");
+    pregnancyWomenValue.textContent = "—";
+    pregnancyMenValue.textContent = "—";
+    pregnancyWorkshopValue.textContent = "—";
     renderTownTable({}, "No fue posible cargar los municipios reales.");
     townTable.removeAttribute("aria-busy");
   };
@@ -347,7 +291,6 @@
     if (!proposalIds.length) {
       setLoading(false);
       clearRealMetrics();
-      renderDemoDashboard([]);
       showEmptyState(
         "Seleccione al menos una propuesta",
         "Marque una o más propuestas y vuelva a aplicar los filtros.",
@@ -359,7 +302,6 @@
     if (startDate && endDate && startDate > endDate) {
       setLoading(false);
       clearRealMetrics();
-      renderDemoDashboard([]);
       showEmptyState(
         "Revise el rango de fechas",
         "La fecha inicial debe ser anterior o igual a la fecha final.",
@@ -368,12 +310,14 @@
       return;
     }
 
-    const filteredRecords = filterDemoRecords(selectedYear, startDate, endDate);
-    renderDemoDashboard(filteredRecords);
+    showReportContent();
     activityValue.textContent = "…";
     peopleValue.textContent = "…";
     duplicateValue.textContent = "…";
     townValue.textContent = "…";
+    pregnancyWomenValue.textContent = "…";
+    pregnancyMenValue.textContent = "…";
+    pregnancyWorkshopValue.textContent = "…";
     renderBars(ageChart, {}, { emptyMessage: "Consultando distribución real…" });
     ageChart.setAttribute("aria-busy", "true");
     renderBars(educationChart, {}, { emptyMessage: "Consultando escolaridad real…" });
@@ -431,6 +375,7 @@
         throw new Error("La distribución real de escolaridad no coincide con el total de personas.");
       }
       const grades = normalizeRealGrades(payload);
+      const pregnancy = normalizeRealPregnancy(payload);
       const municipalities = normalizeRealMunicipalities(payload);
       const peopleByMunicipality = Object.values(municipalities)
         .reduce((total, value) => total + value, 0);
@@ -451,12 +396,12 @@
       renderBars(ageChart, ageBuckets);
       renderBars(educationChart, education);
       renderBars(gradesChart, grades, { maximum: 100, suffix: "%" });
+      pregnancyWomenValue.textContent = numberFormatter.format(pregnancy.women);
+      pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
+      pregnancyWorkshopValue.textContent = numberFormatter.format(pregnancy.followups);
       renderTownTable(municipalities);
       const proposalLabel = proposalIds.length === 1 ? "1 propuesta" : `${proposalIds.length} propuestas`;
-      setStatus(
-        `Indicadores reales actualizados para ${proposalLabel}. `
-        + "El indicador de embarazo permanece demostrativo.",
-      );
+      setStatus(`Indicadores reales actualizados para ${proposalLabel}.`);
     } catch (error) {
       if (error.name === "AbortError") {
         return;
