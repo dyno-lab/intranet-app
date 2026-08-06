@@ -9611,3 +9611,881 @@ body.program-hub-body {
     transform: none;
   }
 }
+
+/* =========================================================
+   REPORTES INSTITUCIONALES - FARO DE ESPERANZA
+   ========================================================= */
+
+body.institutional-report-body {
+  --institutional-primary: #0d3b66;
+  --institutional-primary-soft: #eaf2f9;
+  --institutional-accent: #2a9d8f;
+  --institutional-accent-dark: #167d73;
+  --institutional-accent-soft: #e8f6f4;
+  --institutional-ink: #17324d;
+  --institutional-muted: #61788b;
+  --institutional-border: #dce6ef;
+  --institutional-surface: #ffffff;
+  --institutional-background: #f5f8fb;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--institutional-ink);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(42, 157, 143, 0.1), transparent 28rem),
+    linear-gradient(180deg, #fbfdff 0%, var(--institutional-background) 100%);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.institutional-report {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.institutional-report__shell {
+  width: min(100% - 48px, 1240px);
+  margin: 0 auto;
+}
+
+.institutional-report__portal-header {
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--institutional-border);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(13, 59, 102, 0.04);
+}
+
+.institutional-report__portal-header-content,
+.institutional-report__header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.institutional-report__brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.institutional-report__brand-logo {
+  width: min(230px, 58vw);
+  height: auto;
+  display: block;
+}
+
+.institutional-report__back-link,
+.institutional-report-pin__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--institutional-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.institutional-report__back-link:hover,
+.institutional-report-pin__back:hover {
+  color: var(--institutional-accent-dark);
+}
+
+.institutional-report__main {
+  flex: 1 1 auto;
+  padding: 2.25rem 0 3rem;
+}
+
+.institutional-report__intro {
+  max-width: 760px;
+  margin-bottom: 2rem;
+}
+
+.institutional-report__eyebrow,
+.institutional-report__section-kicker {
+  display: inline-block;
+  color: var(--institutional-accent-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.institutional-report__title {
+  margin: 0.55rem 0 0;
+  color: var(--institutional-primary);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.institutional-report__subtitle {
+  max-width: 760px;
+  margin: 0.75rem 0 0;
+  color: var(--institutional-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.institutional-report__program-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1.25rem;
+}
+
+.institutional-report-program-card {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem;
+  border: 1px solid rgba(42, 157, 143, 0.3);
+  border-radius: 22px;
+  color: var(--institutional-ink);
+  background: var(--institutional-surface);
+  box-shadow: 0 18px 46px rgba(13, 59, 102, 0.08);
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.institutional-report-program-card:hover {
+  border-color: rgba(42, 157, 143, 0.72);
+  color: var(--institutional-ink);
+  box-shadow: 0 22px 52px rgba(13, 59, 102, 0.12);
+  transform: translateY(-3px);
+}
+
+.institutional-report-program-card__icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  color: var(--institutional-accent-dark);
+  background: var(--institutional-accent-soft);
+  font-size: 1.4rem;
+}
+
+.institutional-report-program-card__body {
+  margin-top: 1.4rem;
+}
+
+.institutional-report-program-card__logo {
+  width: min(240px, 72%);
+  max-height: 88px;
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+  margin-bottom: 1.2rem;
+}
+
+.institutional-report-program-card__title {
+  margin: 0;
+  color: var(--institutional-primary);
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.institutional-report-program-card__description {
+  margin: 0.7rem 0 0;
+  color: var(--institutional-muted);
+  line-height: 1.6;
+}
+
+.institutional-report-program-card__action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  color: var(--institutional-primary);
+  font-weight: 800;
+}
+
+.institutional-report__footer {
+  flex: 0 0 auto;
+  padding: 1.35rem 0;
+  border-top: 1px solid var(--institutional-border);
+  color: var(--institutional-muted);
+  text-align: center;
+}
+
+.institutional-report__footer p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.institutional-report-pin {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+}
+
+.institutional-report-pin__card {
+  width: min(100%, 900px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  overflow: hidden;
+  border: 1px solid rgba(13, 59, 102, 0.08);
+  border-radius: 28px;
+  background: var(--institutional-surface);
+  box-shadow: 0 28px 70px rgba(13, 59, 102, 0.14);
+}
+
+.institutional-report-pin__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.14), transparent 9rem),
+    linear-gradient(145deg, #0d3b66 0%, #145d82 58%, #238b82 100%);
+}
+
+.institutional-report-pin__brand .institutional-report__eyebrow {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.institutional-report-pin__logo {
+  width: min(260px, 88%);
+  max-height: 110px;
+  margin-bottom: 2rem;
+  object-fit: contain;
+  object-position: left center;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.14));
+}
+
+.institutional-report-pin__title {
+  margin: 0.7rem 0 0;
+  color: #ffffff;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.08;
+}
+
+.institutional-report-pin__subtitle {
+  margin: 0.65rem 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1.05rem;
+}
+
+.institutional-report-pin__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.institutional-report-pin__copy {
+  margin: 0 0 1.5rem;
+  color: var(--institutional-muted);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.institutional-report-pin__form {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.institutional-report-pin__label,
+.institutional-report-filter label,
+.institutional-report-filter legend {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--institutional-ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.institutional-report-pin__input,
+.institutional-report-filter select,
+.institutional-report-filter input[type="date"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #cfdce7;
+  border-radius: 12px;
+  color: var(--institutional-ink);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.institutional-report-pin__input:focus,
+.institutional-report-filter select:focus,
+.institutional-report-filter input[type="date"]:focus {
+  border-color: rgba(42, 157, 143, 0.85);
+  outline: 3px solid rgba(42, 157, 143, 0.16);
+  outline-offset: 1px;
+}
+
+.institutional-report-pin__input:disabled {
+  cursor: not-allowed;
+  background: #eef3f7;
+}
+
+.institutional-report-pin__help {
+  margin: 0.45rem 0 0;
+  color: var(--institutional-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.institutional-report-pin__back {
+  align-self: flex-start;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.institutional-report-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.institutional-report-button--primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--institutional-primary), #145d82);
+  box-shadow: 0 10px 24px rgba(13, 59, 102, 0.16);
+}
+
+.institutional-report-button--primary:hover {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0a3155, #104f70);
+}
+
+.institutional-report-button--primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.institutional-report-button--secondary {
+  border-color: #cfdce7;
+  color: var(--institutional-primary);
+  background: #ffffff;
+}
+
+.institutional-report-button--secondary:hover {
+  border-color: rgba(42, 157, 143, 0.5);
+  color: var(--institutional-accent-dark);
+  background: #f8fbfc;
+}
+
+.institutional-report-button--quiet {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.institutional-report-button--quiet:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.institutional-report-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.institutional-report-alert--error {
+  margin-bottom: 1.2rem;
+  border-color: #f2c3c7;
+  color: #842029;
+  background: #fff3f4;
+}
+
+.institutional-report-alert--info {
+  margin-bottom: 1.25rem;
+  border-color: rgba(42, 157, 143, 0.24);
+  color: #155f59;
+  background: #edf9f7;
+}
+
+.institutional-report__header {
+  padding: 1.35rem 0;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.12), transparent 16rem),
+    linear-gradient(135deg, #0d3b66 0%, #155e7c 58%, #238b82 100%);
+  box-shadow: 0 14px 32px rgba(13, 59, 102, 0.16);
+}
+
+.institutional-report__heading-group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.institutional-report__header .institutional-report__title {
+  margin-top: 0.3rem;
+  color: #ffffff;
+  font-size: clamp(1.65rem, 3vw, 2.35rem);
+  letter-spacing: -0.025em;
+}
+
+.institutional-report__header .institutional-report__subtitle {
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.95rem;
+}
+
+.institutional-report__header .institutional-report__eyebrow {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.institutional-report__faro-logo {
+  width: 170px;
+  max-height: 86px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.12));
+}
+
+.institutional-report__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 0 0 auto;
+}
+
+.institutional-report__header-actions form {
+  margin: 0;
+}
+
+.institutional-report__section-heading,
+.institutional-report-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.institutional-report__section-heading {
+  margin-bottom: 1.25rem;
+}
+
+.institutional-report__section-heading h2,
+.institutional-report-card__heading h2,
+.institutional-report-empty h2 {
+  margin: 0.35rem 0 0;
+  color: var(--institutional-primary);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.institutional-report__section-heading p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--institutional-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.institutional-report__filters,
+.institutional-report-card,
+.institutional-report-kpi {
+  border: 1px solid var(--institutional-border);
+  background: var(--institutional-surface);
+  box-shadow: 0 12px 30px rgba(13, 59, 102, 0.055);
+}
+
+.institutional-report__filters {
+  padding: 1.4rem;
+  border-radius: 20px;
+}
+
+.institutional-report-filter-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) repeat(3, minmax(150px, 0.8fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.institutional-report-filter {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.institutional-report-filter--proposals {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.institutional-report-check {
+  display: flex !important;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 !important;
+  color: var(--institutional-muted) !important;
+  font-weight: 600 !important;
+}
+
+.institutional-report-check input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--institutional-accent-dark);
+}
+
+.institutional-report-filter-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+}
+
+.institutional-report-filter-status {
+  min-height: 1.4rem;
+  margin: 0.9rem 0 0;
+  color: var(--institutional-muted);
+  font-size: 0.84rem;
+}
+
+.institutional-report-filter-status--error {
+  color: #a1262f;
+  font-weight: 700;
+}
+
+.institutional-report__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.institutional-report-kpi {
+  min-height: 126px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: 18px;
+}
+
+.institutional-report-kpi__icon {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 15px;
+  color: var(--institutional-accent-dark);
+  background: var(--institutional-accent-soft);
+  font-size: 1.25rem;
+}
+
+.institutional-report-kpi__label {
+  margin: 0;
+  color: var(--institutional-muted);
+  font-size: 0.83rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.institutional-report-kpi__value {
+  margin: 0.25rem 0 0;
+  color: var(--institutional-primary);
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.institutional-report__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.institutional-report-card {
+  min-width: 0;
+  padding: 1.35rem;
+  border-radius: 20px;
+}
+
+.institutional-report-card--wide {
+  grid-column: 1 / -1;
+}
+
+.institutional-report-card__heading {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.institutional-report-card__heading > i {
+  color: var(--institutional-accent-dark);
+  font-size: 1.25rem;
+}
+
+.institutional-report-bars {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.2rem;
+}
+
+.institutional-report-bar__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+  color: var(--institutional-muted);
+  font-size: 0.84rem;
+}
+
+.institutional-report-bar__heading strong {
+  color: var(--institutional-primary);
+}
+
+.institutional-report-bar__track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eaf0f5;
+}
+
+.institutional-report-bar__value {
+  width: var(--institutional-report-bar-width, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--institutional-primary), var(--institutional-accent));
+  transition: width 260ms ease;
+}
+
+.institutional-report-mini-kpis {
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 1.15rem;
+}
+
+.institutional-report-mini-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e7edf3;
+  border-radius: 14px;
+  background: #f9fbfd;
+}
+
+.institutional-report-mini-kpi span {
+  color: var(--institutional-muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.institutional-report-mini-kpi strong {
+  color: var(--institutional-primary);
+  font-size: 1.35rem;
+}
+
+.institutional-report-table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.institutional-report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.institutional-report-table th,
+.institutional-report-table td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid #e8eef3;
+  text-align: left;
+}
+
+.institutional-report-table thead th {
+  color: var(--institutional-muted);
+  background: #f7fafc;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.institutional-report-table tbody th {
+  color: var(--institutional-ink);
+  font-weight: 700;
+}
+
+.institutional-report-table tbody td {
+  color: var(--institutional-primary);
+  font-weight: 800;
+}
+
+.institutional-report-empty {
+  margin: 1.25rem 0;
+  padding: 3rem 1.5rem;
+  border: 1px dashed #c8d7e4;
+  border-radius: 20px;
+  color: var(--institutional-muted);
+  background: #ffffff;
+  text-align: center;
+}
+
+.institutional-report-empty > i {
+  color: var(--institutional-accent-dark);
+  font-size: 2rem;
+}
+
+.institutional-report-empty p {
+  margin: 0.6rem 0 0;
+}
+
+@media (max-width: 1100px) {
+  .institutional-report__header-content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .institutional-report__header-actions {
+    width: 100%;
+  }
+
+  .institutional-report-filter-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .institutional-report__kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .institutional-report__shell {
+    width: min(100% - 30px, 1240px);
+  }
+
+  .institutional-report__portal-header-content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .institutional-report__main {
+    padding: 1.5rem 0 2.25rem;
+  }
+
+  .institutional-report-pin {
+    padding: 1rem;
+  }
+
+  .institutional-report-pin__card {
+    grid-template-columns: 1fr;
+    border-radius: 22px;
+  }
+
+  .institutional-report-pin__brand,
+  .institutional-report-pin__content {
+    padding: 2rem 1.5rem;
+  }
+
+  .institutional-report-pin__logo {
+    width: min(220px, 75%);
+    margin-bottom: 1.35rem;
+  }
+
+  .institutional-report__heading-group {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .institutional-report__faro-logo {
+    width: 150px;
+  }
+
+  .institutional-report__header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .institutional-report__header-actions form,
+  .institutional-report__header-actions .institutional-report-button {
+    width: 100%;
+  }
+
+  .institutional-report__section-heading {
+    flex-direction: column;
+  }
+
+  .institutional-report__section-heading p {
+    text-align: left;
+  }
+
+  .institutional-report-filter-form,
+  .institutional-report__kpi-grid,
+  .institutional-report__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .institutional-report-filter-form__actions,
+  .institutional-report-card--wide {
+    grid-column: auto;
+  }
+
+  .institutional-report-filter-form__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .institutional-report-kpi {
+    min-height: 110px;
+  }
+}
+
+@media (max-width: 420px) {
+  .institutional-report__title {
+    font-size: 1.85rem;
+  }
+
+  .institutional-report-program-card,
+  .institutional-report__filters,
+  .institutional-report-card {
+    padding: 1.15rem;
+  }
+
+  .institutional-report-button {
+    width: 100%;
+  }
+
+  .institutional-report-pin__title {
+    font-size: 1.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .institutional-report-program-card,
+  .institutional-report-button,
+  .institutional-report-bar__value {
+    transition: none;
+  }
+
+  .institutional-report-program-card:hover {
+    transform: none;
+  }
+}

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "IntranetApp"
     ENV: str = "dev"
     SECRET_KEY: str = "change-me"
+    FARO_INSTITUTIONAL_REPORT_PIN: str | None = None
 
     # Feature flags
     # FASE 2: habilita UI/validaciones para expediente FE-YYYY-XX-####

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.institutional_reports import router as institutional_reports_router
 from app.api.routes.portal import router as portal_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
@@ -57,6 +58,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(portal_router)             # /home
+app.include_router(institutional_reports_router)  # /reporteinstitucionales/...
 app.include_router(auth_router)               # /login, /logout
 app.include_router(ui_router, prefix="/ui")   # /ui/...
 app.include_router(admin_router, prefix="/ui/admin")  # /ui/admin/...
