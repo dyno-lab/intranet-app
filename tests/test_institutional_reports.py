@@ -6,6 +6,8 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
+from sqlalchemy.dialects import mssql
+
 
 os.environ.setdefault("DB_SERVER", "test-server")
 os.environ.setdefault("DB_NAME", "test-db")
@@ -179,11 +181,15 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("select distinct", people_sql)
         self.assertIn("attendance.proposal_participant_id", people_sql)
         self.assertNotIn("attendance.participant_id", people_sql)
-        self.assertIn("attendance.attended is true", people_sql)
+        self.assertIn("attendance.attended", people_sql)
         self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", people_sql)
         self.assertIn("extract(year from activity_sessions.session_date)", people_sql)
         self.assertIn("activity_sessions.session_date >=", people_sql)
         self.assertIn("activity_sessions.session_date <=", people_sql)
+
+        people_sql_server = str(db.statements[2].compile(dialect=mssql.dialect())).lower()
+        self.assertIn("attended", people_sql_server)
+        self.assertNotIn("attended is 1", people_sql_server)
 
         forbidden_keys = {
             "person_id",

@@ -380,7 +380,7 @@ def faro_institutional_report_data(
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
         .where(
-            Attendance.attended.is_(True),
+            Attendance.attended == True,  # noqa: E712
             ProposalParticipant.proposal_id == ActivitySession.proposal_id,
         )
         .distinct()
