@@ -119,6 +119,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(values=[1, 2]),
             _Result(scalar=7),
             _Result(values=[]),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -152,24 +153,25 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
-        self.assertEqual(len(db.statements), 3)
+        self.assertEqual(len(db.statements), 4)
 
     def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
             _Result(values=[1, 2]),
             _Result(scalar=9),
+            _Result(values=[1, 3, 2, 4]),
             _Result(values=[
-                (90_101, date(2014, 12, 31), "  ", None, " Ana ", "Pérez", "Ríos"),
-                (90_101, date(2014, 12, 31), " Elemental ", " Caguas ", " Ana ", "Pérez", "Ríos"),
-                (90_101, date(2014, 12, 31), "Superior", "Cidra", " Ana ", "Pérez", "Ríos"),
-                (90_102, date(2014, 12, 31), "Elemental", "Caguas", "ana", " pérez ", " ríOS "),
-                (90_103, date(2014, 12, 31), " Intermedia ", " Cidra ", "ANA", "PÉREZ", "RÍOS"),
-                (90_104, date(2000, 2, 2), None, None, " Luis ", "Soto", None),
-                (90_105, date(2000, 2, 2), " Superior ", " ", "luis", " soto ", ""),
-                (90_105, date(2000, 2, 2), "Superior", " Cayey ", "luis", " soto ", ""),
-                (90_106, date(2007, 12, 31), "", "Cidra", " ", "Ortiz", "Vega"),
-                (90_107, date(1966, 12, 31), "Superior", "Caguas", "Marta", " ", "López"),
-                (90_108, None, None, None, "Carlos", "Díaz", None),
+                (90_101, date(2014, 12, 31), "  ", None),
+                (90_101, date(2014, 12, 31), " Elemental ", " Caguas "),
+                (90_101, date(2014, 12, 31), "Superior", "Cidra"),
+                (90_102, date(2014, 12, 31), "Elemental", "Caguas"),
+                (90_103, date(2014, 12, 31), " Intermedia ", " Cidra "),
+                (90_104, date(2000, 2, 2), None, None),
+                (90_105, date(2000, 2, 2), " Superior ", " "),
+                (90_105, date(2000, 2, 2), "Superior", " Cayey "),
+                (90_106, date(2007, 12, 31), "", "Cidra"),
+                (90_107, date(1966, 12, 31), "Superior", "Caguas"),
+                (90_108, None, None, None),
             ]),
         ])
 
@@ -197,7 +199,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "Superior": 2,
             "No informado": 3,
         })
-        self.assertEqual(payload["real"]["duplicates"], 3)
+        self.assertEqual(payload["real"]["duplicates"], 6)
         self.assertEqual(payload["real"]["towns"], 3)
         self.assertEqual(payload["real"]["towns_by_municipality"], {
             "Caguas": 3,
@@ -213,7 +215,15 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("age", payload["meta"]["demo_metrics"])
         self.assertNotIn("education", payload["meta"]["demo_metrics"])
 
-        people_sql = str(db.statements[2]).lower()
+        attendance_sql = str(db.statements[2]).lower()
+        self.assertIn("count(attendance.attendance_id)", attendance_sql)
+        self.assertIn("group by persons.person_id", attendance_sql)
+        self.assertIn("attendance.proposal_participant_id", attendance_sql)
+        self.assertNotIn("attendance.participant_id", attendance_sql)
+        self.assertNotIn("distinct", attendance_sql)
+        self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", attendance_sql)
+
+        people_sql = str(db.statements[3]).lower()
         self.assertIn("select distinct", people_sql)
         self.assertIn("attendance.proposal_participant_id", people_sql)
         self.assertNotIn("attendance.participant_id", people_sql)
@@ -229,7 +239,10 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("activity_sessions.session_date >=", people_sql)
         self.assertIn("activity_sessions.session_date <=", people_sql)
 
-        people_sql_server = str(db.statements[2].compile(dialect=mssql.dialect())).lower()
+        attendance_sql_server = str(db.statements[2].compile(dialect=mssql.dialect())).lower()
+        self.assertIn("attended", attendance_sql_server)
+        self.assertNotIn("attended is 1", attendance_sql_server)
+        people_sql_server = str(db.statements[3].compile(dialect=mssql.dialect())).lower()
         self.assertIn("attended", people_sql_server)
         self.assertNotIn("attended is 1", people_sql_server)
 
@@ -237,6 +250,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "person_id",
             "participant_id",
             "proposal_participant_id",
+            "attendance_id",
+            "session_id",
             "nombre",
             "apellido",
             "apellido_paterno",
@@ -261,8 +276,6 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         serialized_payload = json.dumps(payload, ensure_ascii=False)
         self.assertNotIn("90101", serialized_payload)
         self.assertNotIn("90108", serialized_payload)
-        self.assertNotIn("Ana", serialized_payload)
-        self.assertNotIn("Pérez", serialized_payload)
         self.assertNotIn("2014-12-31", serialized_payload)
 
     def test_age_reference_date_precedence(self):
@@ -280,89 +293,17 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 date(2026, 8, 6),
             )
 
-    def test_duplicate_aggregation_counts_exact_person_duplicates(self):
-        reference_date = date(2026, 12, 31)
-        rows = [
-            (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
-            (2, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
-            (3, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
-        ]
+    def test_additional_attendances_returns_zero_for_one_attendance(self):
+        self.assertEqual(institutional_reports._count_additional_attendances([1]), 0)
 
-        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+    def test_additional_attendances_returns_two_for_three_attendances(self):
+        self.assertEqual(institutional_reports._count_additional_attendances([3]), 2)
 
-        self.assertGreater(aggregates[3], 0)
-        self.assertEqual(aggregates[3], 2)
-
-    def test_duplicate_aggregation_excludes_people_with_null_birth_date(self):
-        reference_date = date(2026, 12, 31)
-        rows = [
-            (1, None, None, None, "Ana", "Pérez", "Ríos"),
-            (2, None, None, None, "Ana", "Pérez", "Ríos"),
-        ]
-
-        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
-
-        self.assertEqual(aggregates[3], 0)
-
-    def test_duplicate_aggregation_ignores_different_or_empty_maternal_surnames(self):
-        reference_date = date(2026, 12, 31)
-
-        for second_maternal_surname in ("Rivera", ""):
-            rows = [
-                (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
-                (
-                    2,
-                    date(2010, 5, 10),
-                    None,
-                    None,
-                    "Ana",
-                    "Pérez",
-                    second_maternal_surname,
-                ),
-            ]
-
-            with self.subTest(second_maternal_surname=second_maternal_surname):
-                aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
-                self.assertEqual(aggregates[3], 1)
-
-    def test_duplicate_aggregation_normalizes_accents_whitespace_and_case(self):
-        reference_date = date(2026, 12, 31)
-        rows = [
-            (1, date(2010, 5, 10), None, None, " Juan   Carlos ", " Pérez ", "Ríos"),
-            (2, date(2010, 5, 10), None, None, "JUAN CARLOS", "PEREZ", "Rivera"),
-        ]
-
-        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
-
-        self.assertEqual(aggregates[3], 1)
-
-    def test_duplicate_aggregation_counts_each_person_id_only_once(self):
-        reference_date = date(2026, 12, 31)
-        rows = [
-            (1, date(2010, 5, 10), None, None, "Ana", "Pérez", "Ríos"),
-            (1, date(2010, 5, 10), None, "Caguas", "Ana", "Pérez", "Ríos"),
-            (2, date(2010, 5, 10), None, None, "Ana", "Pérez", "Rivera"),
-        ]
-
-        aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
-
-        self.assertEqual(aggregates[0], 2)
-        self.assertEqual(aggregates[3], 1)
-
-    def test_duplicate_aggregation_requires_name_and_paternal_surname(self):
-        reference_date = date(2026, 12, 31)
-        incomplete_rows = [
-            (1, date(2010, 5, 10), None, None, "", "Pérez", "Ríos"),
-            (2, date(2010, 5, 10), None, None, "", "Pérez", "Ríos"),
-            (3, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
-            (4, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
-        ]
-
-        aggregates = institutional_reports._aggregate_unique_people(
-            incomplete_rows,
-            reference_date,
+    def test_additional_attendances_sums_multiple_people(self):
+        self.assertEqual(
+            institutional_reports._count_additional_attendances([1, 3, 2, 4]),
+            6,
         )
-        self.assertEqual(aggregates[3], 0)
 
     def test_data_endpoint_rejects_unavailable_proposals(self):
         db = _Database([_Result(values=[1])])

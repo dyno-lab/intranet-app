@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import secrets
 import time
-import unicodedata
 from collections.abc import Sequence
 from datetime import date
 
@@ -194,16 +193,8 @@ def _normalize_education(value: str | None) -> str | None:
     return normalized or None
 
 
-def _normalize_duplicate_text(value: str | None) -> str:
-    if not value:
-        return ""
-    collapsed_whitespace = " ".join(value.split())
-    casefolded = collapsed_whitespace.casefold()
-    return "".join(
-        character
-        for character in unicodedata.normalize("NFKD", casefolded)
-        if not unicodedata.combining(character)
-    )
+def _count_additional_attendances(attendance_counts: Sequence[int]) -> int:
+    return sum(max(int(attendance_count) - 1, 0) for attendance_count in attendance_counts)
 
 
 def _aggregate_unique_people(
@@ -214,37 +205,16 @@ def _aggregate_unique_people(
     dict[str, int],
     dict[str, int],
     int,
-    int,
     dict[str, int],
 ]:
     birth_dates_by_person: dict[int, date | None] = {}
     education_by_person: dict[int, str | None] = {}
     municipality_by_person: dict[int, str | None] = {}
-    duplicate_key_by_person: dict[int, tuple[str, str, date] | None] = {}
-    for (
-        person_id,
-        birth_date,
-        education,
-        municipality,
-        first_name,
-        paternal_surname,
-        _maternal_surname,
-    ) in person_rows:
+    for person_id, birth_date, education, municipality in person_rows:
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
             education_by_person[person_id] = None
             municipality_by_person[person_id] = None
-
-            normalized_first_name = _normalize_duplicate_text(first_name)
-            normalized_paternal_surname = _normalize_duplicate_text(paternal_surname)
-            if normalized_first_name and normalized_paternal_surname and birth_date is not None:
-                duplicate_key_by_person[person_id] = (
-                    normalized_first_name,
-                    normalized_paternal_surname,
-                    birth_date,
-                )
-            else:
-                duplicate_key_by_person[person_id] = None
         if education_by_person[person_id] is None:
             education_by_person[person_id] = _normalize_education(education)
         if municipality_by_person[person_id] is None:
@@ -289,17 +259,10 @@ def _aggregate_unique_people(
         if label != "No informado" and count > 0
     )
 
-    duplicate_groups: dict[tuple[str, str, date], int] = {}
-    for duplicate_key in duplicate_key_by_person.values():
-        if duplicate_key is not None:
-            duplicate_groups[duplicate_key] = duplicate_groups.get(duplicate_key, 0) + 1
-    duplicates_count = sum(max(group_size - 1, 0) for group_size in duplicate_groups.values())
-
     return (
         len(birth_dates_by_person),
         age_buckets,
         ordered_education_buckets,
-        duplicates_count,
         towns_count,
         ordered_municipality_buckets,
     )
@@ -477,15 +440,38 @@ def faro_institutional_report_data(
     )
     activities_count = int(db.execute(activities_stmt).scalar_one() or 0)
 
+    attendance_counts_stmt = (
+        select(func.count(Attendance.attendance_id))
+        .select_from(Attendance)
+        .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
+        .join(
+            ProposalParticipant,
+            Attendance.proposal_participant_id == ProposalParticipant.proposal_participant_id,
+        )
+        .join(Person, ProposalParticipant.person_id == Person.person_id)
+        .where(
+            Attendance.attended == True,  # noqa: E712
+            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+        )
+        .group_by(Person.person_id)
+    )
+    attendance_counts_stmt = _apply_activity_session_filters(
+        attendance_counts_stmt,
+        proposal_ids=normalized_proposal_ids,
+        year=normalized_year,
+        start_date=normalized_start_date,
+        end_date=normalized_end_date,
+    )
+    additional_attendances_count = _count_additional_attendances(
+        db.execute(attendance_counts_stmt).scalars().all()
+    )
+
     unique_people_stmt = (
         select(
             Person.person_id,
             Person.fecha_nacimiento,
             Participant.escolaridad_participante,
             Residential.municipality,
-            Person.nombre,
-            Person.apellido_paterno,
-            Person.apellido_materno,
         )
         .select_from(Attendance)
         .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
@@ -515,7 +501,6 @@ def faro_institutional_report_data(
         people_count,
         age_buckets,
         education_buckets,
-        duplicates_count,
         towns_count,
         towns_by_municipality,
     ) = _aggregate_unique_people(db.execute(unique_people_stmt).all(), reference_date)
@@ -525,7 +510,7 @@ def faro_institutional_report_data(
             "real": {
                 "activities": activities_count,
                 "people": people_count,
-                "duplicates": duplicates_count,
+                "duplicates": additional_attendances_count,
                 "towns": towns_count,
                 "age": age_buckets,
                 "education": education_buckets,
