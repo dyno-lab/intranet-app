@@ -20,6 +20,8 @@ from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
+from app.models.school_grade_report import SchoolGradeReport
+from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.user import User
 
 
@@ -41,10 +43,12 @@ _FARO_REAL_METRICS = [
     "towns",
     "age",
     "education",
+    "grades",
     "towns_by_municipality",
 ]
-_FARO_DEMO_METRICS = ["grades", "pregnancy"]
+_FARO_DEMO_METRICS = ["pregnancy"]
 _FARO_AGE_BUCKETS = ("0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado")
+_FARO_GRADE_SUBJECTS = ("Español", "Matemáticas", "Ciencias", "Inglés")
 
 
 def _current_timestamp() -> int:
@@ -195,6 +199,58 @@ def _normalize_education(value: str | None) -> str | None:
 
 def _count_additional_attendances(attendance_counts: Sequence[int]) -> int:
     return sum(max(int(attendance_count) - 1, 0) for attendance_count in attendance_counts)
+
+
+def _aggregate_subject_grades(grade_rows) -> dict[str, int]:
+    latest_grade_row_by_student: dict[tuple[str, int], tuple] = {}
+    for row in grade_rows:
+        (
+            person_id,
+            participant_id,
+            report_year,
+            report_month,
+            report_id,
+            spanish_grade,
+            math_grade,
+            science_grade,
+            english_grade,
+        ) = row
+        student_key = (
+            ("person", int(person_id))
+            if person_id is not None
+            else ("participant", int(participant_id))
+        )
+        report_order = (int(report_year), int(report_month), int(report_id))
+        current_row = latest_grade_row_by_student.get(student_key)
+        if current_row is None or report_order > current_row[0]:
+            latest_grade_row_by_student[student_key] = (
+                report_order,
+                (spanish_grade, math_grade, science_grade, english_grade),
+            )
+
+    grade_totals = {subject: 0.0 for subject in _FARO_GRADE_SUBJECTS}
+    grade_counts = {subject: 0 for subject in _FARO_GRADE_SUBJECTS}
+    for _, grades in latest_grade_row_by_student.values():
+        for subject, raw_grade in zip(_FARO_GRADE_SUBJECTS, grades, strict=True):
+            if raw_grade is None:
+                continue
+            try:
+                grade = float(raw_grade)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not 0 <= grade <= 100:
+                continue
+            grade_totals[subject] += grade
+            grade_counts[subject] += 1
+
+    return {
+        subject: (
+            round(grade_totals[subject] / grade_counts[subject])
+            if grade_counts[subject]
+            else 0
+        )
+        for subject in _FARO_GRADE_SUBJECTS
+    }
 
 
 def _aggregate_unique_people(
@@ -505,6 +561,43 @@ def faro_institutional_report_data(
         towns_by_municipality,
     ) = _aggregate_unique_people(db.execute(unique_people_stmt).all(), reference_date)
 
+    report_date = func.datefromparts(
+        SchoolGradeReport.report_year,
+        SchoolGradeReport.report_month,
+        1,
+    )
+    grades_stmt = (
+        select(
+            Person.person_id,
+            Participant.participant_id,
+            SchoolGradeReport.report_year,
+            SchoolGradeReport.report_month,
+            SchoolGradeReport.report_id,
+            SchoolGradeReportItem.spanish_grade,
+            SchoolGradeReportItem.math_grade,
+            SchoolGradeReportItem.science_grade,
+            SchoolGradeReportItem.english_grade,
+        )
+        .select_from(SchoolGradeReportItem)
+        .join(
+            SchoolGradeReport,
+            SchoolGradeReport.report_id == SchoolGradeReportItem.report_id,
+        )
+        .join(
+            Participant,
+            Participant.participant_id == SchoolGradeReportItem.participant_id,
+        )
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .where(SchoolGradeReport.proposal_id.in_(normalized_proposal_ids))
+    )
+    if normalized_year is not None:
+        grades_stmt = grades_stmt.where(SchoolGradeReport.report_year == normalized_year)
+    if normalized_start_date is not None:
+        grades_stmt = grades_stmt.where(report_date >= normalized_start_date)
+    if normalized_end_date is not None:
+        grades_stmt = grades_stmt.where(report_date <= normalized_end_date)
+    subject_grade_averages = _aggregate_subject_grades(db.execute(grades_stmt).all())
+
     return _no_store_json(
         {
             "real": {
@@ -514,6 +607,7 @@ def faro_institutional_report_data(
                 "towns": towns_count,
                 "age": age_buckets,
                 "education": education_buckets,
+                "grades": subject_grade_averages,
                 "towns_by_municipality": towns_by_municipality,
             },
             "filters": {

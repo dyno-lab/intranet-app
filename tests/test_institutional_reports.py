@@ -120,6 +120,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(scalar=7),
             _Result(values=[]),
             _Result(values=[]),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -139,6 +140,16 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(payload["real"]["duplicates"], 0)
         self.assertEqual(payload["real"]["towns"], 0)
         self.assertEqual(payload["real"]["towns_by_municipality"], {"No informado": 0})
+        self.assertEqual(payload["real"]["grades"], {
+            "Español": 0,
+            "Matemáticas": 0,
+            "Ciencias": 0,
+            "Inglés": 0,
+        })
+        self.assertEqual(
+            list(payload["real"]["grades"]),
+            ["Español", "Matemáticas", "Ciencias", "Inglés"],
+        )
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
         self.assertEqual(payload["meta"]["real_metrics"], [
             "activities",
@@ -147,13 +158,14 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "towns",
             "age",
             "education",
+            "grades",
             "towns_by_municipality",
         ])
-        self.assertEqual(payload["meta"]["demo_metrics"], ["grades", "pregnancy"])
+        self.assertEqual(payload["meta"]["demo_metrics"], ["pregnancy"])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
-        self.assertEqual(len(db.statements), 4)
+        self.assertEqual(len(db.statements), 5)
 
     def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
@@ -172,6 +184,14 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 (90_106, date(2007, 12, 31), "", "Cidra"),
                 (90_107, date(1966, 12, 31), "Superior", "Caguas"),
                 (90_108, None, None, None),
+            ]),
+            _Result(values=[
+                (90_101, 1, 2026, 1, 1, 60, 70, 80, 90),
+                (90_101, 1, 2026, 3, 1, 75, 75, 75, 75),
+                (90_101, 1, 2026, 3, 2, 80, None, 110, -5),
+                (90_102, 2, 2026, 1, 3, 92, 80, 70, 60),
+                (None, 30, 2026, 1, 4, 50, 50, 50, 50),
+                (None, 30, 2026, 2, 5, 100, 100, 100, 100),
             ]),
         ])
 
@@ -207,6 +227,12 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "Cidra": 2,
             "No informado": 2,
         })
+        self.assertEqual(payload["real"]["grades"], {
+            "Español": 91,
+            "Matemáticas": 90,
+            "Ciencias": 85,
+            "Inglés": 80,
+        })
         self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 8)
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
         self.assertNotIn("duplicates", payload["meta"]["demo_metrics"])
@@ -214,6 +240,9 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("towns_by_municipality", payload["meta"]["demo_metrics"])
         self.assertNotIn("age", payload["meta"]["demo_metrics"])
         self.assertNotIn("education", payload["meta"]["demo_metrics"])
+        self.assertIn("grades", payload["meta"]["real_metrics"])
+        self.assertNotIn("grades", payload["meta"]["demo_metrics"])
+        self.assertEqual(payload["meta"]["demo_metrics"], ["pregnancy"])
 
         attendance_sql = str(db.statements[2]).lower()
         self.assertIn("count(attendance.attendance_id)", attendance_sql)
@@ -246,6 +275,20 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("attended", people_sql_server)
         self.assertNotIn("attended is 1", people_sql_server)
 
+        grades_sql = str(db.statements[4]).lower()
+        self.assertIn("school_grade_report_items", grades_sql)
+        self.assertIn("school_grade_reports", grades_sql)
+        self.assertIn("join participants", grades_sql)
+        self.assertIn("left outer join persons", grades_sql)
+        self.assertIn("datefromparts", grades_sql)
+        self.assertIn("school_grade_reports.report_year =", grades_sql)
+        self.assertIn("datefromparts(school_grade_reports.report_year", grades_sql)
+        self.assertIn(" >= ", grades_sql)
+        self.assertIn(" <= ", grades_sql)
+        self.assertNotIn("attendance", grades_sql)
+        grades_sql_server = str(db.statements[4].compile(dialect=mssql.dialect())).lower()
+        self.assertIn("datefromparts", grades_sql_server)
+
         forbidden_keys = {
             "person_id",
             "participant_id",
@@ -263,6 +306,11 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "address",
             "phone",
             "fecha_nacimiento",
+            "report_id",
+            "spanish_grade",
+            "english_grade",
+            "math_grade",
+            "science_grade",
             "escolaridad_participante",
             "residential",
             "residencial",
@@ -277,6 +325,26 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("90101", serialized_payload)
         self.assertNotIn("90108", serialized_payload)
         self.assertNotIn("2014-12-31", serialized_payload)
+
+    def test_subject_grades_use_latest_report_and_ignore_invalid_values(self):
+        grade_rows = [
+            (101, 1, 2026, 1, 1, 60, 70, 80, 90),
+            (101, 1, 2026, 3, 1, 75, 75, 75, 75),
+            (101, 1, 2026, 3, 2, 80, None, 110, -5),
+            (102, 2, 2026, 1, 3, 92, 80, 70, 60),
+            (None, 30, 2026, 1, 4, 50, 50, 50, 50),
+            (None, 30, 2026, 2, 5, 100, 100, 100, 100),
+        ]
+
+        self.assertEqual(
+            institutional_reports._aggregate_subject_grades(grade_rows),
+            {
+                "Español": 91,
+                "Matemáticas": 90,
+                "Ciencias": 85,
+                "Inglés": 80,
+            },
+        )
 
     def test_age_reference_date_precedence(self):
         self.assertEqual(

@@ -10,49 +10,41 @@
     {
       proposal: "demo-a",
       date: "2025-04-15",
-      grades: { Español: 81, Matemáticas: 77, Inglés: 79, Ciencias: 83 },
       pregnancy: { women: 3, men: 2, followups: 8 },
     },
     {
       proposal: "demo-b",
       date: "2025-06-15",
-      grades: { Español: 83, Matemáticas: 79, Inglés: 80, Ciencias: 82 },
       pregnancy: { women: 2, men: 2, followups: 6 },
     },
     {
       proposal: "demo-a",
       date: "2026-01-15",
-      grades: { Español: 82, Matemáticas: 78, Inglés: 81, Ciencias: 84 },
       pregnancy: { women: 3, men: 2, followups: 7 },
     },
     {
       proposal: "demo-b",
       date: "2026-03-15",
-      grades: { Español: 84, Matemáticas: 80, Inglés: 82, Ciencias: 85 },
       pregnancy: { women: 3, men: 1, followups: 8 },
     },
     {
       proposal: "demo-a",
       date: "2026-04-15",
-      grades: { Español: 85, Matemáticas: 81, Inglés: 83, Ciencias: 86 },
       pregnancy: { women: 4, men: 2, followups: 10 },
     },
     {
       proposal: "demo-a",
       date: "2026-05-15",
-      grades: { Español: 86, Matemáticas: 82, Inglés: 84, Ciencias: 87 },
       pregnancy: { women: 3, men: 3, followups: 9 },
     },
     {
       proposal: "demo-b",
       date: "2026-06-15",
-      grades: { Español: 84, Matemáticas: 83, Inglés: 85, Ciencias: 86 },
       pregnancy: { women: 5, men: 2, followups: 12 },
     },
     {
       proposal: "demo-b",
       date: "2026-07-15",
-      grades: { Español: 86, Matemáticas: 84, Inglés: 85, Ciencias: 88 },
       pregnancy: { women: 4, men: 3, followups: 11 },
     },
   ];
@@ -69,11 +61,13 @@
   const townValue = root.querySelector('[data-kpi="towns"]');
   const ageChart = root.querySelector('[data-chart="age"]');
   const educationChart = root.querySelector('[data-chart="education"]');
+  const gradesChart = root.querySelector('[data-chart="grades"]');
   const townTable = root.querySelector("[data-town-table]");
   const submitButton = form?.querySelector('button[type="submit"]');
   const dataUrl = root.dataset.reportDataUrl;
   const numberFormatter = new Intl.NumberFormat("es-PR");
   const ageBucketLabels = ["0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado"];
+  const gradeSubjectLabels = ["Español", "Matemáticas", "Ciencias", "Inglés"];
   let activeRequest = null;
 
   if (
@@ -84,6 +78,7 @@
     || !townValue
     || !ageChart
     || !educationChart
+    || !gradesChart
     || !townTable
     || !dataUrl
   ) {
@@ -98,26 +93,12 @@
 
   const aggregateRecords = (records) => {
     const aggregate = {
-      gradeTotals: {},
-      gradeCounts: {},
       pregnancy: { women: 0, men: 0, followups: 0 },
     };
 
     records.forEach((record) => {
       addValues(aggregate.pregnancy, record.pregnancy);
-
-      Object.entries(record.grades).forEach(([subject, value]) => {
-        aggregate.gradeTotals[subject] = (aggregate.gradeTotals[subject] || 0) + value;
-        aggregate.gradeCounts[subject] = (aggregate.gradeCounts[subject] || 0) + 1;
-      });
     });
-
-    aggregate.grades = Object.fromEntries(
-      Object.entries(aggregate.gradeTotals).map(([subject, total]) => [
-        subject,
-        Math.round(total / aggregate.gradeCounts[subject]),
-      ]),
-    );
     return aggregate;
   };
 
@@ -224,8 +205,6 @@
       root.querySelector('[data-pregnancy="women"]').textContent = "—";
       root.querySelector('[data-pregnancy="men"]').textContent = "—";
       root.querySelector('[data-pregnancy="followups"]').textContent = "—";
-      const demoEmptyMessage = "Sin datos demostrativos para este período.";
-      renderBars(root.querySelector('[data-chart="grades"]'), {}, { emptyMessage: demoEmptyMessage });
       return;
     }
 
@@ -235,8 +214,6 @@
     root.querySelector('[data-pregnancy="followups"]').textContent = numberFormatter.format(
       aggregate.pregnancy.followups,
     );
-
-    renderBars(root.querySelector('[data-chart="grades"]'), aggregate.grades, { maximum: 100, suffix: "%" });
   };
 
   const filterDemoRecords = (selectedYear, startDate, endDate) => mockRecords.filter((record) => {
@@ -296,6 +273,23 @@
     return education;
   };
 
+  const normalizeRealGrades = (payload) => {
+    const source = payload?.real?.grades;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new Error("Las notas reales por materia no tienen el formato esperado.");
+    }
+
+    const grades = {};
+    gradeSubjectLabels.forEach((label) => {
+      const value = source[label];
+      if (!Number.isInteger(value) || value < 0 || value > 100) {
+        throw new Error("Las notas reales por materia no tienen el formato esperado.");
+      }
+      grades[label] = value;
+    });
+    return grades;
+  };
+
   const normalizeRealMunicipalities = (payload) => {
     const source = payload?.real?.towns_by_municipality;
     if (!source || typeof source !== "object" || Array.isArray(source)) {
@@ -332,6 +326,8 @@
     ageChart.removeAttribute("aria-busy");
     educationChart.replaceChildren();
     educationChart.removeAttribute("aria-busy");
+    gradesChart.replaceChildren();
+    gradesChart.removeAttribute("aria-busy");
     renderTownTable({}, "No fue posible cargar los municipios reales.");
     townTable.removeAttribute("aria-busy");
   };
@@ -382,6 +378,8 @@
     ageChart.setAttribute("aria-busy", "true");
     renderBars(educationChart, {}, { emptyMessage: "Consultando escolaridad real…" });
     educationChart.setAttribute("aria-busy", "true");
+    renderBars(gradesChart, {}, { emptyMessage: "Consultando notas reales…" });
+    gradesChart.setAttribute("aria-busy", "true");
     renderTownTable({}, "Consultando municipios reales…");
     townTable.setAttribute("aria-busy", "true");
     setStatus("Consultando indicadores reales…");
@@ -432,6 +430,7 @@
       if (peopleByEducation !== people) {
         throw new Error("La distribución real de escolaridad no coincide con el total de personas.");
       }
+      const grades = normalizeRealGrades(payload);
       const municipalities = normalizeRealMunicipalities(payload);
       const peopleByMunicipality = Object.values(municipalities)
         .reduce((total, value) => total + value, 0);
@@ -451,12 +450,13 @@
       townValue.textContent = numberFormatter.format(towns);
       renderBars(ageChart, ageBuckets);
       renderBars(educationChart, education);
+      renderBars(gradesChart, grades, { maximum: 100, suffix: "%" });
       renderTownTable(municipalities);
       const proposalLabel = proposalIds.length === 1 ? "1 propuesta" : `${proposalIds.length} propuestas`;
-      const demoLabel = filteredRecords.length
-        ? "Las métricas restantes son demostrativas y reflejan solo el período seleccionado."
-        : "No hay visualización demostrativa para el período seleccionado.";
-      setStatus(`Indicadores reales actualizados para ${proposalLabel}. ${demoLabel}`);
+      setStatus(
+        `Indicadores reales actualizados para ${proposalLabel}. `
+        + "El indicador de embarazo permanece demostrativo.",
+      );
     } catch (error) {
       if (error.name === "AbortError") {
         return;
@@ -468,6 +468,7 @@
         activeRequest = null;
         ageChart.removeAttribute("aria-busy");
         educationChart.removeAttribute("aria-busy");
+        gradesChart.removeAttribute("aria-busy");
         townTable.removeAttribute("aria-busy");
         setLoading(false);
       }
