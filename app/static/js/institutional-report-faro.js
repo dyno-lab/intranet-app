@@ -11,7 +11,6 @@
       proposal: "demo-a",
       date: "2025-04-15",
       duplicates: 9,
-      education: { Elemental: 22, Intermedia: 18, Superior: 13, "No informado": 21 },
       grades: { Español: 81, Matemáticas: 77, Inglés: 79, Ciencias: 83 },
       pregnancy: { women: 3, men: 2, followups: 8 },
       towns: { "Pueblo Norte": 28, "Pueblo Central": 31, "Pueblo Sur": 15 },
@@ -20,7 +19,6 @@
       proposal: "demo-b",
       date: "2025-06-15",
       duplicates: 7,
-      education: { Elemental: 19, Intermedia: 17, Superior: 14, "No informado": 19 },
       grades: { Español: 83, Matemáticas: 79, Inglés: 80, Ciencias: 82 },
       pregnancy: { women: 2, men: 2, followups: 6 },
       towns: { "Pueblo Central": 27, "Pueblo Este": 24, "Pueblo Sur": 18 },
@@ -29,7 +27,6 @@
       proposal: "demo-a",
       date: "2026-01-15",
       duplicates: 10,
-      education: { Elemental: 25, Intermedia: 20, Superior: 15, "No informado": 22 },
       grades: { Español: 82, Matemáticas: 78, Inglés: 81, Ciencias: 84 },
       pregnancy: { women: 3, men: 2, followups: 7 },
       towns: { "Pueblo Norte": 29, "Pueblo Central": 34, "Pueblo Oeste": 19 },
@@ -38,7 +35,6 @@
       proposal: "demo-b",
       date: "2026-03-15",
       duplicates: 8,
-      education: { Elemental: 21, Intermedia: 19, Superior: 17, "No informado": 20 },
       grades: { Español: 84, Matemáticas: 80, Inglés: 82, Ciencias: 85 },
       pregnancy: { women: 3, men: 1, followups: 8 },
       towns: { "Pueblo Central": 30, "Pueblo Este": 28, "Pueblo Sur": 19 },
@@ -47,7 +43,6 @@
       proposal: "demo-a",
       date: "2026-04-15",
       duplicates: 11,
-      education: { Elemental: 27, Intermedia: 22, Superior: 18, "No informado": 24 },
       grades: { Español: 85, Matemáticas: 81, Inglés: 83, Ciencias: 86 },
       pregnancy: { women: 4, men: 2, followups: 10 },
       towns: { "Pueblo Norte": 32, "Pueblo Central": 36, "Pueblo Oeste": 23 },
@@ -56,7 +51,6 @@
       proposal: "demo-a",
       date: "2026-05-15",
       duplicates: 9,
-      education: { Elemental: 24, Intermedia: 23, Superior: 18, "No informado": 23 },
       grades: { Español: 86, Matemáticas: 82, Inglés: 84, Ciencias: 87 },
       pregnancy: { women: 3, men: 3, followups: 9 },
       towns: { "Pueblo Norte": 30, "Pueblo Central": 35, "Pueblo Sur": 23 },
@@ -65,7 +59,6 @@
       proposal: "demo-b",
       date: "2026-06-15",
       duplicates: 12,
-      education: { Elemental: 28, Intermedia: 24, Superior: 20, "No informado": 23 },
       grades: { Español: 84, Matemáticas: 83, Inglés: 85, Ciencias: 86 },
       pregnancy: { women: 5, men: 2, followups: 12 },
       towns: { "Pueblo Central": 37, "Pueblo Este": 34, "Pueblo Sur": 24 },
@@ -74,7 +67,6 @@
       proposal: "demo-b",
       date: "2026-07-15",
       duplicates: 13,
-      education: { Elemental: 29, Intermedia: 26, Superior: 21, "No informado": 26 },
       grades: { Español: 86, Matemáticas: 84, Inglés: 85, Ciencias: 88 },
       pregnancy: { women: 4, men: 3, followups: 11 },
       towns: { "Pueblo Norte": 28, "Pueblo Central": 39, "Pueblo Este": 35 },
@@ -90,13 +82,14 @@
   const activityValue = root.querySelector('[data-kpi="activities"]');
   const peopleValue = root.querySelector('[data-kpi="people"]');
   const ageChart = root.querySelector('[data-chart="age"]');
+  const educationChart = root.querySelector('[data-chart="education"]');
   const submitButton = form?.querySelector('button[type="submit"]');
   const dataUrl = root.dataset.reportDataUrl;
   const numberFormatter = new Intl.NumberFormat("es-PR");
   const ageBucketLabels = ["0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado"];
   let activeRequest = null;
 
-  if (!form || !activityValue || !peopleValue || !ageChart || !dataUrl) {
+  if (!form || !activityValue || !peopleValue || !ageChart || !educationChart || !dataUrl) {
     return;
   }
 
@@ -109,7 +102,6 @@
   const aggregateRecords = (records) => {
     const aggregate = {
       duplicates: 0,
-      education: {},
       gradeTotals: {},
       gradeCounts: {},
       pregnancy: { women: 0, men: 0, followups: 0 },
@@ -118,7 +110,6 @@
 
     records.forEach((record) => {
       aggregate.duplicates += record.duplicates;
-      addValues(aggregate.education, record.education);
       addValues(aggregate.towns, record.towns);
       addValues(aggregate.pregnancy, record.pregnancy);
 
@@ -241,7 +232,6 @@
       root.querySelector('[data-pregnancy="men"]').textContent = "—";
       root.querySelector('[data-pregnancy="followups"]').textContent = "—";
       const demoEmptyMessage = "Sin datos demostrativos para este período.";
-      renderBars(root.querySelector('[data-chart="education"]'), {}, { emptyMessage: demoEmptyMessage });
       renderBars(root.querySelector('[data-chart="grades"]'), {}, { emptyMessage: demoEmptyMessage });
       renderTownTable({}, demoEmptyMessage);
       return;
@@ -256,7 +246,6 @@
       aggregate.pregnancy.followups,
     );
 
-    renderBars(root.querySelector('[data-chart="education"]'), aggregate.education);
     renderBars(root.querySelector('[data-chart="grades"]'), aggregate.grades, { maximum: 100, suffix: "%" });
     renderTownTable(aggregate.towns);
   };
@@ -300,11 +289,31 @@
     return ageBuckets;
   };
 
+  const normalizeRealEducation = (payload) => {
+    const source = payload.real?.education;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new Error("La distribución real de escolaridad no tiene el formato esperado.");
+    }
+
+    const education = {};
+    Object.entries(source).forEach(([rawLabel, rawValue]) => {
+      const label = rawLabel.trim();
+      const value = Number(rawValue);
+      if (!label || !Number.isInteger(value) || value < 0) {
+        throw new Error("La distribución real de escolaridad no tiene el formato esperado.");
+      }
+      education[label] = value;
+    });
+    return education;
+  };
+
   const clearRealMetrics = () => {
     activityValue.textContent = "—";
     peopleValue.textContent = "—";
     ageChart.replaceChildren();
     ageChart.removeAttribute("aria-busy");
+    educationChart.replaceChildren();
+    educationChart.removeAttribute("aria-busy");
   };
 
   const applyFilters = async () => {
@@ -349,6 +358,8 @@
     peopleValue.textContent = "…";
     renderBars(ageChart, {}, { emptyMessage: "Consultando distribución real…" });
     ageChart.setAttribute("aria-busy", "true");
+    renderBars(educationChart, {}, { emptyMessage: "Consultando escolaridad real…" });
+    educationChart.setAttribute("aria-busy", "true");
     setStatus("Consultando indicadores reales…");
     setLoading(true);
 
@@ -381,10 +392,16 @@
       if (peopleByAge !== people) {
         throw new Error("La distribución real por edad no coincide con el total de personas.");
       }
+      const education = normalizeRealEducation(payload);
+      const peopleByEducation = Object.values(education).reduce((total, value) => total + value, 0);
+      if (peopleByEducation !== people) {
+        throw new Error("La distribución real de escolaridad no coincide con el total de personas.");
+      }
 
       activityValue.textContent = numberFormatter.format(activities);
       peopleValue.textContent = numberFormatter.format(people);
       renderBars(ageChart, ageBuckets);
+      renderBars(educationChart, education);
       const proposalLabel = proposalIds.length === 1 ? "1 propuesta" : `${proposalIds.length} propuestas`;
       const demoLabel = filteredRecords.length
         ? "Las métricas restantes son demostrativas y reflejan solo el período seleccionado."
@@ -400,6 +417,7 @@
       if (activeRequest === controller) {
         activeRequest = null;
         ageChart.removeAttribute("aria-busy");
+        educationChart.removeAttribute("aria-busy");
         setLoading(false);
       }
     }

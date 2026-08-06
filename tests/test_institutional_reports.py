@@ -134,8 +134,9 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(payload["real"]["activities"], 7)
         self.assertEqual(payload["real"]["people"], 0)
         self.assertEqual(sum(payload["real"]["age"].values()), 0)
+        self.assertEqual(payload["real"]["education"], {"No informado": 0})
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
-        self.assertEqual(payload["meta"]["real_metrics"], ["activities", "people", "age"])
+        self.assertEqual(payload["meta"]["real_metrics"], ["activities", "people", "age", "education"])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
@@ -146,13 +147,14 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(values=[1, 2]),
             _Result(scalar=9),
             _Result(values=[
-                (90_101, date(2014, 12, 31)),
-                (90_101, date(2014, 12, 31)),
-                (90_102, date(2013, 12, 31)),
-                (90_103, date(2007, 12, 31)),
-                (90_104, date(1966, 12, 31)),
-                (90_105, None),
-                (90_106, date(2027, 1, 1)),
+                (90_101, date(2014, 12, 31), "  "),
+                (90_101, date(2014, 12, 31), " Elemental "),
+                (90_101, date(2014, 12, 31), "Superior"),
+                (90_102, date(2013, 12, 31), " Intermedia "),
+                (90_103, date(2007, 12, 31), None),
+                (90_104, date(1966, 12, 31), "Superior"),
+                (90_105, None, ""),
+                (90_106, date(2027, 1, 1), "Superior"),
             ]),
         ])
 
@@ -174,14 +176,23 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "60 o más": 1,
             "No informado": 2,
         })
+        self.assertEqual(payload["real"]["education"], {
+            "Elemental": 1,
+            "Intermedia": 1,
+            "Superior": 2,
+            "No informado": 2,
+        })
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
         self.assertNotIn("age", payload["meta"]["demo_metrics"])
+        self.assertNotIn("education", payload["meta"]["demo_metrics"])
 
         people_sql = str(db.statements[2]).lower()
         self.assertIn("select distinct", people_sql)
         self.assertIn("attendance.proposal_participant_id", people_sql)
         self.assertNotIn("attendance.participant_id", people_sql)
         self.assertIn("attendance.attended", people_sql)
+        self.assertIn("left outer join participants", people_sql)
+        self.assertIn("persons.legacy_participant_id = participants.participant_id", people_sql)
         self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", people_sql)
         self.assertIn("extract(year from activity_sessions.session_date)", people_sql)
         self.assertIn("activity_sessions.session_date >=", people_sql)
@@ -203,6 +214,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "address",
             "phone",
             "fecha_nacimiento",
+            "escolaridad_participante",
             "residential",
             "residencial",
         }

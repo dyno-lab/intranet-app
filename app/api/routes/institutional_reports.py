@@ -15,6 +15,7 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
+from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
@@ -31,11 +32,10 @@ _AUTHORIZATION_IDLE_TIMEOUT_SECONDS = 30 * 60
 _FAILED_ATTEMPT_LIMIT = 5
 _FAILED_ATTEMPT_LOCK_SECONDS = 5 * 60
 
-_FARO_REAL_METRICS = ["activities", "people", "age"]
+_FARO_REAL_METRICS = ["activities", "people", "age", "education"]
 _FARO_DEMO_METRICS = [
     "duplicates",
     "towns",
-    "education",
     "grades",
     "pregnancy",
     "towns_by_municipality",
@@ -182,20 +182,45 @@ def _age_bucket(birth_date: date | None, reference_date: date) -> str:
     return "60 o más"
 
 
+def _normalize_education(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
 def _aggregate_unique_people(
     person_rows,
     reference_date: date,
-) -> tuple[int, dict[str, int]]:
+) -> tuple[int, dict[str, int], dict[str, int]]:
     birth_dates_by_person: dict[int, date | None] = {}
-    for person_id, birth_date in person_rows:
+    education_by_person: dict[int, str | None] = {}
+    for person_id, birth_date, education in person_rows:
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
+            education_by_person[person_id] = None
+        if education_by_person[person_id] is None:
+            education_by_person[person_id] = _normalize_education(education)
 
     age_buckets = {label: 0 for label in _FARO_AGE_BUCKETS}
     for birth_date in birth_dates_by_person.values():
         age_buckets[_age_bucket(birth_date, reference_date)] += 1
 
-    return len(birth_dates_by_person), age_buckets
+    education_buckets: dict[str, int] = {}
+    for education in education_by_person.values():
+        label = education or "No informado"
+        education_buckets[label] = education_buckets.get(label, 0) + 1
+
+    ordered_education_buckets = {
+        label: education_buckets[label]
+        for label in sorted(
+            (label for label in education_buckets if label != "No informado"),
+            key=str.casefold,
+        )
+    }
+    ordered_education_buckets["No informado"] = education_buckets.get("No informado", 0)
+
+    return len(birth_dates_by_person), age_buckets, ordered_education_buckets
 
 
 def _active_faro_proposals(db: Session) -> list[Proposal]:
@@ -371,7 +396,7 @@ def faro_institutional_report_data(
     activities_count = int(db.execute(activities_stmt).scalar_one() or 0)
 
     unique_people_stmt = (
-        select(Person.person_id, Person.fecha_nacimiento)
+        select(Person.person_id, Person.fecha_nacimiento, Participant.escolaridad_participante)
         .select_from(Attendance)
         .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
         .join(
@@ -379,6 +404,7 @@ def faro_institutional_report_data(
             Attendance.proposal_participant_id == ProposalParticipant.proposal_participant_id,
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
+        .outerjoin(Participant, Person.legacy_participant_id == Participant.participant_id)
         .where(
             Attendance.attended == True,  # noqa: E712
             ProposalParticipant.proposal_id == ActivitySession.proposal_id,
@@ -393,7 +419,7 @@ def faro_institutional_report_data(
         end_date=normalized_end_date,
     )
     reference_date = _age_reference_date(normalized_end_date, normalized_year)
-    people_count, age_buckets = _aggregate_unique_people(
+    people_count, age_buckets, education_buckets = _aggregate_unique_people(
         db.execute(unique_people_stmt).all(),
         reference_date,
     )
@@ -404,6 +430,7 @@ def faro_institutional_report_data(
                 "activities": activities_count,
                 "people": people_count,
                 "age": age_buckets,
+                "education": education_buckets,
             },
             "filters": {
                 "proposal_ids": normalized_proposal_ids,
