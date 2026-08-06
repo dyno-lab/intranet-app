@@ -52,9 +52,9 @@
         <div class="institutional-report-alert institutional-report-alert--info" role="status">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
           <span>
-            <strong>Datos reales parciales:</strong> actividades registradas, personas únicas atendidas, rangos de
-            edad y escolaridad usan agregados reales. Los demás indicadores permanecen demostrativos y no contienen
-            información personal.
+            <strong>Datos reales parciales:</strong> actividades registradas, personas únicas atendidas, registros
+            duplicados, pueblos/municipios, rangos de edad y escolaridad usan agregados reales. Los indicadores de
+            notas y embarazo permanecen demostrativos y no contienen información personal.
           </span>
         </div>
 
@@ -140,14 +140,14 @@
               <p class="institutional-report-kpi__value" data-kpi="people" aria-live="polite">&hellip;</p>
             </div>
           </article>
-          <article class="institutional-report-kpi">
+          <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-files"></i></span>
             <div>
               <p class="institutional-report-kpi__label">
                 Registros duplicados
-                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
               </p>
-              <p class="institutional-report-kpi__value" data-kpi="duplicates">0</p>
+              <p class="institutional-report-kpi__value" data-kpi="duplicates" aria-live="polite">…</p>
             </div>
           </article>
           <article class="institutional-report-kpi institutional-report-kpi--real">
@@ -160,14 +160,14 @@
               <p class="institutional-report-kpi__value" data-kpi="activities" aria-live="polite">&hellip;</p>
             </div>
           </article>
-          <article class="institutional-report-kpi">
+          <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
             <div>
               <p class="institutional-report-kpi__label">
-                Pueblos alcanzados
-                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+                Municipios alcanzados
+                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
               </p>
-              <p class="institutional-report-kpi__value" data-kpi="towns">0</p>
+              <p class="institutional-report-kpi__value" data-kpi="towns" aria-live="polite">…</p>
             </div>
           </article>
         </section>
@@ -239,8 +239,8 @@
           <article class="institutional-report-card institutional-report-card--wide">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Cobertura geográfica · Dato demostrativo</span>
-                <h2>Población única atendida por pueblo</h2>
+                <span class="institutional-report__section-kicker">Cobertura geográfica · Dato real</span>
+                <h2>Población única atendida por municipio/pueblo</h2>
               </div>
               <i class="bi bi-map" aria-hidden="true"></i>
             </div>
@@ -248,11 +248,11 @@
               <table class="institutional-report-table">
                 <thead>
                   <tr>
-                    <th scope="col">Pueblo</th>
+                    <th scope="col">Municipio/pueblo</th>
                     <th scope="col">Personas únicas</th>
                   </tr>
                 </thead>
-                <tbody data-town-table></tbody>
+                <tbody data-town-table aria-live="polite"></tbody>
               </table>
             </div>
           </article>

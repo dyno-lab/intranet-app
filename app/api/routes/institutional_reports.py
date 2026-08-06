@@ -19,6 +19,8 @@ from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.models.residential import Residential
+from app.models.user import User
 
 
 router = APIRouter()
@@ -32,14 +34,16 @@ _AUTHORIZATION_IDLE_TIMEOUT_SECONDS = 30 * 60
 _FAILED_ATTEMPT_LIMIT = 5
 _FAILED_ATTEMPT_LOCK_SECONDS = 5 * 60
 
-_FARO_REAL_METRICS = ["activities", "people", "age", "education"]
-_FARO_DEMO_METRICS = [
+_FARO_REAL_METRICS = [
+    "activities",
+    "people",
     "duplicates",
     "towns",
-    "grades",
-    "pregnancy",
+    "age",
+    "education",
     "towns_by_municipality",
 ]
+_FARO_DEMO_METRICS = ["grades", "pregnancy"]
 _FARO_AGE_BUCKETS = ("0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado")
 
 
@@ -189,18 +193,55 @@ def _normalize_education(value: str | None) -> str | None:
     return normalized or None
 
 
+def _normalize_duplicate_text(value: str | None) -> str:
+    return value.strip().casefold() if value else ""
+
+
 def _aggregate_unique_people(
     person_rows,
     reference_date: date,
-) -> tuple[int, dict[str, int], dict[str, int]]:
+) -> tuple[
+    int,
+    dict[str, int],
+    dict[str, int],
+    int,
+    int,
+    dict[str, int],
+]:
     birth_dates_by_person: dict[int, date | None] = {}
     education_by_person: dict[int, str | None] = {}
-    for person_id, birth_date, education in person_rows:
+    municipality_by_person: dict[int, str | None] = {}
+    duplicate_key_by_person: dict[int, tuple[str, str, str, date] | None] = {}
+    for (
+        person_id,
+        birth_date,
+        education,
+        municipality,
+        first_name,
+        paternal_surname,
+        maternal_surname,
+    ) in person_rows:
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
             education_by_person[person_id] = None
+            municipality_by_person[person_id] = None
+
+            normalized_first_name = _normalize_duplicate_text(first_name)
+            normalized_paternal_surname = _normalize_duplicate_text(paternal_surname)
+            normalized_maternal_surname = _normalize_duplicate_text(maternal_surname)
+            if normalized_first_name and normalized_paternal_surname and birth_date is not None:
+                duplicate_key_by_person[person_id] = (
+                    normalized_first_name,
+                    normalized_paternal_surname,
+                    normalized_maternal_surname,
+                    birth_date,
+                )
+            else:
+                duplicate_key_by_person[person_id] = None
         if education_by_person[person_id] is None:
             education_by_person[person_id] = _normalize_education(education)
+        if municipality_by_person[person_id] is None:
+            municipality_by_person[person_id] = _normalize_education(municipality)
 
     age_buckets = {label: 0 for label in _FARO_AGE_BUCKETS}
     for birth_date in birth_dates_by_person.values():
@@ -220,7 +261,41 @@ def _aggregate_unique_people(
     }
     ordered_education_buckets["No informado"] = education_buckets.get("No informado", 0)
 
-    return len(birth_dates_by_person), age_buckets, ordered_education_buckets
+    municipality_buckets: dict[str, int] = {}
+    for municipality in municipality_by_person.values():
+        label = municipality or "No informado"
+        municipality_buckets[label] = municipality_buckets.get(label, 0) + 1
+
+    ordered_municipality_buckets = {
+        label: municipality_buckets[label]
+        for label in sorted(
+            (label for label in municipality_buckets if label != "No informado"),
+            key=str.casefold,
+        )
+    }
+    ordered_municipality_buckets["No informado"] = municipality_buckets.get(
+        "No informado", 0
+    )
+    towns_count = sum(
+        1
+        for label, count in ordered_municipality_buckets.items()
+        if label != "No informado" and count > 0
+    )
+
+    duplicate_groups: dict[tuple[str, str, str, date], int] = {}
+    for duplicate_key in duplicate_key_by_person.values():
+        if duplicate_key is not None:
+            duplicate_groups[duplicate_key] = duplicate_groups.get(duplicate_key, 0) + 1
+    duplicates_count = sum(max(group_size - 1, 0) for group_size in duplicate_groups.values())
+
+    return (
+        len(birth_dates_by_person),
+        age_buckets,
+        ordered_education_buckets,
+        duplicates_count,
+        towns_count,
+        ordered_municipality_buckets,
+    )
 
 
 def _active_faro_proposals(db: Session) -> list[Proposal]:
@@ -396,7 +471,15 @@ def faro_institutional_report_data(
     activities_count = int(db.execute(activities_stmt).scalar_one() or 0)
 
     unique_people_stmt = (
-        select(Person.person_id, Person.fecha_nacimiento, Participant.escolaridad_participante)
+        select(
+            Person.person_id,
+            Person.fecha_nacimiento,
+            Participant.escolaridad_participante,
+            Residential.municipality,
+            Person.nombre,
+            Person.apellido_paterno,
+            Person.apellido_materno,
+        )
         .select_from(Attendance)
         .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
         .join(
@@ -405,6 +488,8 @@ def faro_institutional_report_data(
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(Participant, Person.legacy_participant_id == Participant.participant_id)
+        .outerjoin(User, Participant.created_by_user_id == User.user_id)
+        .outerjoin(Residential, User.residential_id == Residential.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
             ProposalParticipant.proposal_id == ActivitySession.proposal_id,
@@ -419,18 +504,25 @@ def faro_institutional_report_data(
         end_date=normalized_end_date,
     )
     reference_date = _age_reference_date(normalized_end_date, normalized_year)
-    people_count, age_buckets, education_buckets = _aggregate_unique_people(
-        db.execute(unique_people_stmt).all(),
-        reference_date,
-    )
+    (
+        people_count,
+        age_buckets,
+        education_buckets,
+        duplicates_count,
+        towns_count,
+        towns_by_municipality,
+    ) = _aggregate_unique_people(db.execute(unique_people_stmt).all(), reference_date)
 
     return _no_store_json(
         {
             "real": {
                 "activities": activities_count,
                 "people": people_count,
+                "duplicates": duplicates_count,
+                "towns": towns_count,
                 "age": age_buckets,
                 "education": education_buckets,
+                "towns_by_municipality": towns_by_municipality,
             },
             "filters": {
                 "proposal_ids": normalized_proposal_ids,

@@ -135,26 +135,41 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(payload["real"]["people"], 0)
         self.assertEqual(sum(payload["real"]["age"].values()), 0)
         self.assertEqual(payload["real"]["education"], {"No informado": 0})
+        self.assertEqual(payload["real"]["duplicates"], 0)
+        self.assertEqual(payload["real"]["towns"], 0)
+        self.assertEqual(payload["real"]["towns_by_municipality"], {"No informado": 0})
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
-        self.assertEqual(payload["meta"]["real_metrics"], ["activities", "people", "age", "education"])
+        self.assertEqual(payload["meta"]["real_metrics"], [
+            "activities",
+            "people",
+            "duplicates",
+            "towns",
+            "age",
+            "education",
+            "towns_by_municipality",
+        ])
+        self.assertEqual(payload["meta"]["demo_metrics"], ["grades", "pregnancy"])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
         self.assertEqual(len(db.statements), 3)
 
-    def test_data_endpoint_deduplicates_people_and_groups_age_without_pii(self):
+    def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
             _Result(values=[1, 2]),
             _Result(scalar=9),
             _Result(values=[
-                (90_101, date(2014, 12, 31), "  "),
-                (90_101, date(2014, 12, 31), " Elemental "),
-                (90_101, date(2014, 12, 31), "Superior"),
-                (90_102, date(2013, 12, 31), " Intermedia "),
-                (90_103, date(2007, 12, 31), None),
-                (90_104, date(1966, 12, 31), "Superior"),
-                (90_105, None, ""),
-                (90_106, date(2027, 1, 1), "Superior"),
+                (90_101, date(2014, 12, 31), "  ", None, " Ana ", "Pérez", "Ríos"),
+                (90_101, date(2014, 12, 31), " Elemental ", " Caguas ", " Ana ", "Pérez", "Ríos"),
+                (90_101, date(2014, 12, 31), "Superior", "Cidra", " Ana ", "Pérez", "Ríos"),
+                (90_102, date(2014, 12, 31), "Elemental", "Caguas", "ana", " pérez ", " ríOS "),
+                (90_103, date(2014, 12, 31), " Intermedia ", " Cidra ", "ANA", "PÉREZ", "RÍOS"),
+                (90_104, date(2000, 2, 2), None, None, " Luis ", "Soto", None),
+                (90_105, date(2000, 2, 2), " Superior ", " ", "luis", " soto ", ""),
+                (90_105, date(2000, 2, 2), "Superior", " Cayey ", "luis", " soto ", ""),
+                (90_106, date(2007, 12, 31), "", "Cidra", " ", "Ortiz", "Vega"),
+                (90_107, date(1966, 12, 31), "Superior", "Caguas", "Marta", " ", "López"),
+                (90_108, None, None, None, "Carlos", "Díaz", None),
             ]),
         ])
 
@@ -168,21 +183,33 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         payload = _payload(response)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(payload["real"]["people"], 6)
+        self.assertEqual(payload["real"]["people"], 8)
         self.assertEqual(payload["real"]["age"], {
-            "0 a 12": 1,
-            "13 a 18": 1,
-            "19 a 59": 1,
+            "0 a 12": 3,
+            "13 a 18": 0,
+            "19 a 59": 3,
             "60 o más": 1,
-            "No informado": 2,
+            "No informado": 1,
         })
         self.assertEqual(payload["real"]["education"], {
-            "Elemental": 1,
+            "Elemental": 2,
             "Intermedia": 1,
             "Superior": 2,
+            "No informado": 3,
+        })
+        self.assertEqual(payload["real"]["duplicates"], 3)
+        self.assertEqual(payload["real"]["towns"], 3)
+        self.assertEqual(payload["real"]["towns_by_municipality"], {
+            "Caguas": 3,
+            "Cayey": 1,
+            "Cidra": 2,
             "No informado": 2,
         })
+        self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 8)
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
+        self.assertNotIn("duplicates", payload["meta"]["demo_metrics"])
+        self.assertNotIn("towns", payload["meta"]["demo_metrics"])
+        self.assertNotIn("towns_by_municipality", payload["meta"]["demo_metrics"])
         self.assertNotIn("age", payload["meta"]["demo_metrics"])
         self.assertNotIn("education", payload["meta"]["demo_metrics"])
 
@@ -193,6 +220,10 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("attendance.attended", people_sql)
         self.assertIn("left outer join participants", people_sql)
         self.assertIn("persons.legacy_participant_id = participants.participant_id", people_sql)
+        self.assertIn("left outer join users", people_sql)
+        self.assertIn("participants.created_by_user_id = users.user_id", people_sql)
+        self.assertIn("left outer join residentials", people_sql)
+        self.assertIn("users.residential_id = residentials.residential_id", people_sql)
         self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", people_sql)
         self.assertIn("extract(year from activity_sessions.session_date)", people_sql)
         self.assertIn("activity_sessions.session_date >=", people_sql)
@@ -207,6 +238,9 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "participant_id",
             "proposal_participant_id",
             "nombre",
+            "apellido",
+            "apellido_paterno",
+            "apellido_materno",
             "expediente",
             "telefono",
             "email",
@@ -217,11 +251,19 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "escolaridad_participante",
             "residential",
             "residencial",
+            "residential_id",
+            "residential_name",
+            "residential_code",
+            "rq_code",
+            "municipality",
         }
         self.assertTrue(forbidden_keys.isdisjoint(_payload_keys(payload)))
-        serialized_payload = json.dumps(payload)
+        serialized_payload = json.dumps(payload, ensure_ascii=False)
         self.assertNotIn("90101", serialized_payload)
-        self.assertNotIn("90106", serialized_payload)
+        self.assertNotIn("90108", serialized_payload)
+        self.assertNotIn("Ana", serialized_payload)
+        self.assertNotIn("Pérez", serialized_payload)
+        self.assertNotIn("2014-12-31", serialized_payload)
 
     def test_age_reference_date_precedence(self):
         self.assertEqual(
@@ -237,6 +279,37 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 institutional_reports._age_reference_date(None, None),
                 date(2026, 8, 6),
             )
+
+    def test_duplicate_aggregation_counts_only_additional_complete_people(self):
+        reference_date = date(2026, 12, 31)
+
+        for group_size, expected_duplicates in ((1, 0), (2, 1), (3, 2)):
+            rows = [
+                (
+                    person_id,
+                    date(2010, 5, 10),
+                    None,
+                    None,
+                    " Ana " if person_id % 2 else "ANA",
+                    " Pérez " if person_id % 2 else "PÉREZ",
+                    " Ríos " if person_id % 2 else "RÍOS",
+                )
+                for person_id in range(1, group_size + 1)
+            ]
+            with self.subTest(group_size=group_size):
+                aggregates = institutional_reports._aggregate_unique_people(rows, reference_date)
+                self.assertEqual(aggregates[3], expected_duplicates)
+
+        incomplete_rows = [
+            (1, date(2010, 5, 10), None, None, "", "Pérez", "Ríos"),
+            (2, date(2010, 5, 10), None, None, "Ana", "", "Ríos"),
+            (3, None, None, None, "Ana", "Pérez", "Ríos"),
+        ]
+        aggregates = institutional_reports._aggregate_unique_people(
+            incomplete_rows,
+            reference_date,
+        )
+        self.assertEqual(aggregates[3], 0)
 
     def test_data_endpoint_rejects_unavailable_proposals(self):
         db = _Database([_Result(values=[1])])
