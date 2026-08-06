@@ -21,7 +21,7 @@ class _Request:
 
 
 class _Result:
-    def __init__(self, *, values: list[int] | None = None, scalar: int | None = None):
+    def __init__(self, *, values: list | None = None, scalar: int | None = None):
         self._values = values or []
         self._scalar = scalar
 
@@ -49,6 +49,20 @@ class _Database:
 
 def _payload(response) -> dict:
     return json.loads(response.body.decode("utf-8"))
+
+
+def _payload_keys(value) -> set[str]:
+    if isinstance(value, dict):
+        keys = set(value)
+        for item in value.values():
+            keys.update(_payload_keys(item))
+        return keys
+    if isinstance(value, list):
+        keys = set()
+        for item in value:
+            keys.update(_payload_keys(item))
+        return keys
+    return set()
 
 
 class FaroInstitutionalReportDataTests(unittest.TestCase):
@@ -102,6 +116,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         db = _Database([
             _Result(values=[1, 2]),
             _Result(scalar=7),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -114,12 +129,96 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         payload = _payload(response)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(payload["real"], {"activities": 7})
+        self.assertEqual(payload["real"]["activities"], 7)
+        self.assertEqual(payload["real"]["people"], 0)
+        self.assertEqual(sum(payload["real"]["age"].values()), 0)
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
-        self.assertEqual(payload["meta"]["real_metrics"], ["activities"])
+        self.assertEqual(payload["meta"]["real_metrics"], ["activities", "people", "age"])
+        self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
-        self.assertEqual(len(db.statements), 2)
+        self.assertEqual(len(db.statements), 3)
+
+    def test_data_endpoint_deduplicates_people_and_groups_age_without_pii(self):
+        db = _Database([
+            _Result(values=[1, 2]),
+            _Result(scalar=9),
+            _Result(values=[
+                (90_101, date(2014, 12, 31)),
+                (90_101, date(2014, 12, 31)),
+                (90_102, date(2013, 12, 31)),
+                (90_103, date(2007, 12, 31)),
+                (90_104, date(1966, 12, 31)),
+                (90_105, None),
+                (90_106, date(2027, 1, 1)),
+            ]),
+        ])
+
+        response = self._call(
+            db=db,
+            proposal_ids=[1, 2],
+            year=2026,
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+        )
+        payload = _payload(response)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["real"]["people"], 6)
+        self.assertEqual(payload["real"]["age"], {
+            "0 a 12": 1,
+            "13 a 18": 1,
+            "19 a 59": 1,
+            "60 o más": 1,
+            "No informado": 2,
+        })
+        self.assertNotIn("people", payload["meta"]["demo_metrics"])
+        self.assertNotIn("age", payload["meta"]["demo_metrics"])
+
+        people_sql = str(db.statements[2]).lower()
+        self.assertIn("select distinct", people_sql)
+        self.assertIn("attendance.proposal_participant_id", people_sql)
+        self.assertNotIn("attendance.participant_id", people_sql)
+        self.assertIn("attendance.attended is true", people_sql)
+        self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", people_sql)
+        self.assertIn("extract(year from activity_sessions.session_date)", people_sql)
+        self.assertIn("activity_sessions.session_date >=", people_sql)
+        self.assertIn("activity_sessions.session_date <=", people_sql)
+
+        forbidden_keys = {
+            "person_id",
+            "participant_id",
+            "proposal_participant_id",
+            "nombre",
+            "expediente",
+            "telefono",
+            "email",
+            "direccion",
+            "address",
+            "phone",
+            "fecha_nacimiento",
+            "residential",
+            "residencial",
+        }
+        self.assertTrue(forbidden_keys.isdisjoint(_payload_keys(payload)))
+        serialized_payload = json.dumps(payload)
+        self.assertNotIn("90101", serialized_payload)
+        self.assertNotIn("90106", serialized_payload)
+
+    def test_age_reference_date_precedence(self):
+        self.assertEqual(
+            institutional_reports._age_reference_date(date(2025, 6, 30), 2026),
+            date(2025, 6, 30),
+        )
+        self.assertEqual(
+            institutional_reports._age_reference_date(None, 2026),
+            date(2026, 12, 31),
+        )
+        with patch.object(institutional_reports, "_current_date", return_value=date(2026, 8, 6)):
+            self.assertEqual(
+                institutional_reports._age_reference_date(None, None),
+                date(2026, 8, 6),
+            )
 
     def test_data_endpoint_rejects_unavailable_proposals(self):
         db = _Database([_Result(values=[1])])

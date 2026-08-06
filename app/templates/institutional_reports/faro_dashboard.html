@@ -52,8 +52,9 @@
         <div class="institutional-report-alert institutional-report-alert--info" role="status">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
           <span>
-            <strong>Datos reales parciales:</strong> solo el KPI "Actividades registradas" usa datos reales.
-            Los demás indicadores permanecen demostrativos y no contienen información personal.
+            <strong>Datos reales parciales:</strong> actividades registradas, personas únicas atendidas y rangos de
+            edad usan agregados reales. Los demás indicadores permanecen demostrativos y no contienen información
+            personal.
           </span>
         </div>
 
@@ -64,8 +65,8 @@
               <h2 id="institutional-report-filters-title">Filtros del reporte</h2>
             </div>
             <p>
-              Todos los filtros aplican a actividades reales. Las visualizaciones demostrativas responden solo al
-              período y no representan las propuestas seleccionadas.
+              Todos los filtros aplican a los indicadores reales. Las visualizaciones demostrativas responden solo
+              al período y no representan las propuestas seleccionadas.
             </p>
           </div>
 
@@ -129,14 +130,14 @@
         </section>
 
         <section class="institutional-report__kpi-grid" aria-label="Indicadores principales">
-          <article class="institutional-report-kpi">
+          <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
             <div>
               <p class="institutional-report-kpi__label">
                 Personas únicas atendidas
-                <span class="institutional-report-source-badge institutional-report-source-badge--demo">Demo</span>
+                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
               </p>
-              <p class="institutional-report-kpi__value" data-kpi="people">0</p>
+              <p class="institutional-report-kpi__value" data-kpi="people" aria-live="polite">&hellip;</p>
             </div>
           </article>
           <article class="institutional-report-kpi">
@@ -173,20 +174,20 @@
 
         <div class="institutional-report-empty" data-report-empty hidden>
           <i class="bi bi-bar-chart" aria-hidden="true"></i>
-          <h2 data-empty-title>No hay datos demostrativos para ese período</h2>
-          <p data-empty-description>Pruebe otro año o rango de fechas.</p>
+          <h2 data-empty-title>No hay datos para mostrar</h2>
+          <p data-empty-description>Revise los filtros y vuelva a intentarlo.</p>
         </div>
 
         <section class="institutional-report__grid" data-report-content>
           <article class="institutional-report-card institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Distribución · Dato demostrativo</span>
+                <span class="institutional-report__section-kicker">Distribución · Dato real</span>
                 <h2>Población única por rangos de edad</h2>
               </div>
               <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
             </div>
-            <div class="institutional-report-bars" data-chart="age"></div>
+            <div class="institutional-report-bars" data-chart="age" aria-live="polite"></div>
           </article>
 
           <article class="institutional-report-card institutional-report-chart">

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import time
+from collections.abc import Sequence
 from datetime import date
 
 from fastapi import APIRouter, Depends, Form, Query, Request, status
@@ -13,7 +14,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import settings
 from app.models.activity_session import ActivitySession
+from app.models.attendance import Attendance
+from app.models.person import Person
 from app.models.proposal import Proposal
+from app.models.proposal_participant import ProposalParticipant
 
 
 router = APIRouter()
@@ -27,21 +31,24 @@ _AUTHORIZATION_IDLE_TIMEOUT_SECONDS = 30 * 60
 _FAILED_ATTEMPT_LIMIT = 5
 _FAILED_ATTEMPT_LOCK_SECONDS = 5 * 60
 
-_FARO_REAL_METRICS = ["activities"]
+_FARO_REAL_METRICS = ["activities", "people", "age"]
 _FARO_DEMO_METRICS = [
-    "people",
     "duplicates",
     "towns",
-    "age",
     "education",
     "grades",
     "pregnancy",
     "towns_by_municipality",
 ]
+_FARO_AGE_BUCKETS = ("0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado")
 
 
 def _current_timestamp() -> int:
     return int(time.time())
+
+
+def _current_date() -> date:
+    return date.today()
 
 
 def _configured_faro_pin() -> str | None:
@@ -95,7 +102,7 @@ def _no_store_json(payload: dict, status_code: int = status.HTTP_200_OK) -> JSON
     return response
 
 
-def _normalize_proposal_ids(proposal_ids: list[int | str] | None) -> list[int]:
+def _normalize_proposal_ids(proposal_ids: Sequence[int | str] | None) -> list[int]:
     normalized: list[int] = []
     for raw_value in proposal_ids or []:
         try:
@@ -130,6 +137,65 @@ def _parse_optional_date(value: date | str | None, label: str) -> date | None:
         return date.fromisoformat(value.strip())
     except ValueError as exc:
         raise ValueError(f"{label} debe usar el formato AAAA-MM-DD.") from exc
+
+
+def _apply_activity_session_filters(
+    statement,
+    *,
+    proposal_ids: list[int],
+    year: int | None,
+    start_date: date | None,
+    end_date: date | None,
+):
+    statement = statement.where(ActivitySession.proposal_id.in_(proposal_ids))
+    if year is not None:
+        statement = statement.where(extract("year", ActivitySession.session_date) == year)
+    if start_date is not None:
+        statement = statement.where(ActivitySession.session_date >= start_date)
+    if end_date is not None:
+        statement = statement.where(ActivitySession.session_date <= end_date)
+    return statement
+
+
+def _age_reference_date(end_date: date | None, year: int | None) -> date:
+    if end_date is not None:
+        return end_date
+    if year is not None:
+        return date(year, 12, 31)
+    return _current_date()
+
+
+def _age_bucket(birth_date: date | None, reference_date: date) -> str:
+    if birth_date is None or birth_date > reference_date:
+        return "No informado"
+
+    age = reference_date.year - birth_date.year
+    if (reference_date.month, reference_date.day) < (birth_date.month, birth_date.day):
+        age -= 1
+
+    if age <= 12:
+        return "0 a 12"
+    if age <= 18:
+        return "13 a 18"
+    if age <= 59:
+        return "19 a 59"
+    return "60 o más"
+
+
+def _aggregate_unique_people(
+    person_rows,
+    reference_date: date,
+) -> tuple[int, dict[str, int]]:
+    birth_dates_by_person: dict[int, date | None] = {}
+    for person_id, birth_date in person_rows:
+        if person_id not in birth_dates_by_person:
+            birth_dates_by_person[person_id] = birth_date
+
+    age_buckets = {label: 0 for label in _FARO_AGE_BUCKETS}
+    for birth_date in birth_dates_by_person.values():
+        age_buckets[_age_bucket(birth_date, reference_date)] += 1
+
+    return len(birth_dates_by_person), age_buckets
 
 
 def _active_faro_proposals(db: Session) -> list[Proposal]:
@@ -242,7 +308,7 @@ def faro_institutional_report_data(
     end_date: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    """Return the real activity KPI; proposal_ids uses repeated query parameters."""
+    """Return aggregate real metrics; proposal_ids uses repeated query parameters."""
 
     now = _current_timestamp()
     if _configured_faro_pin() is None:
@@ -295,21 +361,49 @@ def faro_institutional_report_data(
             status.HTTP_400_BAD_REQUEST,
         )
 
-    activities_stmt = select(func.count(distinct(ActivitySession.session_id))).where(
-        ActivitySession.proposal_id.in_(normalized_proposal_ids)
+    activities_stmt = _apply_activity_session_filters(
+        select(func.count(distinct(ActivitySession.session_id))),
+        proposal_ids=normalized_proposal_ids,
+        year=normalized_year,
+        start_date=normalized_start_date,
+        end_date=normalized_end_date,
     )
-    if normalized_year is not None:
-        activities_stmt = activities_stmt.where(extract("year", ActivitySession.session_date) == normalized_year)
-    if normalized_start_date is not None:
-        activities_stmt = activities_stmt.where(ActivitySession.session_date >= normalized_start_date)
-    if normalized_end_date is not None:
-        activities_stmt = activities_stmt.where(ActivitySession.session_date <= normalized_end_date)
-
     activities_count = int(db.execute(activities_stmt).scalar_one() or 0)
+
+    unique_people_stmt = (
+        select(Person.person_id, Person.fecha_nacimiento)
+        .select_from(Attendance)
+        .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
+        .join(
+            ProposalParticipant,
+            Attendance.proposal_participant_id == ProposalParticipant.proposal_participant_id,
+        )
+        .join(Person, ProposalParticipant.person_id == Person.person_id)
+        .where(
+            Attendance.attended.is_(True),
+            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+        )
+        .distinct()
+    )
+    unique_people_stmt = _apply_activity_session_filters(
+        unique_people_stmt,
+        proposal_ids=normalized_proposal_ids,
+        year=normalized_year,
+        start_date=normalized_start_date,
+        end_date=normalized_end_date,
+    )
+    reference_date = _age_reference_date(normalized_end_date, normalized_year)
+    people_count, age_buckets = _aggregate_unique_people(
+        db.execute(unique_people_stmt).all(),
+        reference_date,
+    )
+
     return _no_store_json(
         {
             "real": {
                 "activities": activities_count,
+                "people": people_count,
+                "age": age_buckets,
             },
             "filters": {
                 "proposal_ids": normalized_proposal_ids,
@@ -320,6 +414,7 @@ def faro_institutional_report_data(
             "meta": {
                 "real_metrics": _FARO_REAL_METRICS,
                 "demo_metrics": _FARO_DEMO_METRICS,
+                "age_reference_date": reference_date.isoformat(),
             },
         }
     )
