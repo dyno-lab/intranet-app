@@ -136,6 +136,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["real"]["activities"], 7)
         self.assertEqual(payload["real"]["people"], 0)
+        self.assertEqual(payload["real"]["household_heads"], 0)
         self.assertEqual(sum(payload["real"]["age"].values()), 0)
         self.assertEqual(payload["real"]["education"], {"No informado": 0})
         self.assertEqual(payload["real"]["duplicates"], 0)
@@ -163,6 +164,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "duplicates",
             "towns",
             "age",
+            "household_heads",
             "education",
             "grades",
             "pregnancy",
@@ -180,17 +182,17 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(scalar=9),
             _Result(values=[1, 3, 2, 4]),
             _Result(values=[
-                (90_101, date(2014, 12, 31), "  ", None),
-                (90_101, date(2014, 12, 31), " Elemental ", " Caguas "),
-                (90_101, date(2014, 12, 31), "Superior", "Cidra"),
-                (90_102, date(2014, 12, 31), "Elemental", "Caguas"),
-                (90_103, date(2014, 12, 31), " Intermedia ", " Cidra "),
-                (90_104, date(2000, 2, 2), None, None),
-                (90_105, date(2000, 2, 2), " Superior ", " "),
-                (90_105, date(2000, 2, 2), "Superior", " Cayey "),
-                (90_106, date(2007, 12, 31), "", "Cidra"),
-                (90_107, date(1966, 12, 31), "Superior", "Caguas"),
-                (90_108, None, None, None),
+                (90_101, date(2014, 12, 31), "  ", None, None),
+                (90_101, date(2014, 12, 31), " Elemental ", True, " Caguas "),
+                (90_101, date(2014, 12, 31), "Superior", False, "Cidra"),
+                (90_102, date(2014, 12, 31), "Elemental", False, "Caguas"),
+                (90_103, date(2014, 12, 31), " Intermedia ", True, " Cidra "),
+                (90_104, date(2000, 2, 2), None, None, None),
+                (90_105, date(2000, 2, 2), " Superior ", True, " "),
+                (90_105, date(2000, 2, 2), "Superior", True, " Cayey "),
+                (90_106, date(2007, 12, 31), "", False, "Cidra"),
+                (90_107, date(1966, 12, 31), "Superior", True, "Caguas"),
+                (90_108, None, None, None, None),
             ]),
             _Result(values=[
                 (90_101, 1, 2026, 1, 1, 60, 70, 80, 90),
@@ -223,6 +225,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["real"]["people"], 8)
+        self.assertEqual(payload["real"]["household_heads"], 4)
         self.assertEqual(payload["real"]["age"], {
             "0 a 12": 3,
             "13 a 18": 0,
@@ -261,6 +264,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("towns", payload["meta"]["demo_metrics"])
         self.assertNotIn("towns_by_municipality", payload["meta"]["demo_metrics"])
         self.assertNotIn("age", payload["meta"]["demo_metrics"])
+        self.assertIn("household_heads", payload["meta"]["real_metrics"])
+        self.assertNotIn("household_heads", payload["meta"]["demo_metrics"])
         self.assertNotIn("education", payload["meta"]["demo_metrics"])
         self.assertIn("grades", payload["meta"]["real_metrics"])
         self.assertNotIn("grades", payload["meta"]["demo_metrics"])
@@ -283,6 +288,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("attendance.attended", people_sql)
         self.assertIn("left outer join participants", people_sql)
         self.assertIn("persons.legacy_participant_id = participants.participant_id", people_sql)
+        self.assertIn("participants.is_head_of_household", people_sql)
         self.assertIn("left outer join users", people_sql)
         self.assertIn("participants.created_by_user_id = users.user_id", people_sql)
         self.assertIn("left outer join residentials", people_sql)
@@ -345,6 +351,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "address",
             "phone",
             "fecha_nacimiento",
+            "is_head_of_household",
             "report_id",
             "report_item_id",
             "spanish_grade",

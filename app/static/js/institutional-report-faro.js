@@ -14,6 +14,7 @@
   const reportContent = root.querySelector("[data-report-content]");
   const activityValue = root.querySelector('[data-kpi="activities"]');
   const peopleValue = root.querySelector('[data-kpi="people"]');
+  const householdHeadsValue = root.querySelector('[data-kpi="household-heads"]');
   const duplicateValue = root.querySelector('[data-kpi="duplicates"]');
   const townValue = root.querySelector('[data-kpi="towns"]');
   const ageChart = root.querySelector('[data-chart="age"]');
@@ -34,6 +35,7 @@
     !form
     || !activityValue
     || !peopleValue
+    || !householdHeadsValue
     || !duplicateValue
     || !townValue
     || !ageChart
@@ -261,6 +263,7 @@
   const clearRealMetrics = () => {
     activityValue.textContent = "—";
     peopleValue.textContent = "—";
+    householdHeadsValue.textContent = "—";
     duplicateValue.textContent = "—";
     townValue.textContent = "—";
     ageChart.replaceChildren();
@@ -313,6 +316,7 @@
     showReportContent();
     activityValue.textContent = "…";
     peopleValue.textContent = "…";
+    householdHeadsValue.textContent = "…";
     duplicateValue.textContent = "…";
     townValue.textContent = "…";
     pregnancyWomenValue.textContent = "…";
@@ -350,6 +354,7 @@
 
       const activities = payload?.real?.activities;
       const people = payload?.real?.people;
+      const householdHeads = payload?.real?.household_heads;
       const duplicates = payload?.real?.duplicates;
       const towns = payload?.real?.towns;
       if (
@@ -363,6 +368,13 @@
         || towns < 0
       ) {
         throw new Error("La respuesta de indicadores reales no tiene el formato esperado.");
+      }
+      if (
+        !Number.isInteger(householdHeads)
+        || householdHeads < 0
+        || householdHeads > people
+      ) {
+        throw new Error("La cantidad real de jefes de familia no tiene el formato esperado.");
       }
       const ageBuckets = normalizeRealAgeBuckets(payload);
       const peopleByAge = Object.values(ageBuckets).reduce((total, value) => total + value, 0);
@@ -391,6 +403,7 @@
 
       activityValue.textContent = numberFormatter.format(activities);
       peopleValue.textContent = numberFormatter.format(people);
+      householdHeadsValue.textContent = numberFormatter.format(householdHeads);
       duplicateValue.textContent = numberFormatter.format(duplicates);
       townValue.textContent = numberFormatter.format(towns);
       renderBars(ageChart, ageBuckets);

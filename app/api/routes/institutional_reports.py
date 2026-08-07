@@ -44,6 +44,7 @@ _FARO_REAL_METRICS = [
     "duplicates",
     "towns",
     "age",
+    "household_heads",
     "education",
     "grades",
     "pregnancy",
@@ -321,16 +322,20 @@ def _aggregate_unique_people(
     dict[str, int],
     dict[str, int],
     int,
+    int,
     dict[str, int],
 ]:
     birth_dates_by_person: dict[int, date | None] = {}
     education_by_person: dict[int, str | None] = {}
     municipality_by_person: dict[int, str | None] = {}
-    for person_id, birth_date, education, municipality in person_rows:
+    household_head_person_ids: set[int] = set()
+    for person_id, birth_date, education, is_head_of_household, municipality in person_rows:
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
             education_by_person[person_id] = None
             municipality_by_person[person_id] = None
+        if is_head_of_household:
+            household_head_person_ids.add(person_id)
         if education_by_person[person_id] is None:
             education_by_person[person_id] = _normalize_education(education)
         if municipality_by_person[person_id] is None:
@@ -379,6 +384,7 @@ def _aggregate_unique_people(
         len(birth_dates_by_person),
         age_buckets,
         ordered_education_buckets,
+        len(household_head_person_ids),
         towns_count,
         ordered_municipality_buckets,
     )
@@ -587,6 +593,7 @@ def faro_institutional_report_data(
             Person.person_id,
             Person.fecha_nacimiento,
             Participant.escolaridad_participante,
+            Participant.is_head_of_household,
             Residential.municipality,
         )
         .select_from(Attendance)
@@ -617,6 +624,7 @@ def faro_institutional_report_data(
         people_count,
         age_buckets,
         education_buckets,
+        household_heads_count,
         towns_count,
         towns_by_municipality,
     ) = _aggregate_unique_people(db.execute(unique_people_stmt).all(), reference_date)
@@ -704,6 +712,7 @@ def faro_institutional_report_data(
                 "duplicates": additional_attendances_count,
                 "towns": towns_count,
                 "age": age_buckets,
+                "household_heads": household_heads_count,
                 "education": education_buckets,
                 "grades": subject_grade_averages,
                 "pregnancy": pregnancy_summary,
