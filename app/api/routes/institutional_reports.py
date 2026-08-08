@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import distinct, extract, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.api.deps import get_db
 from app.core.config import settings
@@ -479,11 +479,16 @@ def _faro_adm_summary(
     if not service_types:
         return _empty_faro_adm()
 
-    mapping_rows = db.execute(
+    session_stmt = _apply_activity_session_filters(
         select(
-            ADMServiceTypeActivityCode.adm_service_type_id,
-            ADMServiceType.proposal_id,
-            ADMServiceTypeActivityCode.activity_code_id,
+            ActivitySession.session_id,
+            ADMServiceType.adm_service_type_id,
+        )
+        .select_from(ActivitySession)
+        .join(
+            ADMServiceTypeActivityCode,
+            ADMServiceTypeActivityCode.activity_code_id
+            == ActivitySession.activity_code_id,
         )
         .join(
             ADMServiceType,
@@ -491,22 +496,8 @@ def _faro_adm_summary(
             == ADMServiceTypeActivityCode.adm_service_type_id,
         )
         .where(
-            ADMServiceType.proposal_id.in_(proposal_ids),
             ADMServiceType.is_active == True,  # noqa: E712
-        )
-    ).all()
-    service_type_ids_by_activity: dict[tuple[int, int], set[int]] = {}
-    for service_type_id, proposal_id, activity_code_id in mapping_rows:
-        service_type_ids_by_activity.setdefault(
-            (int(proposal_id), int(activity_code_id)),
-            set(),
-        ).add(int(service_type_id))
-
-    session_stmt = _apply_activity_session_filters(
-        select(
-            ActivitySession.session_id,
-            ActivitySession.proposal_id,
-            ActivitySession.activity_code_id,
+            ADMServiceType.proposal_id == ActivitySession.proposal_id,
         ),
         proposal_ids=proposal_ids,
         year=year,
@@ -514,83 +505,129 @@ def _faro_adm_summary(
         end_date=end_date,
     )
     session_rows = db.execute(session_stmt).all()
-    service_type_ids_by_session: dict[int, set[int]] = {}
     sessions_by_service_type: dict[int, set[int]] = {}
-    for session_id, proposal_id, activity_code_id in session_rows:
-        if activity_code_id is None:
-            continue
-        service_type_ids = service_type_ids_by_activity.get(
-            (int(proposal_id), int(activity_code_id)),
-            set(),
+    for session_id, service_type_id in session_rows:
+        sessions_by_service_type.setdefault(int(service_type_id), set()).add(
+            int(session_id)
         )
-        if not service_type_ids:
-            continue
-        normalized_session_id = int(session_id)
-        service_type_ids_by_session[normalized_session_id] = service_type_ids
-        for service_type_id in service_type_ids:
-            sessions_by_service_type.setdefault(service_type_id, set()).add(
-                normalized_session_id
-            )
 
-    attendance_rows = db.execute(
+    attendance_participant = aliased(Participant, name="attendance_participant")
+    legacy_participant = aliased(Participant, name="legacy_participant")
+    attendance_stmt = (
         select(
             Attendance.session_id,
             Attendance.participant_id,
             ProposalParticipant.person_id,
             Person.legacy_participant_id,
+            ADMServiceType.adm_service_type_id,
+            attendance_participant.participant_id,
+            attendance_participant.fecha_nacimiento,
+            attendance_participant.genero,
+            attendance_participant.vca,
+            attendance_participant.composicion_familiar,
+            legacy_participant.participant_id,
+            legacy_participant.fecha_nacimiento,
+            legacy_participant.genero,
+            legacy_participant.vca,
+            legacy_participant.composicion_familiar,
         )
         .select_from(Attendance)
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(
+            ADMServiceTypeActivityCode,
+            ADMServiceTypeActivityCode.activity_code_id
+            == ActivitySession.activity_code_id,
+        )
+        .join(
+            ADMServiceType,
+            ADMServiceType.adm_service_type_id
+            == ADMServiceTypeActivityCode.adm_service_type_id,
+        )
         .outerjoin(
             ProposalParticipant,
             Attendance.proposal_participant_id
             == ProposalParticipant.proposal_participant_id,
         )
         .outerjoin(Person, ProposalParticipant.person_id == Person.person_id)
+        .outerjoin(
+            attendance_participant,
+            Attendance.participant_id == attendance_participant.participant_id,
+        )
+        .outerjoin(
+            legacy_participant,
+            Person.legacy_participant_id == legacy_participant.participant_id,
+        )
         .where(
             Attendance.attended == True,  # noqa: E712
-            Attendance.session_id.in_(sorted(service_type_ids_by_session)),
+            ADMServiceType.is_active == True,  # noqa: E712
+            ADMServiceType.proposal_id == ActivitySession.proposal_id,
         )
-    ).all()
+    )
+    attendance_stmt = _apply_activity_session_filters(
+        attendance_stmt,
+        proposal_ids=proposal_ids,
+        year=year,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    attendance_rows = db.execute(attendance_stmt).all()
 
     attendance_by_service_type: dict[int, int] = {}
     unique_people_by_service_type: dict[int, set[tuple[str, int]]] = {}
-    participant_ids: set[int] = set()
-    for session_id, participant_id, person_id, legacy_participant_id in attendance_rows:
-        service_type_ids = service_type_ids_by_session.get(int(session_id), set())
-        if not service_type_ids:
-            continue
-
+    participant_profiles: dict[int, tuple[date | None, str | None, str | None, str | None]] = {}
+    for attendance_row in attendance_rows:
+        (
+            _,
+            participant_id,
+            person_id,
+            legacy_participant_id,
+            service_type_id,
+            attendance_profile_id,
+            attendance_birth_date,
+            attendance_gender,
+            attendance_vca,
+            attendance_family_composition,
+            legacy_profile_id,
+            legacy_birth_date,
+            legacy_gender,
+            legacy_vca,
+            legacy_family_composition,
+        ) = attendance_row
+        normalized_service_type_id = int(service_type_id)
         identity: tuple[str, int] | None = None
-        profile_participant_id: int | None = None
         if participant_id is not None:
-            profile_participant_id = int(participant_id)
-            identity = ("participant", profile_participant_id)
+            identity = ("participant", int(participant_id))
         elif legacy_participant_id is not None:
-            profile_participant_id = int(legacy_participant_id)
-            identity = ("participant", profile_participant_id)
+            identity = ("participant", int(legacy_participant_id))
         elif person_id is not None:
             identity = ("person", int(person_id))
 
-        if profile_participant_id is not None:
-            participant_ids.add(profile_participant_id)
-        for service_type_id in service_type_ids:
-            attendance_by_service_type[service_type_id] = (
-                attendance_by_service_type.get(service_type_id, 0) + 1
-            )
-            if identity is not None:
-                unique_people_by_service_type.setdefault(service_type_id, set()).add(
-                    identity
-                )
+        attendance_by_service_type[normalized_service_type_id] = (
+            attendance_by_service_type.get(normalized_service_type_id, 0) + 1
+        )
+        if identity is not None:
+            unique_people_by_service_type.setdefault(
+                normalized_service_type_id,
+                set(),
+            ).add(identity)
 
-    participant_rows = db.execute(
-        select(
-            Participant.participant_id,
-            Participant.fecha_nacimiento,
-            Participant.genero,
-            Participant.vca,
-            Participant.composicion_familiar,
-        ).where(Participant.participant_id.in_(sorted(participant_ids)))
-    ).all()
+        if attendance_profile_id is not None:
+            participant_profiles[int(attendance_profile_id)] = (
+                attendance_birth_date,
+                attendance_gender,
+                attendance_vca,
+                attendance_family_composition,
+            )
+        elif legacy_profile_id is not None:
+            participant_profiles.setdefault(
+                int(legacy_profile_id),
+                (
+                    legacy_birth_date,
+                    legacy_gender,
+                    legacy_vca,
+                    legacy_family_composition,
+                ),
+            )
 
     sociodemographic_summary = {
         key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
@@ -615,7 +652,7 @@ def _faro_adm_summary(
             family_catalog_labels.append(label)
     family_counts = {label: 0 for label in family_catalog_labels}
 
-    for _, birth_date, gender, vca, family_composition in participant_rows:
+    for birth_date, gender, vca, family_composition in participant_profiles.values():
         bucket = _adm_age_bucket(_age_on_date(birth_date, reference_date))
         if bucket is not None:
             normalized_gender = str(gender).strip().upper() if gender is not None else ""
@@ -635,7 +672,7 @@ def _faro_adm_summary(
         ) or "No especificado"
         family_counts[family_label] = family_counts.get(family_label, 0) + 1
 
-    total_unique_people = len(participant_rows)
+    total_unique_people = len(participant_profiles)
     sociodemographic_rows = []
     sociodemographic_total = {"f": 0, "m": 0, "total": 0, "vca": 0}
     for key, label in _ADM_AGE_BUCKETS:

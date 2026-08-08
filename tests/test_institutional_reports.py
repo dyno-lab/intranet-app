@@ -248,28 +248,37 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 ),
             ]),
             _Result(values=[
-                (10, 1, 100),
-                (20, 2, 200),
+                (1_001, 10),
+                (1_002, 10),
+                (1_002, 10),
+                (2_001, 20),
             ]),
             _Result(values=[
-                (1_001, 1, 100),
-                (1_002, 1, 100),
-                (1_002, 1, 100),
-                (2_001, 2, 200),
-                (2_002, 2, 999),
-                (3_001, 3, 100),
-            ]),
-            _Result(values=[
-                (1_001, 501, 9_501, 501),
-                (1_001, 501, 9_501, 501),
-                (1_002, 502, 9_502, 502),
-                (2_001, None, 9_503, 503),
-                (2_001, None, 9_504, None),
-            ]),
-            _Result(values=[
-                (501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear"),
-                (502, date(2010, 12, 31), "Masculino", "NO", None),
-                (503, date(1986, 12, 31), None, "SI", "Extendida"),
+                (
+                    1_001, 501, 9_501, 501, 10,
+                    501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear",
+                    501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear",
+                ),
+                (
+                    1_001, 501, 9_501, 501, 10,
+                    501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear",
+                    501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear",
+                ),
+                (
+                    1_002, 502, 9_502, 502, 10,
+                    502, date(2010, 12, 31), "Masculino", "NO", None,
+                    502, date(2010, 12, 31), "Masculino", "NO", None,
+                ),
+                (
+                    2_001, None, 9_503, 503, 20,
+                    None, None, None, None, None,
+                    503, date(1986, 12, 31), None, "SI", "Extendida",
+                ),
+                (
+                    2_001, None, 9_504, None, 20,
+                    None, None, None, None, None,
+                    None, None, None, None, None,
+                ),
             ]),
             _Result(values=["Nuclear", "Monoparental"]),
         ])
@@ -463,39 +472,46 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("adm_service_types.is_active", adm_service_types_sql)
         self.assertIn("order by adm_service_types.proposal_id", adm_service_types_sql)
 
-        adm_mapping_sql = str(db.statements[7]).lower()
-        self.assertIn("adm_service_type_activity_codes", adm_mapping_sql)
-        self.assertIn("join adm_service_types", adm_mapping_sql)
-        self.assertIn("adm_service_types.is_active", adm_mapping_sql)
-
-        adm_sessions_sql = str(db.statements[8]).lower()
+        adm_sessions_sql = str(db.statements[7]).lower()
+        self.assertIn("join adm_service_type_activity_codes", adm_sessions_sql)
+        self.assertIn("join adm_service_types", adm_sessions_sql)
+        self.assertIn("adm_service_types.is_active", adm_sessions_sql)
+        self.assertIn(
+            "adm_service_types.proposal_id = activity_sessions.proposal_id",
+            adm_sessions_sql,
+        )
         self.assertIn("activity_sessions.proposal_id in", adm_sessions_sql)
         self.assertIn("extract(year from activity_sessions.session_date)", adm_sessions_sql)
         self.assertIn("activity_sessions.session_date >=", adm_sessions_sql)
         self.assertIn("activity_sessions.session_date <=", adm_sessions_sql)
 
-        adm_attendance_sql = str(db.statements[9]).lower()
+        adm_attendance_sql = str(db.statements[8]).lower()
         self.assertIn("attendance.attended", adm_attendance_sql)
         self.assertIn("attendance.participant_id", adm_attendance_sql)
         self.assertIn("attendance.proposal_participant_id", adm_attendance_sql)
+        self.assertIn("join activity_sessions", adm_attendance_sql)
+        self.assertIn("join adm_service_type_activity_codes", adm_attendance_sql)
+        self.assertIn("join adm_service_types", adm_attendance_sql)
         self.assertIn("left outer join proposal_participants", adm_attendance_sql)
         self.assertIn("left outer join persons", adm_attendance_sql)
+        self.assertIn("left outer join participants as attendance_participant", adm_attendance_sql)
+        self.assertIn("left outer join participants as legacy_participant", adm_attendance_sql)
+        self.assertNotIn("attendance.session_id in", adm_attendance_sql)
+        self.assertIn("activity_sessions.proposal_id in", adm_attendance_sql)
+        self.assertIn("extract(year from activity_sessions.session_date)", adm_attendance_sql)
+        self.assertIn("activity_sessions.session_date >=", adm_attendance_sql)
+        self.assertIn("activity_sessions.session_date <=", adm_attendance_sql)
         adm_attendance_sql_server = str(
-            db.statements[9].compile(dialect=mssql.dialect())
+            db.statements[8].compile(dialect=mssql.dialect())
         ).lower()
         self.assertNotIn("attended is 1", adm_attendance_sql_server)
+        self.assertNotIn("attendance.session_id in", adm_attendance_sql_server)
 
-        adm_participants_sql = str(db.statements[10]).lower()
-        self.assertIn("participants.fecha_nacimiento", adm_participants_sql)
-        self.assertIn("participants.genero", adm_participants_sql)
-        self.assertIn("participants.vca", adm_participants_sql)
-        self.assertIn("participants.composicion_familiar", adm_participants_sql)
-
-        adm_family_sql = str(db.statements[11]).lower()
+        adm_family_sql = str(db.statements[9]).lower()
         self.assertIn("catalog_types.key", adm_family_sql)
         self.assertIn(
             "composicion_familiar",
-            db.statements[11].compile().params.values(),
+            db.statements[9].compile().params.values(),
         )
         self.assertIn("catalog_options.is_active", adm_family_sql)
         self.assertIn("order by catalog_options.sort_order", adm_family_sql)
@@ -633,6 +649,48 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 self.assertEqual(institutional_reports._adm_age_bucket(age), expected)
         self.assertIsNone(institutional_reports._adm_age_bucket(None))
         self.assertIsNone(institutional_reports._adm_age_bucket(-1))
+
+    def test_adm_attendance_query_uses_joins_instead_of_large_session_id_in(self):
+        service_type = SimpleNamespace(
+            adm_service_type_id=10,
+            proposal_id=1,
+            name="Orientación",
+            sort_order=1,
+            is_active=True,
+        )
+        db = _Database([
+            _Result(values=[service_type]),
+            _Result(values=[(session_id, 10) for session_id in range(1, 3_001)]),
+            _Result(values=[]),
+            _Result(values=[]),
+        ])
+
+        adm = institutional_reports._faro_adm_summary(
+            db,
+            proposal_ids=[1, 2],
+            year=2026,
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            reference_date=date(2026, 12, 31),
+        )
+
+        self.assertEqual(adm["summary"]["services"], 3_000)
+        self.assertEqual(adm["summary"]["duplicates"], 0)
+        attendance_sql = str(db.statements[2]).lower()
+        self.assertNotIn("attendance.session_id in", attendance_sql)
+        self.assertIn("join activity_sessions", attendance_sql)
+        self.assertIn("join adm_service_type_activity_codes", attendance_sql)
+        self.assertIn("join adm_service_types", attendance_sql)
+        self.assertNotIn(
+            "participants.participant_id in",
+            " ".join(str(statement).lower() for statement in db.statements),
+        )
+
+        attendance_mssql = db.statements[2].compile(dialect=mssql.dialect())
+        attendance_mssql_sql = str(attendance_mssql).lower()
+        self.assertNotIn("attended is 1", attendance_mssql_sql)
+        self.assertNotIn("attendance.session_id in", attendance_mssql_sql)
+        self.assertLess(len(attendance_mssql.params), 20)
 
     def test_additional_attendances_returns_zero_for_one_attendance(self):
         self.assertEqual(institutional_reports._count_additional_attendances([1]), 0)
