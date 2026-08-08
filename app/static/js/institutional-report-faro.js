@@ -30,8 +30,9 @@
   const townHighlight = root.querySelector("[data-town-highlight]");
   const townHighlightValue = root.querySelector("[data-town-highlight-value]");
   const admSummaryFields = ["service_types", "services", "duplicates", "unique_participants"];
+  const admVisibleSummaryFields = ["services", "duplicates", "unique_participants"];
   const admSummaryValues = Object.fromEntries(
-    admSummaryFields.map((field) => [field, root.querySelector(`[data-adm-summary="${field}"]`)]),
+    admVisibleSummaryFields.map((field) => [field, root.querySelector(`[data-adm-summary="${field}"]`)]),
   );
   const admServiceTable = root.querySelector("[data-adm-service-table]");
   const admSociodemographicTable = root.querySelector("[data-adm-sociodemographic-table]");
@@ -64,7 +65,7 @@
     || !pregnancyMenValue
     || !pregnancyWorkshopValue
     || !townTable
-    || admSummaryFields.some((field) => !admSummaryValues[field])
+    || admVisibleSummaryFields.some((field) => !admSummaryValues[field])
     || !admServiceTable
     || !admSociodemographicTable
     || !admFamilyTable
@@ -322,7 +323,7 @@
       renderTableMessage(
         admServiceTable,
         4,
-        "No hay tipos de servicio ADM configurados para los filtros seleccionados.",
+        "No hay tipos de servicio administrativo configurados para los filtros seleccionados.",
       );
       return;
     }
@@ -351,7 +352,7 @@
       renderTableMessage(
         admSociodemographicTable,
         5,
-        "No hay datos socio-demográficos ADM para los filtros seleccionados.",
+        "No hay datos socio-demográficos administrativos para los filtros seleccionados.",
       );
       return;
     }
@@ -393,7 +394,7 @@
       renderTableMessage(
         admFamilyTable,
         2,
-        "No hay datos de composición familiar ADM para los filtros seleccionados.",
+        "No hay datos de composición familiar administrativa para los filtros seleccionados.",
       );
       return;
     }
@@ -431,22 +432,22 @@
   };
 
   const setAdmLoading = () => {
-    admSummaryFields.forEach((field) => {
+    admVisibleSummaryFields.forEach((field) => {
       admSummaryValues[field].textContent = "…";
     });
-    renderTableMessage(admServiceTable, 4, "Consultando datos ADM reales…");
-    renderTableMessage(admSociodemographicTable, 5, "Consultando datos ADM reales…");
-    renderTableMessage(admFamilyTable, 2, "Consultando datos ADM reales…");
+    renderTableMessage(admServiceTable, 4, "Consultando datos administrativos…");
+    renderTableMessage(admSociodemographicTable, 5, "Consultando datos administrativos…");
+    renderTableMessage(admFamilyTable, 2, "Consultando datos administrativos…");
     setAdmBusy(true);
   };
 
   const clearAdmMetrics = () => {
-    admSummaryFields.forEach((field) => {
+    admVisibleSummaryFields.forEach((field) => {
       admSummaryValues[field].textContent = "—";
     });
-    renderTableMessage(admServiceTable, 4, "No fue posible cargar datos ADM.");
-    renderTableMessage(admSociodemographicTable, 5, "No fue posible cargar datos ADM.");
-    renderTableMessage(admFamilyTable, 2, "No fue posible cargar datos ADM.");
+    renderTableMessage(admServiceTable, 4, "No fue posible cargar datos administrativos.");
+    renderTableMessage(admSociodemographicTable, 5, "No fue posible cargar datos administrativos.");
+    renderTableMessage(admFamilyTable, 2, "No fue posible cargar datos administrativos.");
     setAdmBusy(false);
   };
 
@@ -588,24 +589,24 @@
   const normalizeRealAdm = (payload) => {
     const source = payload?.real?.adm;
     if (!source || typeof source !== "object" || Array.isArray(source)) {
-      throw new Error("La respuesta real ADM no tiene el formato esperado.");
+      throw new Error("La respuesta administrativa no tiene el formato esperado.");
     }
 
     const summarySource = source.summary;
     if (!summarySource || typeof summarySource !== "object" || Array.isArray(summarySource)) {
-      throw new Error("El resumen real ADM no tiene el formato esperado.");
+      throw new Error("El resumen administrativo no tiene el formato esperado.");
     }
     const summary = {};
     admSummaryFields.forEach((field) => {
       const value = summarySource[field];
       if (!Number.isInteger(value) || value < 0) {
-        throw new Error("El resumen real ADM no tiene el formato esperado.");
+        throw new Error("El resumen administrativo no tiene el formato esperado.");
       }
       summary[field] = value;
     });
 
     if (!Array.isArray(source.service_rows)) {
-      throw new Error("Las filas de servicios ADM no tienen el formato esperado.");
+      throw new Error("Las filas de servicios administrativos no tienen el formato esperado.");
     }
     const serviceRows = source.service_rows.map((item) => {
       const serviceTypeName = typeof item?.service_type_name === "string"
@@ -620,7 +621,7 @@
         || !Number.isInteger(item?.unique_participants)
         || item.unique_participants < 0
       ) {
-        throw new Error("Las filas de servicios ADM no tienen el formato esperado.");
+        throw new Error("Las filas de servicios administrativos no tienen el formato esperado.");
       }
       return {
         service_type_name: serviceTypeName,
@@ -631,7 +632,7 @@
     });
 
     if (!Array.isArray(source.sociodemographic_rows)) {
-      throw new Error("Las filas socio-demográficas ADM no tienen el formato esperado.");
+      throw new Error("Las filas socio-demográficas administrativas no tienen el formato esperado.");
     }
     const sociodemographicRows = source.sociodemographic_rows.map((item) => {
       const label = typeof item?.label === "string" ? item.label.trim() : "";
@@ -649,36 +650,36 @@
         || !Number.isInteger(item?.vca)
         || item.vca < 0
       ) {
-        throw new Error("Las filas socio-demográficas ADM no tienen el formato esperado.");
+        throw new Error("Las filas socio-demográficas administrativas no tienen el formato esperado.");
       }
       return { label, f: item.f, m: item.m, total: item.total, percent: item.percent, vca: item.vca };
     });
 
     const totalSource = source.sociodemographic_total;
     if (!totalSource || typeof totalSource !== "object" || Array.isArray(totalSource)) {
-      throw new Error("El total socio-demográfico ADM no tiene el formato esperado.");
+      throw new Error("El total socio-demográfico administrativo no tiene el formato esperado.");
     }
     const sociodemographicTotal = {};
     ["f", "m", "total", "vca"].forEach((field) => {
       const value = totalSource[field];
       if (!Number.isInteger(value) || value < 0) {
-        throw new Error("El total socio-demográfico ADM no tiene el formato esperado.");
+        throw new Error("El total socio-demográfico administrativo no tiene el formato esperado.");
       }
       sociodemographicTotal[field] = value;
     });
 
     if (!Array.isArray(source.family_rows)) {
-      throw new Error("Las filas de composición familiar ADM no tienen el formato esperado.");
+      throw new Error("Las filas de composición familiar administrativas no tienen el formato esperado.");
     }
     const familyRows = source.family_rows.map((item) => {
       const label = typeof item?.label === "string" ? item.label.trim() : "";
       if (!label || !Number.isInteger(item?.count) || item.count < 0) {
-        throw new Error("Las filas de composición familiar ADM no tienen el formato esperado.");
+        throw new Error("Las filas de composición familiar administrativas no tienen el formato esperado.");
       }
       return { label, count: item.count };
     });
     if (!Number.isInteger(source.family_total) || source.family_total < 0) {
-      throw new Error("El total de composición familiar ADM no tiene el formato esperado.");
+      throw new Error("El total de composición familiar administrativo no tiene el formato esperado.");
     }
 
     return {
@@ -850,7 +851,7 @@
       pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
       pregnancyWorkshopValue.textContent = numberFormatter.format(pregnancy.followups);
       renderTownTable(municipalities);
-      admSummaryFields.forEach((field) => {
+      admVisibleSummaryFields.forEach((field) => {
         admSummaryValues[field].textContent = numberFormatter.format(adm.summary[field]);
       });
       renderAdmServiceTable(adm.serviceRows);

@@ -10697,7 +10697,7 @@ body.institutional-report-body {
 }
 
 .institutional-report--faro .institutional-report__kpi-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
   margin: 0 0 1.15rem;
 }

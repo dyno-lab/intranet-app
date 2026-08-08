@@ -27,7 +27,7 @@
             <span class="institutional-report__eyebrow">Reporte institucional protegido</span>
             <h1 class="institutional-report__title">Faro de Esperanza</h1>
             <p class="institutional-report__subtitle">
-              Panorama ejecutivo de participación, alcance, perfil poblacional y servicios ADM.
+              Panorama ejecutivo de participación, alcance, perfil poblacional y servicios administrativos.
             </p>
           </div>
         </div>
@@ -53,7 +53,7 @@
           <span class="institutional-report-alert__icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
           <span>
             <strong>Datos reales agregados y protegidos.</strong> Este reporte reúne actividades, población atendida,
-            alcance geográfico, escolaridad, notas, indicadores de embarazo y servicios ADM sin exponer información
+            alcance geográfico, escolaridad, notas, indicadores de embarazo y servicios administrativos sin exponer información
             personal ni registros individuales.
           </span>
         </div>
@@ -175,14 +175,6 @@
               <span class="institutional-report-kpi__meta">Cobertura territorial</span>
             </div>
           </article>
-          <article class="institutional-report-kpi institutional-report-kpi--adm">
-            <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
-            <div>
-              <p class="institutional-report-kpi__label">Tipos ADM</p>
-              <p class="institutional-report-kpi__value" data-adm-summary="service_types" aria-live="polite">…</p>
-              <span class="institutional-report-kpi__meta">Servicios configurados</span>
-            </div>
-          </article>
         </section>
 
         <div class="institutional-report-empty" data-report-empty hidden>
@@ -195,7 +187,7 @@
           <article class="institutional-report-card institutional-report-card--age institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Perfil poblacional · Dato real</span>
+                <span class="institutional-report__section-kicker">Perfil poblacional</span>
                 <h2>Población por rangos de edad</h2>
                 <p>Distribución de personas únicas; cada valor permanece visible junto a su gráfica.</p>
               </div>
@@ -221,7 +213,7 @@
           <article class="institutional-report-card institutional-report-card--education institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Perfil agregado · Dato real</span>
+                <span class="institutional-report__section-kicker">Perfil agregado</span>
                 <h2>Escolaridad</h2>
                 <p>Composición de la población única según el nivel informado.</p>
               </div>
@@ -233,7 +225,7 @@
           <article class="institutional-report-card institutional-report-card--grades institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Promedio académico · Dato real</span>
+                <span class="institutional-report__section-kicker">Promedio académico</span>
                 <h2>Notas por materia</h2>
                 <p>Escala fija de 0 a 100 para comparar las materias sin distorsionar el resultado.</p>
               </div>
@@ -245,7 +237,7 @@
           <article class="institutional-report-card institutional-report-card--pregnancy">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Seguimiento agregado · Dato real</span>
+                <span class="institutional-report__section-kicker">Seguimiento agregado</span>
                 <h2>Indicadores de embarazo</h2>
                 <p>Conteos institucionales del período seleccionado.</p>
               </div>
@@ -273,7 +265,7 @@
           <article class="institutional-report-card institutional-report-card--wide institutional-report-card--towns">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Cobertura geográfica · Dato real</span>
+                <span class="institutional-report__section-kicker">Cobertura geográfica</span>
                 <h2>Población única por municipio o pueblo</h2>
                 <p>Ranking territorial con conteos visibles y barras comparables.</p>
               </div>
@@ -299,14 +291,13 @@
           <article class="institutional-report-card institutional-report-card--wide institutional-report-card--adm">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Servicios configurados · Dato real</span>
-                <h2>Resumen ADM</h2>
-                <p>Servicios, participación y perfil agregado de las personas atendidas en sesiones ADM.</p>
+                <span class="institutional-report__section-kicker">Servicios configurados</span>
+                <h2>Resumen Administrativo</h2>
+                <p>Servicios, participación y perfil agregado de las personas atendidas en sesiones administrativas.</p>
               </div>
-              <span class="institutional-report-adm-badge"><i class="bi bi-shield-check" aria-hidden="true"></i> Dato real</span>
             </div>
 
-            <div class="institutional-report-adm-kpis" aria-label="Indicadores ADM">
+            <div class="institutional-report-adm-kpis" aria-label="Indicadores administrativos">
               <div class="institutional-report-adm-kpi">
                 <span>Servicios</span>
                 <strong data-adm-summary="services" aria-live="polite">…</strong>
@@ -316,7 +307,7 @@
                 <strong data-adm-summary="duplicates" aria-live="polite">…</strong>
               </div>
               <div class="institutional-report-adm-kpi">
-                <span>No duplicados</span>
+                <span>No duplicado por actividad</span>
                 <strong data-adm-summary="unique_participants" aria-live="polite">…</strong>
               </div>
             </div>
@@ -335,11 +326,11 @@
                       <th scope="col">Tipo de servicio</th>
                       <th scope="col">Servicios</th>
                       <th scope="col">Duplicados</th>
-                      <th scope="col">No duplicados</th>
+                      <th scope="col">No duplicado por actividad</th>
                     </tr>
                   </thead>
                   <tbody data-adm-service-table aria-live="polite">
-                    <tr><td colspan="4">Consultando datos ADM reales…</td></tr>
+                    <tr><td colspan="4">Consultando datos administrativos…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -350,7 +341,7 @@
                 <div class="institutional-report-adm-block__heading">
                   <div>
                     <span class="institutional-report__section-kicker">Perfil por edad</span>
-                    <h3 id="adm-demographic-title">Socio-Demográfico ADM</h3>
+                    <h3 id="adm-demographic-title">Socio-Demográfico Administrativo</h3>
                   </div>
                   <span class="institutional-report-adm-legend" aria-label="Leyenda: femenino y masculino">
                     <span><i class="institutional-report-adm-legend__f"></i> F</span>
@@ -369,7 +360,7 @@
                       </tr>
                     </thead>
                     <tbody data-adm-sociodemographic-table aria-live="polite">
-                      <tr><td colspan="5">Consultando datos ADM reales…</td></tr>
+                      <tr><td colspan="5">Consultando datos administrativos…</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -391,7 +382,7 @@
                       </tr>
                     </thead>
                     <tbody data-adm-family-table aria-live="polite">
-                      <tr><td colspan="2">Consultando datos ADM reales…</td></tr>
+                      <tr><td colspan="2">Consultando datos administrativos…</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -404,7 +395,7 @@
 
     <footer class="institutional-report__footer">
       <div class="institutional-report__shell">
-        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Datos reales agregados sin información personal</p>
+        <p>&copy; {{ current_year }} Centros Sor Isolina Ferré · Todos los derechos reservados</p>
       </div>
     </footer>
   </div>
