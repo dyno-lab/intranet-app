@@ -13,8 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import settings
+from app.models.adm_service_type import ADMServiceType
+from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
+from app.models.catalog_option import CatalogOption
+from app.models.catalog_type import CatalogType
 from app.models.participant import Participant
 from app.models.person import Person
 from app.models.pregnancy_report import PregnancyReport
@@ -49,8 +53,20 @@ _FARO_REAL_METRICS = [
     "grades",
     "pregnancy",
     "towns_by_municipality",
+    "adm",
 ]
 _FARO_DEMO_METRICS = []
+_ADM_AGE_BUCKETS = (
+    ("0_5", "0-5"),
+    ("6_11", "6-11"),
+    ("12_17", "12-17"),
+    ("18_21", "18-21"),
+    ("22_25", "22-25"),
+    ("26_45", "26-45"),
+    ("46_59", "46-59"),
+    ("60_74", "60-74"),
+    ("75_plus", "75+"),
+)
 _FARO_AGE_BUCKETS = ("0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado")
 _FARO_GRADE_SUBJECTS = ("Español", "Matemáticas", "Ciencias", "Inglés")
 
@@ -390,6 +406,298 @@ def _aggregate_unique_people(
     )
 
 
+def _empty_faro_adm() -> dict:
+    return {
+        "summary": {
+            "services": 0,
+            "duplicates": 0,
+            "unique_participants": 0,
+            "service_types": 0,
+        },
+        "service_rows": [],
+        "sociodemographic_rows": [],
+        "sociodemographic_total": {"f": 0, "m": 0, "total": 0, "vca": 0},
+        "family_rows": [],
+        "family_total": 0,
+    }
+
+
+def _adm_age_bucket(age: int | None) -> str | None:
+    if age is None or age < 0:
+        return None
+    if age <= 5:
+        return "0_5"
+    if age <= 11:
+        return "6_11"
+    if age <= 17:
+        return "12_17"
+    if age <= 21:
+        return "18_21"
+    if age <= 25:
+        return "22_25"
+    if age <= 45:
+        return "26_45"
+    if age <= 59:
+        return "46_59"
+    if age <= 74:
+        return "60_74"
+    return "75_plus"
+
+
+def _age_on_date(birth_date: date | None, reference_date: date) -> int | None:
+    if birth_date is None or birth_date > reference_date:
+        return None
+    age = reference_date.year - birth_date.year
+    if (reference_date.month, reference_date.day) < (birth_date.month, birth_date.day):
+        age -= 1
+    return age
+
+
+def _faro_adm_summary(
+    db: Session,
+    *,
+    proposal_ids: list[int],
+    year: int | None,
+    start_date: date | None,
+    end_date: date | None,
+    reference_date: date,
+) -> dict:
+    service_types = list(
+        db.execute(
+            select(ADMServiceType)
+            .where(
+                ADMServiceType.proposal_id.in_(proposal_ids),
+                ADMServiceType.is_active == True,  # noqa: E712
+            )
+            .order_by(
+                ADMServiceType.proposal_id,
+                ADMServiceType.sort_order,
+                ADMServiceType.name,
+            )
+        ).scalars().all()
+    )
+    if not service_types:
+        return _empty_faro_adm()
+
+    mapping_rows = db.execute(
+        select(
+            ADMServiceTypeActivityCode.adm_service_type_id,
+            ADMServiceType.proposal_id,
+            ADMServiceTypeActivityCode.activity_code_id,
+        )
+        .join(
+            ADMServiceType,
+            ADMServiceType.adm_service_type_id
+            == ADMServiceTypeActivityCode.adm_service_type_id,
+        )
+        .where(
+            ADMServiceType.proposal_id.in_(proposal_ids),
+            ADMServiceType.is_active == True,  # noqa: E712
+        )
+    ).all()
+    service_type_ids_by_activity: dict[tuple[int, int], set[int]] = {}
+    for service_type_id, proposal_id, activity_code_id in mapping_rows:
+        service_type_ids_by_activity.setdefault(
+            (int(proposal_id), int(activity_code_id)),
+            set(),
+        ).add(int(service_type_id))
+
+    session_stmt = _apply_activity_session_filters(
+        select(
+            ActivitySession.session_id,
+            ActivitySession.proposal_id,
+            ActivitySession.activity_code_id,
+        ),
+        proposal_ids=proposal_ids,
+        year=year,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    session_rows = db.execute(session_stmt).all()
+    service_type_ids_by_session: dict[int, set[int]] = {}
+    sessions_by_service_type: dict[int, set[int]] = {}
+    for session_id, proposal_id, activity_code_id in session_rows:
+        if activity_code_id is None:
+            continue
+        service_type_ids = service_type_ids_by_activity.get(
+            (int(proposal_id), int(activity_code_id)),
+            set(),
+        )
+        if not service_type_ids:
+            continue
+        normalized_session_id = int(session_id)
+        service_type_ids_by_session[normalized_session_id] = service_type_ids
+        for service_type_id in service_type_ids:
+            sessions_by_service_type.setdefault(service_type_id, set()).add(
+                normalized_session_id
+            )
+
+    attendance_rows = db.execute(
+        select(
+            Attendance.session_id,
+            Attendance.participant_id,
+            ProposalParticipant.person_id,
+            Person.legacy_participant_id,
+        )
+        .select_from(Attendance)
+        .outerjoin(
+            ProposalParticipant,
+            Attendance.proposal_participant_id
+            == ProposalParticipant.proposal_participant_id,
+        )
+        .outerjoin(Person, ProposalParticipant.person_id == Person.person_id)
+        .where(
+            Attendance.attended == True,  # noqa: E712
+            Attendance.session_id.in_(sorted(service_type_ids_by_session)),
+        )
+    ).all()
+
+    attendance_by_service_type: dict[int, int] = {}
+    unique_people_by_service_type: dict[int, set[tuple[str, int]]] = {}
+    participant_ids: set[int] = set()
+    for session_id, participant_id, person_id, legacy_participant_id in attendance_rows:
+        service_type_ids = service_type_ids_by_session.get(int(session_id), set())
+        if not service_type_ids:
+            continue
+
+        identity: tuple[str, int] | None = None
+        profile_participant_id: int | None = None
+        if participant_id is not None:
+            profile_participant_id = int(participant_id)
+            identity = ("participant", profile_participant_id)
+        elif legacy_participant_id is not None:
+            profile_participant_id = int(legacy_participant_id)
+            identity = ("participant", profile_participant_id)
+        elif person_id is not None:
+            identity = ("person", int(person_id))
+
+        if profile_participant_id is not None:
+            participant_ids.add(profile_participant_id)
+        for service_type_id in service_type_ids:
+            attendance_by_service_type[service_type_id] = (
+                attendance_by_service_type.get(service_type_id, 0) + 1
+            )
+            if identity is not None:
+                unique_people_by_service_type.setdefault(service_type_id, set()).add(
+                    identity
+                )
+
+    participant_rows = db.execute(
+        select(
+            Participant.participant_id,
+            Participant.fecha_nacimiento,
+            Participant.genero,
+            Participant.vca,
+            Participant.composicion_familiar,
+        ).where(Participant.participant_id.in_(sorted(participant_ids)))
+    ).all()
+
+    sociodemographic_summary = {
+        key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
+        for key, label in _ADM_AGE_BUCKETS
+    }
+    raw_family_catalog_labels = db.execute(
+        select(CatalogOption.label)
+        .join(
+            CatalogType,
+            CatalogType.catalog_type_id == CatalogOption.catalog_type_id,
+        )
+        .where(
+            CatalogType.key == "composicion_familiar",
+            CatalogOption.is_active == True,  # noqa: E712
+        )
+        .order_by(CatalogOption.sort_order, CatalogOption.label)
+    ).scalars().all()
+    family_catalog_labels = []
+    for raw_label in raw_family_catalog_labels:
+        label = str(raw_label).strip()
+        if label and label not in family_catalog_labels:
+            family_catalog_labels.append(label)
+    family_counts = {label: 0 for label in family_catalog_labels}
+
+    for _, birth_date, gender, vca, family_composition in participant_rows:
+        bucket = _adm_age_bucket(_age_on_date(birth_date, reference_date))
+        if bucket is not None:
+            normalized_gender = str(gender).strip().upper() if gender is not None else ""
+            normalized_vca = str(vca).strip().upper() if vca is not None else ""
+            if normalized_gender.startswith("F"):
+                sociodemographic_summary[bucket]["f"] += 1
+            elif normalized_gender.startswith("M"):
+                sociodemographic_summary[bucket]["m"] += 1
+            sociodemographic_summary[bucket]["total"] += 1
+            if normalized_vca == "SI":
+                sociodemographic_summary[bucket]["vca"] += 1
+
+        family_label = (
+            str(family_composition).strip()
+            if family_composition is not None
+            else ""
+        ) or "No especificado"
+        family_counts[family_label] = family_counts.get(family_label, 0) + 1
+
+    total_unique_people = len(participant_rows)
+    sociodemographic_rows = []
+    sociodemographic_total = {"f": 0, "m": 0, "total": 0, "vca": 0}
+    for key, label in _ADM_AGE_BUCKETS:
+        summary = sociodemographic_summary[key]
+        sociodemographic_rows.append(
+            {
+                "label": label,
+                "f": summary["f"],
+                "m": summary["m"],
+                "total": summary["total"],
+                "percent": (
+                    round((summary["total"] / total_unique_people) * 100, 2)
+                    if total_unique_people
+                    else 0
+                ),
+                "vca": summary["vca"],
+            }
+        )
+        for field in sociodemographic_total:
+            sociodemographic_total[field] += summary[field]
+
+    catalog_label_set = set(family_catalog_labels)
+    additional_family_labels = sorted(
+        (label for label in family_counts if label not in catalog_label_set),
+        key=str.casefold,
+    )
+    family_rows = [
+        {"label": label, "count": family_counts[label]}
+        for label in [*family_catalog_labels, *additional_family_labels]
+    ]
+
+    service_rows = []
+    for service_type in service_types:
+        service_type_id = int(service_type.adm_service_type_id)
+        service_rows.append(
+            {
+                "service_type_name": str(service_type.name).strip() or "Sin nombre",
+                "services_count": len(sessions_by_service_type.get(service_type_id, set())),
+                "duplicates": attendance_by_service_type.get(service_type_id, 0),
+                "unique_participants": len(
+                    unique_people_by_service_type.get(service_type_id, set())
+                ),
+            }
+        )
+
+    return {
+        "summary": {
+            "services": sum(row["services_count"] for row in service_rows),
+            "duplicates": sum(row["duplicates"] for row in service_rows),
+            "unique_participants": sum(
+                row["unique_participants"] for row in service_rows
+            ),
+            "service_types": len(service_rows),
+        },
+        "service_rows": service_rows,
+        "sociodemographic_rows": sociodemographic_rows,
+        "sociodemographic_total": sociodemographic_total,
+        "family_rows": family_rows,
+        "family_total": sum(family_counts.values()),
+    }
+
+
 def _active_faro_proposals(db: Session) -> list[Proposal]:
     return list(
         db.execute(
@@ -703,6 +1011,14 @@ def faro_institutional_report_data(
     if normalized_end_date is not None:
         pregnancy_stmt = pregnancy_stmt.where(pregnancy_report_date <= normalized_end_date)
     pregnancy_summary = _aggregate_pregnancy_summary(db.execute(pregnancy_stmt).all())
+    adm_summary = _faro_adm_summary(
+        db,
+        proposal_ids=normalized_proposal_ids,
+        year=normalized_year,
+        start_date=normalized_start_date,
+        end_date=normalized_end_date,
+        reference_date=reference_date,
+    )
 
     return _no_store_json(
         {
@@ -717,6 +1033,7 @@ def faro_institutional_report_data(
                 "grades": subject_grade_averages,
                 "pregnancy": pregnancy_summary,
                 "towns_by_municipality": towns_by_municipality,
+                "adm": adm_summary,
             },
             "filters": {
                 "proposal_ids": normalized_proposal_ids,

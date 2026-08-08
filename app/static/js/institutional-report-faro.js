@@ -24,6 +24,13 @@
   const pregnancyMenValue = root.querySelector('[data-pregnancy="men"]');
   const pregnancyWorkshopValue = root.querySelector('[data-pregnancy="followups"]');
   const townTable = root.querySelector("[data-town-table]");
+  const admSummaryFields = ["service_types", "services", "duplicates", "unique_participants"];
+  const admSummaryValues = Object.fromEntries(
+    admSummaryFields.map((field) => [field, root.querySelector(`[data-adm-summary="${field}"]`)]),
+  );
+  const admServiceTable = root.querySelector("[data-adm-service-table]");
+  const admSociodemographicTable = root.querySelector("[data-adm-sociodemographic-table]");
+  const admFamilyTable = root.querySelector("[data-adm-family-table]");
   const submitButton = form?.querySelector('button[type="submit"]');
   const dataUrl = root.dataset.reportDataUrl;
   const numberFormatter = new Intl.NumberFormat("es-PR");
@@ -45,6 +52,10 @@
     || !pregnancyMenValue
     || !pregnancyWorkshopValue
     || !townTable
+    || admSummaryFields.some((field) => !admSummaryValues[field])
+    || !admServiceTable
+    || !admSociodemographicTable
+    || !admFamilyTable
     || !dataUrl
   ) {
     return;
@@ -123,6 +134,130 @@
         row.append(townCell, valueCell);
         townTable.append(row);
       });
+  };
+
+  const renderTableMessage = (tableBody, columnCount, message) => {
+    tableBody.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = columnCount;
+    cell.textContent = message;
+    row.append(cell);
+    tableBody.append(row);
+  };
+
+  const appendTextCell = (row, value, { heading = false } = {}) => {
+    const cell = document.createElement(heading ? "th" : "td");
+    if (heading) {
+      cell.scope = "row";
+    }
+    cell.textContent = value;
+    row.append(cell);
+  };
+
+  const renderAdmServiceTable = (rows) => {
+    admServiceTable.replaceChildren();
+    if (!rows.length) {
+      renderTableMessage(
+        admServiceTable,
+        4,
+        "No hay tipos de servicio ADM configurados para los filtros seleccionados.",
+      );
+      return;
+    }
+
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      appendTextCell(row, item.service_type_name, { heading: true });
+      appendTextCell(row, numberFormatter.format(item.services_count));
+      appendTextCell(row, numberFormatter.format(item.duplicates));
+      appendTextCell(row, numberFormatter.format(item.unique_participants));
+      admServiceTable.append(row);
+    });
+  };
+
+  const renderAdmSociodemographicTable = (rows, total) => {
+    admSociodemographicTable.replaceChildren();
+    if (!rows.length) {
+      renderTableMessage(
+        admSociodemographicTable,
+        5,
+        "No hay datos socio-demográficos ADM para los filtros seleccionados.",
+      );
+      return;
+    }
+
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      appendTextCell(row, item.label, { heading: true });
+      appendTextCell(row, numberFormatter.format(item.f));
+      appendTextCell(row, numberFormatter.format(item.m));
+      appendTextCell(row, `${item.percent.toFixed(2)}%`);
+      appendTextCell(row, numberFormatter.format(item.vca));
+      admSociodemographicTable.append(row);
+    });
+
+    const totalRow = document.createElement("tr");
+    appendTextCell(totalRow, "TOTAL", { heading: true });
+    appendTextCell(totalRow, numberFormatter.format(total.f));
+    appendTextCell(totalRow, numberFormatter.format(total.m));
+    appendTextCell(totalRow, `${total.total ? "100.00" : "0.00"}%`);
+    appendTextCell(totalRow, numberFormatter.format(total.vca));
+    admSociodemographicTable.append(totalRow);
+  };
+
+  const renderAdmFamilyTable = (rows, total) => {
+    admFamilyTable.replaceChildren();
+    if (!rows.length) {
+      renderTableMessage(
+        admFamilyTable,
+        2,
+        "No hay datos de composición familiar ADM para los filtros seleccionados.",
+      );
+      return;
+    }
+
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      appendTextCell(row, item.label, { heading: true });
+      appendTextCell(row, numberFormatter.format(item.count));
+      admFamilyTable.append(row);
+    });
+
+    const totalRow = document.createElement("tr");
+    appendTextCell(totalRow, "TOTAL", { heading: true });
+    appendTextCell(totalRow, numberFormatter.format(total));
+    admFamilyTable.append(totalRow);
+  };
+
+  const setAdmBusy = (isBusy) => {
+    [admServiceTable, admSociodemographicTable, admFamilyTable].forEach((tableBody) => {
+      if (isBusy) {
+        tableBody.setAttribute("aria-busy", "true");
+      } else {
+        tableBody.removeAttribute("aria-busy");
+      }
+    });
+  };
+
+  const setAdmLoading = () => {
+    admSummaryFields.forEach((field) => {
+      admSummaryValues[field].textContent = "…";
+    });
+    renderTableMessage(admServiceTable, 4, "Consultando datos ADM reales…");
+    renderTableMessage(admSociodemographicTable, 5, "Consultando datos ADM reales…");
+    renderTableMessage(admFamilyTable, 2, "Consultando datos ADM reales…");
+    setAdmBusy(true);
+  };
+
+  const clearAdmMetrics = () => {
+    admSummaryFields.forEach((field) => {
+      admSummaryValues[field].textContent = "—";
+    });
+    renderTableMessage(admServiceTable, 4, "No fue posible cargar datos ADM.");
+    renderTableMessage(admSociodemographicTable, 5, "No fue posible cargar datos ADM.");
+    renderTableMessage(admFamilyTable, 2, "No fue posible cargar datos ADM.");
+    setAdmBusy(false);
   };
 
   const setStatus = (message, isError = false) => {
@@ -260,6 +395,112 @@
     return municipalities;
   };
 
+  const normalizeRealAdm = (payload) => {
+    const source = payload?.real?.adm;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new Error("La respuesta real ADM no tiene el formato esperado.");
+    }
+
+    const summarySource = source.summary;
+    if (!summarySource || typeof summarySource !== "object" || Array.isArray(summarySource)) {
+      throw new Error("El resumen real ADM no tiene el formato esperado.");
+    }
+    const summary = {};
+    admSummaryFields.forEach((field) => {
+      const value = summarySource[field];
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error("El resumen real ADM no tiene el formato esperado.");
+      }
+      summary[field] = value;
+    });
+
+    if (!Array.isArray(source.service_rows)) {
+      throw new Error("Las filas de servicios ADM no tienen el formato esperado.");
+    }
+    const serviceRows = source.service_rows.map((item) => {
+      const serviceTypeName = typeof item?.service_type_name === "string"
+        ? item.service_type_name.trim()
+        : "";
+      if (
+        !serviceTypeName
+        || !Number.isInteger(item?.services_count)
+        || item.services_count < 0
+        || !Number.isInteger(item?.duplicates)
+        || item.duplicates < 0
+        || !Number.isInteger(item?.unique_participants)
+        || item.unique_participants < 0
+      ) {
+        throw new Error("Las filas de servicios ADM no tienen el formato esperado.");
+      }
+      return {
+        service_type_name: serviceTypeName,
+        services_count: item.services_count,
+        duplicates: item.duplicates,
+        unique_participants: item.unique_participants,
+      };
+    });
+
+    if (!Array.isArray(source.sociodemographic_rows)) {
+      throw new Error("Las filas socio-demográficas ADM no tienen el formato esperado.");
+    }
+    const sociodemographicRows = source.sociodemographic_rows.map((item) => {
+      const label = typeof item?.label === "string" ? item.label.trim() : "";
+      if (
+        !label
+        || !Number.isInteger(item?.f)
+        || item.f < 0
+        || !Number.isInteger(item?.m)
+        || item.m < 0
+        || !Number.isInteger(item?.total)
+        || item.total < 0
+        || typeof item?.percent !== "number"
+        || !Number.isFinite(item.percent)
+        || item.percent < 0
+        || !Number.isInteger(item?.vca)
+        || item.vca < 0
+      ) {
+        throw new Error("Las filas socio-demográficas ADM no tienen el formato esperado.");
+      }
+      return { label, f: item.f, m: item.m, total: item.total, percent: item.percent, vca: item.vca };
+    });
+
+    const totalSource = source.sociodemographic_total;
+    if (!totalSource || typeof totalSource !== "object" || Array.isArray(totalSource)) {
+      throw new Error("El total socio-demográfico ADM no tiene el formato esperado.");
+    }
+    const sociodemographicTotal = {};
+    ["f", "m", "total", "vca"].forEach((field) => {
+      const value = totalSource[field];
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error("El total socio-demográfico ADM no tiene el formato esperado.");
+      }
+      sociodemographicTotal[field] = value;
+    });
+
+    if (!Array.isArray(source.family_rows)) {
+      throw new Error("Las filas de composición familiar ADM no tienen el formato esperado.");
+    }
+    const familyRows = source.family_rows.map((item) => {
+      const label = typeof item?.label === "string" ? item.label.trim() : "";
+      if (!label || !Number.isInteger(item?.count) || item.count < 0) {
+        throw new Error("Las filas de composición familiar ADM no tienen el formato esperado.");
+      }
+      return { label, count: item.count };
+    });
+    if (!Number.isInteger(source.family_total) || source.family_total < 0) {
+      throw new Error("El total de composición familiar ADM no tiene el formato esperado.");
+    }
+
+    return {
+      summary,
+      serviceRows,
+      sociodemographicRows,
+      sociodemographicTotal,
+      familyRows,
+      familyTotal: source.family_total,
+    };
+  };
+
   const clearRealMetrics = () => {
     activityValue.textContent = "—";
     peopleValue.textContent = "—";
@@ -277,6 +518,7 @@
     pregnancyWorkshopValue.textContent = "—";
     renderTownTable({}, "No fue posible cargar los municipios reales.");
     townTable.removeAttribute("aria-busy");
+    clearAdmMetrics();
   };
 
   const applyFilters = async () => {
@@ -330,6 +572,7 @@
     gradesChart.setAttribute("aria-busy", "true");
     renderTownTable({}, "Consultando municipios reales…");
     townTable.setAttribute("aria-busy", "true");
+    setAdmLoading();
     setStatus("Consultando indicadores reales…");
     setLoading(true);
 
@@ -389,6 +632,7 @@
       const grades = normalizeRealGrades(payload);
       const pregnancy = normalizeRealPregnancy(payload);
       const municipalities = normalizeRealMunicipalities(payload);
+      const adm = normalizeRealAdm(payload);
       const peopleByMunicipality = Object.values(municipalities)
         .reduce((total, value) => total + value, 0);
       if (peopleByMunicipality !== people) {
@@ -413,6 +657,12 @@
       pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
       pregnancyWorkshopValue.textContent = numberFormatter.format(pregnancy.followups);
       renderTownTable(municipalities);
+      admSummaryFields.forEach((field) => {
+        admSummaryValues[field].textContent = numberFormatter.format(adm.summary[field]);
+      });
+      renderAdmServiceTable(adm.serviceRows);
+      renderAdmSociodemographicTable(adm.sociodemographicRows, adm.sociodemographicTotal);
+      renderAdmFamilyTable(adm.familyRows, adm.familyTotal);
       const proposalLabel = proposalIds.length === 1 ? "1 propuesta" : `${proposalIds.length} propuestas`;
       setStatus(`Indicadores reales actualizados para ${proposalLabel}.`);
     } catch (error) {
@@ -428,6 +678,7 @@
         educationChart.removeAttribute("aria-busy");
         gradesChart.removeAttribute("aria-busy");
         townTable.removeAttribute("aria-busy");
+        setAdmBusy(false);
         setLoading(false);
       }
     }

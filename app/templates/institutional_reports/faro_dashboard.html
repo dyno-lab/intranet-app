@@ -54,7 +54,7 @@
           <span>
             <strong>Datos reales agregados:</strong> actividades registradas, personas únicas atendidas, personas
             duplicadas, pueblos/municipios, rangos de edad, jefes de familia, escolaridad, notas por materia e
-            indicadores de embarazo usan datos reales agregados y no contienen información personal.
+            indicadores de embarazo y servicios ADM usan datos reales agregados y no contienen información personal.
           </span>
         </div>
 
@@ -258,6 +258,85 @@
                   </tr>
                 </thead>
                 <tbody data-town-table aria-live="polite"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="institutional-report-card institutional-report-card--wide">
+            <div class="institutional-report-card__heading">
+              <div>
+                <span class="institutional-report__section-kicker">Servicios configurados · Dato real</span>
+                <h2>Resumen ADM</h2>
+              </div>
+              <i class="bi bi-table" aria-hidden="true"></i>
+            </div>
+
+            <div class="institutional-report-mini-kpis" aria-label="Indicadores ADM">
+              <div class="institutional-report-mini-kpi">
+                <span>Tipos de servicio</span>
+                <strong data-adm-summary="service_types" aria-live="polite">…</strong>
+              </div>
+              <div class="institutional-report-mini-kpi">
+                <span>Servicios</span>
+                <strong data-adm-summary="services" aria-live="polite">…</strong>
+              </div>
+              <div class="institutional-report-mini-kpi">
+                <span>Duplicados</span>
+                <strong data-adm-summary="duplicates" aria-live="polite">…</strong>
+              </div>
+              <div class="institutional-report-mini-kpi">
+                <span>No Duplicados</span>
+                <strong data-adm-summary="unique_participants" aria-live="polite">…</strong>
+              </div>
+            </div>
+
+            <h3>Resumen ADM</h3>
+            <div class="institutional-report-table-wrap">
+              <table class="institutional-report-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tipo de Servicio</th>
+                    <th scope="col">Servicios</th>
+                    <th scope="col">Duplicados</th>
+                    <th scope="col">No Duplicados</th>
+                  </tr>
+                </thead>
+                <tbody data-adm-service-table aria-live="polite">
+                  <tr><td colspan="4">Consultando datos ADM reales…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Socio-Demográfico ADM</h3>
+            <div class="institutional-report-table-wrap">
+              <table class="institutional-report-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Edad</th>
+                    <th scope="col">F</th>
+                    <th scope="col">M</th>
+                    <th scope="col">Por Ciento</th>
+                    <th scope="col">Diversidad Funcional</th>
+                  </tr>
+                </thead>
+                <tbody data-adm-sociodemographic-table aria-live="polite">
+                  <tr><td colspan="5">Consultando datos ADM reales…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Composición Familiar</h3>
+            <div class="institutional-report-table-wrap">
+              <table class="institutional-report-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Composición familiar</th>
+                    <th scope="col">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody data-adm-family-table aria-live="polite">
+                  <tr><td colspan="2">Consultando datos ADM reales…</td></tr>
+                </tbody>
               </table>
             </div>
           </article>

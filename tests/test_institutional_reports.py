@@ -4,6 +4,7 @@ import json
 import os
 import unittest
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from sqlalchemy.dialects import mssql
@@ -122,6 +123,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(values=[]),
             _Result(values=[]),
             _Result(values=[]),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -157,6 +159,19 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "men": 0,
             "followups": 0,
         })
+        self.assertEqual(payload["real"]["adm"], {
+            "summary": {
+                "services": 0,
+                "duplicates": 0,
+                "unique_participants": 0,
+                "service_types": 0,
+            },
+            "service_rows": [],
+            "sociodemographic_rows": [],
+            "sociodemographic_total": {"f": 0, "m": 0, "total": 0, "vca": 0},
+            "family_rows": [],
+            "family_total": 0,
+        })
         self.assertEqual(payload["filters"]["proposal_ids"], [2, 1])
         self.assertEqual(payload["meta"]["real_metrics"], [
             "activities",
@@ -169,12 +184,16 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "grades",
             "pregnancy",
             "towns_by_municipality",
+            "adm",
         ])
         self.assertEqual(payload["meta"]["demo_metrics"], [])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
         self.assertNotIn("attendance", str(db.statements[1]).lower())
         self.assertIn("distinct", str(db.statements[1]).lower())
-        self.assertEqual(len(db.statements), 6)
+        adm_service_types_sql = str(db.statements[6]).lower()
+        self.assertIn("adm_service_types.proposal_id in", adm_service_types_sql)
+        self.assertIn("adm_service_types.is_active", adm_service_types_sql)
+        self.assertEqual(len(db.statements), 7)
 
     def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
@@ -212,6 +231,47 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 (True, True, 2026, 5, 40, 4, "No informado", 90_104),
                 (False, True, 2026, 5, 41, 5, None, 90_105),
             ]),
+            _Result(values=[
+                SimpleNamespace(
+                    adm_service_type_id=10,
+                    proposal_id=1,
+                    name="Orientación",
+                    sort_order=1,
+                    is_active=True,
+                ),
+                SimpleNamespace(
+                    adm_service_type_id=20,
+                    proposal_id=2,
+                    name="Talleres",
+                    sort_order=1,
+                    is_active=True,
+                ),
+            ]),
+            _Result(values=[
+                (10, 1, 100),
+                (20, 2, 200),
+            ]),
+            _Result(values=[
+                (1_001, 1, 100),
+                (1_002, 1, 100),
+                (1_002, 1, 100),
+                (2_001, 2, 200),
+                (2_002, 2, 999),
+                (3_001, 3, 100),
+            ]),
+            _Result(values=[
+                (1_001, 501, 9_501, 501),
+                (1_001, 501, 9_501, 501),
+                (1_002, 502, 9_502, 502),
+                (2_001, None, 9_503, 503),
+                (2_001, None, 9_504, None),
+            ]),
+            _Result(values=[
+                (501, date(2021, 12, 31), "Femenino", " SI ", "Nuclear"),
+                (502, date(2010, 12, 31), "Masculino", "NO", None),
+                (503, date(1986, 12, 31), None, "SI", "Extendida"),
+            ]),
+            _Result(values=["Nuclear", "Monoparental"]),
         ])
 
         response = self._call(
@@ -258,6 +318,67 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "men": 1,
             "followups": 3,
         })
+        self.assertEqual(payload["real"]["adm"]["summary"], {
+            "services": 3,
+            "duplicates": 5,
+            "unique_participants": 4,
+            "service_types": 2,
+        })
+        self.assertEqual(payload["real"]["adm"]["service_rows"], [
+            {
+                "service_type_name": "Orientación",
+                "services_count": 2,
+                "duplicates": 3,
+                "unique_participants": 2,
+            },
+            {
+                "service_type_name": "Talleres",
+                "services_count": 1,
+                "duplicates": 2,
+                "unique_participants": 2,
+            },
+        ])
+        adm_age_rows = {
+            row["label"]: row
+            for row in payload["real"]["adm"]["sociodemographic_rows"]
+        }
+        self.assertEqual(adm_age_rows["0-5"], {
+            "label": "0-5",
+            "f": 1,
+            "m": 0,
+            "total": 1,
+            "percent": 33.33,
+            "vca": 1,
+        })
+        self.assertEqual(adm_age_rows["12-17"], {
+            "label": "12-17",
+            "f": 0,
+            "m": 1,
+            "total": 1,
+            "percent": 33.33,
+            "vca": 0,
+        })
+        self.assertEqual(adm_age_rows["26-45"], {
+            "label": "26-45",
+            "f": 0,
+            "m": 0,
+            "total": 1,
+            "percent": 33.33,
+            "vca": 1,
+        })
+        self.assertEqual(payload["real"]["adm"]["sociodemographic_total"], {
+            "f": 1,
+            "m": 1,
+            "total": 3,
+            "vca": 2,
+        })
+        self.assertEqual(payload["real"]["adm"]["family_rows"], [
+            {"label": "Nuclear", "count": 1},
+            {"label": "Monoparental", "count": 0},
+            {"label": "Extendida", "count": 1},
+            {"label": "No especificado", "count": 1},
+        ])
+        self.assertEqual(payload["real"]["adm"]["family_total"], 3)
         self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 8)
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
         self.assertNotIn("duplicates", payload["meta"]["demo_metrics"])
@@ -271,6 +392,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("grades", payload["meta"]["demo_metrics"])
         self.assertIn("pregnancy", payload["meta"]["real_metrics"])
         self.assertNotIn("pregnancy", payload["meta"]["demo_metrics"])
+        self.assertIn("adm", payload["meta"]["real_metrics"])
+        self.assertNotIn("adm", payload["meta"]["demo_metrics"])
         self.assertEqual(payload["meta"]["demo_metrics"], [])
 
         attendance_sql = str(db.statements[2]).lower()
@@ -334,12 +457,57 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         pregnancy_sql_server = str(db.statements[5].compile(dialect=mssql.dialect())).lower()
         self.assertIn("datefromparts", pregnancy_sql_server)
 
+        adm_service_types_sql = str(db.statements[6]).lower()
+        self.assertIn("from adm_service_types", adm_service_types_sql)
+        self.assertIn("adm_service_types.proposal_id in", adm_service_types_sql)
+        self.assertIn("adm_service_types.is_active", adm_service_types_sql)
+        self.assertIn("order by adm_service_types.proposal_id", adm_service_types_sql)
+
+        adm_mapping_sql = str(db.statements[7]).lower()
+        self.assertIn("adm_service_type_activity_codes", adm_mapping_sql)
+        self.assertIn("join adm_service_types", adm_mapping_sql)
+        self.assertIn("adm_service_types.is_active", adm_mapping_sql)
+
+        adm_sessions_sql = str(db.statements[8]).lower()
+        self.assertIn("activity_sessions.proposal_id in", adm_sessions_sql)
+        self.assertIn("extract(year from activity_sessions.session_date)", adm_sessions_sql)
+        self.assertIn("activity_sessions.session_date >=", adm_sessions_sql)
+        self.assertIn("activity_sessions.session_date <=", adm_sessions_sql)
+
+        adm_attendance_sql = str(db.statements[9]).lower()
+        self.assertIn("attendance.attended", adm_attendance_sql)
+        self.assertIn("attendance.participant_id", adm_attendance_sql)
+        self.assertIn("attendance.proposal_participant_id", adm_attendance_sql)
+        self.assertIn("left outer join proposal_participants", adm_attendance_sql)
+        self.assertIn("left outer join persons", adm_attendance_sql)
+        adm_attendance_sql_server = str(
+            db.statements[9].compile(dialect=mssql.dialect())
+        ).lower()
+        self.assertNotIn("attended is 1", adm_attendance_sql_server)
+
+        adm_participants_sql = str(db.statements[10]).lower()
+        self.assertIn("participants.fecha_nacimiento", adm_participants_sql)
+        self.assertIn("participants.genero", adm_participants_sql)
+        self.assertIn("participants.vca", adm_participants_sql)
+        self.assertIn("participants.composicion_familiar", adm_participants_sql)
+
+        adm_family_sql = str(db.statements[11]).lower()
+        self.assertIn("catalog_types.key", adm_family_sql)
+        self.assertIn(
+            "composicion_familiar",
+            db.statements[11].compile().params.values(),
+        )
+        self.assertIn("catalog_options.is_active", adm_family_sql)
+        self.assertIn("order by catalog_options.sort_order", adm_family_sql)
+
         forbidden_keys = {
             "person_id",
             "participant_id",
             "proposal_participant_id",
             "attendance_id",
             "session_id",
+            "activity_code_id",
+            "adm_service_type_id",
             "nombre",
             "apellido",
             "apellido_paterno",
@@ -379,6 +547,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         serialized_payload = json.dumps(payload, ensure_ascii=False)
         self.assertNotIn("90101", serialized_payload)
         self.assertNotIn("90108", serialized_payload)
+        self.assertNotIn("9504", serialized_payload)
+        self.assertNotIn("1001", serialized_payload)
         self.assertNotIn("2014-12-31", serialized_payload)
 
     def test_subject_grades_use_latest_report_and_ignore_invalid_values(self):
@@ -436,6 +606,33 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 institutional_reports._age_reference_date(None, None),
                 date(2026, 8, 6),
             )
+
+    def test_adm_age_buckets_match_existing_adm_report(self):
+        expected_buckets = {
+            0: "0_5",
+            5: "0_5",
+            6: "6_11",
+            11: "6_11",
+            12: "12_17",
+            17: "12_17",
+            18: "18_21",
+            21: "18_21",
+            22: "22_25",
+            25: "22_25",
+            26: "26_45",
+            45: "26_45",
+            46: "46_59",
+            59: "46_59",
+            60: "60_74",
+            74: "60_74",
+            75: "75_plus",
+            100: "75_plus",
+        }
+        for age, expected in expected_buckets.items():
+            with self.subTest(age=age):
+                self.assertEqual(institutional_reports._adm_age_bucket(age), expected)
+        self.assertIsNone(institutional_reports._adm_age_bucket(None))
+        self.assertIsNone(institutional_reports._adm_age_bucket(-1))
 
     def test_additional_attendances_returns_zero_for_one_attendance(self):
         self.assertEqual(institutional_reports._count_additional_attendances([1]), 0)
