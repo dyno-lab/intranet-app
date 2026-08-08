@@ -20,10 +20,15 @@
   const ageChart = root.querySelector('[data-chart="age"]');
   const educationChart = root.querySelector('[data-chart="education"]');
   const gradesChart = root.querySelector('[data-chart="grades"]');
+  const householdRing = root.querySelector("[data-household-ring]");
+  const householdRingValue = root.querySelector("[data-household-ring-value]");
+  const householdRingLabel = root.querySelector("[data-household-ring-label]");
   const pregnancyWomenValue = root.querySelector('[data-pregnancy="women"]');
   const pregnancyMenValue = root.querySelector('[data-pregnancy="men"]');
   const pregnancyWorkshopValue = root.querySelector('[data-pregnancy="followups"]');
   const townTable = root.querySelector("[data-town-table]");
+  const townHighlight = root.querySelector("[data-town-highlight]");
+  const townHighlightValue = root.querySelector("[data-town-highlight-value]");
   const admSummaryFields = ["service_types", "services", "duplicates", "unique_participants"];
   const admSummaryValues = Object.fromEntries(
     admSummaryFields.map((field) => [field, root.querySelector(`[data-adm-summary="${field}"]`)]),
@@ -34,6 +39,10 @@
   const submitButton = form?.querySelector('button[type="submit"]');
   const dataUrl = root.dataset.reportDataUrl;
   const numberFormatter = new Intl.NumberFormat("es-PR");
+  const percentFormatter = new Intl.NumberFormat("es-PR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
   const ageBucketLabels = ["0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado"];
   const gradeSubjectLabels = ["Español", "Matemáticas", "Ciencias", "Inglés"];
   let activeRequest = null;
@@ -48,6 +57,9 @@
     || !ageChart
     || !educationChart
     || !gradesChart
+    || !householdRing
+    || !householdRingValue
+    || !householdRingLabel
     || !pregnancyWomenValue
     || !pregnancyMenValue
     || !pregnancyWorkshopValue
@@ -73,6 +85,9 @@
     }
 
     const maximum = options.maximum || Math.max(...entries.map(([, value]) => value), 1);
+    const total = Number.isFinite(options.total)
+      ? options.total
+      : entries.reduce((sum, [, value]) => sum + value, 0);
 
     entries.forEach(([label, value]) => {
       const row = document.createElement("div");
@@ -84,15 +99,22 @@
       const labelElement = document.createElement("span");
       labelElement.textContent = label;
       const valueElement = document.createElement("strong");
-      valueElement.textContent = options.suffix
+      const formattedValue = options.suffix
         ? `${numberFormatter.format(value)}${options.suffix}`
         : numberFormatter.format(value);
+      const percent = total > 0 ? (value / total) * 100 : 0;
+      valueElement.textContent = options.showPercent
+        ? `${formattedValue} · ${percentFormatter.format(percent)}%`
+        : formattedValue;
       heading.append(labelElement, valueElement);
 
       const track = document.createElement("div");
       track.className = "institutional-report-bar__track";
       const bar = document.createElement("div");
       bar.className = "institutional-report-bar__value";
+      if (options.tone) {
+        bar.classList.add(`institutional-report-bar__value--${options.tone}`);
+      }
       const width = value === 0 ? 0 : Math.max(4, Math.min(100, (value / maximum) * 100));
       bar.style.setProperty("--institutional-report-bar-width", `${width}%`);
       bar.setAttribute("role", "img");
@@ -104,8 +126,128 @@
     });
   };
 
+  const renderEducationChart = (values, emptyMessage = "No hay datos para mostrar.") => {
+    educationChart.replaceChildren();
+    const entries = Object.entries(values);
+    if (!entries.length) {
+      const message = document.createElement("p");
+      message.className = "institutional-report-filter__empty";
+      message.textContent = emptyMessage;
+      educationChart.append(message);
+      return;
+    }
+
+    const palette = ["#0d3b66", "#2a9d8f", "#67b7ab", "#b9822b", "#7c8fa3", "#b5c5d3"];
+    const total = entries.reduce((sum, [, value]) => sum + value, 0);
+    let cursor = 0;
+    const segments = entries.map(([, value], index) => {
+      const start = cursor;
+      cursor += total > 0 ? (value / total) * 100 : 0;
+      return `${palette[index % palette.length]} ${start}% ${cursor}%`;
+    });
+
+    const chartLayout = document.createElement("div");
+    chartLayout.className = "institutional-report-donut-layout";
+    const donut = document.createElement("div");
+    donut.className = "institutional-report-donut";
+    donut.style.background = total > 0
+      ? `conic-gradient(${segments.join(", ")})`
+      : "#e7eef4";
+    donut.setAttribute("role", "img");
+    donut.setAttribute("aria-label", `Escolaridad: ${numberFormatter.format(total)} personas`);
+    const center = document.createElement("div");
+    center.className = "institutional-report-donut__center";
+    const totalValue = document.createElement("strong");
+    totalValue.textContent = numberFormatter.format(total);
+    const totalLabel = document.createElement("span");
+    totalLabel.textContent = "personas";
+    center.append(totalValue, totalLabel);
+    donut.append(center);
+
+    const legend = document.createElement("div");
+    legend.className = "institutional-report-donut-legend";
+    entries.forEach(([label, value], index) => {
+      const item = document.createElement("div");
+      item.className = "institutional-report-donut-legend__item";
+      const name = document.createElement("span");
+      const swatch = document.createElement("i");
+      swatch.style.backgroundColor = palette[index % palette.length];
+      const text = document.createElement("span");
+      text.textContent = label;
+      name.append(swatch, text);
+      const amount = document.createElement("strong");
+      const percent = total > 0 ? (value / total) * 100 : 0;
+      amount.textContent = `${numberFormatter.format(value)} · ${percentFormatter.format(percent)}%`;
+      item.append(name, amount);
+      legend.append(item);
+    });
+
+    chartLayout.append(donut, legend);
+    educationChart.append(chartLayout);
+  };
+
+  const renderGradesChart = (values, emptyMessage = "No hay datos para mostrar.") => {
+    gradesChart.replaceChildren();
+    const entries = Object.entries(values);
+    if (!entries.length) {
+      const message = document.createElement("p");
+      message.className = "institutional-report-filter__empty";
+      message.textContent = emptyMessage;
+      gradesChart.append(message);
+      return;
+    }
+
+    const target = document.createElement("p");
+    target.className = "institutional-report-grade-target";
+    target.innerHTML = '<span aria-hidden="true"></span> Referencia visual: 70 puntos';
+    gradesChart.append(target);
+    entries.forEach(([label, value]) => {
+      const item = document.createElement("div");
+      item.className = "institutional-report-grade";
+      const heading = document.createElement("div");
+      heading.className = "institutional-report-grade__heading";
+      const name = document.createElement("span");
+      name.textContent = label;
+      const score = document.createElement("strong");
+      score.textContent = `${numberFormatter.format(value)}%`;
+      heading.append(name, score);
+      const track = document.createElement("div");
+      track.className = "institutional-report-grade__track";
+      const marker = document.createElement("span");
+      marker.className = "institutional-report-grade__target";
+      marker.setAttribute("aria-hidden", "true");
+      const bar = document.createElement("span");
+      bar.className = "institutional-report-grade__value";
+      bar.style.setProperty("--institutional-report-grade-width", `${value}%`);
+      track.append(bar, marker);
+      item.append(heading, track);
+      gradesChart.append(item);
+    });
+  };
+
+  const updateHouseholdRing = (householdHeads, people) => {
+    const percent = people > 0 ? (householdHeads / people) * 100 : 0;
+    householdRing.style.setProperty("--institutional-report-ring-percent", `${percent}%`);
+    householdRingValue.textContent = `${percentFormatter.format(percent)}%`;
+    householdRingLabel.textContent = `${numberFormatter.format(householdHeads)} de ${numberFormatter.format(people)} personas únicas`;
+    householdRing.setAttribute(
+      "aria-label",
+      `Jefes de familia: ${numberFormatter.format(householdHeads)} de ${numberFormatter.format(people)}, ${percentFormatter.format(percent)} por ciento`,
+    );
+  };
+
+  const setHouseholdRingMessage = (value, message) => {
+    householdRing.style.setProperty("--institutional-report-ring-percent", "0%");
+    householdRingValue.textContent = value;
+    householdRingLabel.textContent = message;
+    householdRing.setAttribute("aria-label", message);
+  };
+
   const renderTownTable = (towns, emptyMessage = "No hay datos para mostrar.") => {
     townTable.replaceChildren();
+    if (townHighlight) {
+      townHighlight.hidden = true;
+    }
 
     const entries = Object.entries(towns);
     if (!entries.length) {
@@ -118,19 +260,37 @@
       return;
     }
 
-    entries
+    const sortedEntries = entries
       .sort(([firstLabel, firstValue], [secondLabel, secondValue]) => {
         if (firstLabel === "No informado") return 1;
         if (secondLabel === "No informado") return -1;
         return secondValue - firstValue || firstLabel.localeCompare(secondLabel, "es");
-      })
-      .forEach(([town, value]) => {
+      });
+    const maximum = Math.max(...sortedEntries.map(([, value]) => value), 1);
+    const topTown = sortedEntries.find(([label, value]) => label !== "No informado" && value > 0);
+    if (townHighlight && townHighlightValue && topTown) {
+      townHighlightValue.textContent = `${topTown[0]} · ${numberFormatter.format(topTown[1])} personas`;
+      townHighlight.hidden = false;
+    }
+
+    sortedEntries.forEach(([town, value]) => {
         const row = document.createElement("tr");
         const townCell = document.createElement("th");
         townCell.scope = "row";
         townCell.textContent = town;
         const valueCell = document.createElement("td");
-        valueCell.textContent = numberFormatter.format(value);
+        const visual = document.createElement("div");
+        visual.className = "institutional-report-town-value";
+        const track = document.createElement("span");
+        track.className = "institutional-report-town-value__track";
+        const bar = document.createElement("span");
+        bar.className = "institutional-report-town-value__bar";
+        bar.style.setProperty("--institutional-report-town-width", `${(value / maximum) * 100}%`);
+        const amount = document.createElement("strong");
+        amount.textContent = numberFormatter.format(value);
+        track.append(bar);
+        visual.append(track, amount);
+        valueCell.append(visual);
         row.append(townCell, valueCell);
         townTable.append(row);
       });
@@ -153,6 +313,7 @@
     }
     cell.textContent = value;
     row.append(cell);
+    return cell;
   };
 
   const renderAdmServiceTable = (rows) => {
@@ -166,9 +327,17 @@
       return;
     }
 
+    const maximum = Math.max(...rows.map((item) => item.services_count), 1);
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      appendTextCell(row, item.service_type_name, { heading: true });
+      const serviceCell = appendTextCell(row, item.service_type_name, { heading: true });
+      const visual = document.createElement("span");
+      visual.className = "institutional-report-adm-inline-bar";
+      visual.style.setProperty(
+        "--institutional-report-adm-bar-width",
+        `${(item.services_count / maximum) * 100}%`,
+      );
+      serviceCell.append(visual);
       appendTextCell(row, numberFormatter.format(item.services_count));
       appendTextCell(row, numberFormatter.format(item.duplicates));
       appendTextCell(row, numberFormatter.format(item.unique_participants));
@@ -189,7 +358,18 @@
 
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      appendTextCell(row, item.label, { heading: true });
+      const labelCell = appendTextCell(row, item.label, { heading: true });
+      const genderTotal = item.f + item.m;
+      const stack = document.createElement("span");
+      stack.className = "institutional-report-adm-gender-stack";
+      const female = document.createElement("i");
+      female.className = "institutional-report-adm-gender-stack__f";
+      female.style.width = `${genderTotal ? (item.f / genderTotal) * 100 : 0}%`;
+      const male = document.createElement("i");
+      male.className = "institutional-report-adm-gender-stack__m";
+      male.style.width = `${genderTotal ? (item.m / genderTotal) * 100 : 0}%`;
+      stack.append(female, male);
+      labelCell.append(stack);
       appendTextCell(row, numberFormatter.format(item.f));
       appendTextCell(row, numberFormatter.format(item.m));
       appendTextCell(row, `${item.percent.toFixed(2)}%`);
@@ -198,6 +378,7 @@
     });
 
     const totalRow = document.createElement("tr");
+    totalRow.className = "institutional-report-table__total";
     appendTextCell(totalRow, "TOTAL", { heading: true });
     appendTextCell(totalRow, numberFormatter.format(total.f));
     appendTextCell(totalRow, numberFormatter.format(total.m));
@@ -217,14 +398,23 @@
       return;
     }
 
+    const maximum = Math.max(...rows.map((item) => item.count), 1);
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      appendTextCell(row, item.label, { heading: true });
+      const familyCell = appendTextCell(row, item.label, { heading: true });
+      const visual = document.createElement("span");
+      visual.className = "institutional-report-adm-inline-bar institutional-report-adm-inline-bar--gold";
+      visual.style.setProperty(
+        "--institutional-report-adm-bar-width",
+        `${(item.count / maximum) * 100}%`,
+      );
+      familyCell.append(visual);
       appendTextCell(row, numberFormatter.format(item.count));
       admFamilyTable.append(row);
     });
 
     const totalRow = document.createElement("tr");
+    totalRow.className = "institutional-report-table__total";
     appendTextCell(totalRow, "TOTAL", { heading: true });
     appendTextCell(totalRow, numberFormatter.format(total));
     admFamilyTable.append(totalRow);
@@ -507,11 +697,12 @@
     householdHeadsValue.textContent = "—";
     duplicateValue.textContent = "—";
     townValue.textContent = "—";
-    ageChart.replaceChildren();
+    setHouseholdRingMessage("—", "No fue posible calcular la proporción real.");
+    renderBars(ageChart, {}, { emptyMessage: "No fue posible cargar la distribución por edad." });
     ageChart.removeAttribute("aria-busy");
-    educationChart.replaceChildren();
+    renderEducationChart({}, "No fue posible cargar la escolaridad real.");
     educationChart.removeAttribute("aria-busy");
-    gradesChart.replaceChildren();
+    renderGradesChart({}, "No fue posible cargar las notas reales.");
     gradesChart.removeAttribute("aria-busy");
     pregnancyWomenValue.textContent = "—";
     pregnancyMenValue.textContent = "—";
@@ -564,11 +755,12 @@
     pregnancyWomenValue.textContent = "…";
     pregnancyMenValue.textContent = "…";
     pregnancyWorkshopValue.textContent = "…";
+    setHouseholdRingMessage("…", "Consultando proporción real…");
     renderBars(ageChart, {}, { emptyMessage: "Consultando distribución real…" });
     ageChart.setAttribute("aria-busy", "true");
-    renderBars(educationChart, {}, { emptyMessage: "Consultando escolaridad real…" });
+    renderEducationChart({}, "Consultando escolaridad real…");
     educationChart.setAttribute("aria-busy", "true");
-    renderBars(gradesChart, {}, { emptyMessage: "Consultando notas reales…" });
+    renderGradesChart({}, "Consultando notas reales…");
     gradesChart.setAttribute("aria-busy", "true");
     renderTownTable({}, "Consultando municipios reales…");
     townTable.setAttribute("aria-busy", "true");
@@ -650,9 +842,10 @@
       householdHeadsValue.textContent = numberFormatter.format(householdHeads);
       duplicateValue.textContent = numberFormatter.format(duplicates);
       townValue.textContent = numberFormatter.format(towns);
-      renderBars(ageChart, ageBuckets);
-      renderBars(educationChart, education);
-      renderBars(gradesChart, grades, { maximum: 100, suffix: "%" });
+      updateHouseholdRing(householdHeads, people);
+      renderBars(ageChart, ageBuckets, { total: people, showPercent: true });
+      renderEducationChart(education);
+      renderGradesChart(grades);
       pregnancyWomenValue.textContent = numberFormatter.format(pregnancy.women);
       pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
       pregnancyWorkshopValue.textContent = numberFormatter.format(pregnancy.followups);

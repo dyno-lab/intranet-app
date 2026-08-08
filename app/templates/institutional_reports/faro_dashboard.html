@@ -11,7 +11,7 @@
 </head>
 <body class="institutional-report-body">
   <div
-    class="institutional-report"
+    class="institutional-report institutional-report--faro"
     data-institutional-report
     data-report-data-url="/reporteinstitucionales/farodeesperanza/data"
   >
@@ -24,10 +24,10 @@
             alt="Logo Faro de Esperanza"
           >
           <div>
-            <span class="institutional-report__eyebrow">Reporte protegido</span>
-            <h1 class="institutional-report__title">Reporte Institucional · Faro de Esperanza</h1>
+            <span class="institutional-report__eyebrow">Reporte institucional protegido</span>
+            <h1 class="institutional-report__title">Faro de Esperanza</h1>
             <p class="institutional-report__subtitle">
-              Indicadores agregados de participación, servicios y población atendida.
+              Panorama ejecutivo de participación, alcance, perfil poblacional y servicios ADM.
             </p>
           </div>
         </div>
@@ -50,23 +50,21 @@
     <main class="institutional-report__main">
       <div class="institutional-report__shell">
         <div class="institutional-report-alert institutional-report-alert--info" role="status">
-          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          <span class="institutional-report-alert__icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
           <span>
-            <strong>Datos reales agregados:</strong> actividades registradas, personas únicas atendidas, personas
-            duplicadas, pueblos/municipios, rangos de edad, jefes de familia, escolaridad, notas por materia e
-            indicadores de embarazo y servicios ADM usan datos reales agregados y no contienen información personal.
+            <strong>Datos reales agregados y protegidos.</strong> Este reporte reúne actividades, población atendida,
+            alcance geográfico, escolaridad, notas, indicadores de embarazo y servicios ADM sin exponer información
+            personal ni registros individuales.
           </span>
         </div>
 
         <section class="institutional-report__filters" aria-labelledby="institutional-report-filters-title">
           <div class="institutional-report__section-heading">
             <div>
-              <span class="institutional-report__section-kicker">Consultar datos</span>
+              <span class="institutional-report__section-kicker">Consulta institucional</span>
               <h2 id="institutional-report-filters-title">Filtros del reporte</h2>
             </div>
-            <p>
-              Todos los filtros aplican a los indicadores reales agregados por propuesta y período seleccionado.
-            </p>
+            <p>Los indicadores se actualizan con las propuestas y el período seleccionado.</p>
           </div>
 
           <form class="institutional-report-filter-form" data-report-filter-form>
@@ -124,133 +122,169 @@
               </button>
             </div>
           </form>
+        </section>
 
-          <p class="institutional-report-filter-status" data-filter-status aria-live="polite"></p>
+        <section class="institutional-report-context" aria-labelledby="institutional-report-summary-title">
+          <div>
+            <span class="institutional-report__section-kicker">Lectura ejecutiva</span>
+            <h2 id="institutional-report-summary-title">Resumen ejecutivo</h2>
+          </div>
+          <p class="institutional-report-filter-status" data-filter-status aria-live="polite">
+            Preparando indicadores reales…
+          </p>
         </section>
 
         <section class="institutional-report__kpi-grid" aria-label="Indicadores principales">
           <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">
-                Personas únicas atendidas
-                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
-              </p>
-              <p class="institutional-report-kpi__value" data-kpi="people" aria-live="polite">&hellip;</p>
-            </div>
-          </article>
-          <article class="institutional-report-kpi institutional-report-kpi--real">
-            <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-files"></i></span>
-            <div>
-              <p class="institutional-report-kpi__label">
-                Personas Duplicadas
-                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
-              </p>
-              <p class="institutional-report-kpi__value" data-kpi="duplicates" aria-live="polite">…</p>
+              <p class="institutional-report-kpi__label">Personas únicas</p>
+              <p class="institutional-report-kpi__value" data-kpi="people" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Población atendida</span>
             </div>
           </article>
           <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-clipboard-data"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">
-                Actividades registradas
-                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
-              </p>
-              <p class="institutional-report-kpi__value" data-kpi="activities" aria-live="polite">&hellip;</p>
+              <p class="institutional-report-kpi__label">Actividades</p>
+              <p class="institutional-report-kpi__value" data-kpi="activities" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Registros del período</span>
+            </div>
+          </article>
+          <article class="institutional-report-kpi institutional-report-kpi--real">
+            <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-layers"></i></span>
+            <div>
+              <p class="institutional-report-kpi__label">Duplicados</p>
+              <p class="institutional-report-kpi__value" data-kpi="duplicates" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Participaciones acumuladas</span>
+            </div>
+          </article>
+          <article class="institutional-report-kpi institutional-report-kpi--real">
+            <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-house-heart"></i></span>
+            <div>
+              <p class="institutional-report-kpi__label">Jefes de familia</p>
+              <p class="institutional-report-kpi__value" data-kpi="household-heads" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Personas únicas</span>
             </div>
           </article>
           <article class="institutional-report-kpi institutional-report-kpi--real">
             <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
             <div>
-              <p class="institutional-report-kpi__label">
-                Municipios alcanzados
-                <span class="institutional-report-source-badge institutional-report-source-badge--real">Dato real</span>
-              </p>
+              <p class="institutional-report-kpi__label">Municipios</p>
               <p class="institutional-report-kpi__value" data-kpi="towns" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Cobertura territorial</span>
+            </div>
+          </article>
+          <article class="institutional-report-kpi institutional-report-kpi--adm">
+            <span class="institutional-report-kpi__icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
+            <div>
+              <p class="institutional-report-kpi__label">Tipos ADM</p>
+              <p class="institutional-report-kpi__value" data-adm-summary="service_types" aria-live="polite">…</p>
+              <span class="institutional-report-kpi__meta">Servicios configurados</span>
             </div>
           </article>
         </section>
 
         <div class="institutional-report-empty" data-report-empty hidden>
-          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+          <span class="institutional-report-empty__icon" aria-hidden="true"><i class="bi bi-bar-chart"></i></span>
           <h2 data-empty-title>No hay datos para mostrar</h2>
           <p data-empty-description>Revise los filtros y vuelva a intentarlo.</p>
         </div>
 
         <section class="institutional-report__grid" data-report-content>
-          <article class="institutional-report-card institutional-report-chart">
+          <article class="institutional-report-card institutional-report-card--age institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Distribución · Dato real</span>
-                <h2>Población única por rangos de edad</h2>
+                <span class="institutional-report__section-kicker">Perfil poblacional · Dato real</span>
+                <h2>Población por rangos de edad</h2>
+                <p>Distribución de personas únicas; cada valor permanece visible junto a su gráfica.</p>
               </div>
-              <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+              <span class="institutional-report-card__icon" aria-hidden="true"><i class="bi bi-person-lines-fill"></i></span>
             </div>
-            <div class="institutional-report-mini-kpis">
-              <div class="institutional-report-mini-kpi">
-                <span>Jefes de familia</span>
-                <strong data-kpi="household-heads" aria-live="polite">…</strong>
-              </div>
+            <div class="institutional-report-age-layout">
+              <div class="institutional-report-bars" data-chart="age" aria-live="polite"></div>
+              <aside class="institutional-report-ring-panel" aria-label="Proporción de jefes de familia">
+                <div class="institutional-report-ring" data-household-ring role="img" aria-label="Jefes de familia: consultando">
+                  <div class="institutional-report-ring__center">
+                    <strong data-household-ring-value>…</strong>
+                    <span>del total</span>
+                  </div>
+                </div>
+                <div>
+                  <strong>Jefes de familia</strong>
+                  <span data-household-ring-label>Consultando proporción real…</span>
+                </div>
+              </aside>
             </div>
-            <div class="institutional-report-bars" data-chart="age" aria-live="polite"></div>
           </article>
 
-          <article class="institutional-report-card institutional-report-chart">
+          <article class="institutional-report-card institutional-report-card--education institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
                 <span class="institutional-report__section-kicker">Perfil agregado · Dato real</span>
                 <h2>Escolaridad</h2>
+                <p>Composición de la población única según el nivel informado.</p>
               </div>
-              <i class="bi bi-mortarboard" aria-hidden="true"></i>
+              <span class="institutional-report-card__icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
             </div>
-            <div class="institutional-report-bars" data-chart="education" aria-live="polite"></div>
+            <div class="institutional-report-education" data-chart="education" aria-live="polite"></div>
           </article>
 
-          <article class="institutional-report-card institutional-report-chart">
+          <article class="institutional-report-card institutional-report-card--grades institutional-report-chart">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Promedio · Dato real</span>
+                <span class="institutional-report__section-kicker">Promedio académico · Dato real</span>
                 <h2>Notas por materia</h2>
+                <p>Escala fija de 0 a 100 para comparar las materias sin distorsionar el resultado.</p>
               </div>
-              <i class="bi bi-journal-check" aria-hidden="true"></i>
+              <span class="institutional-report-card__icon" aria-hidden="true"><i class="bi bi-journal-check"></i></span>
             </div>
-            <div class="institutional-report-bars" data-chart="grades"></div>
+            <div class="institutional-report-grade-chart" data-chart="grades" aria-live="polite"></div>
           </article>
 
-          <article class="institutional-report-card">
+          <article class="institutional-report-card institutional-report-card--pregnancy">
             <div class="institutional-report-card__heading">
               <div>
-                <span class="institutional-report__section-kicker">Resumen agregado · Dato real</span>
+                <span class="institutional-report__section-kicker">Seguimiento agregado · Dato real</span>
                 <h2>Indicadores de embarazo</h2>
+                <p>Conteos institucionales del período seleccionado.</p>
               </div>
-              <i class="bi bi-heart-pulse" aria-hidden="true"></i>
+              <span class="institutional-report-card__icon" aria-hidden="true"><i class="bi bi-heart-pulse"></i></span>
             </div>
-            <div class="institutional-report-mini-kpis">
-              <div class="institutional-report-mini-kpi">
+            <div class="institutional-report-pregnancy-grid">
+              <div class="institutional-report-stat">
+                <span class="institutional-report-stat__icon" aria-hidden="true"><i class="bi bi-person-heart"></i></span>
                 <span>Mujeres embarazadas</span>
-                <strong data-pregnancy="women" aria-live="polite">0</strong>
+                <strong data-pregnancy="women" aria-live="polite">…</strong>
               </div>
-              <div class="institutional-report-mini-kpi">
-                <span>Hombres asociados a embarazo reportado</span>
-                <strong data-pregnancy="men" aria-live="polite">0</strong>
+              <div class="institutional-report-stat">
+                <span class="institutional-report-stat__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+                <span>Hombres asociados</span>
+                <strong data-pregnancy="men" aria-live="polite">…</strong>
               </div>
-              <div class="institutional-report-mini-kpi">
+              <div class="institutional-report-stat institutional-report-stat--accent">
+                <span class="institutional-report-stat__icon" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
                 <span>Participaron en talleres</span>
-                <strong data-pregnancy="followups" aria-live="polite">0</strong>
+                <strong data-pregnancy="followups" aria-live="polite">…</strong>
               </div>
             </div>
           </article>
 
-          <article class="institutional-report-card institutional-report-card--wide">
+          <article class="institutional-report-card institutional-report-card--wide institutional-report-card--towns">
             <div class="institutional-report-card__heading">
               <div>
                 <span class="institutional-report__section-kicker">Cobertura geográfica · Dato real</span>
-                <h2>Población única atendida por municipio/pueblo</h2>
+                <h2>Población única por municipio o pueblo</h2>
+                <p>Ranking territorial con conteos visibles y barras comparables.</p>
               </div>
-              <i class="bi bi-map" aria-hidden="true"></i>
+              <span class="institutional-report-card__icon" aria-hidden="true"><i class="bi bi-map"></i></span>
             </div>
-            <div class="institutional-report-table-wrap">
-              <table class="institutional-report-table">
+            <div class="institutional-report-town-highlight" data-town-highlight hidden>
+              <span>Mayor alcance del período</span>
+              <strong data-town-highlight-value>—</strong>
+            </div>
+            <div class="institutional-report-table-wrap institutional-report-table-wrap--towns">
+              <table class="institutional-report-table institutional-report-table--towns">
                 <thead>
                   <tr>
                     <th scope="col">Municipio/pueblo</th>
@@ -262,82 +296,106 @@
             </div>
           </article>
 
-          <article class="institutional-report-card institutional-report-card--wide">
+          <article class="institutional-report-card institutional-report-card--wide institutional-report-card--adm">
             <div class="institutional-report-card__heading">
               <div>
                 <span class="institutional-report__section-kicker">Servicios configurados · Dato real</span>
                 <h2>Resumen ADM</h2>
+                <p>Servicios, participación y perfil agregado de las personas atendidas en sesiones ADM.</p>
               </div>
-              <i class="bi bi-table" aria-hidden="true"></i>
+              <span class="institutional-report-adm-badge"><i class="bi bi-shield-check" aria-hidden="true"></i> Dato real</span>
             </div>
 
-            <div class="institutional-report-mini-kpis" aria-label="Indicadores ADM">
-              <div class="institutional-report-mini-kpi">
-                <span>Tipos de servicio</span>
-                <strong data-adm-summary="service_types" aria-live="polite">…</strong>
-              </div>
-              <div class="institutional-report-mini-kpi">
+            <div class="institutional-report-adm-kpis" aria-label="Indicadores ADM">
+              <div class="institutional-report-adm-kpi">
                 <span>Servicios</span>
                 <strong data-adm-summary="services" aria-live="polite">…</strong>
               </div>
-              <div class="institutional-report-mini-kpi">
+              <div class="institutional-report-adm-kpi">
                 <span>Duplicados</span>
                 <strong data-adm-summary="duplicates" aria-live="polite">…</strong>
               </div>
-              <div class="institutional-report-mini-kpi">
-                <span>No Duplicados</span>
+              <div class="institutional-report-adm-kpi">
+                <span>No duplicados</span>
                 <strong data-adm-summary="unique_participants" aria-live="polite">…</strong>
               </div>
             </div>
 
-            <h3>Resumen ADM</h3>
-            <div class="institutional-report-table-wrap">
-              <table class="institutional-report-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Tipo de Servicio</th>
-                    <th scope="col">Servicios</th>
-                    <th scope="col">Duplicados</th>
-                    <th scope="col">No Duplicados</th>
-                  </tr>
-                </thead>
-                <tbody data-adm-service-table aria-live="polite">
-                  <tr><td colspan="4">Consultando datos ADM reales…</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <section class="institutional-report-adm-block institutional-report-adm-block--services" aria-labelledby="adm-services-title">
+              <div class="institutional-report-adm-block__heading">
+                <div>
+                  <span class="institutional-report__section-kicker">Actividad de servicio</span>
+                  <h3 id="adm-services-title">Resumen por tipo de servicio</h3>
+                </div>
+              </div>
+              <div class="institutional-report-table-wrap">
+                <table class="institutional-report-table institutional-report-table--adm">
+                  <thead>
+                    <tr>
+                      <th scope="col">Tipo de servicio</th>
+                      <th scope="col">Servicios</th>
+                      <th scope="col">Duplicados</th>
+                      <th scope="col">No duplicados</th>
+                    </tr>
+                  </thead>
+                  <tbody data-adm-service-table aria-live="polite">
+                    <tr><td colspan="4">Consultando datos ADM reales…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-            <h3>Socio-Demográfico ADM</h3>
-            <div class="institutional-report-table-wrap">
-              <table class="institutional-report-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Edad</th>
-                    <th scope="col">F</th>
-                    <th scope="col">M</th>
-                    <th scope="col">Por Ciento</th>
-                    <th scope="col">Diversidad Funcional</th>
-                  </tr>
-                </thead>
-                <tbody data-adm-sociodemographic-table aria-live="polite">
-                  <tr><td colspan="5">Consultando datos ADM reales…</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <div class="institutional-report-adm-detail-grid">
+              <section class="institutional-report-adm-block" aria-labelledby="adm-demographic-title">
+                <div class="institutional-report-adm-block__heading">
+                  <div>
+                    <span class="institutional-report__section-kicker">Perfil por edad</span>
+                    <h3 id="adm-demographic-title">Socio-Demográfico ADM</h3>
+                  </div>
+                  <span class="institutional-report-adm-legend" aria-label="Leyenda: femenino y masculino">
+                    <span><i class="institutional-report-adm-legend__f"></i> F</span>
+                    <span><i class="institutional-report-adm-legend__m"></i> M</span>
+                  </span>
+                </div>
+                <div class="institutional-report-table-wrap">
+                  <table class="institutional-report-table institutional-report-table--adm institutional-report-table--demographic">
+                    <thead>
+                      <tr>
+                        <th scope="col">Edad</th>
+                        <th scope="col">F</th>
+                        <th scope="col">M</th>
+                        <th scope="col">Por ciento</th>
+                        <th scope="col">Diversidad funcional</th>
+                      </tr>
+                    </thead>
+                    <tbody data-adm-sociodemographic-table aria-live="polite">
+                      <tr><td colspan="5">Consultando datos ADM reales…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
 
-            <h3>Composición Familiar</h3>
-            <div class="institutional-report-table-wrap">
-              <table class="institutional-report-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Composición familiar</th>
-                    <th scope="col">Cantidad</th>
-                  </tr>
-                </thead>
-                <tbody data-adm-family-table aria-live="polite">
-                  <tr><td colspan="2">Consultando datos ADM reales…</td></tr>
-                </tbody>
-              </table>
+              <section class="institutional-report-adm-block" aria-labelledby="adm-family-title">
+                <div class="institutional-report-adm-block__heading">
+                  <div>
+                    <span class="institutional-report__section-kicker">Entorno del hogar</span>
+                    <h3 id="adm-family-title">Composición familiar</h3>
+                  </div>
+                </div>
+                <div class="institutional-report-table-wrap">
+                  <table class="institutional-report-table institutional-report-table--adm institutional-report-table--family">
+                    <thead>
+                      <tr>
+                        <th scope="col">Composición familiar</th>
+                        <th scope="col">Cantidad</th>
+                      </tr>
+                    </thead>
+                    <tbody data-adm-family-table aria-live="polite">
+                      <tr><td colspan="2">Consultando datos ADM reales…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           </article>
         </section>
