@@ -11104,14 +11104,20 @@ body.institutional-report-body {
 
 .institutional-report--faro .institutional-report-town-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
-  align-items: start;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  align-items: stretch;
   gap: 1.25rem;
   margin-top: 1rem;
 }
 
 .institutional-report--faro .institutional-report-town-layout > * {
   min-width: 0;
+  height: 100%;
+}
+
+.institutional-report--faro .institutional-report-town-layout > div:first-child {
+  display: flex;
+  flex-direction: column;
 }
 
 .institutional-report--faro .institutional-report-table-wrap--towns {
@@ -11120,13 +11126,18 @@ body.institutional-report-body {
 
 .institutional-report--faro .institutional-report-map {
   position: relative;
+  flex: 1;
+  display: flex;
   min-width: 0;
 }
 
 .institutional-report--faro .institutional-report-map__stage {
-  min-height: 10rem;
-  display: grid;
-  place-items: center;
+  width: 100%;
+  min-height: 20rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow-x: auto;
   padding: 0.75rem;
   border: 1px solid #d8e5ec;
@@ -11138,9 +11149,14 @@ body.institutional-report-body {
 
 .institutional-report--faro .institutional-report-map__stage svg {
   width: 100%;
+  max-width: 100%;
   height: auto;
+  max-height: 100%;
   display: block;
+  margin: auto;
   overflow: visible;
+  transform: scale(1.04);
+  transform-origin: center;
 }
 
 .institutional-report--faro .institutional-report-map__municipality {
@@ -11494,6 +11510,14 @@ body.institutional-report-body {
     grid-template-columns: 1fr;
   }
 
+  .institutional-report--faro .institutional-report-town-layout > * {
+    height: auto;
+  }
+
+  .institutional-report--faro .institutional-report-map__stage {
+    min-height: 16rem;
+  }
+
   .institutional-report-adm-detail-grid > .institutional-report-adm-block + .institutional-report-adm-block {
     border-top: 1px solid #e5ece8;
     border-left: 0;
@@ -11565,11 +11589,14 @@ body.institutional-report-body {
   }
 
   .institutional-report--faro .institutional-report-map__stage {
+    min-height: 13.75rem;
+    align-items: center;
     justify-content: start;
   }
 
   .institutional-report--faro .institutional-report-map__stage svg {
     min-width: 620px;
+    transform: none;
   }
 }
 
