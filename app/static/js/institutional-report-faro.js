@@ -29,6 +29,10 @@
   const townTable = root.querySelector("[data-town-table]");
   const townHighlight = root.querySelector("[data-town-highlight]");
   const townHighlightValue = root.querySelector("[data-town-highlight-value]");
+  const municipalityMap = root.querySelector("[data-municipality-map]");
+  const municipalityMapStage = root.querySelector("[data-municipality-map-stage]");
+  const municipalityMapTooltip = root.querySelector("[data-municipality-map-tooltip]");
+  const municipalityMapUrl = "/static/img/maps/puerto-rico-municipalities.svg";
   const admSummaryFields = ["service_types", "services", "duplicates", "unique_participants"];
   const admVisibleSummaryFields = ["services", "duplicates", "unique_participants"];
   const admSummaryValues = Object.fromEntries(
@@ -47,6 +51,8 @@
   const ageBucketLabels = ["0 a 12", "13 a 18", "19 a 59", "60 o más", "No informado"];
   const gradeSubjectLabels = ["Español", "Matemáticas", "Ciencias", "Inglés"];
   let activeRequest = null;
+  let municipalityMapSvgPromise = null;
+  let municipalityMapRenderToken = 0;
 
   if (
     !form
@@ -242,6 +248,196 @@
     householdRingValue.textContent = value;
     householdRingLabel.textContent = message;
     householdRing.setAttribute("aria-label", message);
+  };
+
+  function normalizeMunicipality(value = "") {
+    return String(value)
+      .trim()
+      .toLocaleLowerCase("es-PR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  }
+
+  const municipalityMapIsAvailable = () => Boolean(
+    municipalityMap && municipalityMapStage && municipalityMapTooltip
+  );
+
+  const hideMunicipalityMapTooltip = () => {
+    if (!municipalityMapTooltip) {
+      return;
+    }
+    municipalityMapTooltip.hidden = true;
+    municipalityMapTooltip.textContent = "";
+    municipalityMapTooltip.style.removeProperty("left");
+    municipalityMapTooltip.style.removeProperty("top");
+  };
+
+  const replaceMunicipalityMapWithStatus = (message, isError = false) => {
+    if (!municipalityMapIsAvailable()) {
+      return;
+    }
+    hideMunicipalityMapTooltip();
+    const status = document.createElement("p");
+    status.className = "institutional-report-map__status";
+    if (isError) {
+      status.classList.add("institutional-report-map__status--error");
+    }
+    status.setAttribute("role", "status");
+    status.textContent = message;
+    municipalityMapStage.replaceChildren(status);
+  };
+
+  const setMunicipalityMapStatus = (message, isError = false) => {
+    municipalityMapRenderToken += 1;
+    replaceMunicipalityMapWithStatus(message, isError);
+  };
+
+  const loadMunicipalityMapSvg = () => {
+    if (!municipalityMapIsAvailable()) {
+      return Promise.resolve(null);
+    }
+    if (!municipalityMapSvgPromise) {
+      municipalityMapSvgPromise = (async () => {
+        const response = await fetch(municipalityMapUrl, { credentials: "same-origin" });
+        if (!response.ok) {
+          throw new Error(`No fue posible consultar el SVG municipal (${response.status}).`);
+        }
+        const svgText = await response.text();
+        const parsedDocument = new DOMParser().parseFromString(svgText, "image/svg+xml");
+        if (parsedDocument.querySelector("parsererror")) {
+          throw new Error("El SVG municipal no tiene un formato válido.");
+        }
+        const svg = parsedDocument.querySelector("svg");
+        if (!svg || !svg.querySelector("[data-municipality]")) {
+          throw new Error("El SVG municipal no contiene municipios identificables.");
+        }
+        return svg;
+      })();
+    }
+    return municipalityMapSvgPromise;
+  };
+
+  const positionMunicipalityMapTooltip = (municipalityPath, event) => {
+    if (!municipalityMapIsAvailable() || municipalityMapTooltip.hidden) {
+      return;
+    }
+    const mapRect = municipalityMap.getBoundingClientRect();
+    const pathRect = municipalityPath.getBoundingClientRect();
+    const clientX = Number.isFinite(event?.clientX)
+      ? event.clientX
+      : pathRect.left + (pathRect.width / 2);
+    const clientY = Number.isFinite(event?.clientY)
+      ? event.clientY
+      : pathRect.top + (pathRect.height / 2);
+    const tooltipRect = municipalityMapTooltip.getBoundingClientRect();
+    const margin = 8;
+    const maximumLeft = Math.max(margin, mapRect.width - tooltipRect.width - margin);
+    const left = Math.min(
+      maximumLeft,
+      Math.max(margin, clientX - mapRect.left - (tooltipRect.width / 2)),
+    );
+    let top = clientY - mapRect.top - tooltipRect.height - 12;
+    if (top < margin) {
+      top = clientY - mapRect.top + 12;
+    }
+    municipalityMapTooltip.style.left = `${left}px`;
+    municipalityMapTooltip.style.top = `${top}px`;
+  };
+
+  const showMunicipalityMapTooltip = (municipalityPath, event) => {
+    if (!municipalityMapIsAvailable()) {
+      return;
+    }
+    municipalityMapTooltip.textContent = municipalityPath.dataset.mapTooltip || "";
+    municipalityMapTooltip.hidden = false;
+    positionMunicipalityMapTooltip(municipalityPath, event);
+  };
+
+  const renderMunicipalityMap = async (townsByMunicipality) => {
+    if (!municipalityMapIsAvailable()) {
+      return;
+    }
+    const renderToken = ++municipalityMapRenderToken;
+    replaceMunicipalityMapWithStatus("Consultando mapa municipal…");
+
+    try {
+      const svgTemplate = await loadMunicipalityMapSvg();
+      if (renderToken !== municipalityMapRenderToken || !svgTemplate) {
+        return;
+      }
+
+      const normalizedCounts = new Map();
+      Object.entries(townsByMunicipality || {}).forEach(([municipality, value]) => {
+        const normalizedName = normalizeMunicipality(municipality);
+        if (!normalizedName || normalizedName === normalizeMunicipality("No informado")) {
+          return;
+        }
+        const numericValue = Number(value);
+        const count = Number.isFinite(numericValue) ? Math.max(0, Math.trunc(numericValue)) : 0;
+        normalizedCounts.set(normalizedName, (normalizedCounts.get(normalizedName) || 0) + count);
+      });
+
+      const svg = document.importNode(svgTemplate, true);
+      const municipalityPaths = svg.querySelectorAll("[data-municipality]");
+      if (!municipalityPaths.length) {
+        throw new Error("El SVG municipal no contiene municipios identificables.");
+      }
+
+      svg.setAttribute("role", "group");
+      svg.setAttribute("aria-label", "Mapa de Puerto Rico por municipios");
+      municipalityPaths.forEach((municipalityPath) => {
+        const municipalityName = String(municipalityPath.dataset.municipality || "").trim();
+        const count = normalizedCounts.get(normalizeMunicipality(municipalityName)) || 0;
+        const isActive = count > 0;
+        const countLabel = count === 1 ? "1 persona única" : `${numberFormatter.format(count)} personas únicas`;
+        const tooltipText = isActive
+          ? `${municipalityName}: ${countLabel}`
+          : `${municipalityName}: sin participación registrada`;
+
+        municipalityPath.classList.add("institutional-report-map__municipality");
+        municipalityPath.classList.toggle("institutional-report-map__municipality--active", isActive);
+        municipalityPath.classList.toggle("institutional-report-map__municipality--inactive", !isActive);
+        municipalityPath.setAttribute("tabindex", "0");
+        municipalityPath.setAttribute("role", "img");
+        municipalityPath.setAttribute("aria-label", tooltipText);
+        municipalityPath.dataset.mapTooltip = tooltipText;
+        municipalityPath.addEventListener("pointerenter", (event) => {
+          showMunicipalityMapTooltip(municipalityPath, event);
+        });
+        municipalityPath.addEventListener("pointermove", (event) => {
+          positionMunicipalityMapTooltip(municipalityPath, event);
+        });
+        municipalityPath.addEventListener("pointerleave", () => {
+          if (document.activeElement !== municipalityPath) {
+            hideMunicipalityMapTooltip();
+          }
+        });
+        municipalityPath.addEventListener("focus", () => {
+          showMunicipalityMapTooltip(municipalityPath);
+        });
+        municipalityPath.addEventListener("blur", hideMunicipalityMapTooltip);
+        municipalityPath.addEventListener("click", () => {
+          municipalityPath.focus();
+          showMunicipalityMapTooltip(municipalityPath);
+        });
+        municipalityPath.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            hideMunicipalityMapTooltip();
+            municipalityPath.blur();
+          }
+        });
+      });
+
+      municipalityMapStage.replaceChildren(svg);
+    } catch (_error) {
+      if (renderToken === municipalityMapRenderToken) {
+        replaceMunicipalityMapWithStatus(
+          "No fue posible cargar el mapa municipal. El ranking permanece disponible.",
+          true,
+        );
+      }
+    }
   };
 
   const renderTownTable = (towns, emptyMessage = "No hay datos para mostrar.") => {
@@ -710,6 +906,10 @@
     pregnancyWorkshopValue.textContent = "—";
     renderTownTable({}, "No fue posible cargar los municipios reales.");
     townTable.removeAttribute("aria-busy");
+    setMunicipalityMapStatus(
+      "No fue posible cargar el mapa municipal. El ranking permanece disponible.",
+      true,
+    );
     clearAdmMetrics();
   };
 
@@ -765,6 +965,7 @@
     gradesChart.setAttribute("aria-busy", "true");
     renderTownTable({}, "Consultando municipios reales…");
     townTable.setAttribute("aria-busy", "true");
+    setMunicipalityMapStatus("Consultando mapa municipal…");
     setAdmLoading();
     setStatus("Consultando indicadores reales…");
     setLoading(true);
@@ -851,6 +1052,7 @@
       pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
       pregnancyWorkshopValue.textContent = numberFormatter.format(pregnancy.followups);
       renderTownTable(municipalities);
+      void renderMunicipalityMap(municipalities);
       admVisibleSummaryFields.forEach((field) => {
         admSummaryValues[field].textContent = numberFormatter.format(adm.summary[field]);
       });

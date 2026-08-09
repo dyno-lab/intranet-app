@@ -1,0 +1,14 @@
+Puerto Rico municipality SVG map
+
+Source: @svg-maps/puerto-rico / MapSVG
+Repository: https://github.com/VictorCazanave/svg-maps/tree/master/packages/puerto-rico
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License URL: https://creativecommons.org/licenses/by/4.0/
+
+Local modifications made for application use:
+- Added data-municipality to each municipality path.
+- Normalized path IDs to lowercase ASCII kebab-case.
+- Merged the two Mayaguez geometry path components into one SVG path so there are exactly 78 municipality paths.
+
+Suggested attribution:
+"Puerto Rico municipality map adapted from MapSVG / @svg-maps/puerto-rico, licensed CC BY 4.0."

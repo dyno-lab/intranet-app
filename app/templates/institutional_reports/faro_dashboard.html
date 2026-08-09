@@ -272,16 +272,30 @@
               <span>Mayor alcance del período</span>
               <strong data-town-highlight-value>—</strong>
             </div>
-            <div class="institutional-report-table-wrap institutional-report-table-wrap--towns">
-              <table class="institutional-report-table institutional-report-table--towns">
-                <thead>
-                  <tr>
-                    <th scope="col">Municipio/pueblo</th>
-                    <th scope="col">Personas únicas</th>
-                  </tr>
-                </thead>
-                <tbody data-town-table aria-live="polite"></tbody>
-              </table>
+            <div class="institutional-report-town-layout">
+              <div>
+                <div class="institutional-report-map" data-municipality-map>
+                  <div class="institutional-report-map__stage" data-municipality-map-stage>
+                    <p class="institutional-report-map__status" role="status">Consultando mapa municipal…</p>
+                  </div>
+                  <div class="institutional-report-map__tooltip" data-municipality-map-tooltip hidden></div>
+                </div>
+                <p class="institutional-report-map__note">
+                  Los municipios resaltados reflejan participación registrada en el período seleccionado.
+                  “No informado” se conserva en el ranking, pero no se representa en el mapa.
+                </p>
+              </div>
+              <div class="institutional-report-table-wrap institutional-report-table-wrap--towns">
+                <table class="institutional-report-table institutional-report-table--towns">
+                  <thead>
+                    <tr>
+                      <th scope="col">Municipio/pueblo</th>
+                      <th scope="col">Personas únicas</th>
+                    </tr>
+                  </thead>
+                  <tbody data-town-table aria-live="polite"></tbody>
+                </table>
+              </div>
             </div>
           </article>
 
