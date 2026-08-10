@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     ENV: str = "dev"
     SECRET_KEY: str = "change-me"
     FARO_INSTITUTIONAL_REPORT_PIN: str | None = None
+    PLATFORM_SETTINGS_BOOTSTRAP_EMAIL: str | None = None
+    PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD: str | None = None
 
     # Feature flags
     # FASE 2: habilita UI/validaciones para expediente FE-YYYY-XX-####

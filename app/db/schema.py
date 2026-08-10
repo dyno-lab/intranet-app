@@ -1,4 +1,6 @@
-from app.db.session import engine
+from app.core.config import settings
+from app.core.platform_permissions import bootstrap_platform_settings_user
+from app.db.session import SessionLocal, engine
 
 
 PHASE1_PROPOSALS_SQL = """
@@ -1718,9 +1720,214 @@ WHERE NOT EXISTS (
 """
 
 
+PLATFORM_SETTINGS_SQL = """
+IF COL_LENGTH('dbo.users', 'email') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD email VARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.users', 'google_sub') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD google_sub VARCHAR(255) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_users_email'
+      AND object_id = OBJECT_ID('dbo.users')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_users_email
+    ON dbo.users(email)
+    WHERE email IS NOT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_users_google_sub'
+      AND object_id = OBJECT_ID('dbo.users')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_users_google_sub
+    ON dbo.users(google_sub)
+    WHERE google_sub IS NOT NULL;
+END;
+
+IF OBJECT_ID(N'dbo.platform_permissions', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.platform_permissions (
+        permission_id INT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_platform_permissions PRIMARY KEY,
+        [key] VARCHAR(100) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        description VARCHAR(255) NULL,
+        is_active BIT NOT NULL
+            CONSTRAINT DF_platform_permissions_is_active DEFAULT 1,
+        sort_order INT NOT NULL
+            CONSTRAINT DF_platform_permissions_sort_order DEFAULT 0
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_platform_permissions_key'
+      AND object_id = OBJECT_ID('dbo.platform_permissions')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_platform_permissions_key
+    ON dbo.platform_permissions([key]);
+END;
+
+IF OBJECT_ID(N'dbo.user_platform_permissions', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.user_platform_permissions (
+        user_platform_permission_id INT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_user_platform_permissions PRIMARY KEY,
+        user_id INT NOT NULL,
+        permission_id INT NOT NULL,
+        granted_by_user_id INT NULL,
+        created_at DATETIMEOFFSET NOT NULL
+            CONSTRAINT DF_user_platform_permissions_created_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_user_platform_permissions_users'
+      AND parent_object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    ALTER TABLE dbo.user_platform_permissions WITH CHECK
+    ADD CONSTRAINT FK_user_platform_permissions_users
+    FOREIGN KEY (user_id) REFERENCES dbo.users(user_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_user_platform_permissions_permissions'
+      AND parent_object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    ALTER TABLE dbo.user_platform_permissions WITH CHECK
+    ADD CONSTRAINT FK_user_platform_permissions_permissions
+    FOREIGN KEY (permission_id) REFERENCES dbo.platform_permissions(permission_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_user_platform_permissions_granted_by_user'
+      AND parent_object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    ALTER TABLE dbo.user_platform_permissions WITH CHECK
+    ADD CONSTRAINT FK_user_platform_permissions_granted_by_user
+    FOREIGN KEY (granted_by_user_id) REFERENCES dbo.users(user_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_user_platform_permissions_user_permission'
+      AND object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_user_platform_permissions_user_permission
+    ON dbo.user_platform_permissions(user_id, permission_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_user_platform_permissions_permission_id'
+      AND object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    CREATE INDEX IX_user_platform_permissions_permission_id
+    ON dbo.user_platform_permissions(permission_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_user_platform_permissions_granted_by_user_id'
+      AND object_id = OBJECT_ID('dbo.user_platform_permissions')
+)
+BEGIN
+    CREATE INDEX IX_user_platform_permissions_granted_by_user_id
+    ON dbo.user_platform_permissions(granted_by_user_id);
+END;
+
+DECLARE @PlatformPermissionSeeds TABLE (
+    [key] VARCHAR(100) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    description VARCHAR(255) NULL,
+    sort_order INT NOT NULL
+);
+
+INSERT INTO @PlatformPermissionSeeds ([key], name, description, sort_order)
+VALUES
+    ('manage_platform_settings', 'Administrar configuración de plataforma', 'Permite administrar usuarios y permisos de la plataforma.', 10),
+    ('access_faro', 'Acceder a Faro', 'Permite acceder al módulo Faro de Esperanza.', 20),
+    ('access_institutional_reports', 'Acceder a reportes institucionales', 'Permite acceder a los reportes institucionales.', 30),
+    ('access_automation', 'Acceder a automatizaciones', 'Permite acceder a los módulos de automatización.', 40),
+    ('access_new_programs', 'Acceder a nuevos programas', 'Permite acceder a módulos de programas nuevos.', 50);
+
+MERGE dbo.platform_permissions WITH (HOLDLOCK) AS target
+USING @PlatformPermissionSeeds AS source
+ON target.[key] = source.[key]
+WHEN MATCHED THEN
+    UPDATE SET
+        name = source.name,
+        description = source.description,
+        sort_order = source.sort_order
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT ([key], name, description, is_active, sort_order)
+    VALUES (source.[key], source.name, source.description, 1, source.sort_order);
+
+DECLARE @PlatformSettingsBootstrapUserId INT;
+DECLARE @ManagePlatformSettingsPermissionId INT;
+
+SELECT TOP (1) @PlatformSettingsBootstrapUserId = user_id
+FROM dbo.users
+WHERE LOWER(LTRIM(RTRIM(ISNULL(email, '')))) = 'cramirez@csifpr.org'
+   OR LOWER(LTRIM(RTRIM(username))) = 'cramirez@csifpr.org'
+ORDER BY
+    CASE
+        WHEN LOWER(LTRIM(RTRIM(ISNULL(email, '')))) = 'cramirez@csifpr.org' THEN 0
+        ELSE 1
+    END,
+    user_id;
+
+SELECT @ManagePlatformSettingsPermissionId = permission_id
+FROM dbo.platform_permissions
+WHERE [key] = 'manage_platform_settings';
+
+MERGE dbo.user_platform_permissions WITH (HOLDLOCK) AS target
+USING (
+    SELECT
+        @PlatformSettingsBootstrapUserId AS user_id,
+        @ManagePlatformSettingsPermissionId AS permission_id
+) AS source
+ON target.user_id = source.user_id
+   AND target.permission_id = source.permission_id
+WHEN NOT MATCHED BY TARGET
+     AND source.user_id IS NOT NULL
+     AND source.permission_id IS NOT NULL THEN
+    INSERT (user_id, permission_id, granted_by_user_id)
+    VALUES (source.user_id, source.permission_id, NULL);
+"""
+
+
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
+        conn.exec_driver_sql(PLATFORM_SETTINGS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
@@ -1736,3 +1943,16 @@ def ensure_schema_updates() -> None:
 
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
+
+    if (
+        settings.PLATFORM_SETTINGS_BOOTSTRAP_EMAIL
+        and settings.PLATFORM_SETTINGS_BOOTSTRAP_EMAIL.strip()
+        and settings.PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD
+    ):
+        with SessionLocal() as db:
+            bootstrap_platform_settings_user(
+                db,
+                email=settings.PLATFORM_SETTINGS_BOOTSTRAP_EMAIL,
+                password=settings.PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD,
+            )
+            db.commit()
