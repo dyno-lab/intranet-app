@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import HTTPException
@@ -22,7 +23,11 @@ from app.core.platform_permissions import (  # noqa: E402
     user_permission_keys,
 )
 from app.core.security import verify_password  # noqa: E402
-from app.db.schema import PLATFORM_SETTINGS_SQL  # noqa: E402
+from app.db import schema as db_schema  # noqa: E402
+from app.db.schema import (  # noqa: E402
+    PLATFORM_SETTINGS_SQL,
+    PLATFORM_SETTINGS_USER_COLUMNS_SQL,
+)
 import app.models.residential  # noqa: E402, F401
 from app.models.platform_permission import PlatformPermission  # noqa: E402
 from app.models.user import User  # noqa: E402
@@ -152,6 +157,17 @@ def _query_parameters(response) -> dict[str, list[str]]:
 
 class PlatformSettingsTests(unittest.TestCase):
     def test_schema_seed_is_idempotent_and_does_not_create_bootstrap_user(self):
+        self.assertIn(
+            "ALTER TABLE dbo.users ADD email VARCHAR(255) NULL",
+            PLATFORM_SETTINGS_USER_COLUMNS_SQL,
+        )
+        self.assertIn(
+            "ALTER TABLE dbo.users ADD google_sub VARCHAR(255) NULL",
+            PLATFORM_SETTINGS_USER_COLUMNS_SQL,
+        )
+        self.assertNotIn("CREATE UNIQUE INDEX", PLATFORM_SETTINGS_USER_COLUMNS_SQL)
+        self.assertNotIn("ALTER TABLE dbo.users ADD email", PLATFORM_SETTINGS_SQL)
+        self.assertNotIn("ALTER TABLE dbo.users ADD google_sub", PLATFORM_SETTINGS_SQL)
         self.assertIn("CREATE UNIQUE INDEX UX_users_email", PLATFORM_SETTINGS_SQL)
         self.assertIn("WHERE email IS NOT NULL", PLATFORM_SETTINGS_SQL)
         self.assertIn("CREATE UNIQUE INDEX UX_users_google_sub", PLATFORM_SETTINGS_SQL)
@@ -168,6 +184,29 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIn("cramirez@csifpr.org", PLATFORM_SETTINGS_SQL)
         self.assertNotIn("PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD", PLATFORM_SETTINGS_SQL)
         self.assertNotIn("INSERT INTO dbo.users", PLATFORM_SETTINGS_SQL)
+
+    def test_schema_executes_user_columns_before_remaining_platform_settings_sql(self):
+        connection = MagicMock()
+        transaction = MagicMock()
+        transaction.__enter__.return_value = connection
+        mocked_engine = MagicMock()
+        mocked_engine.begin.return_value = transaction
+
+        with (
+            patch.object(db_schema, "engine", mocked_engine),
+            patch.object(db_schema.settings, "PLATFORM_SETTINGS_BOOTSTRAP_EMAIL", None),
+            patch.object(db_schema.settings, "PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD", None),
+        ):
+            db_schema.ensure_schema_updates()
+
+        executed_batches = [
+            call.args[0]
+            for call in connection.exec_driver_sql.call_args_list
+        ]
+        columns_batch_index = executed_batches.index(PLATFORM_SETTINGS_USER_COLUMNS_SQL)
+        platform_settings_batch_index = executed_batches.index(PLATFORM_SETTINGS_SQL)
+
+        self.assertEqual(platform_settings_batch_index, columns_batch_index + 1)
 
     def test_home_is_public_without_session_and_hides_settings_button(self):
         request = _Request()

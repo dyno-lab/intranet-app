@@ -1720,7 +1720,7 @@ WHERE NOT EXISTS (
 """
 
 
-PLATFORM_SETTINGS_SQL = """
+PLATFORM_SETTINGS_USER_COLUMNS_SQL = """
 IF COL_LENGTH('dbo.users', 'email') IS NULL
 BEGIN
     ALTER TABLE dbo.users ADD email VARCHAR(255) NULL;
@@ -1730,6 +1730,10 @@ IF COL_LENGTH('dbo.users', 'google_sub') IS NULL
 BEGIN
     ALTER TABLE dbo.users ADD google_sub VARCHAR(255) NULL;
 END;
+"""
+
+
+PLATFORM_SETTINGS_SQL = """
 
 IF NOT EXISTS (
     SELECT 1
@@ -1927,6 +1931,7 @@ WHEN NOT MATCHED BY TARGET
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
+        conn.exec_driver_sql(PLATFORM_SETTINGS_USER_COLUMNS_SQL)
         conn.exec_driver_sql(PLATFORM_SETTINGS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)
