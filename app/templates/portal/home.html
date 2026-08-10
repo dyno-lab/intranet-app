@@ -94,5 +94,16 @@
       </div>
     </footer>
   </div>
+
+  {% if can_manage_platform_settings %}
+  <a
+    class="program-hub-settings-button"
+    href="/platform/settings"
+    aria-label="Configuración de plataforma"
+    title="Configuración de plataforma"
+  >
+    <i class="bi bi-gear" aria-hidden="true"></i>
+  </a>
+  {% endif %}
 </body>
 </html>

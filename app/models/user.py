@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -10,10 +10,21 @@ from app.models.base import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index("UX_users_email", "email", unique=True, mssql_where=text("email IS NOT NULL")),
+        Index(
+            "UX_users_google_sub",
+            "google_sub",
+            unique=True,
+            mssql_where=text("google_sub IS NOT NULL"),
+        ),
+    )
 
     user_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Roles esperados: "admin" | "supervisor" | "user"

@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.institutional_reports import router as institutional_reports_router
 from app.api.routes.portal import router as portal_router
+from app.api.routes.platform_settings import router as platform_settings_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.catalogs import router as catalogs_router
@@ -42,6 +43,8 @@ import app.models.activity_productivity_goal  # noqa: F401
 import app.models.report_template  # noqa: F401
 import app.models.participant_profile_field  # noqa: F401
 import app.models.participant_profile_field_value  # noqa: F401
+import app.models.platform_permission  # noqa: F401
+import app.models.user_platform_permission  # noqa: F401
 
 app = FastAPI(title="Intranet App")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -58,6 +61,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(portal_router)             # /home
+app.include_router(platform_settings_router)  # /platform/settings
 app.include_router(institutional_reports_router)  # /reporteinstitucionales/...
 app.include_router(auth_router)               # /login, /logout
 app.include_router(ui_router, prefix="/ui")   # /ui/...
