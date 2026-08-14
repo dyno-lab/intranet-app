@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup moderno · Reporte Institucional Faro</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --page: #eef3f6;
+      --surface: #ffffff;
+      --surface-soft: #f7fafc;
+      --line: #dce6ef;
+      --line-strong: #c7d5e1;
+      --ink: #17324d;
+      --muted: #61788b;
+      --primary: #0d3b66;
+      --primary-2: #155e7c;
+      --primary-soft: #eaf2f9;
+      --teal: #2a9d8f;
+      --teal-dark: #167d73;
+      --teal-soft: #e8f6f4;
+      --gold: #b9822b;
+      --gold-soft: #f7ead8;
+      --green-dark: #0a433d;
+      --danger: #b54752;
+      --shadow: 0 16px 44px rgba(13, 59, 102, 0.09);
+      --shadow-soft: 0 8px 24px rgba(13, 59, 102, 0.055);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 90% 0%, rgba(42, 157, 143, 0.12), transparent 32rem),
+        linear-gradient(180deg, #f8fbfd 0, var(--page) 100%);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    button, select, input { font: inherit; }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(42, 157, 143, 0.22);
+      outline-offset: 2px;
+    }
+
+    .mockup-note {
+      max-width: 1480px;
+      margin: 18px auto 0;
+      padding: 0 24px;
+    }
+
+    .mockup-note__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 14px;
+      border: 1px dashed #9eb4c5;
+      border-radius: 12px;
+      color: #496479;
+      background: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+    }
+
+    .mockup-note strong { color: var(--primary); }
+
+    .status-pill,
+    .source-pill,
+    .period-pill,
+    .legend-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      color: #155f59;
+      background: #e7f7f4;
+      border: 1px solid rgba(42, 157, 143, .28);
+    }
+
+    .page-shell {
+      max-width: 1480px;
+      margin: 18px auto 32px;
+      overflow: hidden;
+      border: 1px solid rgba(13, 59, 102, .10);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: 0 28px 80px rgba(13, 59, 102, .13);
+    }
+
+    .hero {
+      color: #fff;
+      background:
+        radial-gradient(circle at 89% 5%, rgba(255, 255, 255, .14), transparent 18rem),
+        linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 58%, #238b82 100%);
+    }
+
+    .hero__topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, .14);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand__mark {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid rgba(255, 255, 255, .24);
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(135deg, rgba(240, 193, 90, .95), rgba(42, 157, 143, .92));
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .15);
+      font-size: 22px;
+    }
+
+    .brand__name { font-size: 15px; font-weight: 850; }
+    .brand__context { margin-top: 2px; color: rgba(255, 255, 255, .72); font-size: 12px; }
+
+    .hero__actions { display: flex; align-items: center; gap: 10px; }
+
+    .button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .button--glass {
+      color: #fff;
+      border-color: rgba(255, 255, 255, .28);
+      background: rgba(255, 255, 255, .09);
+    }
+
+    .button--light { color: var(--primary); background: #fff; }
+    .button--primary { color: #fff; background: linear-gradient(135deg, var(--primary), var(--primary-2)); }
+    .button--secondary { color: var(--primary); border-color: var(--line-strong); background: #fff; }
+
+    .hero__body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 28px;
+      align-items: end;
+      padding: 32px 30px 38px;
+    }
+
+    .eyebrow {
+      display: block;
+      color: rgba(255, 255, 255, .72);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      max-width: 850px;
+      margin: 8px 0 0;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+
+    .hero__description {
+      max-width: 780px;
+      margin: 10px 0 0;
+      color: rgba(255, 255, 255, .82);
+      font-size: 15px;
+    }
+
+    .hero__snapshot {
+      min-width: 220px;
+      padding: 16px 18px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 15px;
+      background: rgba(7, 39, 61, .26);
+      backdrop-filter: blur(7px);
+    }
+
+    .hero__snapshot span { display: block; color: rgba(255, 255, 255, .68); font-size: 11px; text-transform: uppercase; }
+    .hero__snapshot strong { display: block; margin-top: 5px; font-size: 18px; }
+    .hero__snapshot small { display: block; margin-top: 4px; color: rgba(255, 255, 255, .78); }
+
+    .content { padding: 24px 30px 34px; background: #f8fbfd; }
+
+    .data-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border: 1px solid rgba(42, 157, 143, .25);
+      border-radius: 13px;
+      color: #155f59;
+      background: #edf9f7;
+      font-size: 13px;
+    }
+
+    .filters,
+    .card,
+    .kpi,
+    .behavior-notes {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .filters { padding: 18px; border-radius: 18px; }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 15px;
+    }
+
+    .section-kicker {
+      color: var(--teal-dark);
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .section-heading h2,
+    .card__heading h2,
+    .adm-heading h2 {
+      margin: 4px 0 0;
+      color: var(--primary);
+      font-size: 18px;
+      letter-spacing: -.015em;
+    }
+
+    .section-heading p,
+    .card__heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1.5fr .7fr .8fr .8fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field label { display: block; margin-bottom: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
+
+    .field select,
+    .field input {
+      width: 100%;
+      min-height: 43px;
+      padding: 9px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .proposal-box {
+      min-height: 43px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .proposal-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      color: #155f59;
+      background: var(--teal-soft);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .filter-actions { display: flex; gap: 8px; }
+
+    .report-context {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 22px 0 14px;
+    }
+
+    .report-context h2 { margin: 0; color: var(--primary); font-size: 20px; }
+    .report-context p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+    .period-pill { color: var(--primary); border: 1px solid #bdd0df; background: var(--primary-soft); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .kpi {
+      min-width: 0;
+      min-height: 138px;
+      padding: 15px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi::after {
+      content: "";
+      position: absolute;
+      right: -26px;
+      bottom: -38px;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: rgba(42, 157, 143, .06);
+    }
+
+    .kpi__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .kpi__icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--teal-dark); background: var(--teal-soft); }
+    .source-pill { color: #155f59; border: 1px solid rgba(42, 157, 143, .26); background: #e7f7f4; font-size: 9px; }
+    .kpi__label { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; font-weight: 750; }
+    .kpi__value { display: block; margin-top: 2px; color: var(--primary); font-size: 28px; line-height: 1; }
+    .kpi__meta { display: block; margin-top: 8px; color: #6d8192; font-size: 10px; }
+
+    .sparkline { width: 54px; height: 22px; }
+    .sparkline polyline { fill: none; stroke: var(--teal); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .dashboard-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+    .card { min-width: 0; padding: 18px; border-radius: 18px; }
+    .card--7 { grid-column: span 7; }
+    .card--5 { grid-column: span 5; }
+    .card--6 { grid-column: span 6; }
+    .card--12 { grid-column: 1 / -1; }
+
+    .card__heading,
+    .adm-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 15px;
+      padding-bottom: 13px;
+      border-bottom: 1px solid #edf1f5;
+    }
+
+    .card__heading-actions { display: flex; align-items: center; gap: 7px; }
+    .legend-pill { color: var(--muted); border: 1px solid var(--line); background: var(--surface-soft); font-size: 9px; }
+    .legend-pill i { color: var(--teal); }
+
+    .age-layout { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 24px; align-items: center; padding-top: 18px; }
+    .bars { display: grid; gap: 12px; }
+    .bar__labels { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; font-size: 11px; }
+    .bar__labels span { color: var(--muted); }
+    .bar__labels strong { color: var(--primary); }
+    .bar__track { height: 12px; overflow: hidden; border-radius: 999px; background: #eaf0f5; }
+    .bar__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary), var(--teal)); }
+    .bar__fill--gold { background: linear-gradient(90deg, #8c661f, #d3a450); }
+    .bar__fill--soft { background: linear-gradient(90deg, #93a9ba, #c2d0da); }
+
+    .donut-wrap { display: grid; place-items: center; position: relative; }
+    .donut { width: 170px; height: 170px; transform: rotate(-90deg); }
+    .donut circle { fill: none; stroke-width: 18; }
+    .donut__base { stroke: #e9eff4; }
+    .donut__value { stroke: var(--teal); stroke-linecap: round; }
+    .donut__value--gold { stroke: var(--gold); }
+    .donut-center { position: absolute; text-align: center; }
+    .donut-center strong { display: block; color: var(--primary); font-size: 29px; line-height: 1; }
+    .donut-center span { display: block; width: 90px; margin-top: 5px; color: var(--muted); font-size: 10px; }
+
+    .education-layout { display: grid; grid-template-columns: 185px minmax(0, 1fr); gap: 18px; align-items: center; padding-top: 18px; }
+    .education-donut { position: relative; width: 168px; height: 168px; border-radius: 50%; background: conic-gradient(#0d3b66 0 28%, #2a9d8f 28% 51%, #b9822b 51% 67%, #7b8fa2 67% 82%, #d9e3eb 82% 100%); }
+    .education-donut::after { content: ""; position: absolute; inset: 28px; border-radius: 50%; background: #fff; }
+    .education-donut__center { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; text-align: center; }
+    .education-donut__center strong { font-size: 27px; color: var(--primary); }
+    .education-donut__center span { color: var(--muted); font-size: 10px; }
+    .legend-list { display: grid; gap: 9px; }
+    .legend-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 11px; }
+    .legend-row i { width: 9px; height: 9px; border-radius: 3px; }
+    .legend-row span { color: var(--muted); }
+    .legend-row strong { color: var(--primary); }
+
+    .grade-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 18px; }
+    .grade {
+      padding: 14px;
+      border: 1px solid #e5edf3;
+      border-radius: 13px;
+      background: var(--surface-soft);
+    }
+    .grade__label { color: var(--muted); font-size: 11px; font-weight: 750; }
+    .grade__value { display: flex; align-items: baseline; gap: 3px; margin-top: 4px; color: var(--primary); }
+    .grade__value strong { font-size: 25px; }
+    .grade__value span { font-size: 10px; }
+    .grade__track { position: relative; height: 8px; margin-top: 11px; border-radius: 999px; background: #e3ebf1; }
+    .grade__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary), var(--teal)); }
+    .grade__target { position: absolute; top: -3px; bottom: -3px; left: 70%; width: 2px; background: var(--gold); }
+    .grade__foot { display: flex; justify-content: space-between; margin-top: 7px; color: #7a8d9d; font-size: 9px; }
+
+    .pregnancy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; padding-top: 18px; }
+    .pregnancy-stat { padding: 15px; border: 1px solid #e7edf3; border-radius: 13px; background: #fbfcfd; }
+    .pregnancy-stat i { color: var(--teal-dark); }
+    .pregnancy-stat strong { display: block; margin-top: 9px; color: var(--primary); font-size: 25px; }
+    .pregnancy-stat span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .pregnancy-note { margin: 12px 0 0; padding: 9px 11px; border-radius: 10px; color: #7a5a1b; background: #fbf3e7; font-size: 10px; }
+
+    .municipality-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 26px; padding-top: 18px; }
+    .rank-list { display: grid; gap: 12px; }
+    .rank-row { display: grid; grid-template-columns: 24px 110px minmax(0, 1fr) 42px; gap: 10px; align-items: center; }
+    .rank { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 8px; color: var(--primary); background: var(--primary-soft); font-size: 10px; font-weight: 850; }
+    .rank-row__name { color: var(--ink); font-size: 11px; font-weight: 750; }
+    .rank-row__value { color: var(--primary); font-size: 11px; font-weight: 850; text-align: right; }
+    .municipality-summary { display: grid; align-content: start; gap: 10px; padding: 15px; border-radius: 14px; color: #fff; background: linear-gradient(145deg, var(--primary), #176f78); }
+    .municipality-summary span { color: rgba(255, 255, 255, .7); font-size: 10px; text-transform: uppercase; }
+    .municipality-summary strong { font-size: 34px; line-height: 1; }
+    .municipality-summary p { margin: 0; color: rgba(255, 255, 255, .82); font-size: 11px; }
+
+    .adm-card { border-color: rgba(185, 130, 43, .32); }
+    .adm-heading { border-bottom-color: #eee2cf; }
+    .adm-heading .section-kicker { color: #8b631f; }
+    .adm-heading h2 { color: var(--green-dark); }
+    .adm-badge { color: #714e15; border: 1px solid #d7b77b; background: var(--gold-soft); }
+
+    .adm-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; }
+    .adm-kpi { padding: 12px 14px; border: 1px solid #e6ddce; border-radius: 12px; background: #fbfaf7; }
+    .adm-kpi span { display: block; color: #776957; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+    .adm-kpi strong { display: block; margin-top: 4px; color: var(--green-dark); font-size: 23px; }
+    .adm-kpi--accent { border-color: #d8b46f; background: var(--gold-soft); }
+
+    .adm-grid { display: grid; grid-template-columns: 1.1fr 1fr .8fr; gap: 14px; }
+    .adm-panel { min-width: 0; padding: 14px; border: 1px solid #e8e1d5; border-radius: 13px; background: #fffdfa; }
+    .adm-panel h3 { margin: 0; color: var(--green-dark); font-size: 13px; }
+    .adm-panel > p { margin: 4px 0 12px; color: #786f61; font-size: 10px; }
+
+    .service-row { display: grid; grid-template-columns: 105px minmax(0, 1fr) 30px; gap: 8px; align-items: center; margin-top: 10px; }
+    .service-row__label { color: #4f5f59; font-size: 10px; }
+    .service-row__bar { height: 8px; overflow: hidden; border-radius: 999px; background: #eee9df; }
+    .service-row__bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green-dark), var(--teal)); }
+    .service-row__value { color: var(--green-dark); font-size: 10px; font-weight: 850; text-align: right; }
+
+    .stack-list { display: grid; gap: 8px; }
+    .stack-row__top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; color: #65716d; font-size: 9px; }
+    .stack { height: 10px; display: flex; overflow: hidden; border-radius: 999px; background: #ecefeD; }
+    .stack__f { background: var(--teal); }
+    .stack__m { background: var(--primary); }
+    .stack__other { background: #c5d1d0; }
+    .stack-legend { display: flex; gap: 10px; margin-top: 10px; color: #6f7d77; font-size: 9px; }
+    .stack-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; }
+
+    .family-chart { display: grid; place-items: center; padding-top: 4px; }
+    .family-donut { position: relative; width: 132px; height: 132px; border-radius: 50%; background: conic-gradient(var(--green-dark) 0 41%, var(--teal) 41% 73%, var(--gold) 73% 91%, #c9d4d0 91% 100%); }
+    .family-donut::after { content: ""; position: absolute; inset: 24px; border-radius: 50%; background: #fffdfa; }
+    .family-center { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; text-align: center; }
+    .family-center strong { color: var(--green-dark); font-size: 24px; }
+    .family-center span { color: #746d62; font-size: 9px; }
+
+    .behavior-notes { margin-top: 18px; padding: 18px; border-radius: 18px; }
+    .behavior-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .behavior { padding: 13px; border: 1px dashed #c6d5df; border-radius: 12px; background: #fbfdfe; }
+    .behavior i { color: var(--teal-dark); }
+    .behavior strong { display: block; margin-top: 7px; color: var(--primary); font-size: 12px; }
+    .behavior p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+
+    .footer { padding: 18px 30px; border-top: 1px solid var(--line); color: var(--muted); background: #fff; text-align: center; font-size: 11px; }
+
+    @media (max-width: 1180px) {
+      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+      .filter-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
+      .card--7, .card--5, .card--6 { grid-column: 1 / -1; }
+      .adm-grid { grid-template-columns: 1fr 1fr; }
+      .adm-panel:last-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 760px) {
+      .mockup-note, .content { padding-left: 14px; padding-right: 14px; }
+      .mockup-note__inner { align-items: flex-start; flex-direction: column; }
+      .mockup-note .status-pill { white-space: normal; }
+      .page-shell { margin: 12px; border-radius: 18px; }
+      .hero__topbar, .hero__body { padding-left: 18px; padding-right: 18px; }
+      .hero__topbar, .hero__body, .report-context, .section-heading { align-items: flex-start; flex-direction: column; }
+      .hero__body { display: flex; }
+      .hero__snapshot { width: 100%; }
+      .hero__actions { width: 100%; }
+      .hero__actions .button:first-child { display: none; }
+      .filter-grid, .adm-kpis, .adm-grid, .behavior-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filter-actions { justify-content: stretch; }
+      .filter-actions .button { flex: 1; }
+      .age-layout, .education-layout, .municipality-layout { grid-template-columns: 1fr; }
+      .grade-grid, .pregnancy-grid { grid-template-columns: repeat(2, 1fr); }
+      .adm-panel:last-child { grid-column: auto; }
+    }
+
+    @media (max-width: 460px) {
+      .grade-grid, .pregnancy-grid { grid-template-columns: 1fr; }
+      .rank-row { grid-template-columns: 24px 84px minmax(0, 1fr) 34px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-note">
+    <div class="mockup-note__inner">
+      <span><strong>Mockup para aprobación visual.</strong> Los valores son datos de ejemplo; no consulta la base de datos.</span>
+      <span class="status-pill"><i class="bi bi-palette"></i> Paleta institucional + ADM</span>
+    </div>
+  </div>
+
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero__topbar">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true"><i class="bi bi-brightness-high-fill"></i></div>
+          <div>
+            <div class="brand__name">Faro de Esperanza</div>
+            <div class="brand__context">Reporte institucional protegido</div>
+          </div>
+        </div>
+        <div class="hero__actions">
+          <button class="button button--glass" type="button"><i class="bi bi-grid"></i> Otros reportes</button>
+          <button class="button button--glass" type="button"><i class="bi bi-lock"></i> Cerrar acceso</button>
+        </div>
+      </div>
+      <div class="hero__body">
+        <div>
+          <span class="eyebrow">Resultados agregados · Dato real</span>
+          <h1>Reporte Institucional Faro de Esperanza</h1>
+          <p class="hero__description">Lectura ejecutiva de participación, servicios, población atendida, desempeño académico y resultados ADM.</p>
+        </div>
+        <div class="hero__snapshot">
+          <span>Vista actual</span>
+          <strong>Enero – diciembre 2026</strong>
+          <small>2 propuestas seleccionadas · Global</small>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="data-notice" role="note">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        <span><strong>Privacidad preservada:</strong> esta vista contiene únicamente indicadores agregados. No muestra nombres, expedientes, contactos, direcciones ni registros individuales.</span>
+      </div>
+
+      <section class="filters" aria-labelledby="filters-title">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">Consulta institucional</span>
+            <h2 id="filters-title">Filtros del reporte</h2>
+          </div>
+          <p>Un solo bloque compacto, igual al patrón aprobado en el Centro de reportes.</p>
+        </div>
+        <div class="filter-grid">
+          <div class="field">
+            <label>Propuestas</label>
+            <div class="proposal-box">
+              <span class="proposal-chip"><i class="bi bi-check-circle-fill"></i> FARO 2026</span>
+              <span class="proposal-chip"><i class="bi bi-check-circle-fill"></i> Servicios 2026</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="mock-year">Año</label>
+            <select id="mock-year"><option>2026</option></select>
+          </div>
+          <div class="field">
+            <label for="mock-start">Fecha inicial</label>
+            <input id="mock-start" type="date" value="2026-01-01">
+          </div>
+          <div class="field">
+            <label for="mock-end">Fecha final</label>
+            <input id="mock-end" type="date" value="2026-12-31">
+          </div>
+          <div class="filter-actions">
+            <button class="button button--secondary" type="button">Restablecer</button>
+            <button class="button button--primary" type="button"><i class="bi bi-funnel"></i> Aplicar filtros</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="report-context">
+        <div>
+          <h2>Resumen ejecutivo</h2>
+          <p>Jerarquía visual: indicadores clave, distribuciones, detalle territorial y bloque ADM.</p>
+        </div>
+        <span class="period-pill"><i class="bi bi-calendar3"></i> Actualizado 7 ago 2026 · 10:24 a. m.</span>
+      </div>
+
+      <section class="kpi-grid" aria-label="Indicadores principales">
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-people-fill"></i></span><span class="source-pill">Dato real</span></div>
+          <span class="kpi__label">Personas únicas atendidas</span><strong class="kpi__value">142</strong><span class="kpi__meta">Base para distribuciones</span>
+        </article>
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-calendar2-check"></i></span><svg class="sparkline" viewBox="0 0 54 22" aria-label="Tendencia ascendente"><polyline points="1,18 9,15 17,16 26,9 35,11 44,5 53,3"/></svg></div>
+          <span class="kpi__label">Actividades registradas</span><strong class="kpi__value">38</strong><span class="kpi__meta">+6 en el último trimestre</span>
+        </article>
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-files"></i></span><span class="source-pill">Dato real</span></div>
+          <span class="kpi__label">Participaciones acumuladas</span><strong class="kpi__value">214</strong><span class="kpi__meta">Semántica ADM: duplicados</span>
+        </article>
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-house-check-fill"></i></span><span class="source-pill">Dato real</span></div>
+          <span class="kpi__label">Jefes de familia</span><strong class="kpi__value">57</strong><span class="kpi__meta">40.1% de personas únicas</span>
+        </article>
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-geo-alt-fill"></i></span><span class="source-pill">Dato real</span></div>
+          <span class="kpi__label">Municipios alcanzados</span><strong class="kpi__value">8</strong><span class="kpi__meta">Mayor alcance: Caguas</span>
+        </article>
+        <article class="kpi">
+          <div class="kpi__top"><span class="kpi__icon"><i class="bi bi-diagram-3-fill"></i></span><span class="source-pill">ADM</span></div>
+          <span class="kpi__label">Tipos de servicio ADM</span><strong class="kpi__value">4</strong><span class="kpi__meta">38 servicios configurados</span>
+        </article>
+      </section>
+
+      <section class="dashboard-grid" aria-label="Visualizaciones del reporte">
+        <article class="card card--7">
+          <div class="card__heading">
+            <div><span class="section-kicker">Distribución poblacional</span><h2>Personas únicas por rango de edad</h2><p>Valor y porcentaje visibles; escala comparable en una sola lectura.</p></div>
+            <div class="card__heading-actions"><span class="legend-pill"><i class="bi bi-circle-fill"></i> Personas</span></div>
+          </div>
+          <div class="age-layout">
+            <div class="bars">
+              <div><div class="bar__labels"><span>0 a 12</span><strong>36 · 25.4%</strong></div><div class="bar__track"><div class="bar__fill" style="width:100%"></div></div></div>
+              <div><div class="bar__labels"><span>13 a 18</span><strong>29 · 20.4%</strong></div><div class="bar__track"><div class="bar__fill" style="width:81%"></div></div></div>
+              <div><div class="bar__labels"><span>19 a 59</span><strong>54 · 38.0%</strong></div><div class="bar__track"><div class="bar__fill" style="width:100%"></div></div></div>
+              <div><div class="bar__labels"><span>60 o más</span><strong>18 · 12.7%</strong></div><div class="bar__track"><div class="bar__fill--gold bar__fill" style="width:33%"></div></div></div>
+              <div><div class="bar__labels"><span>No informado</span><strong>5 · 3.5%</strong></div><div class="bar__track"><div class="bar__fill--soft bar__fill" style="width:9%"></div></div></div>
+            </div>
+            <div class="donut-wrap">
+              <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="57 jefes de familia de 142 personas">
+                <circle class="donut__base" cx="60" cy="60" r="45"></circle>
+                <circle class="donut__value donut__value--gold" cx="60" cy="60" r="45" stroke-dasharray="113 283"></circle>
+              </svg>
+              <div class="donut-center"><strong>57</strong><span>jefes de familia · 40.1%</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--5">
+          <div class="card__heading">
+            <div><span class="section-kicker">Perfil agregado</span><h2>Escolaridad</h2><p>Distribución compacta con valores y proporciones.</p></div>
+            <span class="legend-pill"><i class="bi bi-circle-fill"></i> 142 personas</span>
+          </div>
+          <div class="education-layout">
+            <div class="education-donut" role="img" aria-label="Distribución de escolaridad">
+              <div class="education-donut__center"><strong>142</strong><span>personas</span></div>
+            </div>
+            <div class="legend-list">
+              <div class="legend-row"><i style="background:#0d3b66"></i><span>Elemental</span><strong>40 · 28%</strong></div>
+              <div class="legend-row"><i style="background:#2a9d8f"></i><span>Intermedia</span><strong>33 · 23%</strong></div>
+              <div class="legend-row"><i style="background:#b9822b"></i><span>Superior</span><strong>23 · 16%</strong></div>
+              <div class="legend-row"><i style="background:#7b8fa2"></i><span>Universitaria</span><strong>22 · 15%</strong></div>
+              <div class="legend-row"><i style="background:#d9e3eb"></i><span>No informado</span><strong>24 · 17%</strong></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--6">
+          <div class="card__heading">
+            <div><span class="section-kicker">Desempeño académico</span><h2>Promedio de notas por materia</h2><p>Escala fija 0–100 con referencia visual en 70.</p></div>
+            <span class="legend-pill"><i class="bi bi-dash-lg" style="color:#b9822b"></i> Meta 70</span>
+          </div>
+          <div class="grade-grid">
+            <div class="grade"><span class="grade__label">Español</span><div class="grade__value"><strong>84</strong><span>/100</span></div><div class="grade__track"><div class="grade__fill" style="width:84%"></div><i class="grade__target"></i></div><div class="grade__foot"><span>0</span><span>Meta</span><span>100</span></div></div>
+            <div class="grade"><span class="grade__label">Matemáticas</span><div class="grade__value"><strong>78</strong><span>/100</span></div><div class="grade__track"><div class="grade__fill" style="width:78%"></div><i class="grade__target"></i></div><div class="grade__foot"><span>0</span><span>Meta</span><span>100</span></div></div>
+            <div class="grade"><span class="grade__label">Ciencias</span><div class="grade__value"><strong>81</strong><span>/100</span></div><div class="grade__track"><div class="grade__fill" style="width:81%"></div><i class="grade__target"></i></div><div class="grade__foot"><span>0</span><span>Meta</span><span>100</span></div></div>
+            <div class="grade"><span class="grade__label">Inglés</span><div class="grade__value"><strong>76</strong><span>/100</span></div><div class="grade__track"><div class="grade__fill" style="width:76%"></div><i class="grade__target"></i></div><div class="grade__foot"><span>0</span><span>Meta</span><span>100</span></div></div>
+          </div>
+        </article>
+
+        <article class="card card--6">
+          <div class="card__heading">
+            <div><span class="section-kicker">Resumen agregado</span><h2>Indicadores de embarazo</h2><p>Separación clara de personas y participación en talleres.</p></div>
+            <span class="legend-pill"><i class="bi bi-shield-check"></i> Sin PII</span>
+          </div>
+          <div class="pregnancy-grid">
+            <div class="pregnancy-stat"><i class="bi bi-person-heart"></i><strong>12</strong><span>Mujeres embarazadas</span></div>
+            <div class="pregnancy-stat"><i class="bi bi-people"></i><strong>7</strong><span>Hombres asociados</span></div>
+            <div class="pregnancy-stat"><i class="bi bi-journal-check"></i><strong>31</strong><span>Participaron en talleres</span></div>
+          </div>
+          <p class="pregnancy-note"><i class="bi bi-info-circle"></i> Los indicadores provienen del reporte mensual más reciente disponible por participante.</p>
+        </article>
+
+        <article class="card card--12">
+          <div class="card__heading">
+            <div><span class="section-kicker">Cobertura geográfica</span><h2>Población única por municipio</h2><p>Ranking visual para detectar concentración sin depender de una tabla extensa.</p></div>
+            <span class="legend-pill"><i class="bi bi-geo-alt-fill"></i> 8 municipios</span>
+          </div>
+          <div class="municipality-layout">
+            <div class="rank-list">
+              <div class="rank-row"><span class="rank">1</span><span class="rank-row__name">Caguas</span><div class="bar__track"><div class="bar__fill" style="width:100%"></div></div><strong class="rank-row__value">42</strong></div>
+              <div class="rank-row"><span class="rank">2</span><span class="rank-row__name">Cayey</span><div class="bar__track"><div class="bar__fill" style="width:76%"></div></div><strong class="rank-row__value">32</strong></div>
+              <div class="rank-row"><span class="rank">3</span><span class="rank-row__name">Cidra</span><div class="bar__track"><div class="bar__fill" style="width:57%"></div></div><strong class="rank-row__value">24</strong></div>
+              <div class="rank-row"><span class="rank">4</span><span class="rank-row__name">San Juan</span><div class="bar__track"><div class="bar__fill" style="width:40%"></div></div><strong class="rank-row__value">17</strong></div>
+              <div class="rank-row"><span class="rank">5</span><span class="rank-row__name">Otros</span><div class="bar__track"><div class="bar__fill--gold bar__fill" style="width:64%"></div></div><strong class="rank-row__value">27</strong></div>
+            </div>
+            <div class="municipality-summary"><span>Municipio con mayor alcance</span><strong>Caguas</strong><p>42 personas únicas · 29.6% del total institucional consultado.</p><span>Sin municipio informado: 3</span></div>
+          </div>
+        </article>
+
+        <article class="card card--12 adm-card">
+          <div class="adm-heading">
+            <div><span class="section-kicker">Servicios configurados · Dato real</span><h2>Resumen ADM</h2><p>El bloque conserva la paleta verde/dorada aprobada para los reportes ADM.</p></div>
+            <span class="status-pill adm-badge"><i class="bi bi-diagram-3-fill"></i> ADM</span>
+          </div>
+
+          <div class="adm-kpis">
+            <div class="adm-kpi"><span>Tipos de servicio</span><strong>4</strong></div>
+            <div class="adm-kpi"><span>Servicios</span><strong>38</strong></div>
+            <div class="adm-kpi"><span>Duplicados</span><strong>214</strong></div>
+            <div class="adm-kpi adm-kpi--accent"><span>No Duplicados</span><strong>142</strong></div>
+          </div>
+
+          <div class="adm-grid">
+            <section class="adm-panel" aria-labelledby="adm-service-title">
+              <h3 id="adm-service-title">Servicios por tipo ADM</h3><p>Sesiones distintas; el valor se mantiene visible junto a la barra.</p>
+              <div class="service-row"><span class="service-row__label">Orientación</span><div class="service-row__bar"><i style="width:100%"></i></div><strong class="service-row__value">12</strong></div>
+              <div class="service-row"><span class="service-row__label">Taller educativo</span><div class="service-row__bar"><i style="width:83%"></i></div><strong class="service-row__value">10</strong></div>
+              <div class="service-row"><span class="service-row__label">Intervención</span><div class="service-row__bar"><i style="width:75%"></i></div><strong class="service-row__value">9</strong></div>
+              <div class="service-row"><span class="service-row__label">Referido</span><div class="service-row__bar"><i style="width:58%"></i></div><strong class="service-row__value">7</strong></div>
+            </section>
+
+            <section class="adm-panel" aria-labelledby="adm-demo-title">
+              <h3 id="adm-demo-title">Socio-Demográfico ADM</h3><p>Distribución F/M por edad; diversidad funcional queda disponible en tooltip/tabla.</p>
+              <div class="stack-list">
+                <div><div class="stack-row__top"><span>0–5</span><strong>11 · 7.75%</strong></div><div class="stack"><i class="stack__f" style="width:55%"></i><i class="stack__m" style="width:45%"></i></div></div>
+                <div><div class="stack-row__top"><span>6–11</span><strong>21 · 14.79%</strong></div><div class="stack"><i class="stack__f" style="width:52%"></i><i class="stack__m" style="width:48%"></i></div></div>
+                <div><div class="stack-row__top"><span>12–17</span><strong>28 · 19.72%</strong></div><div class="stack"><i class="stack__f" style="width:54%"></i><i class="stack__m" style="width:46%"></i></div></div>
+                <div><div class="stack-row__top"><span>18–45</span><strong>54 · 38.03%</strong></div><div class="stack"><i class="stack__f" style="width:56%"></i><i class="stack__m" style="width:44%"></i></div></div>
+                <div><div class="stack-row__top"><span>46+</span><strong>28 · 19.72%</strong></div><div class="stack"><i class="stack__f" style="width:57%"></i><i class="stack__m" style="width:43%"></i></div></div>
+              </div>
+              <div class="stack-legend"><span><i style="background:#2a9d8f"></i>F</span><span><i style="background:#0d3b66"></i>M</span></div>
+            </section>
+
+            <section class="adm-panel" aria-labelledby="adm-family-title">
+              <h3 id="adm-family-title">Composición Familiar</h3><p>Resumen visual; las categorías completas permanecen disponibles en tabla.</p>
+              <div class="family-chart">
+                <div class="family-donut" role="img" aria-label="Composición familiar de 142 participantes">
+                  <div class="family-center"><strong>142</strong><span>participantes</span></div>
+                </div>
+              </div>
+              <div class="stack-legend"><span><i style="background:#0a433d"></i>Nuclear 58</span><span><i style="background:#2a9d8f"></i>Extendida 46</span><span><i style="background:#b9822b"></i>Otros 38</span></div>
+            </section>
+          </div>
+        </article>
+      </section>
+
+      <section class="behavior-notes" aria-labelledby="behavior-title">
+        <div class="section-heading"><div><span class="section-kicker">Comportamiento previsto</span><h2 id="behavior-title">Estados y adaptación</h2></div><p>Referencias incluidas desde el mockup para evitar decisiones tardías.</p></div>
+        <div class="behavior-grid">
+          <div class="behavior"><i class="bi bi-hourglass-split"></i><strong>Cargando</strong><p>Skeletons conservan el tamaño de KPIs y gráficas; no hay saltos de layout.</p></div>
+          <div class="behavior"><i class="bi bi-filter-circle"></i><strong>Sin resultados</strong><p>Mensaje accionable con botón para restablecer filtros; el encabezado permanece visible.</p></div>
+          <div class="behavior"><i class="bi bi-phone"></i><strong>Móvil</strong><p>KPIs en dos columnas, tarjetas apiladas y tablas como detalle secundario desplazable.</p></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">Mockup visual · Faro de Esperanza · Datos de ejemplo sin información personal</footer>
+  </div>
+</body>
+</html>
