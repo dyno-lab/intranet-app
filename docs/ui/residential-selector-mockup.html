@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup | Selección de residencial</title>
+  <link href="../../app/static/css/ui-modern.css" rel="stylesheet">
+  <style>
+    .mockup-badge {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 10;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid rgba(13, 59, 102, 0.16);
+      border-radius: 999px;
+      color: #0d3b66;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 6px 18px rgba(13, 59, 102, 0.1);
+      font: 700 0.72rem/1 Arial, sans-serif;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .mockup-icon,
+    .mockup-arrow {
+      font-style: normal;
+    }
+
+    .residential-picker-option {
+      cursor: default;
+    }
+  </style>
+</head>
+<body class="residential-picker-body">
+  <span class="mockup-badge">Vista demostrativa</span>
+
+  <main class="residential-picker-shell">
+    <section class="residential-picker-panel" aria-labelledby="residential-picker-title">
+      <span class="residential-picker-back">
+        <span aria-hidden="true">←</span>
+        Volver al portal
+      </span>
+
+      <div class="residential-picker-brand" aria-hidden="true">
+        <span class="residential-picker-brand__mark">
+          <span class="mockup-icon">👥</span>
+        </span>
+        <span>Faro de Esperanza</span>
+      </div>
+
+      <header class="residential-picker-header">
+        <span class="residential-picker-eyebrow">Contexto de trabajo</span>
+        <h1 id="residential-picker-title">Seleccione un residencial</h1>
+        <p>
+          Bienvenido, <strong>usuario.demo@csifpr.org</strong>.
+          Escoja el residencial donde desea trabajar.
+        </p>
+      </header>
+
+      <div class="residential-picker-list" aria-label="Residenciales disponibles de demostración">
+        <div class="residential-picker-form">
+          <button class="residential-picker-option" type="button">
+            <span class="residential-picker-option__icon" aria-hidden="true">
+              <span class="mockup-icon">▦</span>
+            </span>
+            <span class="residential-picker-option__copy">
+              <strong>Residencial Vista Verde</strong>
+              <span>CAG-01 · Caguas · RQ-101</span>
+            </span>
+            <span class="residential-picker-option__current">Actual</span>
+            <span class="residential-picker-option__arrow mockup-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="residential-picker-form">
+          <button class="residential-picker-option" type="button">
+            <span class="residential-picker-option__icon" aria-hidden="true">
+              <span class="mockup-icon">▦</span>
+            </span>
+            <span class="residential-picker-option__copy">
+              <strong>Residencial La Esperanza</strong>
+              <span>PON-02 · Ponce · RQ-204</span>
+            </span>
+            <span class="residential-picker-option__arrow mockup-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="residential-picker-form">
+          <button class="residential-picker-option" type="button">
+            <span class="residential-picker-option__icon" aria-hidden="true">
+              <span class="mockup-icon">▦</span>
+            </span>
+            <span class="residential-picker-option__copy">
+              <strong>Residencial Jardines del Caribe</strong>
+              <span>MAY-03 · Mayagüez · RQ-312</span>
+            </span>
+            <span class="residential-picker-option__arrow mockup-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="residential-picker-form">
+          <button class="residential-picker-option" type="button">
+            <span class="residential-picker-option__icon" aria-hidden="true">
+              <span class="mockup-icon">▦</span>
+            </span>
+            <span class="residential-picker-option__copy">
+              <strong>Residencial Nuevo Horizonte</strong>
+              <span>CAR-04 · Carolina · RQ-417</span>
+            </span>
+            <span class="residential-picker-option__arrow mockup-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+      </div>
+
+      <p class="residential-picker-note">
+        <span aria-hidden="true">✓</span>
+        Solo se muestran los residenciales asignados a su cuenta.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

@@ -26,6 +26,9 @@ from app.models.user_residential import UserResidential
 router = APIRouter(prefix="/platform/settings", tags=["platform-settings"])
 templates = Jinja2Templates(directory="app/templates")
 _CSRF_SESSION_KEY = "platform_settings_csrf_token"
+_ALLOWED_EMAIL_DOMAIN = "csifpr.org"
+_VALID_USER_ROLES = {"admin", "supervisor", "user"}
+_VALID_USER_SECTIONS = {"general", "permissions", "residentials"}
 
 
 def _csrf_token(request: Request) -> str:
@@ -49,14 +52,52 @@ def _validate_csrf_token(request: Request, submitted_token: str) -> None:
         )
 
 
-def _settings_redirect(*, message: str | None = None, error: str | None = None) -> RedirectResponse:
+def _settings_redirect(
+    *,
+    message: str | None = None,
+    error: str | None = None,
+    path: str = "/platform/settings",
+    section: str | None = None,
+) -> RedirectResponse:
     parameters: dict[str, str] = {}
+    if section:
+        parameters["section"] = section
     if message:
         parameters["msg"] = message
     if error:
         parameters["error"] = error
     suffix = f"?{urlencode(parameters)}" if parameters else ""
-    return RedirectResponse(f"/platform/settings{suffix}", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(f"{path}{suffix}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+def _user_settings_redirect(
+    user_id: int,
+    *,
+    section: str,
+    message: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    return _settings_redirect(
+        message=message,
+        error=error,
+        path=f"/platform/settings/users/{user_id}",
+        section=section,
+    )
+
+
+def _normalized_authorized_email(email: str) -> str | None:
+    normalized = email.strip().lower()
+    local_part, separator, domain = normalized.rpartition("@")
+    if (
+        separator != "@"
+        or not local_part
+        or "@" in local_part
+        or any(character.isspace() for character in normalized)
+        or domain != _ALLOWED_EMAIL_DOMAIN
+        or len(normalized) > 255
+    ):
+        return None
+    return normalized
 
 
 def _active_permission(db: Session, permission_key: str) -> PlatformPermission:
@@ -113,6 +154,9 @@ def platform_settings_index(
     residential_ids_by_user: dict[int, set[int]] = {user.user_id: set() for user in users}
     for user_id, residential_id in residential_assignment_rows:
         residential_ids_by_user.setdefault(user_id, set()).add(residential_id)
+    residentials_by_id = {
+        residential.residential_id: residential for residential in residentials
+    }
 
     return templates.TemplateResponse(
         request=request,
@@ -124,12 +168,216 @@ def platform_settings_index(
             "users": users,
             "permissions_by_user": permissions_by_user,
             "residentials": residentials,
+            "residentials_by_id": residentials_by_id,
             "residential_ids_by_user": residential_ids_by_user,
+            "active_user_count": sum(1 for user in users if user.is_active),
             "manage_platform_settings_key": MANAGE_PLATFORM_SETTINGS,
             "csrf_token": _csrf_token(request),
             "message": msg,
             "error": error,
         },
+    )
+
+
+@router.get("/users/{user_id}", response_class=HTMLResponse)
+def platform_user_settings(
+    request: Request,
+    user_id: int,
+    section: str = Query(default="general"),
+    msg: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    target_user = db.get(User, user_id)
+    if target_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+    selected_section = section if section in _VALID_USER_SECTIONS else "general"
+
+    permissions = db.execute(
+        select(PlatformPermission).order_by(
+            PlatformPermission.sort_order,
+            PlatformPermission.key,
+        )
+    ).scalars().all()
+    assigned_permission_keys = set(
+        db.execute(
+            select(PlatformPermission.key)
+            .join(
+                UserPlatformPermission,
+                UserPlatformPermission.permission_id == PlatformPermission.permission_id,
+            )
+            .where(UserPlatformPermission.user_id == target_user.user_id)
+        ).scalars().all()
+    )
+    residentials = db.execute(
+        select(Residential)
+        .where(Residential.is_active == True)  # noqa: E712
+        .order_by(Residential.code, Residential.name)
+    ).scalars().all()
+    assigned_residential_ids = set(
+        db.execute(
+            select(UserResidential.residential_id).where(
+                UserResidential.user_id == target_user.user_id,
+                UserResidential.is_active == True,  # noqa: E712
+            )
+        ).scalars().all()
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_settings/user_detail.html",
+        context={
+            "request": request,
+            "current_user": current_user,
+            "target_user": target_user,
+            "section": selected_section,
+            "permissions": permissions,
+            "assigned_permission_keys": assigned_permission_keys,
+            "residentials": residentials,
+            "assigned_residential_ids": assigned_residential_ids,
+            "manage_platform_settings_key": MANAGE_PLATFORM_SETTINGS,
+            "csrf_token": _csrf_token(request),
+            "message": msg,
+            "error": error,
+        },
+    )
+
+
+@router.post("/users/{user_id}/general")
+def update_user_general(
+    request: Request,
+    user_id: int,
+    email: str = Form(...),
+    role: str = Form(...),
+    is_active: str | None = Form(default=None),
+    local_login_enabled: str | None = Form(default=None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    _validate_csrf_token(request, csrf_token)
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+    target_user = db.get(User, user_id)
+    if target_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+    normalized_email = _normalized_authorized_email(email)
+    if normalized_email is None:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="Debe usar un correo institucional @csifpr.org válido.",
+        )
+    if role not in _VALID_USER_ROLES:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="El rol seleccionado no es válido.",
+        )
+
+    requested_active = is_active == "on"
+    requested_local_login = local_login_enabled == "on"
+    if target_user.user_id == current_user.user_id and not requested_active:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="No puede desactivar su propia cuenta.",
+        )
+    if target_user.role == "admin" and (role != "admin" or not requested_active):
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="Las cuentas admin no pueden degradarse o desactivarse desde esta pantalla.",
+        )
+
+    current_email = (target_user.email or "").strip().lower()
+    if (target_user.google_sub or target_user.google_linked_at) and normalized_email != current_email:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="El correo de una cuenta vinculada con Google no puede cambiarse.",
+        )
+    if (
+        target_user.user_id == current_user.user_id
+        and not requested_local_login
+        and not target_user.google_sub
+    ):
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="Vincule Google antes de deshabilitar su propio acceso local.",
+        )
+
+    duplicate_email = db.execute(
+        select(User).where(
+            User.user_id != target_user.user_id,
+            func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+        )
+    ).scalars().first()
+    if duplicate_email is not None:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="El correo institucional ya está asignado a otra cuenta.",
+        )
+
+    if role == "user":
+        has_residential = db.execute(
+            select(UserResidential.user_residential_id).where(
+                UserResidential.user_id == target_user.user_id,
+                UserResidential.is_active == True,  # noqa: E712
+            )
+        ).scalars().first()
+        if has_residential is None:
+            return _user_settings_redirect(
+                user_id,
+                section="general",
+                error="Asigne al menos un residencial antes de usar el rol user.",
+            )
+
+    changed_fields: list[str] = []
+    updates = {
+        "email": normalized_email,
+        "role": role,
+        "is_active": requested_active,
+        "local_login_enabled": requested_local_login,
+    }
+    for field_name, value in updates.items():
+        if getattr(target_user, field_name) != value:
+            setattr(target_user, field_name, value)
+            changed_fields.append(field_name)
+
+    if not changed_fields:
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            message="La cuenta no tenía cambios.",
+        )
+
+    target_user.session_version = User.session_version + 1
+    db.add(
+        PlatformUserAudit(
+            actor_user_id=current_user.user_id,
+            target_user_id=target_user.user_id,
+            action="user_updated",
+            details="changed=" + ",".join(changed_fields),
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="No se pudo actualizar la cuenta.",
+        )
+    return _user_settings_redirect(
+        user_id,
+        section="general",
+        message="Cuenta actualizada correctamente.",
     )
 
 
@@ -152,7 +400,11 @@ def update_user_residentials(
 
     selected_ids = set(residential_ids)
     if target_user.role == "user" and not selected_ids:
-        return _settings_redirect(error="Los usuarios con rol user requieren al menos un residencial.")
+        return _user_settings_redirect(
+            user_id,
+            section="residentials",
+            error="Los usuarios con rol user requieren al menos un residencial.",
+        )
 
     active_residential_ids: set[int] = set()
     if selected_ids:
@@ -165,10 +417,18 @@ def update_user_residentials(
             ).scalars().all()
         )
     if active_residential_ids != selected_ids:
-        return _settings_redirect(error="Uno o más residenciales seleccionados no están activos.")
+        return _user_settings_redirect(
+            user_id,
+            section="residentials",
+            error="Uno o más residenciales seleccionados no están activos.",
+        )
 
     if primary_residential_id is not None and primary_residential_id not in selected_ids:
-        return _settings_redirect(error="El residencial primario debe estar entre los asignados.")
+        return _user_settings_redirect(
+            user_id,
+            section="residentials",
+            error="El residencial primario debe estar entre los asignados.",
+        )
     if primary_residential_id is None:
         if target_user.residential_id in selected_ids:
             primary_residential_id = target_user.residential_id
@@ -204,7 +464,11 @@ def update_user_residentials(
         changed = True
 
     if not changed:
-        return _settings_redirect(message="Las asignaciones no tenían cambios.")
+        return _user_settings_redirect(
+            user_id,
+            section="residentials",
+            message="Las asignaciones no tenían cambios.",
+        )
 
     target_user.residential_id = primary_residential_id
     target_user.session_version = User.session_version + 1
@@ -224,8 +488,16 @@ def update_user_residentials(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return _settings_redirect(error="No se pudieron actualizar las asignaciones residenciales.")
-    return _settings_redirect(message="Asignaciones residenciales actualizadas.")
+        return _user_settings_redirect(
+            user_id,
+            section="residentials",
+            error="No se pudieron actualizar las asignaciones residenciales.",
+        )
+    return _user_settings_redirect(
+        user_id,
+        section="residentials",
+        message="Asignaciones residenciales actualizadas.",
+    )
 
 
 @router.post("/users/{user_id}/permissions/{permission_key}/grant")
@@ -243,7 +515,11 @@ def grant_platform_permission(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     permission = _active_permission(db, permission_key)
     if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
-        return _settings_redirect(error="Solo un administrador puede otorgar este permiso.")
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            error="Solo un administrador puede otorgar este permiso.",
+        )
     existing = db.execute(
         select(UserPlatformPermission).where(
             UserPlatformPermission.user_id == target_user.user_id,
@@ -251,7 +527,11 @@ def grant_platform_permission(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        return _settings_redirect(message="El permiso ya estaba asignado.")
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            message="El permiso ya estaba asignado.",
+        )
 
     db.add(
         UserPlatformPermission(
@@ -272,8 +552,16 @@ def grant_platform_permission(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return _settings_redirect(message="El permiso ya estaba asignado.")
-    return _settings_redirect(message="Permiso otorgado correctamente.")
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            message="El permiso ya estaba asignado.",
+        )
+    return _user_settings_redirect(
+        user_id,
+        section="permissions",
+        message="Permiso otorgado correctamente.",
+    )
 
 
 @router.post("/users/{user_id}/permissions/{permission_key}/revoke")
@@ -292,20 +580,28 @@ def revoke_platform_permission(
     permission = _active_permission(db, permission_key)
 
     if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
-        return _settings_redirect(error="Solo un administrador puede revocar este permiso.")
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            error="Solo un administrador puede revocar este permiso.",
+        )
     if (
         permission.key == MANAGE_PLATFORM_SETTINGS
         and target_user.role == "admin"
         and current_user.user_id != target_user.user_id
     ):
-        return _settings_redirect(
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
             error="El acceso de gestión de una cuenta admin está protegido.",
         )
     if (
         current_user.user_id == target_user.user_id
         and permission.key == MANAGE_PLATFORM_SETTINGS
     ):
-        return _settings_redirect(
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
             error="No puede quitarse su propio acceso a la configuración de plataforma.",
         )
 
@@ -316,7 +612,11 @@ def revoke_platform_permission(
         )
     ).scalar_one_or_none()
     if existing is None:
-        return _settings_redirect(message="El permiso ya no estaba asignado.")
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            message="El permiso ya no estaba asignado.",
+        )
 
     db.delete(existing)
     db.add(
@@ -328,4 +628,8 @@ def revoke_platform_permission(
         )
     )
     db.commit()
-    return _settings_redirect(message="Permiso revocado correctamente.")
+    return _user_settings_redirect(
+        user_id,
+        section="permissions",
+        message="Permiso revocado correctamente.",
+    )

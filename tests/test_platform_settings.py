@@ -32,6 +32,7 @@ from app.db.schema import (  # noqa: E402
 )
 import app.models.residential  # noqa: E402, F401
 from app.models.platform_permission import PlatformPermission  # noqa: E402
+from app.models.platform_user_audit import PlatformUserAudit  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.models.user_platform_permission import UserPlatformPermission  # noqa: E402
 
@@ -485,10 +486,235 @@ class PlatformSettingsTests(unittest.TestCase):
         body = _body(response)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Configuración de plataforma", body)
-        self.assertIn("Accesos disponibles", body)
+        self.assertIn("Usuarios y accesos", body)
+        self.assertIn("Buscar por usuario, correo o residencial", body)
+        self.assertIn("/platform/settings/users/", body)
         self.assertIn("cramirez@csifpr.org", body)
         self.assertNotIn(password_hash, body)
+
+    def test_user_detail_renders_general_permissions_and_residential_navigation(self):
+        current_user = _user(
+            1,
+            "manager@csifpr.org",
+            email="manager@csifpr.org",
+            role="admin",
+        )
+        target_user = _user(
+            2,
+            "employee@csifpr.org",
+            email="employee@csifpr.org",
+            role="user",
+        )
+        permissions = [
+            _permission(1, MANAGE_PLATFORM_SETTINGS),
+            _permission(2, "access_faro", name="Acceder a Faro"),
+        ]
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(values=permissions),
+                _Result(values=["access_faro"]),
+                _Result(values=[]),
+                _Result(values=[]),
+            ],
+        )
+        request = _Request({"user_id": current_user.user_id})
+
+        response = platform_settings.platform_user_settings(
+            request=request,
+            user_id=target_user.user_id,
+            section="permissions",
+            msg=None,
+            error=None,
+            db=db,
+            current_user=current_user,
+        )
+        body = _body(response)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Configurar usuario", body)
+        self.assertIn("General", body)
+        self.assertIn("Permisos", body)
+        self.assertIn("Residenciales", body)
+        self.assertIn("Acceder a Faro", body)
+        self.assertIn("Asignado", body)
+
+    def test_admin_updates_general_user_account_and_audits(self):
+        current_user = _user(
+            1,
+            "manager@csifpr.org",
+            email="manager@csifpr.org",
+            role="admin",
+        )
+        target_user = _user(
+            2,
+            "legacy.user",
+            email="legacy.user@csifpr.org",
+            role="supervisor",
+        )
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[_Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email=" Employee@CSIFPR.ORG ",
+            role="supervisor",
+            is_active="on",
+            local_login_enabled=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn(
+            f"/platform/settings/users/{target_user.user_id}",
+            response.headers["location"],
+        )
+        self.assertEqual(target_user.email, "employee@csifpr.org")
+        self.assertFalse(target_user.local_login_enabled)
+        self.assertEqual(db.commits, 1)
+        audit = next(value for value in db.added if isinstance(value, PlatformUserAudit))
+        self.assertEqual(audit.action, "user_updated")
+        self.assertIn("email", audit.details)
+
+    def test_general_user_update_requires_admin_role(self):
+        current_user = _user(1, "manager@csifpr.org", role="supervisor")
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        with self.assertRaises(HTTPException) as context:
+            platform_settings.update_user_general(
+                request=request,
+                user_id=2,
+                email="employee@csifpr.org",
+                role="supervisor",
+                is_active="on",
+                local_login_enabled="on",
+                csrf_token="valid-token",
+                db=_Database(),
+                current_user=current_user,
+            )
+
+        self.assertEqual(context.exception.status_code, 403)
+
+    def test_general_user_update_rejects_invalid_csrf(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "expected-token"})
+
+        with self.assertRaises(HTTPException) as context:
+            platform_settings.update_user_general(
+                request=request,
+                user_id=2,
+                email="employee@csifpr.org",
+                role="supervisor",
+                is_active="on",
+                local_login_enabled="on",
+                csrf_token="wrong-token",
+                db=_Database(),
+                current_user=current_user,
+            )
+
+        self.assertEqual(context.exception.status_code, 403)
+
+    def test_general_user_update_preserves_linked_google_email(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(2, "linked.user", email="linked@csifpr.org", role="supervisor")
+        target_user.google_sub = "google-identity"
+        db = _Database(users={target_user.user_id: target_user})
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="other@csifpr.org",
+            role="supervisor",
+            is_active="on",
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(target_user.email, "linked@csifpr.org")
+        self.assertEqual(db.commits, 0)
+        self.assertIn("Google", _query_parameters(response)["error"][0])
+
+    def test_general_user_update_rejects_duplicate_email(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(2, "target.user", email="target@csifpr.org", role="supervisor")
+        duplicate_user = _user(3, "existing.user", email="existing@csifpr.org")
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[_Result(values=[duplicate_user])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="existing@csifpr.org",
+            role="supervisor",
+            is_active="on",
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(target_user.email, "target@csifpr.org")
+        self.assertEqual(db.commits, 0)
+        self.assertIn("otra cuenta", _query_parameters(response)["error"][0])
+
+    def test_general_user_role_requires_active_residential(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(2, "target.user", email="target@csifpr.org", role="supervisor")
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[_Result(values=[]), _Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="target@csifpr.org",
+            role="user",
+            is_active="on",
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(target_user.role, "supervisor")
+        self.assertEqual(db.commits, 0)
+        self.assertIn("residencial", _query_parameters(response)["error"][0])
+
+    def test_general_user_update_protects_admin_account(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(2, "other.admin", email="other.admin@csifpr.org", role="admin")
+        db = _Database(users={target_user.user_id: target_user})
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="other.admin@csifpr.org",
+            role="supervisor",
+            is_active="on",
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(target_user.role, "admin")
+        self.assertEqual(db.commits, 0)
+        self.assertIn("admin", _query_parameters(response)["error"][0])
 
     def test_authorized_grant_adds_permission_and_is_idempotent(self):
         current_user = _user(1, "settings.manager")
@@ -513,6 +739,7 @@ class PlatformSettingsTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 303)
+        self.assertIn("section=permissions", response.headers["location"])
         self.assertEqual(db.commits, 1)
         assignments = [
             value for value in db.added if isinstance(value, UserPlatformPermission)
@@ -574,6 +801,7 @@ class PlatformSettingsTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 303)
+        self.assertIn("section=permissions", response.headers["location"])
         self.assertEqual(db.deleted, [assignment])
         self.assertEqual(db.commits, 1)
 
