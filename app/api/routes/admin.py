@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, Form, File, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from datetime import date
 import json
 import re
+import secrets
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -11,14 +12,17 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, FileResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_or_supervisor
 from app.core.period_guard import current_reporting_period, proposal_locked_through_label, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.platform_permissions import MANAGE_PLATFORM_SETTINGS, require_platform_permission
 from app.core.security import hash_password, verify_password
+from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
 from app.models.activity_code import ActivityCode
 from app.models.activity_productivity_goal import ActivityProductivityGoal
@@ -117,6 +121,62 @@ PRODUCTIVITY_GOAL_TYPE_OPTIONS = [
 def _redirect_with_msg(url: str, msg: str):
     separator = "&" if "?" in url else "?"
     return RedirectResponse(f"{url}{separator}msg={quote_plus(msg)}", status_code=303)
+
+
+_USER_CSRF_SESSION_KEY = "user_management_csrf_token"
+_ALLOWED_EMAIL_DOMAIN = "csifpr.org"
+_MIN_LOCAL_PASSWORD_LENGTH = 12
+
+
+def _user_csrf_token(request: Request) -> str:
+    token = request.session.get(_USER_CSRF_SESSION_KEY)
+    if not isinstance(token, str) or not token:
+        token = secrets.token_urlsafe(32)
+        request.session[_USER_CSRF_SESSION_KEY] = token
+    return token
+
+
+def _validate_user_csrf(request: Request, submitted_token: str) -> None:
+    expected_token = request.session.get(_USER_CSRF_SESSION_KEY)
+    if (
+        not isinstance(expected_token, str)
+        or not expected_token
+        or not secrets.compare_digest(expected_token, submitted_token)
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solicitud inválida.")
+
+
+def _normalized_authorized_email(email: str) -> str | None:
+    normalized = email.strip().lower()
+    local_part, separator, domain = normalized.rpartition("@")
+    if (
+        separator != "@"
+        or not local_part
+        or "@" in local_part
+        or any(character.isspace() for character in normalized)
+        or domain != _ALLOWED_EMAIL_DOMAIN
+        or len(normalized) > 255
+    ):
+        return None
+    return normalized
+
+
+def _record_user_audit(
+    db: Session,
+    *,
+    actor_user_id: int,
+    target_user_id: int,
+    action: str,
+    details: str | None = None,
+) -> None:
+    db.add(
+        PlatformUserAudit(
+            actor_user_id=actor_user_id,
+            target_user_id=target_user_id,
+            action=action,
+            details=details,
+        )
+    )
 
 
 def _redirect_if_proposal_finalized(proposal: Proposal | None, redirect_url: str, message: str):
@@ -322,27 +382,40 @@ def _resolve_effective_activity_code_ids_for_program(db: Session, program_id: in
 # USER MANAGEMENT
 # ============================================================
 
+_USER_SETTINGS_DEPENDENCY = require_platform_permission(MANAGE_PLATFORM_SETTINGS)
+
+
+def _require_admin_user_manager(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    user = _USER_SETTINGS_DEPENDENCY(request=request, db=db)
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+    return user
+
+
 @router.get("/users", response_class=HTMLResponse)
 def admin_users(
     request: Request,
     msg: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(_require_admin_user_manager),
 ):
-    users = db.execute(
-        select(User).order_by(User.created_at.desc())
-    ).scalars().all()
+    users = db.execute(select(User).order_by(User.created_at.desc())).scalars().all()
     residentials = db.execute(
         select(Residential).where(Residential.is_active == True).order_by(Residential.code)  # noqa: E712
     ).scalars().all()
 
     return templates.TemplateResponse(
-        "ui/admin/users.html",
-        {
+        request=request,
+        name="ui/admin/users.html",
+        context={
             "request": request,
             "current_user": current_user,
             "users": users,
             "residentials": residentials,
+            "csrf_token": _user_csrf_token(request),
             "msg": msg,
         },
     )
@@ -350,92 +423,246 @@ def admin_users(
 
 @router.post("/users/create")
 def admin_create_user(
-    username: str = Form(...),
-    password: str = Form(...),
+    request: Request,
+    email: str = Form(...),
+    username: str | None = Form(default=None),
+    password: str | None = Form(default=None),
+    local_login_enabled: str | None = Form(default=None),
     role: str = Form("user"),
     residential_id: int | None = Form(default=None),
+    csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(_require_admin_user_manager),
 ):
-    existing = db.execute(
-        select(User).where(User.username == username)
-    ).scalar_one_or_none()
-    if existing:
-        return _redirect_with_msg("/ui/admin/users", "Error: El usuario ya existe.")
+    _validate_user_csrf(request, csrf_token)
+    normalized_email = _normalized_authorized_email(email)
+    if normalized_email is None:
+        return _redirect_with_msg("/ui/admin/users", "Error: Debe usar un correo @csifpr.org válido.")
 
-    normalized_role = role if role in VALID_USER_ROLES else "user"
-    if normalized_role == "user" and not residential_id:
+    normalized_username = (username or normalized_email).strip().lower()
+    if not normalized_username or len(normalized_username) > 100:
+        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario no es válido.")
+    if role not in VALID_USER_ROLES:
+        return _redirect_with_msg("/ui/admin/users", "Error: El rol seleccionado no es válido.")
+    if role == "user" and not residential_id:
         return _redirect_with_msg("/ui/admin/users", "Error: Debe seleccionar un residencial para usuarios con rol user.")
+    selected_residential = db.get(Residential, residential_id) if residential_id else None
+    if residential_id and (selected_residential is None or not selected_residential.is_active):
+        return _redirect_with_msg("/ui/admin/users", "Error: El residencial seleccionado no está activo.")
+
+    existing = db.execute(
+        select(User).where(
+            or_(
+                func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+                func.lower(func.ltrim(func.rtrim(User.username))) == normalized_username,
+            )
+        )
+    ).scalars().first()
+    if existing:
+        return _redirect_with_msg("/ui/admin/users", "Error: El correo o usuario ya está autorizado.")
+
+    local_enabled = local_login_enabled == "on"
+    normalized_password = (password or "").strip()
+    if local_enabled and len(normalized_password) < _MIN_LOCAL_PASSWORD_LENGTH:
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            f"Error: La contraseña local debe tener al menos {_MIN_LOCAL_PASSWORD_LENGTH} caracteres.",
+        )
 
     user = User(
-        username=username,
-        password_hash=hash_password(password),
-        role=normalized_role,
+        username=normalized_username,
+        email=normalized_email,
+        google_sub=None,
+        password_hash=hash_password(normalized_password or secrets.token_urlsafe(48)),
+        local_login_enabled=local_enabled,
+        session_version=1,
+        role=role,
         residential_id=residential_id or None,
+        is_active=True,
     )
     db.add(user)
-    db.commit()
-
-    return _redirect_with_msg("/ui/admin/users", "Usuario creado exitosamente.")
+    try:
+        db.flush()
+        _record_user_audit(
+            db,
+            actor_user_id=current_user.user_id,
+            target_user_id=user.user_id,
+            action="user_created",
+            details=f"role={role}; residential_id={residential_id or 'none'}; local_login={local_enabled}",
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _redirect_with_msg("/ui/admin/users", "Error: El correo o usuario ya está autorizado.")
+    return _redirect_with_msg("/ui/admin/users", "Usuario autorizado correctamente.")
 
 
 @router.post("/users/{user_id}/edit")
 def admin_edit_user(
     user_id: int,
     request: Request,
+    email: str = Form(...),
     username: str = Form(...),
     role: str = Form("user"),
     residential_id: int | None = Form(default=None),
     is_active: str | None = Form(default=None),
+    local_login_enabled: str | None = Form(default=None),
     new_password: str | None = Form(default=None),
+    csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(_require_admin_user_manager),
 ):
+    _validate_user_csrf(request, csrf_token)
     user = db.get(User, user_id)
     if not user:
         return _redirect_with_msg("/ui/admin/users", "Error: Usuario no encontrado.")
 
-    existing = db.execute(
-        select(User).where(User.username == username, User.user_id != user_id)
-    ).scalar_one_or_none()
-    if existing:
-        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario ya estÃ¡ en uso.")
-
-    normalized_role = role if role in VALID_USER_ROLES else "user"
-    if normalized_role == "user" and not residential_id:
+    normalized_email = _normalized_authorized_email(email)
+    normalized_username = username.strip().lower()
+    if normalized_email is None:
+        return _redirect_with_msg("/ui/admin/users", "Error: Debe usar un correo @csifpr.org válido.")
+    if not normalized_username or len(normalized_username) > 100:
+        return _redirect_with_msg("/ui/admin/users", "Error: El nombre de usuario no es válido.")
+    if role not in VALID_USER_ROLES:
+        return _redirect_with_msg("/ui/admin/users", "Error: El rol seleccionado no es válido.")
+    if role == "user" and not residential_id:
         return _redirect_with_msg("/ui/admin/users", "Error: Debe seleccionar un residencial para usuarios con rol user.")
+    selected_residential = db.get(Residential, residential_id) if residential_id else None
+    if residential_id and (selected_residential is None or not selected_residential.is_active):
+        return _redirect_with_msg("/ui/admin/users", "Error: El residencial seleccionado no está activo.")
 
-    user.username = username
-    user.role = normalized_role
-    user.residential_id = residential_id or None
-    user.is_active = is_active == "on"
+    requested_active = is_active == "on"
+    if user.user_id == current_user.user_id and not requested_active:
+        return _redirect_with_msg("/ui/admin/users", "Error: No puede desactivar su propia cuenta.")
+    if user.role == "admin" and (role != "admin" or not requested_active):
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            "Error: Las cuentas admin no pueden degradarse o desactivarse desde esta pantalla.",
+        )
+    current_email = (user.email or "").strip().lower()
+    if (user.google_sub or user.google_linked_at) and normalized_email != current_email:
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            "Error: Desactive y desvincule Google antes de cambiar el correo.",
+        )
 
-    if new_password and new_password.strip() and len(new_password.strip()) > 0:
-        user.password_hash = hash_password(new_password.strip())
+    duplicate = db.execute(
+        select(User).where(
+            User.user_id != user.user_id,
+            or_(
+                func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+                func.lower(func.ltrim(func.rtrim(User.username))) == normalized_username,
+            ),
+        )
+    ).scalars().first()
+    if duplicate:
+        return _redirect_with_msg("/ui/admin/users", "Error: El correo o usuario ya está autorizado.")
 
-    db.add(user)
-    db.commit()
+    local_enabled = local_login_enabled == "on"
+    if (
+        user.user_id == current_user.user_id
+        and not local_enabled
+        and not user.google_sub
+    ):
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            "Error: Vincule Google antes de deshabilitar su propio acceso local.",
+        )
+    normalized_password = (new_password or "").strip()
+    if normalized_password and len(normalized_password) < _MIN_LOCAL_PASSWORD_LENGTH:
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            f"Error: La contraseña local debe tener al menos {_MIN_LOCAL_PASSWORD_LENGTH} caracteres.",
+        )
+    if local_enabled and not user.local_login_enabled and not normalized_password:
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            "Error: Debe establecer una contraseña al habilitar el acceso local.",
+        )
 
-    return _redirect_with_msg("/ui/admin/users", "Usuario actualizado exitosamente.")
+    changed_fields: list[str] = []
+    updates = {
+        "email": normalized_email,
+        "username": normalized_username,
+        "role": role,
+        "residential_id": residential_id or None,
+        "is_active": requested_active,
+        "local_login_enabled": local_enabled,
+    }
+    for field_name, field_value in updates.items():
+        if getattr(user, field_name) != field_value:
+            setattr(user, field_name, field_value)
+            changed_fields.append(field_name)
+    if normalized_password:
+        user.password_hash = hash_password(normalized_password)
+        changed_fields.append("password_reset")
+
+    if not changed_fields:
+        return _redirect_with_msg("/ui/admin/users", "No había cambios para guardar.")
+    user.session_version = User.session_version + 1
+    _record_user_audit(
+        db,
+        actor_user_id=current_user.user_id,
+        target_user_id=user.user_id,
+        action="user_updated",
+        details="changed=" + ",".join(changed_fields),
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _redirect_with_msg("/ui/admin/users", "Error: El correo o usuario ya está autorizado.")
+    return _redirect_with_msg("/ui/admin/users", "Usuario actualizado correctamente.")
+
+
+@router.post("/users/{user_id}/google/unlink")
+def admin_unlink_google_user(
+    user_id: int,
+    request: Request,
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin_user_manager),
+):
+    _validate_user_csrf(request, csrf_token)
+    return _redirect_with_msg(
+        "/ui/admin/users",
+        "Error: La desvinculación de Google requiere un proceso administrativo controlado.",
+    )
 
 
 @router.post("/users/{user_id}/delete")
 def admin_delete_user(
     user_id: int,
+    request: Request,
+    csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(_require_admin_user_manager),
 ):
+    _validate_user_csrf(request, csrf_token)
     if user_id == current_user.user_id:
-        return _redirect_with_msg("/ui/admin/users", "Error: No puedes eliminar tu propio usuario.")
-
+        return _redirect_with_msg("/ui/admin/users", "Error: No puede desactivar su propia cuenta.")
     user = db.get(User, user_id)
     if not user:
         return _redirect_with_msg("/ui/admin/users", "Error: Usuario no encontrado.")
+    if not user.is_active:
+        return _redirect_with_msg("/ui/admin/users", "La cuenta ya estaba inactiva.")
+    if user.role == "admin":
+        return _redirect_with_msg(
+            "/ui/admin/users",
+            "Error: Las cuentas admin no pueden desactivarse desde esta pantalla.",
+        )
 
-    db.delete(user)
+    user.is_active = False
+    user.session_version = User.session_version + 1
+    _record_user_audit(
+        db,
+        actor_user_id=current_user.user_id,
+        target_user_id=user.user_id,
+        action="user_deactivated",
+        details="legacy delete action converted to deactivation",
+    )
     db.commit()
-
-    return _redirect_with_msg("/ui/admin/users", "Usuario eliminado exitosamente.")
+    return _redirect_with_msg("/ui/admin/users", "Usuario desactivado correctamente.")
 
 
 # ============================================================

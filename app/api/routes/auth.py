@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from joserfc.errors import JoseError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,8 @@ from app.core.google_oauth import (
     validate_google_identity,
 )
 from app.core.security import verify_password
+from app.core.session_security import establish_authenticated_session
+from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
 
 
@@ -86,15 +88,19 @@ def login(
         select(User).where(User.username == username)
     ).scalar_one_or_none()
 
-    if not user or not user.is_active or not verify_password(password, user.password_hash):
+    if (
+        not user
+        or not user.is_active
+        or not user.local_login_enabled
+        or not verify_password(password, user.password_hash)
+    ):
         return templates.TemplateResponse(
             request=request,
             name="auth/login.html",
             context=_login_context(request, error="Credenciales incorrectas"),
         )
 
-    request.session.clear()
-    request.session["user_id"] = user.user_id
+    establish_authenticated_session(request.session, user)
 
     return RedirectResponse("/ui/new-list", status_code=303)
 
@@ -166,17 +172,43 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             return _oauth_error_response(request)
         if user.google_sub and user.google_sub != google_sub:
             return _oauth_error_response(request)
+        if user.google_linked_at is not None:
+            return _oauth_error_response(request)
 
         if not user.google_sub:
-            user.google_sub = google_sub
+            link_result = db.execute(
+                update(User)
+                .where(
+                    User.user_id == user.user_id,
+                    User.google_sub.is_(None),
+                    User.google_linked_at.is_(None),
+                    User.is_active == True,  # noqa: E712
+                    func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+                )
+                .values(
+                    google_sub=google_sub,
+                    google_linked_at=func.sysutcdatetime(),
+                    session_version=User.session_version + 1,
+                )
+            )
+            if link_result.rowcount != 1:
+                db.rollback()
+                return _oauth_error_response(request)
+            db.add(
+                PlatformUserAudit(
+                    actor_user_id=user.user_id,
+                    target_user_id=user.user_id,
+                    action="google_linked",
+                )
+            )
             try:
                 db.commit()
+                db.refresh(user)
             except IntegrityError:
                 db.rollback()
                 return _oauth_error_response(request)
 
-    request.session.clear()
-    request.session["user_id"] = user.user_id
+    establish_authenticated_session(request.session, user)
     return RedirectResponse("/ui/new-list", status_code=303)
 
 

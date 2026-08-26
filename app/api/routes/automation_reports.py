@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import settings
+from app.core.session_security import session_matches_user
 from app.models.user import User
 from app.models.proposal import Proposal
 from app.models.employee import Employee
@@ -137,7 +138,8 @@ def _session_user_or_none(request: Request, db: Session) -> User | None:
     if not user_id:
         return None
     user = db.get(User, user_id)
-    if not user or not user.is_active:
+    if not user or not user.is_active or not session_matches_user(request.session, user):
+        request.session.clear()
         return None
     return user
 

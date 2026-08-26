@@ -37,6 +37,8 @@ from app.models.user_platform_permission import UserPlatformPermission  # noqa: 
 class _Request:
     def __init__(self, session: dict | None = None):
         self.session = session if session is not None else {}
+        if "user_id" in self.session and "session_version" not in self.session:
+            self.session["session_version"] = 1
 
     def url_for(self, name: str, **path_params) -> str:
         if name != "static":
@@ -124,6 +126,8 @@ def _user(
         password_hash=password_hash,
         role=role,
         is_active=is_active,
+        local_login_enabled=True,
+        session_version=1,
     )
     user.user_id = user_id
     return user
@@ -391,7 +395,7 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIs(second_result, user)
         self.assertEqual(user.email, "bootstrap.user@example.org")
         self.assertEqual(user.role, "admin")
-        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_active)
         self.assertEqual(user.password_hash, original_hash)
         self.assertEqual(len(added_after_first_run), 1)
         self.assertIsInstance(added_after_first_run[0], UserPlatformPermission)
@@ -497,8 +501,11 @@ class PlatformSettingsTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 303)
         self.assertEqual(db.commits, 1)
-        self.assertEqual(len(db.added), 1)
-        assignment = db.added[0]
+        assignments = [
+            value for value in db.added if isinstance(value, UserPlatformPermission)
+        ]
+        self.assertEqual(len(assignments), 1)
+        assignment = assignments[0]
         self.assertEqual(assignment.user_id, target_user.user_id)
         self.assertEqual(assignment.permission_id, permission.permission_id)
         self.assertEqual(assignment.granted_by_user_id, current_user.user_id)
@@ -558,7 +565,7 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(db.commits, 1)
 
     def test_current_user_cannot_revoke_own_settings_permission(self):
-        current_user = _user(1, "settings.manager")
+        current_user = _user(1, "settings.manager", role="admin")
         permission = _permission(1, MANAGE_PLATFORM_SETTINGS)
         request = _Request({
             "user_id": current_user.user_id,

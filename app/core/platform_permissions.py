@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.security import hash_password
+from app.core.session_security import session_matches_user
 from app.models.platform_permission import PlatformPermission
 from app.models.user import User
 from app.models.user_platform_permission import UserPlatformPermission
@@ -42,6 +43,8 @@ def bootstrap_platform_settings_user(
             password_hash=hash_password(password),
             role="admin",
             is_active=True,
+            local_login_enabled=True,
+            session_version=1,
             residential_id=None,
         )
         db.add(user)
@@ -51,7 +54,6 @@ def bootstrap_platform_settings_user(
             user.email = normalized_email
         if not (user.role or "").strip():
             user.role = "admin"
-        user.is_active = True
 
     permission = db.execute(
         select(PlatformPermission).where(
@@ -96,7 +98,7 @@ def get_optional_current_user(request: Request, db: Session) -> User | None:
         return None
 
     user = db.get(User, user_id)
-    if not user or not user.is_active:
+    if not user or not user.is_active or not session_matches_user(request.session, user):
         request.session.clear()
         return None
     return user

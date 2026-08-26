@@ -25,7 +25,20 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     google_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    local_login_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("1"),
+    )
+    session_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )
 
     # Roles esperados: "admin" | "supervisor" | "user"
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")

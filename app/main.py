@@ -44,6 +44,7 @@ import app.models.report_template  # noqa: F401
 import app.models.participant_profile_field  # noqa: F401
 import app.models.participant_profile_field_value  # noqa: F401
 import app.models.platform_permission  # noqa: F401
+import app.models.platform_user_audit  # noqa: F401
 import app.models.user_platform_permission  # noqa: F401
 
 app = FastAPI(title="Intranet App")

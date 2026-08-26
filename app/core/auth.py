@@ -2,6 +2,7 @@ from fastapi import Request, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.session_security import session_matches_user
 from app.models.user import User
 
 
@@ -21,7 +22,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     user = db.get(User, user_id)
 
-    if not user or not user.is_active:
+    if not user or not user.is_active or not session_matches_user(request.session, user):
         request.session.clear()
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,

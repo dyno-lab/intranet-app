@@ -1730,6 +1730,24 @@ IF COL_LENGTH('dbo.users', 'google_sub') IS NULL
 BEGIN
     ALTER TABLE dbo.users ADD google_sub VARCHAR(255) NULL;
 END;
+
+IF COL_LENGTH('dbo.users', 'google_linked_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD google_linked_at DATETIMEOFFSET NULL;
+    EXEC sp_executesql N'UPDATE dbo.users SET google_linked_at = SYSUTCDATETIME() WHERE google_sub IS NOT NULL AND google_linked_at IS NULL;';
+END;
+
+IF COL_LENGTH('dbo.users', 'local_login_enabled') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD local_login_enabled BIT NOT NULL
+        CONSTRAINT DF_users_local_login_enabled DEFAULT (1) WITH VALUES;
+END;
+
+IF COL_LENGTH('dbo.users', 'session_version') IS NULL
+BEGIN
+    ALTER TABLE dbo.users ADD session_version INT NOT NULL
+        CONSTRAINT DF_users_session_version DEFAULT (1) WITH VALUES;
+END;
 """
 
 
@@ -1758,6 +1776,53 @@ BEGIN
     ON dbo.users(google_sub)
     WHERE google_sub IS NOT NULL;
 END;
+
+IF OBJECT_ID(N'dbo.platform_user_audit', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.platform_user_audit (
+        audit_id INT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_platform_user_audit PRIMARY KEY,
+        actor_user_id INT NOT NULL,
+        target_user_id INT NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        details VARCHAR(500) NULL,
+        created_at DATETIMEOFFSET NOT NULL
+            CONSTRAINT DF_platform_user_audit_created_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_platform_user_audit_created_at'
+      AND object_id = OBJECT_ID('dbo.platform_user_audit')
+)
+BEGIN
+    CREATE INDEX IX_platform_user_audit_created_at
+    ON dbo.platform_user_audit(created_at);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_platform_user_audit_target_created'
+      AND object_id = OBJECT_ID('dbo.platform_user_audit')
+)
+BEGIN
+    CREATE INDEX IX_platform_user_audit_target_created
+    ON dbo.platform_user_audit(target_user_id, created_at);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_platform_user_audit_actor_created'
+      AND object_id = OBJECT_ID('dbo.platform_user_audit')
+)
+BEGIN
+    CREATE INDEX IX_platform_user_audit_actor_created
+    ON dbo.platform_user_audit(actor_user_id, created_at);
+END;
+
+DELETE FROM dbo.platform_user_audit
+WHERE created_at < DATEADD(DAY, -365, SYSUTCDATETIME());
 
 IF OBJECT_ID(N'dbo.platform_permissions', N'U') IS NULL
 BEGIN

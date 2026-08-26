@@ -39,11 +39,14 @@ CONFIGURATION = GoogleOAuthConfiguration(
 class _Request:
     def __init__(self, session: dict | None = None):
         self.session = session if session is not None else {}
+        if "user_id" in self.session and "session_version" not in self.session:
+            self.session["session_version"] = 1
 
 
 class _Result:
-    def __init__(self, values: list[User]):
+    def __init__(self, values: list[User], *, rowcount: int | None = None):
         self.values = values
+        self.rowcount = rowcount
 
     def scalars(self):
         return self
@@ -63,18 +66,26 @@ class _Database:
         results: list[list[User]],
         *,
         commit_error: Exception | None = None,
+        update_rowcount: int = 1,
     ):
         self.results = list(results)
         self.commit_error = commit_error
+        self.update_rowcount = update_rowcount
         self.statements = []
         self.commits = 0
         self.rollbacks = 0
+        self.added = []
 
     def execute(self, statement):
         self.statements.append(statement)
+        if getattr(statement, "is_update", False):
+            return _Result([], rowcount=self.update_rowcount)
         if not self.results:
             raise AssertionError("Unexpected database query")
         return _Result(self.results.pop(0))
+
+    def add(self, value):
+        self.added.append(value)
 
     def commit(self):
         self.commits += 1
@@ -83,6 +94,10 @@ class _Database:
 
     def rollback(self):
         self.rollbacks += 1
+
+    def refresh(self, user):
+        user.google_sub = "google-subject-123"
+        user.session_version = int(user.session_version or 1) + 1
 
 
 def _user(
@@ -99,6 +114,7 @@ def _user(
         password_hash="local-password-hash",
         role="user",
         is_active=is_active,
+        session_version=1,
     )
     user.user_id = user_id
     return user
@@ -290,7 +306,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/ui/new-list")
         self.assertEqual(user.google_sub, "google-subject-123")
-        self.assertEqual(request.session, {"user_id": 7})
+        self.assertEqual(request.session, {"user_id": 7, "session_version": 2})
         self.assertEqual(db.commits, 1)
 
     async def test_link_integrity_error_rolls_back_and_rejects_login(self):
@@ -309,11 +325,34 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(db.rollbacks, 1)
         self.assertNotIn("user_id", request.session)
 
+    async def test_previously_linked_identity_cannot_be_reassigned(self):
+        user = _user(7)
+        user.google_linked_at = object()
+        response, request, db = await self._callback([[], [user]])
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("user_id", request.session)
+        self.assertEqual(db.commits, 0)
+
+    async def test_concurrent_google_link_change_is_rejected(self):
+        user = _user(7)
+        request = _Request({GOOGLE_NONCE_SESSION_KEY: "expected-nonce"})
+        db = _Database([[], [user]], update_rowcount=0)
+        client = MagicMock()
+        client.authorize_access_token = AsyncMock(return_value={"userinfo": _claims()})
+        with (
+            _enabled_configuration(),
+            patch.object(auth, "create_google_oauth_client", return_value=client),
+        ):
+            response = await auth.google_callback(request, db)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(db.rollbacks, 1)
+        self.assertNotIn("user_id", request.session)
+
     async def test_existing_google_subject_logs_in_without_relinking(self):
         user = _user(8, google_sub="google-subject-123")
         response, request, db = await self._callback([[user]])
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(request.session, {"user_id": 8})
+        self.assertEqual(request.session, {"user_id": 8, "session_version": 1})
         self.assertEqual(db.commits, 0)
         self.assertEqual(len(db.statements), 1)
 

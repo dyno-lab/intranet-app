@@ -16,6 +16,7 @@ from app.core.platform_permissions import (
     require_platform_permission,
 )
 from app.models.platform_permission import PlatformPermission
+from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
 from app.models.user_platform_permission import UserPlatformPermission
 
@@ -129,6 +130,8 @@ def grant_platform_permission(
     if target_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     permission = _active_permission(db, permission_key)
+    if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
+        return _settings_redirect(error="Solo un administrador puede otorgar este permiso.")
     existing = db.execute(
         select(UserPlatformPermission).where(
             UserPlatformPermission.user_id == target_user.user_id,
@@ -143,6 +146,14 @@ def grant_platform_permission(
             user_id=target_user.user_id,
             permission_id=permission.permission_id,
             granted_by_user_id=current_user.user_id,
+        )
+    )
+    db.add(
+        PlatformUserAudit(
+            actor_user_id=current_user.user_id,
+            target_user_id=target_user.user_id,
+            action="permission_granted",
+            details=f"permission={permission.key}",
         )
     )
     try:
@@ -168,6 +179,16 @@ def revoke_platform_permission(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     permission = _active_permission(db, permission_key)
 
+    if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
+        return _settings_redirect(error="Solo un administrador puede revocar este permiso.")
+    if (
+        permission.key == MANAGE_PLATFORM_SETTINGS
+        and target_user.role == "admin"
+        and current_user.user_id != target_user.user_id
+    ):
+        return _settings_redirect(
+            error="El acceso de gestión de una cuenta admin está protegido.",
+        )
     if (
         current_user.user_id == target_user.user_id
         and permission.key == MANAGE_PLATFORM_SETTINGS
@@ -186,5 +207,13 @@ def revoke_platform_permission(
         return _settings_redirect(message="El permiso ya no estaba asignado.")
 
     db.delete(existing)
+    db.add(
+        PlatformUserAudit(
+            actor_user_id=current_user.user_id,
+            target_user_id=target_user.user_id,
+            action="permission_revoked",
+            details=f"permission={permission.key}",
+        )
+    )
     db.commit()
     return _settings_redirect(message="Permiso revocado correctamente.")

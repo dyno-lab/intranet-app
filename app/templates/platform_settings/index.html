@@ -98,7 +98,10 @@
               <span class="platform-settings-card__kicker">Asignaciones</span>
               <h2 id="platform-users-title">Usuarios</h2>
             </div>
-            <span>{{ users|length }} usuarios</span>
+            <div class="d-flex align-items-center gap-2">
+              <span>{{ users|length }} usuarios</span>
+              <a class="platform-settings-action" href="/ui/admin/users">Gestionar accesos</a>
+            </div>
           </div>
           <div class="platform-settings-table-wrap">
             <table class="platform-settings-table platform-settings-table--users">

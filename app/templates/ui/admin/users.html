@@ -1,6 +1,6 @@
 {% extends "ui/_base.html" %}
 
-{% block title %}Gestión de Usuarios{% endblock %}
+{% block title %}Gestión de accesos{% endblock %}
 
 {% block content %}
 
@@ -11,7 +11,8 @@
 </div>
 {% endif %}
 
-<h3 class="mb-4">👥 Gestión de Usuarios</h3>
+<h3 class="mb-1">Gestión de accesos</h3>
+<p class="text-muted mb-4">Solo las cuentas institucionales registradas y activas pueden autenticarse con Google.</p>
 
 <!-- Create new user -->
 <div class="card mb-4">
@@ -20,13 +21,18 @@
   </div>
   <div class="card-body">
     <form method="post" action="/ui/admin/users/create" class="row g-3 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="col-md-4">
-        <label for="username" class="form-label">Nombre de usuario</label>
-        <input type="text" class="form-control" name="username" id="username" required>
+        <label for="email" class="form-label">Correo institucional</label>
+        <input type="email" class="form-control" name="email" id="email" placeholder="persona@csifpr.org" required>
       </div>
       <div class="col-md-3">
-        <label for="password" class="form-label">Contraseña</label>
-        <input type="password" class="form-control" name="password" id="password" required>
+        <label for="password" class="form-label">Contraseña local opcional</label>
+        <input type="password" class="form-control" name="password" id="password" autocomplete="new-password" placeholder="Mínimo 12 caracteres">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="local_login_enabled" id="local_login_enabled">
+          <label class="form-check-label small" for="local_login_enabled">Habilitar acceso local</label>
+        </div>
       </div>
       <div class="col-md-2">
         <label for="role" class="form-label">Rol</label>
@@ -75,7 +81,12 @@
         {% for user in users %}
         <tr class="{{ 'text-muted text-decoration-line-through' if not user.is_active }}">
           <td>{{ user.user_id }}</td>
-          <td>{{ user.username }}</td>
+          <td>
+            <div class="fw-semibold">{{ user.email or "Sin correo institucional" }}</div>
+            <div class="small text-muted">{{ user.username }}</div>
+            <span class="badge {{ 'bg-success' if user.google_sub else 'bg-secondary' }}">Google {{ 'vinculado' if user.google_sub else 'pendiente' }}</span>
+            <span class="badge {{ 'bg-primary' if user.local_login_enabled else 'bg-light text-dark' }}">Local {{ 'activo' if user.local_login_enabled else 'inactivo' }}</span>
+          </td>
           <td>
             {% if user.role == "admin" %}
               <span class="badge bg-warning text-dark">admin</span>
@@ -108,8 +119,9 @@
             </button>
             {% if user.user_id != current_user.user_id %}
             <form method="post" action="/ui/admin/users/{{ user.user_id }}/delete"
-                  class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar al usuario {{ user.username }}?')">
-              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                  class="d-inline" onsubmit="return confirm('¿Desactivar al usuario {{ user.username }}? Se conservará su historial.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
             </form>
             {% endif %}
           </td>
@@ -118,9 +130,11 @@
         <tr class="collapse" id="edit-user-{{ user.user_id }}">
           <td colspan="7" class="bg-light">
             <form method="post" action="/ui/admin/users/{{ user.user_id }}/edit" class="row g-2 align-items-end p-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="username" value="{{ user.username }}">
               <div class="col-md-3">
-                <label class="form-label small">Usuario</label>
-                <input type="text" class="form-control form-control-sm" name="username" value="{{ user.username }}" required>
+                <label class="form-label small">Correo institucional</label>
+                <input type="email" class="form-control form-control-sm" name="email" value="{{ user.email or '' }}" required>
               </div>
               <div class="col-md-2">
                 <label class="form-label small">Rol</label>
@@ -144,10 +158,13 @@
                 <input type="password" class="form-control form-control-sm" name="new_password" placeholder="(sin cambiar)">
               </div>
               <div class="col-md-2">
-                <div class="form-check mt-4">
-                  <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ user.user_id }}"
-                         {{ 'checked' if user.is_active }}>
+                <div class="form-check mt-3">
+                  <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ user.user_id }}" {{ 'checked' if user.is_active }}>
                   <label class="form-check-label" for="active-{{ user.user_id }}">Activo</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="local_login_enabled" id="local-{{ user.user_id }}" {{ 'checked' if user.local_login_enabled }}>
+                  <label class="form-check-label" for="local-{{ user.user_id }}">Acceso local</label>
                 </div>
               </div>
               <div class="col-md-3">
@@ -156,6 +173,7 @@
                         data-bs-toggle="collapse" data-bs-target="#edit-user-{{ user.user_id }}">Cancelar</button>
               </div>
             </form>
+
           </td>
         </tr>
         {% endfor %}
@@ -163,5 +181,6 @@
     </table>
   </div>
 </div>
+
 
 {% endblock %}
