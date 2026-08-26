@@ -148,7 +148,7 @@ def require_platform_permission(permission_key: str) -> Callable:
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_303_SEE_OTHER,
-                headers={"Location": "/login"},
+                headers={"Location": "/home"},
             )
         if not user_has_platform_permission(db, user, normalized_key):
             raise HTTPException(

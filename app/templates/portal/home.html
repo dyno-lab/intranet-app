@@ -19,10 +19,23 @@
         >
         <h1 class="program-hub__title">Portal de Programas</h1>
         <p class="program-hub__subtitle">Acceso a programas y servicios internos</p>
+
+        {% if current_user %}
+        <div class="program-hub-session" aria-label="Sesión actual">
+          <span class="program-hub-session__identity">
+            <i class="bi bi-person-check" aria-hidden="true"></i>
+            {{ current_user.email or current_user.username }}
+          </span>
+          <form method="post" action="/logout">
+            <button class="program-hub-session__logout" type="submit">Cerrar sesión</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
     </header>
 
     <main class="program-hub__main">
+      {% if current_user %}
       <section class="program-hub__section" aria-labelledby="programas-disponibles">
         <div class="program-hub__shell">
           <h2 id="programas-disponibles" class="program-hub__section-label">Programas disponibles</h2>
@@ -101,6 +114,33 @@
           </div>
         </div>
       </section>
+      {% else %}
+      <section class="program-hub__section" aria-labelledby="portal-access-title">
+        <div class="program-hub__shell">
+          <div class="program-hub-access-card">
+            <span class="program-hub-access-card__icon" aria-hidden="true">
+              <i class="bi bi-shield-check"></i>
+            </span>
+            <div class="program-hub-access-card__copy">
+              <span class="program-hub__section-label">Acceso institucional</span>
+              <h2 id="portal-access-title">Inicie sesión para ver sus programas</h2>
+              <p>Utilice su cuenta institucional de Google Workspace para continuar.</p>
+            </div>
+            <div class="program-hub-access-card__actions">
+              {% if google_oauth_available %}
+              <a class="program-hub-google-button" href="/auth/google">
+                <i class="bi bi-google" aria-hidden="true"></i>
+                Continuar con Google
+              </a>
+              {% else %}
+              <span class="program-hub-access-card__unavailable">Google no está disponible temporalmente.</span>
+              {% endif %}
+              <a class="program-hub-local-link" href="/login">Acceso local de contingencia</a>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
     </main>
 
     <footer class="program-hub__footer">

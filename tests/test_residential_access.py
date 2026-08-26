@@ -28,6 +28,7 @@ from app.core.platform_permissions import (  # noqa: E402
 from app.core.residential_scope import (  # noqa: E402
     ACTIVE_RESIDENTIAL_NAME_SESSION_KEY,
     ACTIVE_RESIDENTIAL_SESSION_KEY,
+    AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY,
     require_faro_access,
     resolve_active_residential,
     user_can_read_record,
@@ -192,6 +193,24 @@ class ResidentialAccessTests(unittest.TestCase):
             {getattr(call, "__name__", "") for call in platform_calls},
         )
 
+    def test_selector_next_path_rejects_external_and_self_redirects(self):
+        self.assertEqual(
+            residential_context._safe_next_path("https://attacker.example"),
+            "/ui",
+        )
+        self.assertEqual(
+            residential_context._safe_next_path("/ui/context/residential"),
+            "/ui",
+        )
+        self.assertEqual(
+            residential_context._safe_next_path("/ui/context/residential/?next=/ui"),
+            "/ui",
+        )
+        self.assertEqual(
+            residential_context._safe_next_path("/ui/new-list"),
+            "/ui/new-list",
+        )
+
     def test_residential_templates_compile_without_corrupted_html(self):
         template_names = (
             "ui/residential_context.html",
@@ -235,6 +254,24 @@ class ResidentialAccessTests(unittest.TestCase):
             request.session[ACTIVE_RESIDENTIAL_NAME_SESSION_KEY],
             residential.name,
         )
+        self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 1)
+
+    def test_selector_route_auto_selects_single_residential(self):
+        user = _user(7)
+        residential = _residential(2, "B")
+        request = _Request()
+        db = _Database(results=[_Result(values=[residential])])
+
+        response = residential_context.residential_context_page(
+            request=request,
+            next_path="/ui",
+            db=db,
+            current_user=user,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/ui")
+        self.assertEqual(request.session[ACTIVE_RESIDENTIAL_SESSION_KEY], 2)
 
     def test_multiple_assignments_require_an_explicit_selection(self):
         user = _user(7)
@@ -250,8 +287,9 @@ class ResidentialAccessTests(unittest.TestCase):
         self.assertIsNone(active)
         self.assertEqual(available, residentials)
         self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+        self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 2)
 
-    def test_faro_enforcement_redirects_multiple_assignments_to_selector(self):
+    def test_faro_redirects_multi_residential_user_to_selector(self):
         user = _user(7)
         residentials = [_residential(1, "A"), _residential(2, "B")]
         request = _Request({"user_id": user.user_id, "session_version": 1})
@@ -263,30 +301,72 @@ class ResidentialAccessTests(unittest.TestCase):
             ],
         )
 
-        with patch.object(app_settings, "RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED", True):
-            with self.assertRaises(HTTPException) as context:
-                require_faro_access(request=request, db=db)
+        with self.assertRaises(HTTPException) as context:
+            require_faro_access(request=request, db=db)
 
         self.assertEqual(context.exception.status_code, 303)
         self.assertIn("/ui/context/residential?next=", context.exception.headers["Location"])
 
-    def test_faro_enforcement_flag_allows_stage1_without_selection(self):
+    def test_admin_and_supervisor_bypass_residential_selection(self):
+        for role in ("admin", "supervisor"):
+            with self.subTest(role=role):
+                user = _user(7, role=role)
+                request = _Request({
+                    "user_id": user.user_id,
+                    "session_version": 1,
+                    ACTIVE_RESIDENTIAL_SESSION_KEY: 99,
+                    ACTIVE_RESIDENTIAL_NAME_SESSION_KEY: "Anterior",
+                })
+                db = _Database(
+                    objects={(User, user.user_id): user},
+                    results=[_Result(values=[ACCESS_FARO])],
+                )
+
+                resolved_user = require_faro_access(request=request, db=db)
+
+                self.assertIs(resolved_user, user)
+                self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+                self.assertNotIn(ACTIVE_RESIDENTIAL_NAME_SESSION_KEY, request.session)
+                self.assertEqual(db.results, [])
+
+    def test_selector_route_redirects_admin_and_supervisor_without_querying_assignments(self):
+        for role in ("admin", "supervisor"):
+            with self.subTest(role=role):
+                user = _user(7, role=role)
+                request = _Request({ACTIVE_RESIDENTIAL_SESSION_KEY: 99})
+                db = _Database()
+
+                response = residential_context.residential_context_page(
+                    request=request,
+                    next_path="/ui",
+                    db=db,
+                    current_user=user,
+                )
+
+                self.assertEqual(response.status_code, 303)
+                self.assertEqual(response.headers["location"], "/ui")
+                self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+                self.assertEqual(db.results, [])
+
+    def test_selector_page_renders_clickable_options_only_for_multi_residential_user(self):
         user = _user(7)
         residentials = [_residential(1, "A"), _residential(2, "B")]
-        request = _Request({"user_id": user.user_id, "session_version": 1})
-        db = _Database(
-            objects={(User, user.user_id): user},
-            results=[
-                _Result(values=[ACCESS_FARO]),
-                _Result(values=residentials),
-            ],
+        request = _Request()
+        db = _Database(results=[_Result(values=residentials)])
+
+        response = residential_context.residential_context_page(
+            request=request,
+            next_path="/ui",
+            db=db,
+            current_user=user,
         )
+        body = response.body.decode("utf-8")
 
-        with patch.object(app_settings, "RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED", False):
-            resolved_user = require_faro_access(request=request, db=db)
-
-        self.assertIs(resolved_user, user)
-        self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Seleccione un residencial", body)
+        self.assertEqual(body.count("residential-picker-option"), 8)
+        self.assertIn("Residencial A", body)
+        self.assertIn("Residencial B", body)
 
     def test_selector_rejects_unassigned_residential(self):
         user = _user(7)

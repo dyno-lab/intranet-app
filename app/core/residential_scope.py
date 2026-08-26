@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.config import settings
 from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
 from app.models.residential import Residential
 from app.models.user import User
@@ -16,6 +15,7 @@ from app.models.user_residential import UserResidential
 
 ACTIVE_RESIDENTIAL_SESSION_KEY = "active_residential_id"
 ACTIVE_RESIDENTIAL_NAME_SESSION_KEY = "active_residential_name"
+AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY = "available_residential_count"
 
 _FARO_PERMISSION_DEPENDENCY = require_platform_permission(ACCESS_FARO)
 
@@ -36,6 +36,7 @@ def assigned_residentials(db: Session, user: User) -> list[Residential]:
 def clear_active_residential(session) -> None:
     session.pop(ACTIVE_RESIDENTIAL_SESSION_KEY, None)
     session.pop(ACTIVE_RESIDENTIAL_NAME_SESSION_KEY, None)
+    session.pop(AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY, None)
 
 
 def set_active_residential(session, residential: Residential) -> None:
@@ -59,9 +60,11 @@ def resolve_active_residential(
     selected = residential_by_id.get(selected_id)
     if selected is not None:
         set_active_residential(request.session, selected)
+        request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials)
         return selected, residentials
 
     clear_active_residential(request.session)
+    request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials)
     if len(residentials) == 1:
         selected = residentials[0]
         set_active_residential(request.session, selected)
@@ -74,24 +77,28 @@ def require_faro_access(
     db: Session = Depends(get_db),
 ) -> User:
     user = _FARO_PERMISSION_DEPENDENCY(request=request, db=db)
-    active_residential, residentials = resolve_active_residential(request, db, user)
+    if user.role in {"admin", "supervisor"}:
+        clear_active_residential(request.session)
+        return user
 
-    if settings.RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED and active_residential is None:
-        if not residentials:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tiene residenciales activos asignados.",
-            )
-        next_path = request.url.path
-        if request.url.query:
-            next_path = f"{next_path}?{request.url.query}"
+    active_residential, residentials = resolve_active_residential(request, db, user)
+    if active_residential is not None:
+        return user
+    if not residentials:
         raise HTTPException(
-            status_code=status.HTTP_303_SEE_OTHER,
-            headers={
-                "Location": f"/ui/context/residential?next={quote(next_path, safe='')}"
-            },
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene residenciales activos asignados.",
         )
-    return user
+
+    next_path = request.url.path
+    if request.url.query:
+        next_path = f"{next_path}?{request.url.query}"
+    raise HTTPException(
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers={
+            "Location": f"/ui/context/residential?next={quote(next_path, safe='')}"
+        },
+    )
 
 
 def user_can_read_record(

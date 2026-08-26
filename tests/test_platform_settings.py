@@ -219,27 +219,28 @@ class PlatformSettingsTests(unittest.TestCase):
 
         self.assertEqual(platform_settings_batch_index, columns_batch_index + 1)
 
-    def test_home_redirects_without_session(self):
+    def test_home_is_public_without_session_and_offers_authentication(self):
         request = _Request()
         db = _Database()
 
-        with self.assertRaises(HTTPException) as context:
-            portal.portal_home(request=request, db=db)
+        response = portal.portal_home(request=request, db=db)
+        body = _body(response)
 
-        self.assertEqual(context.exception.status_code, 303)
-        self.assertEqual(context.exception.headers["Location"], "/login")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Inicie sesión para ver sus programas", body)
+        self.assertIn("Acceso local de contingencia", body)
+        self.assertNotIn("Programas disponibles", body)
         self.assertEqual(db.get_calls, [])
         self.assertEqual(db.statements, [])
 
-    def test_home_redirects_with_invalid_session(self):
+    def test_home_clears_invalid_session_and_returns_public_entry(self):
         request = _Request({"user_id": 999, "other": "value"})
         db = _Database()
 
-        with self.assertRaises(HTTPException) as context:
-            portal.portal_home(request=request, db=db)
+        response = portal.portal_home(request=request, db=db)
 
-        self.assertEqual(context.exception.status_code, 303)
-        self.assertEqual(context.exception.headers["Location"], "/login")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Inicie sesión para ver sus programas", _body(response))
         self.assertEqual(request.session, {})
         self.assertEqual(db.get_calls, [(User, 999)])
         self.assertEqual(db.statements, [])
@@ -419,7 +420,7 @@ class PlatformSettingsTests(unittest.TestCase):
             dependency(request=_Request(), db=_Database())
 
         self.assertEqual(context.exception.status_code, 303)
-        self.assertEqual(context.exception.headers["Location"], "/login")
+        self.assertEqual(context.exception.headers["Location"], "/home")
 
     def test_settings_dependency_denies_user_without_permission(self):
         user = _user(1, "admin.without.explicit.permission", role="admin")

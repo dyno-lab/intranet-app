@@ -16,7 +16,7 @@ os.environ.setdefault("DB_NAME", "test-db")
 os.environ.setdefault("DB_USER", "test-user")
 os.environ.setdefault("DB_PASSWORD", "test-password")
 
-from app.api.routes import auth  # noqa: E402
+from app.api.routes import auth, portal  # noqa: E402
 from app.core.config import require_session_secret, settings  # noqa: E402
 from app.core.google_oauth import (  # noqa: E402
     GOOGLE_NONCE_SESSION_KEY,
@@ -41,6 +41,11 @@ class _Request:
         self.session = session if session is not None else {}
         if "user_id" in self.session and "session_version" not in self.session:
             self.session["session_version"] = 1
+
+    def url_for(self, name: str, **path_params) -> str:
+        if name != "static":
+            raise AssertionError(f"Unexpected route name: {name}")
+        return f"/static/{path_params['path']}"
 
 
 class _Result:
@@ -168,14 +173,17 @@ class SessionAndLocalLoginTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("user_id", request.session)
 
-    def test_google_button_only_appears_when_fully_configured(self):
+    def test_google_button_is_on_home_and_only_when_fully_configured(self):
         request = _Request()
         with patch.object(settings, "GOOGLE_OAUTH_ENABLED", False):
-            disabled_response = auth.login_page(request)
+            disabled_response = portal.portal_home(request, _Database([]))
         with _enabled_configuration():
-            enabled_response = auth.login_page(request)
+            enabled_response = portal.portal_home(request, _Database([]))
+
         self.assertNotIn("Continuar con Google", disabled_response.body.decode())
         self.assertIn("Continuar con Google", enabled_response.body.decode())
+        self.assertNotIn("Continuar con Google", auth.login_page(request).body.decode())
+        self.assertIn("Acceso local", auth.login_page(request).body.decode())
 
 
 class GoogleIdentityValidationTests(unittest.TestCase):

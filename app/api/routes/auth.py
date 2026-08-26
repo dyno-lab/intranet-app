@@ -21,7 +21,6 @@ from app.core.google_oauth import (
     clear_google_oauth_session,
     create_google_oauth_client,
     get_google_oauth_configuration,
-    google_oauth_is_available,
     new_google_nonce,
     validate_google_identity,
 )
@@ -39,7 +38,6 @@ def _login_context(request: Request, *, error: str | None = None) -> dict:
     return {
         "request": request,
         "error": error,
-        "google_oauth_available": google_oauth_is_available(),
     }
 
 
@@ -215,4 +213,4 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 @router.post("/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/home", status_code=303)

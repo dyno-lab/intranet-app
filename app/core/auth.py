@@ -9,15 +9,15 @@ from app.models.user import User
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     """
     Para UI:
-    - Si no hay sesión: redirige a /login
-    - Si usuario no existe/inactivo: limpia sesión y redirige a /login
+    - Si no hay sesión: redirige a /home
+    - Si usuario no existe/inactivo: limpia sesión y redirige a /home
     """
     user_id = request.session.get("user_id")
 
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": "/login"},
+            headers={"Location": "/home"},
         )
 
     user = db.get(User, user_id)
@@ -26,7 +26,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         request.session.clear()
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": "/login"},
+            headers={"Location": "/home"},
         )
 
     return user

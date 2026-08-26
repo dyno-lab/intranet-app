@@ -1,11 +1,12 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.google_oauth import google_oauth_is_available
 from app.core.platform_permissions import (
     ACCESS_AUTOMATION,
     ACCESS_FARO,
@@ -26,9 +27,20 @@ templates = Jinja2Templates(directory="app/templates")
 def portal_home(request: Request, db: Session = Depends(get_db)):
     current_user = get_optional_current_user(request, db)
     if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": "/login"},
+        return templates.TemplateResponse(
+            request=request,
+            name="portal/home.html",
+            context={
+                "request": request,
+                "current_year": date.today().year,
+                "current_user": None,
+                "google_oauth_available": google_oauth_is_available(),
+                "can_manage_platform_settings": False,
+                "can_access_faro": False,
+                "can_access_institutional_reports": False,
+                "can_access_automation": False,
+                "can_access_new_programs": False,
+            },
         )
 
     permission_keys = user_permission_keys(db, current_user)
@@ -52,6 +64,7 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "current_year": date.today().year,
             "current_user": current_user,
+            "google_oauth_available": google_oauth_is_available(),
             "can_manage_platform_settings": can_manage_platform_settings,
             "can_access_faro": ACCESS_FARO in permission_keys,
             "can_access_institutional_reports": ACCESS_INSTITUTIONAL_REPORTS in permission_keys,

@@ -11,6 +11,7 @@ from app.api.deps import get_db
 from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
 from app.core.residential_scope import (
     assigned_residentials,
+    clear_active_residential,
     resolve_active_residential,
     set_active_residential,
 )
@@ -26,6 +27,9 @@ _FARO_PERMISSION_DEPENDENCY = require_platform_permission(ACCESS_FARO)
 def _safe_next_path(value: str | None) -> str:
     candidate = (value or "").strip()
     if not candidate.startswith("/ui") or candidate.startswith("//"):
+        return "/ui"
+    candidate_path = candidate.split("?", 1)[0].rstrip("/")
+    if candidate_path == "/ui/context/residential":
         return "/ui"
     return candidate
 
@@ -56,9 +60,18 @@ def residential_context_page(
     current_user: User = Depends(_FARO_PERMISSION_DEPENDENCY),
 ):
     next_path = _safe_next_path(next_path)
+    if current_user.role in {"admin", "supervisor"}:
+        clear_active_residential(request.session)
+        return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
+
     active_residential, residentials = resolve_active_residential(request, db, current_user)
     if len(residentials) == 1:
         return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
+    if not residentials:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene residenciales activos asignados.",
+        )
 
     return templates.TemplateResponse(
         request=request,
@@ -84,6 +97,13 @@ def select_residential_context(
     current_user: User = Depends(_FARO_PERMISSION_DEPENDENCY),
 ):
     _validate_csrf(request, csrf_token)
+    if current_user.role in {"admin", "supervisor"}:
+        clear_active_residential(request.session)
+        return RedirectResponse(
+            _safe_next_path(next_path),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
     residential = next(
         (
             candidate

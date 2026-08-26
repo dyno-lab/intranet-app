@@ -284,22 +284,19 @@
 
       <section class="login-panel">
         <div class="login-card">
-          <div class="login-badge">Acceso seguro</div>
-          <h2 class="login-title">Bienvenido</h2>
+          <div class="login-badge">Acceso de contingencia</div>
+          <h2 class="login-title">Acceso local</h2>
           <p class="login-copy">
-            Ingresa tus credenciales para acceder al sistema y continuar con la gestión diaria.
+            Utiliza este formulario únicamente si tienes una cuenta local habilitada. El acceso institucional con Google está disponible en el portal principal.
           </p>
 
           {% if error %}
             <div class="alert alert-danger rounded-4">{{ error }}</div>
           {% endif %}
 
-          {% if google_oauth_available %}
-            <a class="btn btn-google w-100 d-flex align-items-center justify-content-center" href="/auth/google">
-              Continuar con Google
-            </a>
-            <div class="login-divider">o usa tu acceso local</div>
-          {% endif %}
+          <a class="btn btn-google w-100 d-flex align-items-center justify-content-center mb-3" href="/home">
+            Volver al portal principal
+          </a>
 
           <form method="post">
             <div class="mb-3">
