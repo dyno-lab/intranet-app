@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import settings
+from app.core.platform_permissions import ACCESS_AUTOMATION, user_has_platform_permission
 from app.core.session_security import session_matches_user
 from app.models.user import User
 from app.models.proposal import Proposal
@@ -148,14 +149,14 @@ def require_automation_access(
     request: Request,
     db: Session = Depends(get_db),
     x_automation_token: str | None = Header(default=None),
-) -> None:
+) -> User | None:
     expected = settings.AUTOMATION_API_KEY
-    if expected:
-        if x_automation_token and secrets.compare_digest(x_automation_token, expected):
+    if expected and x_automation_token:
+        if secrets.compare_digest(x_automation_token, expected):
             return
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de automatizacion invalido o ausente.",
+            detail="Token de automatizacion invalido.",
         )
 
     session_user = _session_user_or_none(request, db)
@@ -164,14 +165,27 @@ def require_automation_access(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Se requiere token de automatizacion o sesion autenticada.",
         )
-    if session_user.role not in {"admin", "supervisor"}:
+    if not user_has_platform_permission(db, session_user, ACCESS_AUTOMATION):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acceso denegado para automatizaciones.",
         )
+    return session_user
 
 
-def _automation_user(db: Session, run_as_user_id: int | None = None) -> User:
+def _automation_user(
+    db: Session,
+    run_as_user_id: int | None = None,
+    authenticated_user: User | None = None,
+) -> User:
+    if authenticated_user is not None:
+        if run_as_user_id is not None and run_as_user_id != authenticated_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Una sesión de usuario no puede ejecutar automatizaciones como otra cuenta.",
+            )
+        return authenticated_user
+
     if run_as_user_id:
         user = db.get(User, run_as_user_id)
         if not user or not user.is_active:
@@ -316,7 +330,9 @@ def _build_report_payload(
 
 
 @router.get("/reports")
-def list_automation_reports(_: None = Depends(require_automation_access)):
+def list_automation_reports(
+    _: User | None = Depends(require_automation_access),
+):
     return {
         "reports": sorted(REPORT_BUILDERS.keys()),
         "usage": "/api/automation/reports/{report_key}?month=3&year=2026&proposal_id=1",
@@ -327,18 +343,22 @@ def list_automation_reports(_: None = Depends(require_automation_access)):
 def automation_options(
     request: Request,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_access),
+    automation_principal: User | None = Depends(require_automation_access),
 ):
     proposals = db.execute(
         select(Proposal)
         .where(Proposal.is_active == True)  # noqa: E712
         .order_by(Proposal.code)
     ).scalars().all()
-    users = db.execute(
-        select(User)
-        .where(User.is_active == True, User.role == "user")  # noqa: E712
-        .order_by(User.username)
-    ).scalars().all()
+    users_statement = select(User).where(
+        User.is_active == True,  # noqa: E712
+        User.role == "user",
+    )
+    if automation_principal is not None and automation_principal.role == "user":
+        users_statement = users_statement.where(
+            User.user_id == automation_principal.user_id
+        )
+    users = db.execute(users_statement.order_by(User.username)).scalars().all()
     return {
         "proposals": [
             {
@@ -350,7 +370,12 @@ def automation_options(
             for proposal in proposals
         ],
         "residentials": [
-            {"employee_id": 0, "name": "Global", "label": "0 | Global"},
+            *(
+                [{"employee_id": 0, "name": "Global", "label": "0 | Global"}]
+                if automation_principal is None
+                or automation_principal.role in {"admin", "supervisor"}
+                else []
+            ),
             *[
                 {
                     "employee_id": user.user_id,
@@ -379,9 +404,9 @@ def monthly_package(
     run_as_user_id: int | None = None,
     include: str = "no-duplicado,duplicado,por-programa",
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_access),
+    automation_principal: User | None = Depends(require_automation_access),
 ):
-    user = _automation_user(db, run_as_user_id)
+    user = _automation_user(db, run_as_user_id, automation_principal)
     requested_reports = [item.strip() for item in include.split(",") if item.strip()]
     payload = {
         "package_key": "monthly-package",
@@ -418,9 +443,9 @@ def automation_all_reports_excel(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_access),
+    automation_principal: User | None = Depends(require_automation_access),
 ):
-    user = _automation_user(db, run_as_user_id)
+    user = _automation_user(db, run_as_user_id, automation_principal)
     if period_type not in {"monthly", "custom"}:
         raise HTTPException(status_code=400, detail="period_type debe ser monthly o custom.")
 
@@ -490,9 +515,9 @@ def automation_all_reports_pdf(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_access),
+    automation_principal: User | None = Depends(require_automation_access),
 ):
-    user = _automation_user(db, run_as_user_id)
+    user = _automation_user(db, run_as_user_id, automation_principal)
     if period_type not in {"monthly", "custom"}:
         raise HTTPException(status_code=400, detail="period_type debe ser monthly o custom.")
 
@@ -553,9 +578,9 @@ def automation_report(
     end_date: str | None = None,
     run_as_user_id: int | None = None,
     db: Session = Depends(get_db),
-    _: None = Depends(require_automation_access),
+    automation_principal: User | None = Depends(require_automation_access),
 ):
-    user = _automation_user(db, run_as_user_id)
+    user = _automation_user(db, run_as_user_id, automation_principal)
     return _build_report_payload(
         report_key,
         db,

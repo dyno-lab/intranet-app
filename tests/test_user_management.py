@@ -17,6 +17,7 @@ from app.models.residential import Residential  # noqa: E402
 from app.core.auth import get_current_user  # noqa: E402
 from app.core.platform_permissions import MANAGE_PLATFORM_SETTINGS  # noqa: E402
 from app.models.user import User  # noqa: E402
+from app.models.user_residential import UserResidential  # noqa: E402
 
 
 class _Request:
@@ -191,10 +192,13 @@ class UserManagementTests(unittest.TestCase):
         self.assertEqual(db.flushes, 1)
         created_user = next(value for value in db.added if isinstance(value, User))
         audit = next(value for value in db.added if isinstance(value, PlatformUserAudit))
+        assignment = next(value for value in db.added if isinstance(value, UserResidential))
         self.assertEqual(created_user.email, "employee@csifpr.org")
         self.assertEqual(created_user.username, "employee@csifpr.org")
         self.assertFalse(created_user.local_login_enabled)
         self.assertEqual(created_user.residential_id, residential.residential_id)
+        self.assertEqual(assignment.user_id, created_user.user_id)
+        self.assertEqual(assignment.residential_id, residential.residential_id)
         self.assertEqual(audit.action, "user_created")
         self.assertEqual(audit.target_user_id, created_user.user_id)
 

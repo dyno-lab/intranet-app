@@ -15,6 +15,7 @@ os.environ.setdefault("DB_PASSWORD", "test-password")
 
 from app.api.routes import auth, platform_settings, portal  # noqa: E402
 from app.core.platform_permissions import (  # noqa: E402
+    ACCESS_PORTAL_HOME,
     MANAGE_PLATFORM_SETTINGS,
     bootstrap_platform_settings_user,
     get_optional_current_user,
@@ -27,6 +28,7 @@ from app.db import schema as db_schema  # noqa: E402
 from app.db.schema import (  # noqa: E402
     PLATFORM_SETTINGS_SQL,
     PLATFORM_SETTINGS_USER_COLUMNS_SQL,
+    STAGE1_RESIDENTIAL_ACCESS_SQL,
 )
 import app.models.residential  # noqa: E402, F401
 from app.models.platform_permission import PlatformPermission  # noqa: E402
@@ -179,6 +181,7 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIn("MERGE dbo.user_platform_permissions WITH (HOLDLOCK)", PLATFORM_SETTINGS_SQL)
         for permission_key in (
             MANAGE_PLATFORM_SETTINGS,
+            ACCESS_PORTAL_HOME,
             "access_faro",
             "access_institutional_reports",
             "access_automation",
@@ -188,6 +191,10 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIn("cramirez@csifpr.org", PLATFORM_SETTINGS_SQL)
         self.assertNotIn("PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD", PLATFORM_SETTINGS_SQL)
         self.assertNotIn("INSERT INTO dbo.users", PLATFORM_SETTINGS_SQL)
+        self.assertIn("CREATE TABLE dbo.user_residentials", STAGE1_RESIDENTIAL_ACCESS_SQL)
+        self.assertIn("CREATE TABLE dbo.platform_data_migrations", STAGE1_RESIDENTIAL_ACCESS_SQL)
+        self.assertIn("stage1_residential_assignments_and_application_access_v1", STAGE1_RESIDENTIAL_ACCESS_SQL)
+        self.assertEqual(STAGE1_RESIDENTIAL_ACCESS_SQL.count("permissions.[key] IN ('access_portal_home', 'access_faro')"), 1)
 
     def test_schema_executes_user_columns_before_remaining_platform_settings_sql(self):
         connection = MagicMock()
@@ -212,45 +219,48 @@ class PlatformSettingsTests(unittest.TestCase):
 
         self.assertEqual(platform_settings_batch_index, columns_batch_index + 1)
 
-    def test_home_is_public_without_session_and_hides_settings_button(self):
+    def test_home_redirects_without_session(self):
         request = _Request()
         db = _Database()
 
-        response = portal.portal_home(request=request, db=db)
+        with self.assertRaises(HTTPException) as context:
+            portal.portal_home(request=request, db=db)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("program-hub-settings-button", _body(response))
+        self.assertEqual(context.exception.status_code, 303)
+        self.assertEqual(context.exception.headers["Location"], "/login")
         self.assertEqual(db.get_calls, [])
         self.assertEqual(db.statements, [])
 
-    def test_home_is_public_with_invalid_session_and_hides_settings_button(self):
+    def test_home_redirects_with_invalid_session(self):
         request = _Request({"user_id": 999, "other": "value"})
         db = _Database()
 
-        response = portal.portal_home(request=request, db=db)
+        with self.assertRaises(HTTPException) as context:
+            portal.portal_home(request=request, db=db)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("program-hub-settings-button", _body(response))
+        self.assertEqual(context.exception.status_code, 303)
+        self.assertEqual(context.exception.headers["Location"], "/login")
         self.assertEqual(request.session, {})
         self.assertEqual(db.get_calls, [(User, 999)])
         self.assertEqual(db.statements, [])
 
-    def test_home_hides_settings_button_for_user_without_permission(self):
+    def test_home_denies_user_without_portal_permission(self):
         user = _user(1, "regular.user")
         request = _Request({"user_id": user.user_id})
         db = _Database(users={user.user_id: user}, results=[_Result(values=[])])
 
         response = portal.portal_home(request=request, db=db)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("program-hub-settings-button", _body(response))
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("No tiene acceso habilitado", _body(response))
+        self.assertIn("cramirez@csifpr.org", _body(response))
 
     def test_home_shows_settings_button_for_user_with_explicit_permission(self):
         user = _user(1, "cramirez@csifpr.org", email="cramirez@csifpr.org", role="admin")
         request = _Request({"user_id": user.user_id})
         db = _Database(
             users={user.user_id: user},
-            results=[_Result(values=[MANAGE_PLATFORM_SETTINGS])],
+            results=[_Result(values=[MANAGE_PLATFORM_SETTINGS, ACCESS_PORTAL_HOME])],
         )
 
         response = portal.portal_home(request=request, db=db)
@@ -338,14 +348,14 @@ class PlatformSettingsTests(unittest.TestCase):
             db=_Database(results=[_Result(scalar=user)]),
         )
         self.assertEqual(login_response.status_code, 303)
-        self.assertEqual(login_response.headers["location"], "/ui/new-list")
+        self.assertEqual(login_response.headers["location"], "/home")
         self.assertEqual(login_request.session["user_id"], user.user_id)
 
         home_response = portal.portal_home(
             request=login_request,
             db=_Database(
                 users={user.user_id: user},
-                results=[_Result(values=[MANAGE_PLATFORM_SETTINGS])],
+                results=[_Result(values=[MANAGE_PLATFORM_SETTINGS, ACCESS_PORTAL_HOME])],
             ),
         )
         self.assertEqual(home_response.status_code, 200)
@@ -458,6 +468,8 @@ class PlatformSettingsTests(unittest.TestCase):
                 _Result(values=[manage_permission, faro_permission]),
                 _Result(values=[current_user, regular_user]),
                 _Result(values=[(current_user.user_id, MANAGE_PLATFORM_SETTINGS)]),
+                _Result(values=[]),
+                _Result(values=[]),
             ]
         )
         request = _Request({"user_id": current_user.user_id})

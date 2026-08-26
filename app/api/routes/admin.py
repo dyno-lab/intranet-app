@@ -24,6 +24,7 @@ from app.core.platform_permissions import MANAGE_PLATFORM_SETTINGS, require_plat
 from app.core.security import hash_password, verify_password
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
+from app.models.user_residential import UserResidential
 from app.models.activity_code import ActivityCode
 from app.models.activity_productivity_goal import ActivityProductivityGoal
 from app.models.adm_service_type import ADMServiceType
@@ -483,6 +484,15 @@ def admin_create_user(
     db.add(user)
     try:
         db.flush()
+        if residential_id:
+            db.add(
+                UserResidential(
+                    user_id=user.user_id,
+                    residential_id=residential_id,
+                    assigned_by_user_id=current_user.user_id,
+                    is_active=True,
+                )
+            )
         _record_user_audit(
             db,
             actor_user_id=current_user.user_id,
@@ -580,6 +590,7 @@ def admin_edit_user(
             "Error: Debe establecer una contraseña al habilitar el acceso local.",
         )
 
+    previous_residential_id = user.residential_id
     changed_fields: list[str] = []
     updates = {
         "email": normalized_email,
@@ -596,6 +607,27 @@ def admin_edit_user(
     if normalized_password:
         user.password_hash = hash_password(normalized_password)
         changed_fields.append("password_reset")
+
+    if residential_id and residential_id != previous_residential_id:
+        residential_assignment = db.execute(
+            select(UserResidential).where(
+                UserResidential.user_id == user.user_id,
+                UserResidential.residential_id == residential_id,
+            )
+        ).scalar_one_or_none()
+        if residential_assignment is None:
+            db.add(
+                UserResidential(
+                    user_id=user.user_id,
+                    residential_id=residential_id,
+                    assigned_by_user_id=current_user.user_id,
+                    is_active=True,
+                )
+            )
+        else:
+            residential_assignment.is_active = True
+            residential_assignment.assigned_by_user_id = current_user.user_id
+            residential_assignment.assigned_at = func.sysutcdatetime()
 
     if not changed_fields:
         return _redirect_with_msg("/ui/admin/users", "No había cambios para guardar.")

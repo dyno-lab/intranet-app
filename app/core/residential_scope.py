@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from urllib.parse import quote
+
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db
+from app.core.config import settings
+from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
+from app.models.residential import Residential
+from app.models.user import User
+from app.models.user_residential import UserResidential
+
+
+ACTIVE_RESIDENTIAL_SESSION_KEY = "active_residential_id"
+ACTIVE_RESIDENTIAL_NAME_SESSION_KEY = "active_residential_name"
+
+_FARO_PERMISSION_DEPENDENCY = require_platform_permission(ACCESS_FARO)
+
+
+def assigned_residentials(db: Session, user: User) -> list[Residential]:
+    statement = select(Residential).where(Residential.is_active == True)  # noqa: E712
+    if user.role != "admin":
+        statement = statement.join(
+            UserResidential,
+            UserResidential.residential_id == Residential.residential_id,
+        ).where(
+            UserResidential.user_id == user.user_id,
+            UserResidential.is_active == True,  # noqa: E712
+        )
+    return list(db.execute(statement.order_by(Residential.code, Residential.name)).scalars().all())
+
+
+def clear_active_residential(session) -> None:
+    session.pop(ACTIVE_RESIDENTIAL_SESSION_KEY, None)
+    session.pop(ACTIVE_RESIDENTIAL_NAME_SESSION_KEY, None)
+
+
+def set_active_residential(session, residential: Residential) -> None:
+    session[ACTIVE_RESIDENTIAL_SESSION_KEY] = residential.residential_id
+    session[ACTIVE_RESIDENTIAL_NAME_SESSION_KEY] = residential.name
+
+
+def resolve_active_residential(
+    request: Request,
+    db: Session,
+    user: User,
+) -> tuple[Residential | None, list[Residential]]:
+    residentials = assigned_residentials(db, user)
+    residential_by_id = {residential.residential_id: residential for residential in residentials}
+
+    try:
+        selected_id = int(request.session.get(ACTIVE_RESIDENTIAL_SESSION_KEY))
+    except (TypeError, ValueError):
+        selected_id = None
+
+    selected = residential_by_id.get(selected_id)
+    if selected is not None:
+        set_active_residential(request.session, selected)
+        return selected, residentials
+
+    clear_active_residential(request.session)
+    if len(residentials) == 1:
+        selected = residentials[0]
+        set_active_residential(request.session, selected)
+        return selected, residentials
+    return None, residentials
+
+
+def require_faro_access(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    user = _FARO_PERMISSION_DEPENDENCY(request=request, db=db)
+    active_residential, residentials = resolve_active_residential(request, db, user)
+
+    if settings.RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED and active_residential is None:
+        if not residentials:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene residenciales activos asignados.",
+            )
+        next_path = request.url.path
+        if request.url.query:
+            next_path = f"{next_path}?{request.url.query}"
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={
+                "Location": f"/ui/context/residential?next={quote(next_path, safe='')}"
+            },
+        )
+    return user
+
+
+def user_can_read_record(
+    user: User,
+    *,
+    active_residential_id: int,
+    record_residential_id: int,
+    created_by_user_id: int,
+) -> bool:
+    if user.role == "admin":
+        return True
+    if record_residential_id != active_residential_id:
+        return False
+    if user.role == "supervisor":
+        return True
+    return created_by_user_id == user.user_id

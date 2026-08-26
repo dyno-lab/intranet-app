@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Mantén en False para volver al comportamiento estable de FASE 1.
     PHASE2_EXPEDIENTE_ENABLED: bool = False
 
+    # Stage 2 only: require a validated residential context for Faro requests.
+    RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED: bool = False
+
     DB_SERVER: str
     DB_NAME: str
     DB_USER: str

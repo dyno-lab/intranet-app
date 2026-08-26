@@ -102,7 +102,7 @@ def login(
 
     establish_authenticated_session(request.session, user)
 
-    return RedirectResponse("/ui/new-list", status_code=303)
+    return RedirectResponse("/home", status_code=303)
 
 
 @router.get("/auth/google")
@@ -209,7 +209,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 return _oauth_error_response(request)
 
     establish_authenticated_session(request.session, user)
-    return RedirectResponse("/ui/new-list", status_code=303)
+    return RedirectResponse("/home", status_code=303)
 
 
 @router.post("/logout")

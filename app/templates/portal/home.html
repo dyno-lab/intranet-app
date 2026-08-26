@@ -28,7 +28,8 @@
           <h2 id="programas-disponibles" class="program-hub__section-label">Programas disponibles</h2>
 
           <div class="program-hub__grid">
-            <a class="program-card program-card--active" href="/login" aria-label="Ingresar a Faro de Esperanza">
+            {% if can_access_faro %}
+            <a class="program-card program-card--active" href="/ui/context/residential?next=/ui" aria-label="Ingresar a Faro de Esperanza">
               <span class="program-card__icon" aria-hidden="true">
                 <i class="bi bi-people-fill"></i>
               </span>
@@ -43,7 +44,9 @@
                 <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </div>
             </a>
+            {% endif %}
 
+            {% if can_access_institutional_reports %}
             <a class="program-card program-card--active" href="/reporteinstitucionales" aria-label="Consultar reportes institucionales">
               <span class="program-card__icon" aria-hidden="true">
                 <i class="bi bi-bar-chart-line-fill"></i>
@@ -59,8 +62,10 @@
                 <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </div>
             </a>
+            {% endif %}
 
-            <article class="program-card program-card--disabled" aria-label="Automatizaciones, próximamente">
+            {% if can_access_automation %}
+            <a class="program-card program-card--active" href="/api/automation/reports" aria-label="Ingresar a automatizaciones">
               <span class="program-card__icon" aria-hidden="true">
                 <i class="bi bi-gear-wide-connected"></i>
               </span>
@@ -68,10 +73,13 @@
                 <h3 class="program-card__title">Automatizaciones</h3>
               </div>
               <div class="program-card__footer">
-                <span class="program-card__status">Próximamente</span>
+                <span class="program-card__action">Ingresar</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </div>
-            </article>
+            </a>
+            {% endif %}
 
+            {% if can_access_new_programs %}
             <article class="program-card program-card--disabled" aria-label="Nuevos Programas, próximamente">
               <span class="program-card__icon" aria-hidden="true">
                 <i class="bi bi-grid-1x2-fill"></i>
@@ -83,6 +91,13 @@
                 <span class="program-card__status">Próximamente</span>
               </div>
             </article>
+            {% endif %}
+
+            {% if not can_access_faro and not can_access_institutional_reports and not can_access_automation and not can_access_new_programs %}
+            <div class="alert alert-info mb-0" role="status">
+              No tiene aplicaciones asignadas. Comuníquese con la administración de la plataforma.
+            </div>
+            {% endif %}
           </div>
         </div>
       </section>

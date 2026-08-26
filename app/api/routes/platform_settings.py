@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,8 +17,10 @@ from app.core.platform_permissions import (
 )
 from app.models.platform_permission import PlatformPermission
 from app.models.platform_user_audit import PlatformUserAudit
+from app.models.residential import Residential
 from app.models.user import User
 from app.models.user_platform_permission import UserPlatformPermission
+from app.models.user_residential import UserResidential
 
 
 router = APIRouter(prefix="/platform/settings", tags=["platform-settings"])
@@ -94,10 +96,23 @@ def platform_settings_index(
             PlatformPermission.permission_id == UserPlatformPermission.permission_id,
         )
     ).all()
+    residentials = db.execute(
+        select(Residential)
+        .where(Residential.is_active == True)  # noqa: E712
+        .order_by(Residential.code, Residential.name)
+    ).scalars().all()
+    residential_assignment_rows = db.execute(
+        select(UserResidential.user_id, UserResidential.residential_id).where(
+            UserResidential.is_active == True  # noqa: E712
+        )
+    ).all()
 
     permissions_by_user: dict[int, set[str]] = {user.user_id: set() for user in users}
     for user_id, permission_key in assignment_rows:
         permissions_by_user.setdefault(user_id, set()).add(permission_key)
+    residential_ids_by_user: dict[int, set[int]] = {user.user_id: set() for user in users}
+    for user_id, residential_id in residential_assignment_rows:
+        residential_ids_by_user.setdefault(user_id, set()).add(residential_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -108,12 +123,109 @@ def platform_settings_index(
             "permissions": permissions,
             "users": users,
             "permissions_by_user": permissions_by_user,
+            "residentials": residentials,
+            "residential_ids_by_user": residential_ids_by_user,
             "manage_platform_settings_key": MANAGE_PLATFORM_SETTINGS,
             "csrf_token": _csrf_token(request),
             "message": msg,
             "error": error,
         },
     )
+
+
+@router.post("/users/{user_id}/residentials")
+def update_user_residentials(
+    request: Request,
+    user_id: int,
+    residential_ids: list[int] = Form(default=[]),
+    primary_residential_id: int | None = Form(default=None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    _validate_csrf_token(request, csrf_token)
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+    target_user = db.get(User, user_id)
+    if target_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+    selected_ids = set(residential_ids)
+    if target_user.role == "user" and not selected_ids:
+        return _settings_redirect(error="Los usuarios con rol user requieren al menos un residencial.")
+
+    active_residential_ids: set[int] = set()
+    if selected_ids:
+        active_residential_ids = set(
+            db.execute(
+                select(Residential.residential_id).where(
+                    Residential.residential_id.in_(selected_ids),
+                    Residential.is_active == True,  # noqa: E712
+                )
+            ).scalars().all()
+        )
+    if active_residential_ids != selected_ids:
+        return _settings_redirect(error="Uno o más residenciales seleccionados no están activos.")
+
+    if primary_residential_id is not None and primary_residential_id not in selected_ids:
+        return _settings_redirect(error="El residencial primario debe estar entre los asignados.")
+    if primary_residential_id is None:
+        if target_user.residential_id in selected_ids:
+            primary_residential_id = target_user.residential_id
+        elif selected_ids:
+            primary_residential_id = min(selected_ids)
+
+    assignments = db.execute(
+        select(UserResidential).where(UserResidential.user_id == target_user.user_id)
+    ).scalars().all()
+    assignments_by_residential = {
+        assignment.residential_id: assignment for assignment in assignments
+    }
+    changed = target_user.residential_id != primary_residential_id
+
+    for residential_id, assignment in assignments_by_residential.items():
+        should_be_active = residential_id in selected_ids
+        if assignment.is_active != should_be_active:
+            assignment.is_active = should_be_active
+            if should_be_active:
+                assignment.assigned_by_user_id = current_user.user_id
+                assignment.assigned_at = func.sysutcdatetime()
+            changed = True
+
+    for residential_id in selected_ids - assignments_by_residential.keys():
+        db.add(
+            UserResidential(
+                user_id=target_user.user_id,
+                residential_id=residential_id,
+                assigned_by_user_id=current_user.user_id,
+                is_active=True,
+            )
+        )
+        changed = True
+
+    if not changed:
+        return _settings_redirect(message="Las asignaciones no tenían cambios.")
+
+    target_user.residential_id = primary_residential_id
+    target_user.session_version = User.session_version + 1
+    db.add(
+        PlatformUserAudit(
+            actor_user_id=current_user.user_id,
+            target_user_id=target_user.user_id,
+            action="residential_assignments_updated",
+            details=(
+                "residential_ids="
+                + ",".join(str(value) for value in sorted(selected_ids))
+                + f"; primary_residential_id={primary_residential_id or 'none'}"
+            ),
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _settings_redirect(error="No se pudieron actualizar las asignaciones residenciales.")
+    return _settings_redirect(message="Asignaciones residenciales actualizadas.")
 
 
 @router.post("/users/{user_id}/permissions/{permission_key}/grant")

@@ -1942,6 +1942,7 @@ DECLARE @PlatformPermissionSeeds TABLE (
 INSERT INTO @PlatformPermissionSeeds ([key], name, description, sort_order)
 VALUES
     ('manage_platform_settings', 'Administrar configuración de plataforma', 'Permite administrar usuarios y permisos de la plataforma.', 10),
+    ('access_portal_home', 'Acceder al portal principal', 'Permite acceder al portal principal y ver las aplicaciones asignadas.', 15),
     ('access_faro', 'Acceder a Faro', 'Permite acceder al módulo Faro de Esperanza.', 20),
     ('access_institutional_reports', 'Acceder a reportes institucionales', 'Permite acceder a los reportes institucionales.', 30),
     ('access_automation', 'Acceder a automatizaciones', 'Permite acceder a los módulos de automatización.', 40),
@@ -1993,12 +1994,142 @@ WHEN NOT MATCHED BY TARGET
 """
 
 
+STAGE1_RESIDENTIAL_ACCESS_SQL = """
+IF OBJECT_ID(N'dbo.platform_data_migrations', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.platform_data_migrations (
+        migration_key VARCHAR(150) NOT NULL
+            CONSTRAINT PK_platform_data_migrations PRIMARY KEY,
+        applied_at DATETIMEOFFSET NOT NULL
+            CONSTRAINT DF_platform_data_migrations_applied_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF OBJECT_ID(N'dbo.user_residentials', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.user_residentials (
+        user_residential_id INT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_user_residentials PRIMARY KEY,
+        user_id INT NOT NULL,
+        residential_id INT NOT NULL,
+        assigned_by_user_id INT NULL,
+        is_active BIT NOT NULL
+            CONSTRAINT DF_user_residentials_is_active DEFAULT 1,
+        assigned_at DATETIMEOFFSET NOT NULL
+            CONSTRAINT DF_user_residentials_assigned_at DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = 'FK_user_residentials_users'
+      AND parent_object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    ALTER TABLE dbo.user_residentials WITH CHECK
+    ADD CONSTRAINT FK_user_residentials_users
+    FOREIGN KEY (user_id) REFERENCES dbo.users(user_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = 'FK_user_residentials_residentials'
+      AND parent_object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    ALTER TABLE dbo.user_residentials WITH CHECK
+    ADD CONSTRAINT FK_user_residentials_residentials
+    FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = 'FK_user_residentials_assigned_by_user'
+      AND parent_object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    ALTER TABLE dbo.user_residentials WITH CHECK
+    ADD CONSTRAINT FK_user_residentials_assigned_by_user
+    FOREIGN KEY (assigned_by_user_id) REFERENCES dbo.users(user_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'UX_user_residentials_user_residential'
+      AND object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_user_residentials_user_residential
+    ON dbo.user_residentials(user_id, residential_id);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_user_residentials_user_active'
+      AND object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    CREATE INDEX IX_user_residentials_user_active
+    ON dbo.user_residentials(user_id, is_active);
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_user_residentials_residential_active'
+      AND object_id = OBJECT_ID('dbo.user_residentials')
+)
+BEGIN
+    CREATE INDEX IX_user_residentials_residential_active
+    ON dbo.user_residentials(residential_id, is_active);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.platform_data_migrations WITH (UPDLOCK, HOLDLOCK)
+    WHERE migration_key = 'stage1_residential_assignments_and_application_access_v1'
+)
+BEGIN
+    MERGE dbo.user_residentials WITH (HOLDLOCK) AS target
+    USING (
+        SELECT user_id, residential_id
+        FROM dbo.users
+        WHERE residential_id IS NOT NULL
+    ) AS source
+    ON target.user_id = source.user_id
+       AND target.residential_id = source.residential_id
+    WHEN MATCHED THEN
+        UPDATE SET is_active = 1
+    WHEN NOT MATCHED BY TARGET THEN
+        INSERT (user_id, residential_id, assigned_by_user_id, is_active)
+        VALUES (source.user_id, source.residential_id, NULL, 1);
+
+    MERGE dbo.user_platform_permissions WITH (HOLDLOCK) AS target
+    USING (
+        SELECT users.user_id, permissions.permission_id
+        FROM dbo.users AS users
+        CROSS JOIN dbo.platform_permissions AS permissions
+        WHERE users.is_active = 1
+          AND permissions.[key] IN ('access_portal_home', 'access_faro')
+    ) AS source
+    ON target.user_id = source.user_id
+       AND target.permission_id = source.permission_id
+    WHEN NOT MATCHED BY TARGET THEN
+        INSERT (user_id, permission_id, granted_by_user_id)
+        VALUES (source.user_id, source.permission_id, NULL);
+
+    INSERT INTO dbo.platform_data_migrations (migration_key)
+    VALUES ('stage1_residential_assignments_and_application_access_v1');
+END;
+"""
+
+
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
         conn.exec_driver_sql(PLATFORM_SETTINGS_USER_COLUMNS_SQL)
         conn.exec_driver_sql(PLATFORM_SETTINGS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
+        conn.exec_driver_sql(STAGE1_RESIDENTIAL_ACCESS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)
         conn.exec_driver_sql(PHASE5_VISITS_SQL)
         conn.exec_driver_sql(PHASE6_PROGRAM_REPORTS_SQL)

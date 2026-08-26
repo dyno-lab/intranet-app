@@ -304,7 +304,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         user = _user(7)
         response, request, db = await self._callback([[], [user]])
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.headers["location"], "/ui/new-list")
+        self.assertEqual(response.headers["location"], "/home")
         self.assertEqual(user.google_sub, "google-subject-123")
         self.assertEqual(request.session, {"user_id": 7, "session_version": 2})
         self.assertEqual(db.commits, 1)

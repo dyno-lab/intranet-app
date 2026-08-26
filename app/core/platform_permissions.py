@@ -15,6 +15,18 @@ from app.models.user_platform_permission import UserPlatformPermission
 
 
 MANAGE_PLATFORM_SETTINGS = "manage_platform_settings"
+ACCESS_PORTAL_HOME = "access_portal_home"
+ACCESS_FARO = "access_faro"
+ACCESS_INSTITUTIONAL_REPORTS = "access_institutional_reports"
+ACCESS_AUTOMATION = "access_automation"
+ACCESS_NEW_PROGRAMS = "access_new_programs"
+
+APPLICATION_PERMISSION_KEYS = (
+    ACCESS_FARO,
+    ACCESS_INSTITUTIONAL_REPORTS,
+    ACCESS_AUTOMATION,
+    ACCESS_NEW_PROGRAMS,
+)
 
 
 def bootstrap_platform_settings_user(
