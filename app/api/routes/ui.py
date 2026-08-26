@@ -273,12 +273,22 @@ def _build_new_list_dashboard(
     assigned_participant_ids: set[int] = set()
     pending_sync_participant_ids: set[int] = set()
     if participants_by_id:
-        proposal_rows = db.execute(
-            select(ProposalParticipant, Person, Proposal)
-            .join(Person, Person.person_id == ProposalParticipant.person_id)
-            .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
-            .where(Person.legacy_participant_id.in_(list(participants_by_id.keys())))
-        ).all()
+        participant_ids = list(participants_by_id)
+        proposal_rows = []
+        proposal_participant_batch_size = 1000
+
+        for offset in range(0, len(participant_ids), proposal_participant_batch_size):
+            participant_id_batch = participant_ids[
+                offset : offset + proposal_participant_batch_size
+            ]
+            proposal_rows.extend(
+                db.execute(
+                    select(ProposalParticipant, Person, Proposal)
+                    .join(Person, Person.person_id == ProposalParticipant.person_id)
+                    .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
+                    .where(Person.legacy_participant_id.in_(participant_id_batch))
+                ).all()
+            )
 
         for proposal_participant, person, proposal in proposal_rows:
             if (
