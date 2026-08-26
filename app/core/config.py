@@ -7,9 +7,17 @@ class Settings(BaseSettings):
     APP_NAME: str = "IntranetApp"
     ENV: str = "dev"
     SECRET_KEY: str = "change-me"
+    SESSION_SECRET: str | None = None
     FARO_INSTITUTIONAL_REPORT_PIN: str | None = None
     PLATFORM_SETTINGS_BOOTSTRAP_EMAIL: str | None = None
     PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD: str | None = None
+
+    # Google Workspace OAuth/OIDC (disabled until explicitly configured).
+    GOOGLE_OAUTH_ENABLED: bool = False
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    GOOGLE_ALLOWED_DOMAIN: str = "csifpr.org"
+    GOOGLE_REDIRECT_URI: str = "https://servicios.csifpr.org/auth/google/callback"
 
     # Feature flags
     # FASE 2: habilita UI/validaciones para expediente FE-YYYY-XX-####
@@ -33,3 +41,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def require_session_secret() -> str:
+    session_secret = (settings.SESSION_SECRET or "").strip()
+    if len(session_secret) < 32:
+        raise RuntimeError(
+            "SESSION_SECRET must be configured with at least 32 random characters "
+            "before the application can start."
+        )
+    return session_secret

@@ -194,6 +194,39 @@
       background: linear-gradient(135deg, #0b3154, #114972);
     }
 
+    .btn-google {
+      min-height: 50px;
+      border-radius: 14px;
+      border: 1px solid #c9d6e2;
+      color: var(--faro-primary);
+      background: #fff;
+      font-weight: 700;
+    }
+
+    .btn-google:hover {
+      color: var(--faro-primary);
+      background: var(--faro-soft);
+      border-color: #aebfce;
+    }
+
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: #708395;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #dce5ed;
+    }
+
     .login-footer-note {
       margin-top: 18px;
       font-size: 0.88rem;
@@ -259,6 +292,13 @@
 
           {% if error %}
             <div class="alert alert-danger rounded-4">{{ error }}</div>
+          {% endif %}
+
+          {% if google_oauth_available %}
+            <a class="btn btn-google w-100 d-flex align-items-center justify-content-center" href="/auth/google">
+              Continuar con Google
+            </a>
+            <div class="login-divider">o usa tu acceso local</div>
           {% endif %}
 
           <form method="post">
