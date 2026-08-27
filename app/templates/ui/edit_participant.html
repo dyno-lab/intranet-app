@@ -63,14 +63,14 @@
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-6">
-                  <label class="form-label">Siglas empleado *</label>
-                  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required value="{{ p.exp_employee_initials or '' }}" placeholder="Ej. AC">
+                  <label class="form-label">Código residencial *</label>
+                  <input class="form-control" id="exp_employee_initials" value="{{ participant_residential.code if participant_residential else (p.exp_employee_initials or '') }}" readonly>
                 </div>
 
                 <div class="col-xl-2 col-lg-2 col-md-4">
                   <label class="form-label">4 dígitos *</label>
                   <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required value="{{ p.exp_seq4 or '' }}" placeholder="0001">
-                  <div class="form-text">Único</div>
+                  <div class="form-text">Único dentro del residencial</div>
                 </div>
 
                 <div class="col-xl-3 col-lg-4 col-md-8">

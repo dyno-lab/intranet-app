@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import select
@@ -7,9 +8,46 @@ from sqlalchemy.orm import Session
 
 from app.helpers.reports import normalize_text
 from app.models.proposal import Proposal
+from app.models.residential import Residential
 from app.models.user import User
 
 MIN_REPORTING_YEAR = 2026
+
+
+@dataclass(frozen=True)
+class ReportingResidentialOption:
+    residential_id: int
+    code: str
+    name: str
+    municipality: str
+    rq_code: str
+
+    @property
+    def user_id(self) -> int:
+        """Negative scope token that cannot collide with a legacy user ID."""
+        return -self.residential_id
+
+    @property
+    def username(self) -> str:
+        """Compatibility label for report templates migrated from user selectors."""
+        return self.name
+
+    @property
+    def residential(self) -> ReportingResidentialOption:
+        return self
+
+
+def reporting_residential_option(residential: Residential | None) -> ReportingResidentialOption | None:
+    if residential is None:
+        return None
+    return ReportingResidentialOption(
+        residential_id=residential.residential_id,
+        code=normalize_text(residential.code),
+        name=normalize_text(residential.name),
+        municipality=normalize_text(residential.municipality),
+        rq_code=normalize_text(residential.rq_code),
+    )
+
 
 USER_RESIDENTIAL = {
     "AC": "Aristides Chavier",
@@ -105,40 +143,75 @@ def rq_from_user(user: User | None) -> str:
 
 def base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
-    report_users = db.execute(
-        select(User).where(User.is_active == True, User.role == "user").order_by(User.username)
-    ).scalars().all()  # noqa: E712
+    residential_records = db.execute(
+        select(Residential)
+        .where(Residential.is_active == True)  # noqa: E712
+        .order_by(Residential.code, Residential.name)
+    ).scalars().all()
+    report_residentials = [
+        option
+        for residential in residential_records
+        if (option := reporting_residential_option(residential)) is not None
+    ]
     current_year = date.today().year
     year_options = list(range(MIN_REPORTING_YEAR, current_year + 1))
     month_lookup = dict(month_options)
-    user_residential_map = {user.user_id: f"{user.username} = {residential_from_user(user)}" for user in report_users}
-    residential_name = residential_from_user(current_user) if current_user.role == "user" else None
+    residential_option_map = {}
+    for residential in report_residentials:
+        label = f"{residential.code} - {residential.name}"
+        residential_option_map[residential.residential_id] = label
+        residential_option_map[residential.user_id] = label
+    active_residential_id = getattr(current_user, "_active_residential_id", None) or current_user.residential_id
+    current_residential = reporting_residential_option(db.get(Residential, active_residential_id)) if active_residential_id else None
+    residential_name = current_residential.name if current_residential and current_user.role == "user" else None
     return {
         "proposals": proposals,
-        "report_users": report_users,
-        "user_residential_map": user_residential_map,
+        "report_residentials": report_residentials,
+        "residential_option_map": residential_option_map,
+        # Compatibility keys retained while report URLs still call the scope parameter employee_id.
+        "report_users": report_residentials,
+        "user_residential_map": residential_option_map,
         "month_options": month_options,
         "month_lookup": month_lookup,
         "year_options": year_options,
         "residential_name": residential_name,
+        "active_residential_id": active_residential_id,
     }
 
 
 def resolve_reporting_scope(current_user: User, employee_id: int | None, db: Session) -> dict:
-    selected_user = None
+    selected_residential = None
     is_global = False
+    residential_id = None
+    scope_token = employee_id
+
     if current_user.role in {"admin", "supervisor"}:
         if employee_id == 0:
             is_global = True
+        elif employee_id is not None and employee_id < 0:
+            residential_id = abs(employee_id)
         elif employee_id:
-            selected_user = db.get(User, employee_id)
+            legacy_user = db.get(User, employee_id)
+            residential_id = legacy_user.residential_id if legacy_user else None
+
+        residential = db.get(Residential, residential_id) if residential_id else None
+        if residential and residential.is_active:
+            selected_residential = reporting_residential_option(residential)
+            scope_token = selected_residential.user_id
     else:
-        selected_user = current_user
-        employee_id = current_user.user_id
+        residential_id = getattr(current_user, "_active_residential_id", None) or current_user.residential_id
+        residential = db.get(Residential, residential_id) if residential_id else None
+        if residential and residential.is_active:
+            selected_residential = reporting_residential_option(residential)
+            scope_token = selected_residential.user_id
+
     return {
-        "selected_user": selected_user,
+        "selected_residential": selected_residential,
+        "residential_id": residential_id,
         "is_global": is_global,
-        "employee_id": employee_id,
+        # Compatibility keys retained while templates and URLs are migrated incrementally.
+        "selected_user": selected_residential,
+        "employee_id": scope_token,
     }
 
 

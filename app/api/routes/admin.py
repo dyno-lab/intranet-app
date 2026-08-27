@@ -219,7 +219,8 @@ def _sync_proposal_participant_from_source(
     person.genero = participant.genero
     person.fecha_nacimiento = participant.fecha_nacimiento
 
-    proposal_participant.created_by_user_id = participant.created_by_user_id
+    if proposal_participant.residential_id is None:
+        proposal_participant.residential_id = participant.residential_id
     proposal_participant.exp_year = participant.exp_year
     proposal_participant.exp_employee_initials = participant.exp_employee_initials
     proposal_participant.exp_seq4 = participant.exp_seq4
@@ -1843,13 +1844,10 @@ def admin_proposal_participants(
             select(ProposalParticipant, Person, User.username.label("owner_username"), Residential.name.label("residential_name"))
             .join(Person, Person.person_id == ProposalParticipant.person_id)
             .outerjoin(User, User.user_id == ProposalParticipant.created_by_user_id)
-            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Residential, Residential.residential_id == ProposalParticipant.residential_id)
             .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
             .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
         )
-        if not is_admin_or_supervisor(current_user):
-            assigned_stmt = assigned_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
-
         assigned_pairs = db.execute(assigned_stmt).all()
         for proposal_participant, person, owner_username, residential_name in assigned_pairs:
             assigned_person_ids.add(person.person_id)
@@ -1907,20 +1905,17 @@ def admin_proposal_participants(
             select(
                 Participant,
                 User.username.label("owner_username"),
-                User.residential_id.label("owner_residential_id"),
+                Participant.residential_id.label("owner_residential_id"),
                 Residential.name.label("residential_name"),
                 Person.person_id.label("person_id"),
             )
             .outerjoin(User, User.user_id == Participant.created_by_user_id)
-            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Residential, Residential.residential_id == Participant.residential_id)
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .order_by(Residential.name, Participant.apellido_paterno, Participant.apellido_materno, Participant.nombre)
         )
-        if not is_admin_or_supervisor(current_user):
-            participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
-
         if selected_residential_id:
-            participant_stmt = participant_stmt.where(User.residential_id == selected_residential_id)
+            participant_stmt = participant_stmt.where(Participant.residential_id == selected_residential_id)
 
         if normalized_status_filter == "active":
             participant_stmt = participant_stmt.where(Participant.is_active == True)  # noqa: E712
@@ -2012,10 +2007,6 @@ def admin_add_participants_to_proposal(
             skipped_count += 1
             continue
 
-        if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
-            skipped_count += 1
-            continue
-
         person = db.execute(
             select(Person).where(Person.legacy_participant_id == participant.participant_id)
         ).scalar_one_or_none()
@@ -2045,7 +2036,8 @@ def admin_add_participants_to_proposal(
         proposal_participant = ProposalParticipant(
             proposal_id=proposal_id,
             person_id=person.person_id,
-            created_by_user_id=participant.created_by_user_id,
+            residential_id=participant.residential_id,
+            created_by_user_id=current_user.user_id,
             exp_year=participant.exp_year,
             exp_employee_initials=participant.exp_employee_initials,
             exp_seq4=participant.exp_seq4,
@@ -2118,12 +2110,6 @@ def admin_sync_proposal_participant(
             "Error: No se encontrÃ³ el participante fuente en New-list.",
         )
 
-    if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
-        return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-            "Error: No tienes permiso para sincronizar este participante.",
-        )
-
     _sync_proposal_participant_from_source(proposal_participant, person, participant)
     db.add(person)
     db.add(proposal_participant)
@@ -2183,9 +2169,7 @@ def admin_sync_all_proposal_participants(
         ProposalParticipant.proposal_id == proposal_id
     )
     if residential_id:
-        stmt = stmt.join(User, User.user_id == ProposalParticipant.created_by_user_id).where(User.residential_id == residential_id)
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+        stmt = stmt.where(ProposalParticipant.residential_id == residential_id)
 
     rows = db.execute(stmt).all()
     synced_count = 0
@@ -2200,10 +2184,6 @@ def admin_sync_all_proposal_participants(
             select(Participant).where(Participant.participant_id == person.legacy_participant_id)
         ).scalar_one_or_none()
         if not participant:
-            skipped_count += 1
-            continue
-
-        if not is_admin_or_supervisor(current_user) and participant.created_by_user_id != current_user.user_id:
             skipped_count += 1
             continue
 
@@ -2235,7 +2215,8 @@ def admin_sync_all_proposal_participants(
         person.genero = participant.genero
         person.fecha_nacimiento = participant.fecha_nacimiento
 
-        proposal_participant.created_by_user_id = participant.created_by_user_id
+        if proposal_participant.residential_id is None:
+            proposal_participant.residential_id = participant.residential_id
         proposal_participant.exp_year = participant.exp_year
         proposal_participant.exp_employee_initials = participant.exp_employee_initials
         proposal_participant.exp_seq4 = participant.exp_seq4

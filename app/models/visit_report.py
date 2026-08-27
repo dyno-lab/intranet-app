@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -8,7 +8,15 @@ class VisitReport(Base):
     __tablename__ = "visit_reports"
 
     __table_args__ = (
-        UniqueConstraint("proposal_id", "report_month", "report_year", "created_by_user_id", name="uq_visit_reports_period_user"),
+        Index(
+            "UX_visit_reports_period_residential",
+            "proposal_id",
+            "report_month",
+            "report_year",
+            "residential_id",
+            unique=True,
+            mssql_where=text("residential_id IS NOT NULL"),
+        ),
     )
 
     report_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -16,6 +24,7 @@ class VisitReport(Base):
     report_month: Mapped[int] = mapped_column(Integer, nullable=False)
     report_year: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    residential_id: Mapped[int | None] = mapped_column(ForeignKey("residentials.residential_id"), nullable=True, index=True)
     created_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.sysutcdatetime(), nullable=False)
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime(), nullable=False)

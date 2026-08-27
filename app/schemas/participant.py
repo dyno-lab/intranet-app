@@ -7,7 +7,7 @@ class ParticipantCreate(BaseModel):
 
     # FASE 2: componentes del expediente FE-YYYY-XX-#### (generado en backend)
     exp_year: int | None = None
-    exp_employee_initials: str | None = Field(default=None, max_length=10)
+    exp_employee_initials: str | None = Field(default=None, max_length=20)
     exp_seq4: str | None = Field(default=None, max_length=4)
 
     nombre: str
@@ -24,6 +24,7 @@ class ParticipantCreate(BaseModel):
 
 class ParticipantOut(BaseModel):
     participant_id: int
+    residential_id: int | None = None
     expediente_num: str
     nombre: str
     inicial: str | None

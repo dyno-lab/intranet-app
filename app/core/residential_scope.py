@@ -72,6 +72,52 @@ def resolve_active_residential(
     return None, residentials
 
 
+def active_record_residential_id(request: Request, user: User) -> int | None:
+    try:
+        residential_id = int(request.session.get(ACTIVE_RESIDENTIAL_SESSION_KEY))
+    except (TypeError, ValueError):
+        residential_id = None
+    if residential_id and residential_id > 0:
+        return residential_id
+    if user.role in {"admin", "supervisor"}:
+        return user.residential_id
+    return None
+
+
+def require_record_residential_id(request: Request, user: User) -> int:
+    residential_id = active_record_residential_id(request, user)
+    if residential_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debe seleccionar un residencial antes de trabajar con registros de Faro.",
+        )
+    return residential_id
+
+
+def require_write_residential_id(
+    request: Request,
+    user: User,
+    db: Session,
+    requested_residential_id: int | None = None,
+) -> int:
+    if user.role not in {"admin", "supervisor"}:
+        return require_record_residential_id(request, user)
+
+    if requested_residential_id is None or requested_residential_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debe seleccionar el residencial donde se guardará el registro.",
+        )
+
+    residential = db.get(Residential, requested_residential_id)
+    if residential is None or not residential.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El residencial seleccionado no está disponible.",
+        )
+    return residential.residential_id
+
+
 def require_faro_access(
     request: Request,
     db: Session = Depends(get_db),
@@ -79,10 +125,13 @@ def require_faro_access(
     user = _FARO_PERMISSION_DEPENDENCY(request=request, db=db)
     if user.role in {"admin", "supervisor"}:
         clear_active_residential(request.session)
+        if hasattr(user, "_active_residential_id"):
+            delattr(user, "_active_residential_id")
         return user
 
     active_residential, residentials = resolve_active_residential(request, db, user)
     if active_residential is not None:
+        setattr(user, "_active_residential_id", active_residential.residential_id)
         return user
     if not residentials:
         raise HTTPException(
@@ -110,8 +159,4 @@ def user_can_read_record(
 ) -> bool:
     if user.role == "admin":
         return True
-    if record_residential_id != active_residential_id:
-        return False
-    if user.role == "supervisor":
-        return True
-    return created_by_user_id == user.user_id
+    return record_residential_id == active_residential_id

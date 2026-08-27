@@ -29,6 +29,7 @@ class ProposalParticipantOut(BaseModel):
     proposal_participant_id: int
     proposal_id: int
     person_id: int
+    residential_id: int | None = None
     created_by_user_id: int | None = None
     exp_year: int | None = None
     exp_employee_initials: str | None = None

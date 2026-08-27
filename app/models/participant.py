@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, date
 
-from sqlalchemy import String, Date, DateTime, func, Integer, UniqueConstraint, Boolean
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -12,20 +12,30 @@ class Participant(Base):
     __tablename__ = "participants"
 
     __table_args__ = (
-        # FASE 2: 4 dígitos únicos por empleado (created_by_user_id)
-        UniqueConstraint("created_by_user_id", "exp_seq4", name="uq_participants_employee_seq4"),
+        Index(
+            "UX_participants_residential_seq4",
+            "residential_id",
+            "exp_seq4",
+            unique=True,
+            mssql_where=text("residential_id IS NOT NULL AND exp_seq4 IS NOT NULL"),
+        ),
     )
 
     participant_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # Ownership (para roles/aislamiento)
+    # Propiedad residencial histórica y auditoría del usuario creador.
+    residential_id: Mapped[int | None] = mapped_column(
+        ForeignKey("residentials.residential_id"),
+        nullable=True,
+        index=True,
+    )
     created_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
 
     # Expediente (FASE 2)
-    # Formato: FE-YYYY-XX-####
-    # Regla: #### (exp_seq4) es único por empleado (created_by_user_id), sin importar el año.
+    # Formato: FE-YYYY-{CODIGO_RESIDENCIAL}-####
+    # Regla: #### es único por residencial, sin importar el año o usuario.
     exp_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    exp_employee_initials: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    exp_employee_initials: Mapped[str | None] = mapped_column(String(20), nullable=True)
     exp_seq4: Mapped[str | None] = mapped_column(String(4), nullable=True)
 
     # Identificación / Nombre

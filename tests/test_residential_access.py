@@ -587,12 +587,20 @@ class ResidentialAccessTests(unittest.TestCase):
                 created_by_user_id=user.user_id,
             )
         )
-        self.assertFalse(
+        self.assertTrue(
             user_can_read_record(
                 user,
                 active_residential_id=1,
                 record_residential_id=1,
                 created_by_user_id=88,
+            )
+        )
+        self.assertFalse(
+            user_can_read_record(
+                user,
+                active_residential_id=1,
+                record_residential_id=2,
+                created_by_user_id=user.user_id,
             )
         )
 

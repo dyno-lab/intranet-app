@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.api.deps import get_db
 from app.core.auth import get_current_user, is_admin_or_supervisor
+from app.core.residential_scope import require_record_residential_id
 from app.models.attendance import Attendance
 from app.models.activity_session import ActivitySession
 from app.models.user import User
@@ -13,6 +14,7 @@ router = APIRouter()
 
 @router.get("")
 def list_attendance(
+    request: Request,
     session_id: int | None = None,
     proposal_participant_id: int | None = None,
     db: Session = Depends(get_db),
@@ -21,7 +23,7 @@ def list_attendance(
     stmt = select(Attendance)
     if not is_admin_or_supervisor(current_user):
         stmt = stmt.join(ActivitySession, ActivitySession.session_id == Attendance.session_id).where(
-            ActivitySession.created_by_user_id == current_user.user_id
+            ActivitySession.residential_id == require_record_residential_id(request, current_user)
         )
     if session_id:
         stmt = stmt.where(Attendance.session_id == session_id)

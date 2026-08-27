@@ -33,9 +33,6 @@ from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
-from app.models.visit_activity_mapping import VisitActivityMapping
-from app.models.visit_report import VisitReport
-from app.models.visit_report_referral import VisitReportReferral
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.proposal_report_program_activity import ProposalReportProgramActivity
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
@@ -101,10 +98,8 @@ from app.services.visits import (
     resolve_report_scope,
     get_or_create_visit_report,
     replace_visit_report_referrals,
-    delete_visit_reports_and_referrals,
     delete_visit_referrals_only,
     get_visit_report,
-    get_visit_reports,
     build_visits_report_payload,
 )
 
@@ -190,7 +185,7 @@ def _build_bonafide_context(
         stmt = _apply_session_period_filter(stmt, period)
         stmt = stmt.distinct().order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
         if not is_global:
-            stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+            stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
         participants = db.execute(stmt).scalars().all()
 
         for idx, participant in enumerate(participants, start=1):
@@ -602,7 +597,6 @@ def _build_productivity_context(
 ):
     base_context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     month_lookup = base_context["month_lookup"]
-    user_residential_map = base_context["user_residential_map"]
 
     period = _build_period_filter(period_type, month, year, start_date, end_date)
     normalized_month = period["month"]
@@ -651,18 +645,17 @@ def _build_productivity_context(
                 select(
                     ActivitySession.proposal_id,
                     ActivitySession.activity_code_id,
-                    User.user_id.label("owner_user_id"),
+                    ActivitySession.residential_id.label("residential_id"),
                     Residential.name.label("residential_name"),
                     func.count(ActivitySession.session_id).label("executed_count"),
                 )
                 .select_from(ActivitySession)
-                .outerjoin(User, User.user_id == ActivitySession.created_by_user_id)
-                .outerjoin(Residential, Residential.residential_id == User.residential_id)
+                .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
                 .where(ActivitySession.proposal_id == proposal_id)
                 .group_by(
                     ActivitySession.proposal_id,
                     ActivitySession.activity_code_id,
-                    User.user_id,
+                    ActivitySession.residential_id,
                     Residential.name,
                 )
             )
@@ -670,7 +663,7 @@ def _build_productivity_context(
             counts_stmt = _apply_session_period_filter(counts_stmt, period)
 
             if not is_global and selected_user:
-                counts_stmt = counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                counts_stmt = counts_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             count_rows = db.execute(counts_stmt).all()
 
@@ -689,7 +682,7 @@ def _build_productivity_context(
                 period_counts_stmt = _apply_session_period_filter(period_counts_stmt, period)
 
             if not is_global and selected_user:
-                period_counts_stmt = period_counts_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                period_counts_stmt = period_counts_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             period_count_rows = db.execute(period_counts_stmt).all()
             period_counts_by_activity = {
@@ -700,31 +693,30 @@ def _build_productivity_context(
             counts_by_activity: dict[tuple[int, int], list[dict]] = {}
             for count_row in count_rows:
                 key = (count_row.proposal_id, count_row.activity_code_id)
-                derived_residential_name = count_row.residential_name or user_residential_map.get(count_row.owner_user_id) or "Sin residencial"
                 counts_by_activity.setdefault(key, []).append({
-                    "owner_user_id": count_row.owner_user_id,
-                    "residential_name": derived_residential_name,
+                    "residential_id": count_row.residential_id,
+                    "residential_name": count_row.residential_name or "Sin residencial",
                     "executed": int(count_row.executed_count or 0),
                 })
 
             month_label = month_lookup.get(normalized_month, str(normalized_month))
 
-            residential_rollup: dict[str, dict] = {}
+            residential_rollup: dict[int | None, dict] = {}
 
             all_residentials_for_scope = []
             if is_global:
                 all_residentials_for_scope = [
                     {
-                        "owner_user_id": report_user.user_id,
-                        "residential_name": user_residential_map.get(report_user.user_id, report_user.username),
+                        "residential_id": report_residential.residential_id,
+                        "residential_name": report_residential.name,
                     }
-                    for report_user in base_context.get("report_users", [])
+                    for report_residential in base_context.get("report_residentials", [])
                 ]
             elif selected_user:
                 all_residentials_for_scope = [
                     {
-                        "owner_user_id": selected_user.user_id,
-                        "residential_name": residential_name or user_residential_map.get(selected_user.user_id, selected_user.username),
+                        "residential_id": selected_user.residential_id,
+                        "residential_name": selected_user.name,
                     }
                 ]
 
@@ -732,12 +724,16 @@ def _build_productivity_context(
                 activity_key = (goal.proposal_id, goal.activity_code_id)
                 residential_counts = counts_by_activity.get(activity_key, [])
                 if all_residentials_for_scope:
-                    existing_owner_ids = {item["owner_user_id"] for item in residential_counts if item.get("owner_user_id") is not None}
+                    existing_residential_ids = {
+                        item["residential_id"]
+                        for item in residential_counts
+                        if item.get("residential_id") is not None
+                    }
                     for base_residential in all_residentials_for_scope:
-                        owner_user_id = base_residential.get("owner_user_id")
-                        if owner_user_id not in existing_owner_ids:
+                        residential_id = base_residential.get("residential_id")
+                        if residential_id not in existing_residential_ids:
                             residential_counts.append({
-                                "owner_user_id": owner_user_id,
+                                "residential_id": residential_id,
                                 "residential_name": base_residential.get("residential_name") or "Sin residencial",
                                 "executed": 0,
                             })
@@ -806,6 +802,7 @@ def _build_productivity_context(
                         per_residential_results.append(met)
 
                     detailed_row = {
+                        "residential_id": residential_row["residential_id"],
                         "proposal_code": proposal_code,
                         "proposal_name": proposal_name,
                         "activity_code": activity_code,
@@ -822,8 +819,9 @@ def _build_productivity_context(
                     rows.append(detailed_row)
 
                     residential_bucket = residential_rollup.setdefault(
-                        residential_row["residential_name"],
+                        residential_row["residential_id"],
                         {
+                            "residential_id": residential_row["residential_id"],
                             "residential_name": residential_row["residential_name"],
                             "total_activities": 0,
                             "cumple": 0,
@@ -1008,42 +1006,23 @@ def _build_productivity_context(
             ][:5]
             bottom_activities = [item for item in sorted(ranked_activities, key=lambda item: (item["global_executed"], item["progress_percentage"])) if item["global_executed"] == 0][:5]
 
-            deduped_residential_summary_rows = []
-            residential_merge_map: dict[str, dict] = {}
-            for item in residential_summary_rows:
-                normalized_name = (item.get("residential_name") or "").split("=")[-1].strip().upper()
-                bucket = residential_merge_map.get(normalized_name)
-                if not bucket:
-                    bucket = {
-                        **item,
-                        "residential_name": (item.get("residential_name") or "").split("=")[-1].strip() or item.get("residential_name"),
-                        "details": list(item.get("details", [])),
-                    }
-                    residential_merge_map[normalized_name] = bucket
-                    deduped_residential_summary_rows.append(bucket)
-                else:
-                    bucket["total_activities"] += item.get("total_activities", 0)
-                    bucket["cumple"] += item.get("cumple", 0)
-                    bucket["no_cumple"] += item.get("no_cumple", 0)
-                    bucket["no_aplica"] = bucket.get("no_aplica", 0) + item.get("no_aplica", 0)
-                    bucket["details"].extend(item.get("details", []))
-                    total_activities = bucket["total_activities"]
-                    bucket["percentage"] = round((bucket["cumple"] / total_activities) * 100, 2) if total_activities else 0
-
-            residential_summary_rows = sorted(deduped_residential_summary_rows, key=lambda item: item["percentage"], reverse=True)
+            residential_summary_rows = sorted(
+                residential_summary_rows,
+                key=lambda item: item["percentage"],
+                reverse=True,
+            )
             residentials_evaluated = len(residential_summary_rows)
             residentials_high = sum(1 for item in residential_summary_rows if item["percentage"] >= 80)
             residentials_medium = sum(1 for item in residential_summary_rows if 50 <= item["percentage"] < 80)
             residentials_low = sum(1 for item in residential_summary_rows if item["percentage"] < 50)
             residential_ranking = residential_summary_rows[:5] if is_global else []
 
-            if not is_global and residential_name:
-                normalized_selected_residential = residential_name.split("=")[-1].strip().upper()
+            if not is_global and selected_user:
                 selected_residential_dashboard = next(
                     (
                         item
                         for item in residential_summary_rows
-                        if (item["residential_name"] or "").split("=")[-1].strip().upper() == normalized_selected_residential
+                        if item.get("residential_id") == selected_user.residential_id
                     ),
                     None,
                 )
@@ -1181,7 +1160,7 @@ def _build_vca_context(
             if is_global:
                 residential_name = "Global"
             else:
-                participant_stmt = participant_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                participant_stmt = participant_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
             participants = participant_stmt.distinct().order_by(Participant.apellido_paterno, Participant.nombre)
             participant_rows = db.execute(participants).scalars().all()
@@ -1196,7 +1175,7 @@ def _build_vca_context(
             )
             attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
             if not is_global:
-                attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
             attendance_rows = db.execute(attendance_stmt).all()
 
             counts: dict[int, dict[int, int]] = {}
@@ -1292,7 +1271,7 @@ def _build_adm_context(
             if is_global:
                 residential_name = "Global"
             else:
-                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                session_stmt = session_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
             session_rows = db.execute(session_stmt).all()
 
@@ -1317,7 +1296,7 @@ def _build_adm_context(
                     )
                 )
                 if not is_global:
-                    attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                    attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 attendance_rows = db.execute(attendance_stmt).all()
                 for session_id, participant_id, activity_code_id in attendance_rows:
                     service_type_id = activity_to_service_type.get(activity_code_id)
@@ -1736,11 +1715,10 @@ def _build_school_dropout_summary_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(SchoolDropoutReportItem, SchoolDropoutReport, Participant, User, Residential)
+            select(SchoolDropoutReportItem, SchoolDropoutReport, Participant, Residential)
             .join(SchoolDropoutReport, SchoolDropoutReport.report_id == SchoolDropoutReportItem.report_id)
             .join(Participant, Participant.participant_id == SchoolDropoutReportItem.participant_id)
-            .join(User, User.user_id == SchoolDropoutReport.created_by_user_id)
-            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Residential, Residential.residential_id == SchoolDropoutReport.residential_id)
             .where(SchoolDropoutReport.proposal_id == proposal_id)
         )
 
@@ -1758,17 +1736,19 @@ def _build_school_dropout_summary_context(
         if is_global:
             residential_name = "Global"
         else:
-            stmt = stmt.where(SchoolDropoutReport.created_by_user_id == selected_user.user_id)
+            stmt = stmt.where(SchoolDropoutReport.residential_id == selected_user.residential_id)
             residential_name = _residential_from_user(selected_user)
 
-        grouped: dict[str, dict] = {}
-        participant_snapshots: dict[tuple[str, int], dict] = {}
+        grouped: dict[int | str, dict] = {}
+        participant_snapshots: dict[tuple[int | str, int], dict] = {}
 
-        for item, report, participant, report_user, residential in db.execute(stmt).all():
-            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
+        for item, report, participant, residential in db.execute(stmt).all():
+            residential_key = report.residential_id if report.residential_id is not None else "unassigned"
+            residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
             grouped.setdefault(
-                residential_label,
+                residential_key,
                 {
+                    "residential_id": report.residential_id,
                     "residential_name": residential_label,
                     "recruited": 0,
                     "f": 0,
@@ -1783,12 +1763,13 @@ def _build_school_dropout_summary_context(
                 },
             )
 
-            key = (residential_label, participant.participant_id)
+            key = (residential_key, participant.participant_id)
             snapshot = participant_snapshots.get(key)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
 
             if not snapshot:
                 snapshot = {
+                    "residential_key": residential_key,
                     "residential_name": residential_label,
                     "participant_id": participant.participant_id,
                     "gender": _normalize_text(participant.genero).upper(),
@@ -1818,7 +1799,7 @@ def _build_school_dropout_summary_context(
                 snapshot["latest_sort"] = report_sort
 
         for snapshot in participant_snapshots.values():
-            bucket = grouped[snapshot["residential_name"]]
+            bucket = grouped[snapshot["residential_key"]]
             bucket["recruited"] += 1
             total["recruited"] += 1
 
@@ -1864,7 +1845,10 @@ def _build_school_dropout_summary_context(
                 "school_pct": school_pct,
             }
 
-        rows = [with_percentages(grouped[name]) for name in sorted(grouped.keys())]
+        rows = sorted(
+            (with_percentages(row) for row in grouped.values()),
+            key=lambda row: row["residential_name"],
+        )
         total = with_percentages(total)
 
     return {
@@ -1922,11 +1906,10 @@ def _build_pregnancy_summary_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(PregnancyReportItem, PregnancyReport, Participant, User, Residential)
+            select(PregnancyReportItem, PregnancyReport, Participant, Residential)
             .join(PregnancyReport, PregnancyReport.report_id == PregnancyReportItem.report_id)
             .join(Participant, Participant.participant_id == PregnancyReportItem.participant_id)
-            .join(User, User.user_id == PregnancyReport.created_by_user_id)
-            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Residential, Residential.residential_id == PregnancyReport.residential_id)
             .where(PregnancyReport.proposal_id == proposal_id)
         )
 
@@ -1944,17 +1927,19 @@ def _build_pregnancy_summary_context(
         if is_global:
             residential_name = "Global"
         else:
-            stmt = stmt.where(PregnancyReport.created_by_user_id == selected_user.user_id)
+            stmt = stmt.where(PregnancyReport.residential_id == selected_user.residential_id)
             residential_name = _residential_from_user(selected_user)
 
-        grouped: dict[str, dict] = {}
-        participant_snapshots: dict[tuple[str, int], dict] = {}
+        grouped: dict[int | str, dict] = {}
+        participant_snapshots: dict[tuple[int | str, int], dict] = {}
 
-        for item, report, participant, report_user, residential in db.execute(stmt).all():
-            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
+        for item, report, participant, residential in db.execute(stmt).all():
+            residential_key = report.residential_id if report.residential_id is not None else "unassigned"
+            residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
             grouped.setdefault(
-                residential_label,
+                residential_key,
                 {
+                    "residential_id": report.residential_id,
                     "residential_name": residential_label,
                     "recruited": 0,
                     "f": 0,
@@ -1968,7 +1953,7 @@ def _build_pregnancy_summary_context(
                 },
             )
 
-            key = (residential_label, participant.participant_id)
+            key = (residential_key, participant.participant_id)
             snapshot = participant_snapshots.get(key)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
             gender = _normalize_text(participant.genero).upper()
@@ -1980,6 +1965,7 @@ def _build_pregnancy_summary_context(
 
             if not snapshot:
                 participant_snapshots[key] = {
+                    "residential_key": residential_key,
                     "residential_name": residential_label,
                     "participant_id": participant.participant_id,
                     "gender": gender,
@@ -1998,7 +1984,7 @@ def _build_pregnancy_summary_context(
                 snapshot["gender"] = gender or snapshot["gender"]
 
         for snapshot in participant_snapshots.values():
-            bucket = grouped[snapshot["residential_name"]]
+            bucket = grouped[snapshot["residential_key"]]
             bucket["recruited"] += 1
             total["recruited"] += 1
 
@@ -2032,7 +2018,10 @@ def _build_pregnancy_summary_context(
                 "prevention_pct": prevention_pct,
             }
 
-        rows = [finalize(grouped[name]) for name in sorted(grouped.keys())]
+        rows = sorted(
+            (finalize(row) for row in grouped.values()),
+            key=lambda row: row["residential_name"],
+        )
         total = finalize(total)
 
     return {
@@ -2094,11 +2083,10 @@ def _build_notes_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(SchoolGradeReportItem, SchoolGradeReport, Participant, User, Residential)
+            select(SchoolGradeReportItem, SchoolGradeReport, Participant, Residential)
             .join(SchoolGradeReport, SchoolGradeReport.report_id == SchoolGradeReportItem.report_id)
             .join(Participant, Participant.participant_id == SchoolGradeReportItem.participant_id)
-            .join(User, User.user_id == SchoolGradeReport.created_by_user_id)
-            .outerjoin(Residential, Residential.residential_id == User.residential_id)
+            .outerjoin(Residential, Residential.residential_id == SchoolGradeReport.residential_id)
             .where(SchoolGradeReport.proposal_id == proposal_id)
         )
 
@@ -2116,16 +2104,19 @@ def _build_notes_context(
         if is_global:
             residential_name = "Global"
         else:
-            stmt = stmt.where(SchoolGradeReport.created_by_user_id == selected_user.user_id)
+            stmt = stmt.where(SchoolGradeReport.residential_id == selected_user.residential_id)
             residential_name = _residential_from_user(selected_user)
 
-        participant_snapshots: dict[tuple[str, int], dict] = {}
-        for item, report, participant, report_user, residential in db.execute(stmt).all():
-            residential_label = _normalize_text(residential.name if residential else _residential_from_user(report_user)) or "Sin residencial"
-            key = (residential_label, participant.participant_id)
+        participant_snapshots: dict[tuple[int | str, int], dict] = {}
+        for item, report, participant, residential in db.execute(stmt).all():
+            residential_key = report.residential_id if report.residential_id is not None else "unassigned"
+            residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
+            key = (residential_key, participant.participant_id)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
             snapshot = participant_snapshots.get(key)
             current_snapshot = {
+                "residential_key": residential_key,
+                "residential_id": report.residential_id,
                 "residential_name": residential_label,
                 "participant_id": participant.participant_id,
                 "age": _calc_age(participant.fecha_nacimiento),
@@ -2141,7 +2132,7 @@ def _build_notes_context(
             if not snapshot or report_sort >= snapshot["latest_sort"]:
                 participant_snapshots[key] = current_snapshot
 
-        residential_summary: dict[str, dict] = {}
+        residential_summary: dict[int | str, dict] = {}
         for snapshot in participant_snapshots.values():
             age_label = _notes_age_bucket(snapshot["age"])
             if age_label:
@@ -2162,10 +2153,17 @@ def _build_notes_context(
                 table_rows[age_label]["TOTAL"] += 1
                 total_row["TOTAL"] += 1
 
-            residential_bucket = residential_summary.setdefault(snapshot["residential_name"], {letter: 0 for letter in note_letters})
+            residential_bucket = residential_summary.setdefault(
+                snapshot["residential_key"],
+                {
+                    "residential_id": snapshot["residential_id"],
+                    "residential_name": snapshot["residential_name"],
+                    "counts": {letter: 0 for letter in note_letters},
+                },
+            )
             avg_letter = _grade_letter_from_average(snapshot["average_grade"])
             if avg_letter in note_letters:
-                residential_bucket[avg_letter] += 1
+                residential_bucket["counts"][avg_letter] += 1
 
             for subject_name, field_name in [("Español", "spanish_grade"), ("Inglés", "english_grade"), ("Matemáticas", "math_grade"), ("Ciencias", "science_grade")]:
                 subject_letter = _grade_letter_from_average(snapshot[field_name])
@@ -2174,12 +2172,16 @@ def _build_notes_context(
 
         residential_chart_rows = [
             {
-                "residential_name": name,
-                **counts,
-                "total": sum(counts.values()),
-                "breakdown": _build_percentage_breakdown(counts, note_letters),
+                "residential_id": bucket["residential_id"],
+                "residential_name": bucket["residential_name"],
+                **bucket["counts"],
+                "total": sum(bucket["counts"].values()),
+                "breakdown": _build_percentage_breakdown(bucket["counts"], note_letters),
             }
-            for name, counts in sorted(residential_summary.items())
+            for bucket in sorted(
+                residential_summary.values(),
+                key=lambda item: item["residential_name"],
+            )
         ]
         rows = [{"age_label": label, **table_rows[label]} for label in age_labels]
 
@@ -2341,8 +2343,8 @@ async def visits_report_save_referrals(
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
 
-    if not proposal_id or not period_month or not period_year or not (selected_user or is_global):
-        return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar propuesta, periodo y residencial.", status_code=303)
+    if not proposal_id or not period_month or not period_year or not selected_user or is_global:
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar un residencial específico para guardar referidos.", status_code=303)
 
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
@@ -2366,13 +2368,13 @@ async def visits_report_save_referrals(
             status_code=303,
         )
 
-    report_owner_user_id = None if is_global else selected_user.user_id
     visit_report = get_or_create_visit_report(
         db,
         proposal_id=proposal_id,
         report_month=period_month,
         report_year=period_year,
-        created_by_user_id=report_owner_user_id,
+        residential_id=selected_user.residential_id,
+        created_by_user_id=current_user.user_id,
     )
 
     form_data = await request.form()
@@ -2409,8 +2411,8 @@ def visits_report_delete(
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
 
-    if not proposal_id or not month or not year or not (selected_user or is_global):
-        return RedirectResponse("/ui/reports/visitas?msg=Error: Contexto inválido para eliminar informe.", status_code=303)
+    if not proposal_id or not month or not year or not selected_user or is_global:
+        return RedirectResponse("/ui/reports/visitas?msg=Error: Debe seleccionar un residencial específico para eliminar referidos.", status_code=303)
 
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
@@ -2434,22 +2436,14 @@ def visits_report_delete(
             status_code=303,
         )
 
-    if is_global:
-        reports = get_visit_reports(
-            db,
-            proposal_id=proposal_id,
-            report_month=month,
-            report_year=year,
-        )
-    else:
-        report = get_visit_report(
-            db,
-            proposal_id=proposal_id,
-            report_month=month,
-            report_year=year,
-            created_by_user_id=selected_user.user_id,
-        )
-        reports = [report] if report else []
+    report = get_visit_report(
+        db,
+        proposal_id=proposal_id,
+        report_month=month,
+        report_year=year,
+        residential_id=selected_user.residential_id,
+    )
+    reports = [report] if report else []
 
     if not reports:
         return RedirectResponse(
@@ -2457,11 +2451,11 @@ def visits_report_delete(
             status_code=303,
         )
 
-    delete_visit_reports_and_referrals(db, reports)
+    delete_visit_referrals_only(db, reports)
     db.commit()
 
     return RedirectResponse(
-        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Informe de visitas eliminado exitosamente.",
+        f"/ui/reports/visitas?proposal_id={proposal_id}&month={month}&year={year}&employee_id={employee_id if employee_id is not None else ''}&authorized_name={authorized_name or ''}&msg=Referidos eliminados exitosamente.",
         status_code=303,
     )
 
@@ -2591,7 +2585,7 @@ def _calculate_no_duplicado_metric(
                 stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
             stmt = _apply_session_period_filter(stmt, period)
             if not is_global:
-                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             attendance_rows = db.execute(stmt).all()
             for _, participant in attendance_rows:
@@ -2619,7 +2613,7 @@ def _calculate_no_duplicado_metric(
             stmt = _apply_session_period_filter(stmt, period)
             stmt = stmt.distinct()
             if not is_global:
-                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             participants = db.execute(stmt).scalars().all()
             for participant in participants:
@@ -2668,7 +2662,11 @@ def _build_current_month_dashboard_cards(
 ):
     today = date.today()
     month_start = today.replace(day=1)
-    scope_employee_id = 0 if current_user.role in ["admin", "supervisor"] else current_user.user_id
+    scope_employee_id = (
+        0
+        if current_user.role in ["admin", "supervisor"]
+        else getattr(current_user, "_active_residential_id", None) or current_user.residential_id
+    )
 
     no_duplicado_metric = _calculate_no_duplicado_metric(
         db,
@@ -2700,11 +2698,11 @@ def _build_current_month_dashboard_cards(
         ActivitySession.session_date <= today,
     )
     if current_user.role not in ["admin", "supervisor"]:
-        session_stmt = session_stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
+        session_stmt = session_stmt.where(ActivitySession.residential_id == scope_employee_id)
     activities_count = db.execute(session_stmt).scalar_one() or 0
 
     period_label = f"Del {month_start.strftime('%d/%m/%Y')} al {today.strftime('%d/%m/%Y')}"
-    scope_label = "Global" if current_user.role in ["admin", "supervisor"] else "Propio"
+    scope_label = "Global" if current_user.role in ["admin", "supervisor"] else "Residencial"
 
     return {
         "dashboard_period_label": period_label,
@@ -3603,7 +3601,7 @@ def _build_hoja_cotejo_context(
             )
             session_stmt = _apply_session_period_filter(session_stmt, period)
             if not is_global:
-                session_stmt = session_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                session_stmt = session_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
             for activity_code_id_value, activities_count, contact_hours in db.execute(session_stmt).all():
                 session_metrics_by_activity_code_id[activity_code_id_value] = {
                     "activities_count": int(activities_count or 0),
@@ -3626,7 +3624,7 @@ def _build_hoja_cotejo_context(
             )
             attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
             if not is_global:
-                attendance_stmt = attendance_stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
             for activity_code_id_value, duplicados, unique_participants in db.execute(attendance_stmt).all():
                 attendance_metrics_by_activity_code_id[activity_code_id_value] = {
                     "duplicados": int(duplicados or 0),
@@ -3765,7 +3763,7 @@ def _build_por_programa_context(
             stmt = _apply_session_period_filter(stmt, period)
             stmt = stmt.distinct()
             if not is_global:
-                stmt = stmt.where(ActivitySession.created_by_user_id == selected_user.user_id)
+                stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             participants = db.execute(stmt).scalars().all()
             participant_summary = _summarize_participants_by_age_and_gender(participants)

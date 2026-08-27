@@ -89,6 +89,14 @@
     <div class="card shadow-sm border-0 participants-form-card" id="participant-register-card">
       <div class="card-body">
         <form method="post" action="/ui/new-list/create" class="row g-2 align-items-start">
+          {% if is_admin_or_supervisor_view %}
+          <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
+          {% if not selected_residential_id %}
+          <div class="col-12">
+            <div class="alert alert-warning mb-2">Selecciona un residencial en el filtro antes de registrar un participante.</div>
+          </div>
+          {% endif %}
+          {% endif %}
 
           {% if phase2_expediente_enabled %}
           <div class="col-12">
@@ -109,14 +117,14 @@
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-6">
-                  <label class="form-label">Siglas empleado *</label>
-                  <input class="form-control" name="exp_employee_initials" id="exp_employee_initials" maxlength="10" required placeholder="Ej. AC">
+                  <label class="form-label">Código residencial *</label>
+                  <input class="form-control" id="exp_employee_initials" value="{{ expediente_residential.code if expediente_residential else '' }}" readonly placeholder="Seleccione un residencial">
                 </div>
 
                 <div class="col-xl-2 col-lg-2 col-md-4">
                   <label class="form-label">4 digitos *</label>
                   <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
-                  <div class="form-text">Unico</div>
+                  <div class="form-text">Único dentro del residencial</div>
                 </div>
 
                 <div class="col-xl-3 col-lg-4 col-md-8">
@@ -320,7 +328,7 @@
           {% endif %}
 
           <div class="col-12 mt-2">
-            <button class="btn btn-success w-100 participants-submit-btn">
+            <button class="btn btn-success w-100 participants-submit-btn" {% if is_admin_or_supervisor_view and not selected_residential_id %}disabled{% endif %}>
               <i class="bi bi-save" aria-hidden="true"></i>
               <span>Guardar Participante</span>
             </button>

@@ -17,6 +17,7 @@ from app.core.period_guard import (
     require_reporting_period_not_future,
 )
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.residential_scope import require_record_residential_id
 from app.models.participant import Participant
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -83,6 +84,21 @@ def _grade_letter(average: float | None) -> str:
     return "F"
 
 
+def _ensure_report_access(
+    request: Request,
+    current_user: User,
+    report: SchoolGradeReport,
+) -> None:
+    if current_user.role in {"admin", "supervisor"}:
+        return
+    residential_id = require_record_residential_id(request, current_user)
+    if report.residential_id == residential_id:
+        return
+    if report.residential_id is None and report.created_by_user_id == current_user.user_id:
+        return
+    raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este informe.")
+
+
 def _report_is_locked(proposal: Proposal | None, report: SchoolGradeReport) -> bool:
     return bool(
         proposal
@@ -122,13 +138,15 @@ def school_grade_reports_index(
             Residential.name.label("created_by_residential"),
         )
         .join(Proposal, SchoolGradeReport.proposal_id == Proposal.proposal_id)
-        .join(User, SchoolGradeReport.created_by_user_id == User.user_id)
-        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(User, SchoolGradeReport.created_by_user_id == User.user_id)
+        .outerjoin(Residential, SchoolGradeReport.residential_id == Residential.residential_id)
         .order_by(SchoolGradeReport.report_year.desc(), SchoolGradeReport.report_month.desc(), SchoolGradeReport.report_id.desc())
     )
 
     if current_user.role not in {"admin", "supervisor"}:
-        stmt = stmt.where(SchoolGradeReport.created_by_user_id == current_user.user_id)
+        stmt = stmt.where(
+            SchoolGradeReport.residential_id == require_record_residential_id(request, current_user)
+        )
 
     if proposal_id:
         stmt = stmt.where(SchoolGradeReport.proposal_id == proposal_id)
@@ -169,6 +187,7 @@ def school_grade_reports_index(
 
 @router.post("/create")
 def create_school_grade_report(
+    request: Request,
     proposal_id: int = Form(...),
     report_month: int = Form(...),
     report_year: int = Form(...),
@@ -192,17 +211,18 @@ def create_school_grade_report(
     except HTTPException as exc:
         return RedirectResponse(f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg={exc.detail}", status_code=303)
 
+    residential_id = require_record_residential_id(request, current_user)
     existing = db.execute(
         select(SchoolGradeReport).where(
             SchoolGradeReport.proposal_id == proposal_id,
             SchoolGradeReport.report_month == report_month,
             SchoolGradeReport.report_year == report_year,
-            SchoolGradeReport.created_by_user_id == current_user.user_id,
+            SchoolGradeReport.residential_id == residential_id,
         )
     ).scalar_one_or_none()
     if existing:
         return RedirectResponse(
-            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe tuyo para esa propuesta, mes y año.",
+            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe de este residencial para esa propuesta, mes y año.",
             status_code=303,
         )
 
@@ -211,6 +231,7 @@ def create_school_grade_report(
         report_month=report_month,
         report_year=report_year,
         notes=(notes or "").strip() or None,
+        residential_id=residential_id,
         created_by_user_id=current_user.user_id,
     )
     db.add(report)
@@ -220,7 +241,7 @@ def create_school_grade_report(
     except IntegrityError:
         db.rollback()
         return RedirectResponse(
-            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe tuyo para esa propuesta, mes y año.",
+            f"/ui/school-grades?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe de este residencial para esa propuesta, mes y año.",
             status_code=303,
         )
 
@@ -241,8 +262,7 @@ def school_grade_report_detail(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver este informe.")
+    _ensure_report_access(request, current_user, report)
 
     proposal = db.get(Proposal, report.proposal_id)
     report_is_locked = _report_is_locked(proposal, report)
@@ -252,8 +272,8 @@ def school_grade_report_detail(
         .where(Participant.is_active == True)  # noqa: E712
         .order_by(Participant.apellido_paterno, Participant.nombre)
     )
-    if current_user.role != "admin":
-        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+    if report.residential_id is not None:
+        participant_stmt = participant_stmt.where(Participant.residential_id == report.residential_id)
 
     participants = db.execute(participant_stmt).scalars().all()
 
@@ -298,6 +318,7 @@ def school_grade_report_detail(
 @router.post("/{report_id}/participants/add")
 def add_participant_to_school_grade_report(
     report_id: int,
+    request: Request,
     participant_id: int = Form(...),
     grade_level: str | None = Form(default=None),
     is_content_room: str | None = Form(default=None),
@@ -307,8 +328,7 @@ def add_participant_to_school_grade_report(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -319,8 +339,8 @@ def add_participant_to_school_grade_report(
     if not participant:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
 
-    if current_user.role != "admin" and participant.created_by_user_id != current_user.user_id:
-        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: No tienes permiso para usar ese participante.", status_code=303)
+    if report.residential_id is not None and participant.residential_id != report.residential_id:
+        return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: El participante pertenece a otro residencial.", status_code=303)
 
     age = _calc_age(participant.fecha_nacimiento)
     if age is None or age < 0 or age > 21:
@@ -354,6 +374,7 @@ def add_participant_to_school_grade_report(
 def edit_school_grade_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     grade_level: str | None = Form(default=None),
     is_content_room: str | None = Form(default=None),
     spanish_grade: str | None = Form(default=None),
@@ -371,8 +392,7 @@ def edit_school_grade_report_item(
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -414,14 +434,14 @@ def edit_school_grade_report_item(
 @router.post("/{report_id}/delete")
 def delete_school_grade_report(
     report_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "borrar")
@@ -444,14 +464,14 @@ def delete_school_grade_report(
 def delete_school_grade_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(SchoolGradeReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-grades?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role not in {"admin", "supervisor"} and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")

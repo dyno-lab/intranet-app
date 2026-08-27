@@ -18,10 +18,15 @@ class ProposalParticipant(Base):
     proposal_participant_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     proposal_id: Mapped[int] = mapped_column(ForeignKey("proposals.proposal_id"), nullable=False, index=True)
     person_id: Mapped[int] = mapped_column(ForeignKey("persons.person_id"), nullable=False, index=True)
+    residential_id: Mapped[int | None] = mapped_column(
+        ForeignKey("residentials.residential_id"),
+        nullable=True,
+        index=True,
+    )
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.user_id"), nullable=True, index=True)
 
     exp_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    exp_employee_initials: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    exp_employee_initials: Mapped[str | None] = mapped_column(String(20), nullable=True)
     exp_seq4: Mapped[str | None] = mapped_column(String(4), nullable=True)
     expediente_num: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
 

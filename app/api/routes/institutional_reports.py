@@ -25,7 +25,6 @@ from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
-from app.models.user import User
 
 
 router = APIRouter()
@@ -839,8 +838,7 @@ def faro_institutional_report_data(
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(Participant, Person.legacy_participant_id == Participant.participant_id)
-        .outerjoin(User, Participant.created_by_user_id == User.user_id)
-        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(Residential, Participant.residential_id == Residential.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
             ProposalParticipant.proposal_id == ActivitySession.proposal_id,

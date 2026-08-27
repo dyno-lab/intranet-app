@@ -4,7 +4,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -16,6 +17,7 @@ from app.core.period_guard import (
     require_reporting_period_not_future,
 )
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.residential_scope import require_record_residential_id
 from app.models.participant import Participant
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.pregnancy_report import PregnancyReport
@@ -33,6 +35,17 @@ def _calc_age(dob):
         return None
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def _ensure_report_access(request: Request, current_user: User, report: PregnancyReport) -> None:
+    if current_user.role in {"admin", "supervisor"}:
+        return
+    residential_id = require_record_residential_id(request, current_user)
+    if report.residential_id == residential_id:
+        return
+    if report.residential_id is None and report.created_by_user_id == current_user.user_id:
+        return
+    raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este informe.")
 
 
 def _report_is_locked(proposal: Proposal | None, report: PregnancyReport) -> bool:
@@ -74,13 +87,15 @@ def pregnancy_reports_index(
             Residential.name.label("created_by_residential"),
         )
         .join(Proposal, PregnancyReport.proposal_id == Proposal.proposal_id)
-        .join(User, PregnancyReport.created_by_user_id == User.user_id)
-        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(User, PregnancyReport.created_by_user_id == User.user_id)
+        .outerjoin(Residential, PregnancyReport.residential_id == Residential.residential_id)
         .order_by(PregnancyReport.report_year.desc(), PregnancyReport.report_month.desc(), PregnancyReport.report_id.desc())
     )
 
-    if current_user.role != "admin":
-        stmt = stmt.where(PregnancyReport.created_by_user_id == current_user.user_id)
+    if current_user.role not in {"admin", "supervisor"}:
+        stmt = stmt.where(
+            PregnancyReport.residential_id == require_record_residential_id(request, current_user)
+        )
     if proposal_id:
         stmt = stmt.where(PregnancyReport.proposal_id == proposal_id)
     if month:
@@ -120,6 +135,7 @@ def pregnancy_reports_index(
 
 @router.post("/create")
 def create_pregnancy_report(
+    request: Request,
     proposal_id: int = Form(...),
     report_month: int = Form(...),
     report_year: int = Form(...),
@@ -143,12 +159,13 @@ def create_pregnancy_report(
     except HTTPException as exc:
         return RedirectResponse(f"/ui/pregnancy?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg={exc.detail}", status_code=303)
 
+    residential_id = require_record_residential_id(request, current_user)
     existing = db.execute(
         select(PregnancyReport).where(
             PregnancyReport.proposal_id == proposal_id,
             PregnancyReport.report_month == report_month,
             PregnancyReport.report_year == report_year,
-            PregnancyReport.created_by_user_id == current_user.user_id,
+            PregnancyReport.residential_id == residential_id,
         )
     ).scalar_one_or_none()
     if existing:
@@ -162,10 +179,18 @@ def create_pregnancy_report(
         report_month=report_month,
         report_year=report_year,
         notes=(notes or "").strip() or None,
+        residential_id=residential_id,
         created_by_user_id=current_user.user_id,
     )
     db.add(report)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return RedirectResponse(
+            f"/ui/pregnancy?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe de este residencial para esa propuesta, mes y año.",
+            status_code=303,
+        )
 
     return RedirectResponse(
         f"/ui/pregnancy/{report.report_id}?msg=Informe de embarazo creado exitosamente.",
@@ -184,8 +209,7 @@ def pregnancy_report_detail(
     report = db.get(PregnancyReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver este informe.")
+    _ensure_report_access(request, current_user, report)
 
     proposal = db.get(Proposal, report.proposal_id)
     report_is_locked = _report_is_locked(proposal, report)
@@ -195,8 +219,8 @@ def pregnancy_report_detail(
         .where(Participant.is_active == True)  # noqa: E712
         .order_by(Participant.apellido_paterno, Participant.nombre)
     )
-    if current_user.role != "admin":
-        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+    if report.residential_id is not None:
+        participant_stmt = participant_stmt.where(Participant.residential_id == report.residential_id)
 
     participants = db.execute(participant_stmt).scalars().all()
 
@@ -239,6 +263,7 @@ def pregnancy_report_detail(
 @router.post("/{report_id}/participants/add")
 def add_participant_to_pregnancy_report(
     report_id: int,
+    request: Request,
     participant_id: int = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -246,8 +271,7 @@ def add_participant_to_pregnancy_report(
     report = db.get(PregnancyReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -257,8 +281,8 @@ def add_participant_to_pregnancy_report(
     participant = db.get(Participant, participant_id)
     if not participant:
         return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
-    if current_user.role != "admin" and participant.created_by_user_id != current_user.user_id:
-        return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Error: No tienes permiso para usar ese participante.", status_code=303)
+    if report.residential_id is not None and participant.residential_id != report.residential_id:
+        return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Error: El participante pertenece a otro residencial.", status_code=303)
 
     age = _calc_age(participant.fecha_nacimiento)
     if age is None or age < 8 or age > 19:
@@ -286,6 +310,7 @@ def add_participant_to_pregnancy_report(
 def edit_pregnancy_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     participated_workshops: str | None = Form(default=None),
     is_pregnant: str | None = Form(default=None),
     gestation_time: str | None = Form(default=None),
@@ -298,8 +323,7 @@ def edit_pregnancy_report_item(
     report = db.get(PregnancyReport, report_id)
     if not report:
         return RedirectResponse("/ui/pregnancy?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -326,14 +350,14 @@ def edit_pregnancy_report_item(
 @router.post("/{report_id}/delete")
 def delete_pregnancy_report(
     report_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(PregnancyReport, report_id)
     if not report:
         return RedirectResponse("/ui/pregnancy?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "borrar")
@@ -356,14 +380,14 @@ def delete_pregnancy_report(
 def delete_pregnancy_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(PregnancyReport, report_id)
     if not report:
         return RedirectResponse("/ui/pregnancy?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")

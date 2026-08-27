@@ -14,7 +14,12 @@ class ActivitySession(Base):
     session_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     control_number: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
 
-    # Ownership (para roles/aislamiento)
+    # Propiedad residencial histórica y auditoría del usuario creador.
+    residential_id: Mapped[int | None] = mapped_column(
+        ForeignKey("residentials.residential_id"),
+        nullable=True,
+        index=True,
+    )
     created_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
 
     # Datos de la actividad/sesión

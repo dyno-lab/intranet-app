@@ -4,7 +4,7 @@
 {% block content %}
 {% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
 {% set is_custom_period = selected_period_type == 'custom' %}
-{% set can_manage_referrals = has_selection and not is_custom_period %}
+{% set can_manage_referrals = has_selection and not is_custom_period and not is_global %}
 {% set has_visit_rows = rows|length > 0 %}
 {% set has_mapped_visits = mapped_activity_ids|length > 0 %}
 {% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
@@ -197,7 +197,7 @@
             <strong>{{ residential_name or 'Sin residencial seleccionado' }}</strong>
           </div>
           <div class="visitas-summary-item">
-            <span>Empleado seleccionado</span>
+            <span>Alcance seleccionado</span>
             <strong>{{ selected_scope_label }}</strong>
           </div>
           <div class="visitas-summary-item">
@@ -273,7 +273,7 @@
               <h3>Referidos guardados</h3>
               <p>Tipos disponibles: Interno, Externo y Visita Agencia.</p>
             </div>
-            {% if can_manage_referrals and (visit_report or (is_global and referral_rows|length > 0)) and not visits_period_locked %}
+            {% if can_manage_referrals and visit_report and not visits_period_locked %}
             <form method="post" action="/ui/reports/visitas/delete" class="visitas-delete-form">
               <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
               <input type="hidden" name="month" value="{{ selected_month or 0 }}">

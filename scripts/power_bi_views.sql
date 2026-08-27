@@ -62,7 +62,7 @@ SELECT
     pt.created_by_user_id,
     u.username AS created_by_username,
     u.role AS created_by_role,
-    u.residential_id,
+    pt.residential_id,
     r.code AS residential_code,
     r.name AS residential_name,
     r.municipality,
@@ -107,7 +107,7 @@ FROM dbo.participants pt
 LEFT JOIN dbo.users u
     ON u.user_id = pt.created_by_user_id
 LEFT JOIN dbo.residentials r
-    ON r.residential_id = u.residential_id;
+    ON r.residential_id = pt.residential_id;
 GO
 
 /* ============================================================
@@ -134,7 +134,7 @@ SELECT
     s.created_by_user_id,
     u.username AS created_by_username,
     u.role AS created_by_role,
-    u.residential_id,
+    s.residential_id,
     r.code AS residential_code,
     r.name AS residential_name,
     r.municipality,
@@ -155,7 +155,7 @@ FROM dbo.activity_sessions s
 LEFT JOIN dbo.users u
     ON u.user_id = s.created_by_user_id
 LEFT JOIN dbo.residentials r
-    ON r.residential_id = u.residential_id
+    ON r.residential_id = s.residential_id
 LEFT JOIN dbo.proposals p
     ON p.proposal_id = s.proposal_id
 LEFT JOIN dbo.activity_codes ac
@@ -191,7 +191,7 @@ SELECT
     s.created_by_user_id,
     u.username AS created_by_username,
     u.role AS created_by_role,
-    u.residential_id,
+    s.residential_id,
     r.code AS residential_code,
     r.name AS residential_name,
     r.municipality,
@@ -216,7 +216,7 @@ LEFT JOIN dbo.participants pt
 LEFT JOIN dbo.users u
     ON u.user_id = s.created_by_user_id
 LEFT JOIN dbo.residentials r
-    ON r.residential_id = u.residential_id
+    ON r.residential_id = s.residential_id
 LEFT JOIN dbo.proposals p
     ON p.proposal_id = s.proposal_id
 LEFT JOIN dbo.activity_codes ac
@@ -400,19 +400,13 @@ CREATE OR ALTER VIEW dbo.bi_fact_productivity_compliance
 AS
 WITH active_reporting_residentials AS (
     SELECT
-        u.user_id AS owner_user_id,
-        u.username AS owner_username,
-        u.role AS owner_role,
-        u.residential_id,
+        r.residential_id,
         r.code AS residential_code,
         r.name AS residential_name,
         r.municipality,
         r.rq_code
-    FROM dbo.users u
-    LEFT JOIN dbo.residentials r
-        ON r.residential_id = u.residential_id
-    WHERE u.is_active = 1
-      AND u.role = 'user'
+    FROM dbo.residentials r
+    WHERE r.is_active = 1
 ),
 month_spine AS (
     SELECT DISTINCT
@@ -456,9 +450,6 @@ goal_month_grid AS (
         gb.is_active,
         gb.created_at,
         gb.updated_at,
-        arr.owner_user_id,
-        arr.owner_username,
-        arr.owner_role,
         arr.residential_id,
         arr.residential_code,
         arr.residential_name,
@@ -476,7 +467,7 @@ session_counts AS (
     SELECT
         s.proposal_id,
         s.activity_code_id,
-        s.created_by_user_id AS owner_user_id,
+        s.residential_id,
         DATEFROMPARTS(YEAR(s.session_date), MONTH(s.session_date), 1) AS month_start,
         COUNT(s.session_id) AS executed_residential_count
     FROM dbo.activity_sessions s
@@ -484,7 +475,7 @@ session_counts AS (
     GROUP BY
         s.proposal_id,
         s.activity_code_id,
-        s.created_by_user_id,
+        s.residential_id,
         DATEFROMPARTS(YEAR(s.session_date), MONTH(s.session_date), 1)
 ),
 global_counts AS (
@@ -508,9 +499,6 @@ SELECT
     gmg.activity_code_id,
     gmg.activity_code,
     gmg.activity_description,
-    gmg.owner_user_id,
-    gmg.owner_username,
-    gmg.owner_role,
     gmg.residential_id,
     gmg.residential_code,
     gmg.residential_name,
@@ -549,14 +537,14 @@ SELECT
         ELSE 'No aplica'
     END AS monthly_compliance_label,
     CONCAT(gmg.proposal_id, ':', gmg.activity_code_id) AS goal_activity_key,
-    CONCAT(gmg.proposal_id, ':', gmg.activity_code_id, ':', ISNULL(CONVERT(varchar(20), gmg.owner_user_id), '0')) AS goal_residential_key,
+    CONCAT(gmg.proposal_id, ':', gmg.activity_code_id, ':', ISNULL(CONVERT(varchar(20), gmg.residential_id), '0')) AS goal_residential_key,
     gmg.created_at,
     gmg.updated_at
 FROM goal_month_grid gmg
 LEFT JOIN session_counts sc
     ON sc.proposal_id = gmg.proposal_id
    AND sc.activity_code_id = gmg.activity_code_id
-   AND ISNULL(sc.owner_user_id, -1) = ISNULL(gmg.owner_user_id, -1)
+   AND ISNULL(sc.residential_id, -1) = ISNULL(gmg.residential_id, -1)
    AND sc.month_start = gmg.month_start
 LEFT JOIN global_counts gc
     ON gc.proposal_id = gmg.proposal_id
@@ -585,7 +573,7 @@ SELECT
     s.created_by_user_id,
     u.username AS created_by_username,
     u.role AS created_by_role,
-    u.residential_id,
+    s.residential_id,
     r.code AS residential_code,
     r.name AS residential_name,
     r.municipality,
@@ -634,7 +622,7 @@ LEFT JOIN dbo.employees e
 LEFT JOIN dbo.users u
     ON u.user_id = s.created_by_user_id
 LEFT JOIN dbo.residentials r
-    ON r.residential_id = u.residential_id
+    ON r.residential_id = s.residential_id
 LEFT JOIN dbo.proposal_participants pp
     ON pp.proposal_participant_id = a.proposal_participant_id
 LEFT JOIN dbo.persons prs

@@ -38,7 +38,9 @@ from app.services.participant_profile_fields import (
     validate_profile_field_inputs,
 )
 from app.core.config import settings
+from app.core.record_identifiers import build_expediente_number, build_session_control_number
 from app.core.participant_household import require_head_of_household_allowed
+from app.core.residential_scope import require_record_residential_id, require_write_residential_id
 from app.core.proposal_guard import (
     is_proposal_finalized,
     require_session_proposal_not_finalized,
@@ -241,18 +243,15 @@ def _build_new_list_dashboard(
     participant_stmt = (
         select(
             Participant,
-            User.residential_id.label("owner_residential_id"),
+            Participant.residential_id.label("owner_residential_id"),
             Residential.name.label("residential_name"),
         )
-        .outerjoin(User, User.user_id == Participant.created_by_user_id)
-        .outerjoin(Residential, Residential.residential_id == User.residential_id)
+        .outerjoin(Residential, Residential.residential_id == Participant.residential_id)
         .order_by(Residential.name, Participant.apellido_paterno, Participant.nombre)
     )
 
-    if is_admin_supervisor and selected_residential_id:
-        participant_stmt = participant_stmt.where(User.residential_id == selected_residential_id)
-    elif not is_admin_supervisor:
-        participant_stmt = participant_stmt.where(Participant.created_by_user_id == current_user.user_id)
+    if selected_residential_id:
+        participant_stmt = participant_stmt.where(Participant.residential_id == selected_residential_id)
 
     participant_rows = db.execute(participant_stmt).all()
 
@@ -341,18 +340,26 @@ def _hours_from_minutes(minutes: float | None) -> float | None:
     return round(minutes / 60, 6)
 
 
-def _check_participant_access(p: Participant, user: User):
+def _check_participant_access(p: Participant, user: User, request: Request):
     if is_admin_or_supervisor(user):
         return
-    if p.created_by_user_id != user.user_id:
-        raise HTTPException(status_code=403)
+    residential_id = require_record_residential_id(request, user)
+    if p.residential_id == residential_id:
+        return
+    if p.residential_id is None and p.created_by_user_id == user.user_id:
+        return
+    raise HTTPException(status_code=403)
 
 
-def _check_session_access(s: ActivitySession, user: User):
+def _check_session_access(s: ActivitySession, user: User, request: Request):
     if is_admin_or_supervisor(user):
         return
-    if s.created_by_user_id != user.user_id:
-        raise HTTPException(status_code=403)
+    residential_id = require_record_residential_id(request, user)
+    if s.residential_id == residential_id:
+        return
+    if s.residential_id is None and s.created_by_user_id == user.user_id:
+        return
+    raise HTTPException(status_code=403)
 
 
 def _is_participant_active(participant: Participant) -> bool:
@@ -489,8 +496,8 @@ def _load_session_proposal_participants(db: Session, session: ActivitySession, c
         .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
     )
 
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+    if session.residential_id is not None:
+        stmt = stmt.where(ProposalParticipant.residential_id == session.residential_id)
 
     rows = db.execute(stmt).all()
     result = []
@@ -522,10 +529,6 @@ def _redirect_with_msg(url: str, msg: str):
     separator = "&" if "?" in url else "?"
     return RedirectResponse(f"{url}{separator}msg={msg}", status_code=303)
 
-
-def _build_session_control_number(user_code: str, session_id: int, session_date: date) -> str:
-    normalized_user_code = user_code.strip().upper()
-    return f"{normalized_user_code}{session_id}{session_date.year}"
 
 
 def _build_sessions_stmt(current_user: User):
@@ -560,7 +563,7 @@ def _build_sessions_stmt(current_user: User):
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
         .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)
         .outerjoin(User, ActivitySession.created_by_user_id == User.user_id)
-        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(Residential, ActivitySession.residential_id == Residential.residential_id)
         .outerjoin(attendance_counts, attendance_counts.c.session_id == ActivitySession.session_id)
         .order_by(
             case((Proposal.code.is_(None), 1), else_=0),
@@ -569,9 +572,6 @@ def _build_sessions_stmt(current_user: User):
             ActivitySession.session_id.desc(),
         )
     )
-
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
 
     return stmt
 
@@ -597,13 +597,9 @@ def _apply_session_residential_filter(
     *,
     user_joined: bool = False,
 ):
-    if not is_admin_or_supervisor(current_user) or not residential_id_int:
+    if not residential_id_int:
         return stmt
-
-    if not user_joined:
-        stmt = stmt.join(User, User.user_id == ActivitySession.created_by_user_id)
-
-    return stmt.where(User.residential_id == residential_id_int)
+    return stmt.where(ActivitySession.residential_id == residential_id_int)
 
 
 def _build_filtered_session_ids_stmt(
@@ -617,16 +613,12 @@ def _build_filtered_session_ids_stmt(
     control_number_text: str | None = None,
 ):
     stmt = select(ActivitySession.session_id)
-
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
-    else:
-        stmt = _apply_session_residential_filter(
-            stmt,
-            current_user,
-            residential_id_int,
-            user_joined=False,
-        )
+    stmt = _apply_session_residential_filter(
+        stmt,
+        current_user,
+        residential_id_int,
+        user_joined=False,
+    )
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
 
@@ -730,7 +722,7 @@ def _render_listado_selector(
     td = _parse_date(to_date) if to_date else None
     control_number_text = (control_number or "").strip()
     is_admin_supervisor = is_admin_or_supervisor(current_user)
-    residential_id_int = _parse_optional_int(residential_id) if is_admin_supervisor else None
+    residential_id_int = _parse_optional_int(residential_id) if is_admin_supervisor else require_record_residential_id(request, current_user)
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
@@ -879,6 +871,8 @@ def new_list(
     base_stmt = select(Participant)
     is_admin_supervisor = is_admin_or_supervisor(current_user)
     selected_residential_id = _parse_optional_int(residential_id)
+    if not is_admin_supervisor:
+        selected_residential_id = require_record_residential_id(request, current_user)
     selected_age_min, selected_age_max = _age_bounds_from_filters(
         age_range,
         _parse_optional_int(age_min),
@@ -888,15 +882,8 @@ def new_list(
     if selected_age_min is not None or selected_age_max is not None:
         base_stmt = _apply_age_filters(base_stmt, selected_age_min, selected_age_max)
 
-    if is_admin_supervisor and selected_residential_id:
-        base_stmt = base_stmt.join(User, User.user_id == Participant.created_by_user_id).where(
-            User.residential_id == selected_residential_id
-        )
-
-    if not is_admin_supervisor:
-        base_stmt = base_stmt.where(
-            Participant.created_by_user_id == current_user.user_id
-        )
+    if selected_residential_id:
+        base_stmt = base_stmt.where(Participant.residential_id == selected_residential_id)
 
     query_params = {
         "per_page": per_page,
@@ -917,6 +904,11 @@ def new_list(
             .order_by(Residential.name)
         ).scalars().all()
 
+    expediente_residential = (
+        db.get(Residential, selected_residential_id)
+        if selected_residential_id
+        else None
+    )
     new_list_dashboard = _build_new_list_dashboard(
         db=db,
         current_user=current_user,
@@ -967,6 +959,7 @@ def new_list(
         "selected_age_max": selected_age_max,
         "residentials": residentials,
         "selected_residential_id": selected_residential_id if is_admin_supervisor else None,
+        "expediente_residential": expediente_residential,
         "is_admin_or_supervisor_view": is_admin_supervisor,
         "new_list_query_string": query_string,
         "new_list_dashboard": new_list_dashboard,
@@ -981,6 +974,7 @@ def new_list(
 @router.post("/new-list/create")
 async def create_participant(
     expediente_num: str | None = Form(default=None),
+    residential_id: int | None = Form(default=None),
     exp_year: int | None = Form(default=None),
     exp_employee_initials: str | None = Form(default=None),
     exp_seq4: str | None = Form(default=None),
@@ -1006,13 +1000,26 @@ async def create_participant(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    try:
+        record_residential_id = require_write_residential_id(
+            request,
+            current_user,
+            db,
+            residential_id,
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg("/ui/new-list", f"Error: {exc.detail}")
+    record_residential = db.get(Residential, record_residential_id)
+    if record_residential is None or not record_residential.is_active:
+        return _redirect_with_msg("/ui/new-list", "Error: El residencial activo no está disponible.")
+
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
             return _redirect_with_msg("/ui/new-list", "Error: Selecciona el año del expediente.")
 
-        initials = (exp_employee_initials or "").strip().upper()
-        if not initials or len(initials) < 2 or len(initials) > 10:
-            return _redirect_with_msg("/ui/new-list", "Error: Las siglas del empleado son requeridas (2-10 caracteres).")
+        initials = record_residential.code.strip().upper()
+        if not initials:
+            return _redirect_with_msg("/ui/new-list", "Error: El residencial no tiene un código válido.")
 
         seq4 = (exp_seq4 or "").strip()
         if not (len(seq4) == 4 and seq4.isdigit()):
@@ -1020,17 +1027,21 @@ async def create_participant(
 
         used_seq = db.execute(
             select(Participant).where(
-                Participant.created_by_user_id == current_user.user_id,
+                Participant.residential_id == record_residential_id,
                 Participant.exp_seq4 == seq4,
             )
         ).scalar_one_or_none()
         if used_seq:
             return _redirect_with_msg(
                 "/ui/new-list",
-                f"Error: El número {seq4} ya fue utilizado por usted anteriormente. Debe escoger otro.",
+                f"Error: El número {seq4} ya fue utilizado en el residencial {initials}.",
             )
 
-        expediente_num = f"FE-{exp_year}-{initials}-{seq4}"
+        expediente_num = build_expediente_number(
+            year=exp_year,
+            residential_code=initials,
+            sequence=seq4,
+        )
     else:
         expediente_num = (expediente_num or "").strip()
         if not expediente_num:
@@ -1061,7 +1072,7 @@ async def create_participant(
         try:
             require_head_of_household_allowed(
                 db,
-                residential_id=getattr(current_user, "residential_id", None),
+                residential_id=record_residential_id,
                 edificio=edificio,
                 apart=apart,
             )
@@ -1089,6 +1100,7 @@ async def create_participant(
         rango_ingreso=rango_ingreso,
         is_head_of_household=marked_as_head_of_household,
         is_active=participant_is_active,
+        residential_id=record_residential_id,
         created_by_user_id=current_user.user_id,
     )
 
@@ -1123,6 +1135,7 @@ def delete_participant(
 
 @router.get("/new-list/export.csv")
 def export_participants_csv(
+    request: Request,
     age_range: str | None = None,
     age_min: str | None = None,
     age_max: str | None = None,
@@ -1132,6 +1145,8 @@ def export_participants_csv(
 ):
     is_admin_supervisor = is_admin_or_supervisor(current_user)
     selected_residential_id = _parse_optional_int(residential_id)
+    if not is_admin_supervisor:
+        selected_residential_id = require_record_residential_id(request, current_user)
     selected_age_min, selected_age_max = _age_bounds_from_filters(
         age_range,
         _parse_optional_int(age_min),
@@ -1147,13 +1162,8 @@ def export_participants_csv(
     if selected_age_min is not None or selected_age_max is not None:
         stmt = _apply_age_filters(stmt, selected_age_min, selected_age_max)
 
-    if is_admin_supervisor and selected_residential_id:
-        stmt = stmt.join(User, User.user_id == Participant.created_by_user_id).where(
-            User.residential_id == selected_residential_id
-        )
-
-    if not is_admin_supervisor:
-        stmt = stmt.where(Participant.created_by_user_id == current_user.user_id)
+    if selected_residential_id:
+        stmt = stmt.where(Participant.residential_id == selected_residential_id)
 
     participants = db.execute(stmt).scalars().all()
 
@@ -1228,7 +1238,7 @@ def participant_expediente(
     if not p:
         raise HTTPException(status_code=404, detail="Participante no existe.")
 
-    _check_participant_access(p, current_user)
+    _check_participant_access(p, current_user, request)
 
     context = {
         "request": request,
@@ -1263,7 +1273,7 @@ def edit_participant_form(
     if not p:
         raise HTTPException(status_code=404, detail="Participante no existe.")
 
-    _check_participant_access(p, current_user)
+    _check_participant_access(p, current_user, request)
 
     context = {
         "request": request,
@@ -1271,6 +1281,7 @@ def edit_participant_form(
         "current_user": current_user,
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "years": list(range(date.today().year - 2, date.today().year + 3)),
+        "participant_residential": db.get(Residential, p.residential_id) if p.residential_id else None,
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
@@ -1430,15 +1441,21 @@ async def edit_participant_save(
     if not p:
         raise HTTPException(status_code=404, detail="Participante no existe.")
 
-    _check_participant_access(p, current_user)
+    _check_participant_access(p, current_user, request)
+    record_residential_id = p.residential_id or require_record_residential_id(request, current_user)
+    record_residential = db.get(Residential, record_residential_id)
+    if record_residential is None:
+        return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El residencial histórico no está disponible.")
+    if p.residential_id is None:
+        p.residential_id = record_residential_id
 
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
             return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Selecciona el año del expediente.")
 
-        initials = (exp_employee_initials or "").strip().upper()
-        if not initials or len(initials) < 2 or len(initials) > 10:
-            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Las siglas del empleado son requeridas (2-10 caracteres).")
+        initials = record_residential.code.strip().upper()
+        if not initials:
+            return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El residencial no tiene un código válido.")
 
         seq4 = (exp_seq4 or "").strip()
         if not (len(seq4) == 4 and seq4.isdigit()):
@@ -1446,7 +1463,7 @@ async def edit_participant_save(
 
         used_seq = db.execute(
             select(Participant).where(
-                Participant.created_by_user_id == p.created_by_user_id,
+                Participant.residential_id == record_residential_id,
                 Participant.exp_seq4 == seq4,
                 Participant.participant_id != p.participant_id,
             )
@@ -1454,10 +1471,14 @@ async def edit_participant_save(
         if used_seq:
             return _redirect_with_msg(
                 f"/ui/new-list/{participant_id}/edit",
-                f"Error: El número {seq4} ya fue utilizado por este empleado anteriormente. Debe escoger otro.",
+                f"Error: El número {seq4} ya fue utilizado en el residencial {initials}.",
             )
 
-        expediente_num_final = f"FE-{exp_year}-{initials}-{seq4}"
+        expediente_num_final = build_expediente_number(
+            year=exp_year,
+            residential_code=initials,
+            sequence=seq4,
+        )
     else:
         expediente_num_final = (expediente_num or "").strip()
         if not expediente_num_final:
@@ -1488,11 +1509,10 @@ async def edit_participant_save(
     marked_as_head_of_household = is_head_of_household == "on"
 
     if marked_as_head_of_household and participant_is_active:
-        owner = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
         try:
             require_head_of_household_allowed(
                 db,
-                residential_id=getattr(owner, "residential_id", None),
+                residential_id=record_residential_id,
                 edificio=edificio,
                 apart=apart,
                 exclude_participant_id=p.participant_id,
@@ -1572,6 +1592,7 @@ def listado_selector(
 
 @router.get("/listado/export.csv")
 def export_sessions_csv(
+    request: Request,
     control_number: str | None = None,
     residential_id: str | None = None,
     from_date: str | None = None,
@@ -1588,7 +1609,11 @@ def export_sessions_csv(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
     control_number_text = (control_number or "").strip()
-    residential_id_int = _parse_optional_int(residential_id) if is_admin_or_supervisor(current_user) else None
+    residential_id_int = (
+        _parse_optional_int(residential_id)
+        if is_admin_or_supervisor(current_user)
+        else require_record_residential_id(request, current_user)
+    )
 
     stmt = _build_sessions_stmt(current_user)
     stmt = _apply_session_residential_filter(
@@ -1657,7 +1682,7 @@ def _render_open_session(
     if not s:
         raise HTTPException(status_code=404, detail="SesiÃ³n no encontrada.")
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     activity_code = db.get(ActivityCode, s.activity_code_id)
     employee = db.get(Employee, s.employee_id)
@@ -1727,6 +1752,7 @@ def _render_open_session(
 
 @router.get("/listado/export-attendance.csv")
 def export_attendance_csv(
+    request: Request,
     control_number: str | None = None,
     residential_id: str | None = None,
     from_date: str | None = None,
@@ -1743,7 +1769,11 @@ def export_attendance_csv(
     month_int = int(month) if month and month.strip() else None
     year_int = int(year) if year and year.strip() else None
     control_number_text = (control_number or "").strip()
-    residential_id_int = _parse_optional_int(residential_id) if is_admin_or_supervisor(current_user) else None
+    residential_id_int = (
+        _parse_optional_int(residential_id)
+        if is_admin_or_supervisor(current_user)
+        else require_record_residential_id(request, current_user)
+    )
 
     stmt = (
         select(
@@ -1779,15 +1809,12 @@ def export_attendance_csv(
         )
     )
 
-    if not is_admin_or_supervisor(current_user):
-        stmt = stmt.where(ActivitySession.created_by_user_id == current_user.user_id)
-    else:
-        stmt = _apply_session_residential_filter(
-            stmt,
-            current_user,
-            residential_id_int,
-            user_joined=False,
-        )
+    stmt = _apply_session_residential_filter(
+        stmt,
+        current_user,
+        residential_id_int,
+        user_joined=False,
+    )
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
     if control_number_text:
@@ -1845,6 +1872,7 @@ def export_attendance_csv(
 def create_session_ui(
     request: Request,
     session_date: str = Form(...),
+    residential_id: int | None = Form(default=None),
     activity_code_id: int = Form(...),
     employee_id: int = Form(...),
     proposal_id: int | None = Form(default=None),
@@ -1858,6 +1886,7 @@ def create_session_ui(
             request=request,
             db=db,
             current_user=current_user,
+            residential_id=str(residential_id) if residential_id else None,
             msg=session_date_error,
             create_form={
                 "session_date": session_date,
@@ -1891,6 +1920,7 @@ def create_session_ui(
                 request=request,
                 db=db,
                 current_user=current_user,
+                residential_id=str(residential_id) if residential_id else None,
                 msg=str(exc.detail),
                 create_form={
                     "session_date": session_date,
@@ -1908,6 +1938,7 @@ def create_session_ui(
             request=request,
             db=db,
             current_user=current_user,
+            residential_id=str(residential_id) if residential_id else None,
             msg=str(exc.detail),
             create_form={
                 "session_date": session_date,
@@ -1926,8 +1957,18 @@ def create_session_ui(
     employee = db.get(Employee, employee_id)
     if not employee:
         return _redirect_with_msg("/ui/listado", "Error: El empleado seleccionado no existe.")
-    if not current_user.username or not current_user.username.strip():
-        return _redirect_with_msg("/ui/listado", "Error: El usuario actual no tiene codigo para generar el numero de control.")
+    try:
+        record_residential_id = require_write_residential_id(
+            request,
+            current_user,
+            db,
+            residential_id,
+        )
+    except HTTPException as exc:
+        return _redirect_with_msg("/ui/listado", f"Error: {exc.detail}")
+    record_residential = db.get(Residential, record_residential_id)
+    if record_residential is None or not record_residential.code.strip():
+        return _redirect_with_msg("/ui/listado", "Error: El residencial activo no tiene un código válido.")
 
     s = ActivitySession(
         session_date=parsed_session_date,
@@ -1935,13 +1976,14 @@ def create_session_ui(
         employee_id=employee_id,
         proposal_id=proposal.proposal_id if proposal else None,
         hours=_hours_from_minutes(hours_minutes),
+        residential_id=record_residential_id,
         created_by_user_id=current_user.user_id,
     )
 
     db.add(s)
     db.flush()
-    s.control_number = _build_session_control_number(
-        user_code=current_user.username,
+    s.control_number = build_session_control_number(
+        residential_code=record_residential.code,
         session_id=s.session_id,
         session_date=parsed_session_date,
     )
@@ -1976,7 +2018,7 @@ def open_session(
     if not s:
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     activity_code = db.get(ActivityCode, s.activity_code_id)
     employee = db.get(Employee, s.employee_id)
@@ -2050,7 +2092,7 @@ async def save_attendance(
     if not s:
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     try:
         require_session_proposal_not_finalized(
@@ -2097,8 +2139,8 @@ async def save_attendance(
         pp_stmt = select(ProposalParticipant).where(
             ProposalParticipant.proposal_participant_id.in_(present_ids)
         )
-        if not is_admin_or_supervisor(current_user):
-            pp_stmt = pp_stmt.where(ProposalParticipant.created_by_user_id == current_user.user_id)
+        if s.residential_id is not None:
+            pp_stmt = pp_stmt.where(ProposalParticipant.residential_id == s.residential_id)
 
         selected_participants = db.execute(pp_stmt).scalars().all()
         selected_map = {
@@ -2171,6 +2213,7 @@ async def save_attendance(
 @router.post("/listado/{session_id}/clear-attendance")
 def clear_attendance(
     session_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -2181,7 +2224,7 @@ def clear_attendance(
     if not is_admin_or_supervisor(current_user):
         raise HTTPException(status_code=403, detail="Acceso denegado.")
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     try:
         require_session_proposal_not_finalized(
@@ -2240,7 +2283,7 @@ def edit_session(
             open_edit_session_form=True,
         )
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     try:
         require_session_proposal_not_finalized(
@@ -2319,10 +2362,10 @@ def edit_session(
     if not activity_code_allowed_for_proposal(db, activity_code, s.proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
-    creator_user = db.get(User, s.created_by_user_id) if s.created_by_user_id else None
-    if creator_user and creator_user.username and creator_user.username.strip():
-        s.control_number = _build_session_control_number(
-            user_code=creator_user.username,
+    record_residential = db.get(Residential, s.residential_id) if s.residential_id else None
+    if record_residential and record_residential.code and record_residential.code.strip():
+        s.control_number = build_session_control_number(
+            residential_code=record_residential.code,
             session_id=s.session_id,
             session_date=parsed_session_date,
         )
@@ -2341,6 +2384,7 @@ def edit_session(
 @router.post("/listado/{session_id}/delete")
 def delete_session(
     session_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -2351,7 +2395,7 @@ def delete_session(
     if not s:
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
-    _check_session_access(s, current_user)
+    _check_session_access(s, current_user, request)
 
     try:
         require_session_proposal_not_finalized(

@@ -124,16 +124,6 @@ BEGIN
     ADD control_number VARCHAR(64) NULL;
 END;
 
-EXEC(N'
-UPDATE s
-SET s.control_number = UPPER(LTRIM(RTRIM(u.username)))
-    + CAST(s.session_id AS VARCHAR(20))
-    + CAST(YEAR(s.session_date) AS VARCHAR(4))
-FROM dbo.activity_sessions s
-INNER JOIN dbo.users u ON u.user_id = s.created_by_user_id
-WHERE u.username IS NOT NULL
-  AND LTRIM(RTRIM(u.username)) <> '''';
-');
 
 IF NOT EXISTS (
     SELECT 1
@@ -514,35 +504,10 @@ BEGIN
         created_by_user_id INT NULL,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_grade_reports_updated_at DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_school_grade_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT UQ_school_grade_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+        CONSTRAINT FK_school_grade_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id)
     );
 END;
 
-IF EXISTS (
-    SELECT 1
-    FROM sys.key_constraints
-    WHERE [type] = 'UQ'
-      AND [name] = 'UQ_school_grade_reports_period'
-      AND [parent_object_id] = OBJECT_ID(N'dbo.school_grade_reports')
-)
-BEGIN
-    ALTER TABLE dbo.school_grade_reports
-    DROP CONSTRAINT UQ_school_grade_reports_period;
-END;
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.key_constraints
-    WHERE [type] = 'UQ'
-      AND [name] = 'UQ_school_grade_reports_period_user'
-      AND [parent_object_id] = OBJECT_ID(N'dbo.school_grade_reports')
-)
-BEGIN
-    ALTER TABLE dbo.school_grade_reports
-    ADD CONSTRAINT UQ_school_grade_reports_period_user
-    UNIQUE (proposal_id, report_month, report_year, created_by_user_id);
-END;
 
 IF OBJECT_ID(N'dbo.school_grade_report_items', N'U') IS NULL
 BEGIN
@@ -581,8 +546,7 @@ BEGIN
         created_by_user_id INT NULL,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_reports_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_school_dropout_reports_updated_at DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_school_dropout_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT UQ_school_dropout_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+        CONSTRAINT FK_school_dropout_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id)
     );
 END;
 
@@ -618,8 +582,7 @@ BEGIN
         created_by_user_id INT NULL,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_reports_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_pregnancy_reports_updated_at DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_pregnancy_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT UQ_pregnancy_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+        CONSTRAINT FK_pregnancy_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id)
     );
 END;
 
@@ -755,11 +718,13 @@ BEGIN
         report_month INT NOT NULL,
         report_year INT NOT NULL,
         notes VARCHAR(500) NULL,
+        residential_id INT NOT NULL,
         created_by_user_id INT NULL,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_reports_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_visit_reports_updated_at DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_visit_reports_proposals FOREIGN KEY (proposal_id) REFERENCES dbo.proposals(proposal_id),
-        CONSTRAINT UQ_visit_reports_period_user UNIQUE (proposal_id, report_month, report_year, created_by_user_id)
+        CONSTRAINT FK_visit_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id),
+        CONSTRAINT UQ_visit_reports_period_residential UNIQUE (proposal_id, report_month, report_year, residential_id)
     );
 END;
 
@@ -2123,6 +2088,406 @@ END;
 """
 
 
+RECORD_RESIDENTIAL_COLUMNS_SQL = """
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF OBJECT_ID(N'dbo.participants', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.participants', N'residential_id') IS NULL
+    ALTER TABLE dbo.participants ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.activity_sessions', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.activity_sessions', N'residential_id') IS NULL
+    ALTER TABLE dbo.activity_sessions ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.proposal_participants', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.proposal_participants', N'residential_id') IS NULL
+    ALTER TABLE dbo.proposal_participants ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.school_grade_reports', N'residential_id') IS NULL
+    ALTER TABLE dbo.school_grade_reports ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.school_dropout_reports', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.school_dropout_reports', N'residential_id') IS NULL
+    ALTER TABLE dbo.school_dropout_reports ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.pregnancy_reports', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.pregnancy_reports', N'residential_id') IS NULL
+    ALTER TABLE dbo.pregnancy_reports ADD residential_id INT NULL;
+
+IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.visit_reports', N'residential_id') IS NULL
+    ALTER TABLE dbo.visit_reports ADD residential_id INT NULL;
+"""
+
+
+RECORD_RESIDENTIAL_SNAPSHOT_SQL = """
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF OBJECT_ID(N'dbo.participants', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.participants', N'residential_id') IS NULL
+        ALTER TABLE dbo.participants ADD residential_id INT NULL;
+
+    UPDATE records
+    SET residential_id = users.residential_id
+    FROM dbo.participants AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL
+      AND users.residential_id IS NOT NULL;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.participants')
+          AND name = N'IX_participants_residential_id'
+    )
+        CREATE INDEX IX_participants_residential_id
+        ON dbo.participants(residential_id);
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.foreign_key_columns AS columns
+        WHERE columns.parent_object_id = OBJECT_ID(N'dbo.participants')
+          AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id'
+          AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials')
+    )
+        ALTER TABLE dbo.participants WITH CHECK
+        ADD CONSTRAINT FK_participants_residentials
+        FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+
+END;
+
+IF OBJECT_ID(N'dbo.activity_sessions', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.activity_sessions', N'residential_id') IS NULL
+        ALTER TABLE dbo.activity_sessions ADD residential_id INT NULL;
+
+    UPDATE records
+    SET residential_id = users.residential_id
+    FROM dbo.activity_sessions AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL
+      AND users.residential_id IS NOT NULL;
+
+    EXEC(N'
+    UPDATE sessions
+    SET control_number = UPPER(LTRIM(RTRIM(residentials.code)))
+        + CAST(sessions.session_id AS VARCHAR(20))
+        + CAST(YEAR(sessions.session_date) AS VARCHAR(4))
+    FROM dbo.activity_sessions AS sessions
+    INNER JOIN dbo.residentials AS residentials
+        ON residentials.residential_id = sessions.residential_id
+    WHERE residentials.code IS NOT NULL
+      AND LTRIM(RTRIM(residentials.code)) <> '''';
+    ');
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.activity_sessions')
+          AND name = N'IX_activity_sessions_residential_id'
+    )
+        CREATE INDEX IX_activity_sessions_residential_id
+        ON dbo.activity_sessions(residential_id);
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.foreign_key_columns AS columns
+        WHERE columns.parent_object_id = OBJECT_ID(N'dbo.activity_sessions')
+          AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id'
+          AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials')
+    )
+        ALTER TABLE dbo.activity_sessions WITH CHECK
+        ADD CONSTRAINT FK_activity_sessions_residentials
+        FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF OBJECT_ID(N'dbo.proposal_participants', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.proposal_participants', N'residential_id') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD residential_id INT NULL;
+
+    UPDATE proposal_records
+    SET residential_id = COALESCE(participants.residential_id, users.residential_id)
+    FROM dbo.proposal_participants AS proposal_records
+    LEFT JOIN dbo.persons AS persons
+        ON persons.person_id = proposal_records.person_id
+    LEFT JOIN dbo.participants AS participants
+        ON participants.participant_id = persons.legacy_participant_id
+    LEFT JOIN dbo.users AS users
+        ON users.user_id = proposal_records.created_by_user_id
+    WHERE proposal_records.residential_id IS NULL
+      AND COALESCE(participants.residential_id, users.residential_id) IS NOT NULL;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.proposal_participants')
+          AND name = N'IX_proposal_participants_residential_id'
+    )
+        CREATE INDEX IX_proposal_participants_residential_id
+        ON dbo.proposal_participants(residential_id);
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.foreign_key_columns AS columns
+        WHERE columns.parent_object_id = OBJECT_ID(N'dbo.proposal_participants')
+          AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id'
+          AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials')
+    )
+        ALTER TABLE dbo.proposal_participants WITH CHECK
+        ADD CONSTRAINT FK_proposal_participants_residentials
+        FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.school_grade_reports', N'residential_id') IS NULL
+        ALTER TABLE dbo.school_grade_reports ADD residential_id INT NULL;
+    UPDATE records SET residential_id = users.residential_id
+    FROM dbo.school_grade_reports AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL AND users.residential_id IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.school_grade_reports') AND name = N'IX_school_grade_reports_residential_id')
+        CREATE INDEX IX_school_grade_reports_residential_id ON dbo.school_grade_reports(residential_id);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_key_columns AS columns WHERE columns.parent_object_id = OBJECT_ID(N'dbo.school_grade_reports') AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id' AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials'))
+        ALTER TABLE dbo.school_grade_reports WITH CHECK ADD CONSTRAINT FK_school_grade_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF OBJECT_ID(N'dbo.school_dropout_reports', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.school_dropout_reports', N'residential_id') IS NULL
+        ALTER TABLE dbo.school_dropout_reports ADD residential_id INT NULL;
+    UPDATE records SET residential_id = users.residential_id
+    FROM dbo.school_dropout_reports AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL AND users.residential_id IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.school_dropout_reports') AND name = N'IX_school_dropout_reports_residential_id')
+        CREATE INDEX IX_school_dropout_reports_residential_id ON dbo.school_dropout_reports(residential_id);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_key_columns AS columns WHERE columns.parent_object_id = OBJECT_ID(N'dbo.school_dropout_reports') AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id' AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials'))
+        ALTER TABLE dbo.school_dropout_reports WITH CHECK ADD CONSTRAINT FK_school_dropout_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF OBJECT_ID(N'dbo.pregnancy_reports', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.pregnancy_reports', N'residential_id') IS NULL
+        ALTER TABLE dbo.pregnancy_reports ADD residential_id INT NULL;
+    UPDATE records SET residential_id = users.residential_id
+    FROM dbo.pregnancy_reports AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL AND users.residential_id IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.pregnancy_reports') AND name = N'IX_pregnancy_reports_residential_id')
+        CREATE INDEX IX_pregnancy_reports_residential_id ON dbo.pregnancy_reports(residential_id);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_key_columns AS columns WHERE columns.parent_object_id = OBJECT_ID(N'dbo.pregnancy_reports') AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id' AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials'))
+        ALTER TABLE dbo.pregnancy_reports WITH CHECK ADD CONSTRAINT FK_pregnancy_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+
+IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.visit_reports', N'residential_id') IS NULL
+        ALTER TABLE dbo.visit_reports ADD residential_id INT NULL;
+    UPDATE records SET residential_id = users.residential_id
+    FROM dbo.visit_reports AS records
+    INNER JOIN dbo.users AS users ON users.user_id = records.created_by_user_id
+    WHERE records.residential_id IS NULL AND users.residential_id IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.visit_reports') AND name = N'IX_visit_reports_residential_id')
+        CREATE INDEX IX_visit_reports_residential_id ON dbo.visit_reports(residential_id);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_key_columns AS columns WHERE columns.parent_object_id = OBJECT_ID(N'dbo.visit_reports') AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id' AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials'))
+        ALTER TABLE dbo.visit_reports WITH CHECK ADD CONSTRAINT FK_visit_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
+END;
+"""
+
+
+RECORD_RESIDENTIAL_UNIQUENESS_SQL = """
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF OBJECT_ID(N'dbo.participants', N'U') IS NOT NULL
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.participants
+        WHERE residential_id IS NOT NULL
+          AND exp_seq4 IS NOT NULL
+        GROUP BY residential_id, exp_seq4
+        HAVING COUNT(*) > 1
+    )
+        THROW 50010, 'Existen secuencias de expediente duplicadas por residencial. Ejecute residential_ownership_preflight.sql y corrija los datos.', 1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM dbo.participants
+        WHERE residential_id IS NOT NULL
+          AND exp_seq4 IS NOT NULL
+        GROUP BY residential_id, exp_seq4
+        HAVING COUNT(*) > 1
+    )
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE object_id = OBJECT_ID(N'dbo.participants')
+              AND name = N'UX_participants_residential_seq4'
+        )
+            CREATE UNIQUE INDEX UX_participants_residential_seq4
+            ON dbo.participants(residential_id, exp_seq4)
+            WHERE residential_id IS NOT NULL AND exp_seq4 IS NOT NULL;
+
+        IF EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE object_id = OBJECT_ID(N'dbo.participants')
+              AND name = N'UX_participants_created_by_seq4'
+        )
+            DROP INDEX UX_participants_created_by_seq4 ON dbo.participants;
+
+        IF EXISTS (
+            SELECT 1 FROM sys.key_constraints
+            WHERE parent_object_id = OBJECT_ID(N'dbo.participants')
+              AND name = N'uq_participants_employee_seq4'
+        )
+            ALTER TABLE dbo.participants DROP CONSTRAINT uq_participants_employee_seq4;
+
+        IF EXISTS (
+            SELECT 1 FROM sys.key_constraints
+            WHERE parent_object_id = OBJECT_ID(N'dbo.participants')
+              AND name = N'UQ_participants_created_by_seq4'
+        )
+            ALTER TABLE dbo.participants DROP CONSTRAINT UQ_participants_created_by_seq4;
+    END;
+END;
+
+IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NOT NULL
+AND EXISTS (
+    SELECT 1 FROM dbo.school_grade_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+    THROW 50011, 'Existen informes de notas duplicados por residencial. Ejecute residential_ownership_preflight.sql y consolide los datos.', 1;
+
+IF OBJECT_ID(N'dbo.school_dropout_reports', N'U') IS NOT NULL
+AND EXISTS (
+    SELECT 1 FROM dbo.school_dropout_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+    THROW 50012, 'Existen informes de desercion duplicados por residencial. Ejecute residential_ownership_preflight.sql y consolide los datos.', 1;
+
+IF OBJECT_ID(N'dbo.pregnancy_reports', N'U') IS NOT NULL
+AND EXISTS (
+    SELECT 1 FROM dbo.pregnancy_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+    THROW 50013, 'Existen informes de embarazo duplicados por residencial. Ejecute residential_ownership_preflight.sql y consolide los datos.', 1;
+
+IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NOT NULL
+AND EXISTS (
+    SELECT 1 FROM dbo.visit_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+    THROW 50014, 'Existen informes de visitas duplicados por residencial. Ejecute residential_ownership_preflight.sql y consolide los datos.', 1;
+
+IF OBJECT_ID(N'dbo.school_grade_reports', N'U') IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.school_grade_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.school_grade_reports')
+          AND name = N'UX_school_grade_reports_period_residential'
+    )
+        CREATE UNIQUE INDEX UX_school_grade_reports_period_residential
+        ON dbo.school_grade_reports(proposal_id, report_month, report_year, residential_id)
+        WHERE residential_id IS NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.school_grade_reports') AND name = N'UQ_school_grade_reports_period')
+        ALTER TABLE dbo.school_grade_reports DROP CONSTRAINT UQ_school_grade_reports_period;
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.school_grade_reports') AND name = N'UQ_school_grade_reports_period_user')
+        ALTER TABLE dbo.school_grade_reports DROP CONSTRAINT UQ_school_grade_reports_period_user;
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.school_grade_reports') AND name = N'uq_school_grade_reports_period_user')
+        ALTER TABLE dbo.school_grade_reports DROP CONSTRAINT uq_school_grade_reports_period_user;
+END;
+
+IF OBJECT_ID(N'dbo.school_dropout_reports', N'U') IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.school_dropout_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.school_dropout_reports')
+          AND name = N'UX_school_dropout_reports_period_residential'
+    )
+        CREATE UNIQUE INDEX UX_school_dropout_reports_period_residential
+        ON dbo.school_dropout_reports(proposal_id, report_month, report_year, residential_id)
+        WHERE residential_id IS NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.school_dropout_reports') AND name = N'UQ_school_dropout_reports_period_user')
+        ALTER TABLE dbo.school_dropout_reports DROP CONSTRAINT UQ_school_dropout_reports_period_user;
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.school_dropout_reports') AND name = N'uq_school_dropout_reports_period_user')
+        ALTER TABLE dbo.school_dropout_reports DROP CONSTRAINT uq_school_dropout_reports_period_user;
+END;
+
+IF OBJECT_ID(N'dbo.pregnancy_reports', N'U') IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.pregnancy_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.pregnancy_reports')
+          AND name = N'UX_pregnancy_reports_period_residential'
+    )
+        CREATE UNIQUE INDEX UX_pregnancy_reports_period_residential
+        ON dbo.pregnancy_reports(proposal_id, report_month, report_year, residential_id)
+        WHERE residential_id IS NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.pregnancy_reports') AND name = N'UQ_pregnancy_reports_period_user')
+        ALTER TABLE dbo.pregnancy_reports DROP CONSTRAINT UQ_pregnancy_reports_period_user;
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.pregnancy_reports') AND name = N'uq_pregnancy_reports_period_user')
+        ALTER TABLE dbo.pregnancy_reports DROP CONSTRAINT uq_pregnancy_reports_period_user;
+END;
+
+IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.visit_reports
+    WHERE residential_id IS NOT NULL
+    GROUP BY proposal_id, report_month, report_year, residential_id
+    HAVING COUNT(*) > 1
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id = OBJECT_ID(N'dbo.visit_reports')
+          AND name IN (N'UX_visit_reports_period_residential', N'UQ_visit_reports_period_residential')
+    )
+        CREATE UNIQUE INDEX UX_visit_reports_period_residential
+        ON dbo.visit_reports(proposal_id, report_month, report_year, residential_id)
+        WHERE residential_id IS NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.visit_reports') AND name = N'UQ_visit_reports_period_user')
+        ALTER TABLE dbo.visit_reports DROP CONSTRAINT UQ_visit_reports_period_user;
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.visit_reports') AND name = N'uq_visit_reports_period_user')
+        ALTER TABLE dbo.visit_reports DROP CONSTRAINT uq_visit_reports_period_user;
+END;
+"""
+
+
 def ensure_schema_updates() -> None:
     with engine.begin() as conn:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
@@ -2143,7 +2508,14 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_CONSTRAINTS_SQL)
 
     with engine.begin() as conn:
+        conn.exec_driver_sql(RECORD_RESIDENTIAL_COLUMNS_SQL)
+
+    with engine.begin() as conn:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
+        conn.exec_driver_sql(RECORD_RESIDENTIAL_SNAPSHOT_SQL)
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql(RECORD_RESIDENTIAL_UNIQUENESS_SQL)
 
     if (
         settings.PLATFORM_SETTINGS_BOOTSTRAP_EMAIL

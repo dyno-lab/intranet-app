@@ -4,7 +4,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -16,6 +17,7 @@ from app.core.period_guard import (
     require_reporting_period_not_future,
 )
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.residential_scope import require_record_residential_id
 from app.models.participant import Participant
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.proposal import Proposal
@@ -35,6 +37,17 @@ def _calc_age(dob):
         return None
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def _ensure_report_access(request: Request, current_user: User, report: SchoolDropoutReport) -> None:
+    if current_user.role in {"admin", "supervisor"}:
+        return
+    residential_id = require_record_residential_id(request, current_user)
+    if report.residential_id == residential_id:
+        return
+    if report.residential_id is None and report.created_by_user_id == current_user.user_id:
+        return
+    raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este informe.")
 
 
 def _report_is_locked(proposal: Proposal | None, report: SchoolDropoutReport) -> bool:
@@ -76,13 +89,15 @@ def school_dropout_reports_index(
             Residential.name.label("created_by_residential"),
         )
         .join(Proposal, SchoolDropoutReport.proposal_id == Proposal.proposal_id)
-        .join(User, SchoolDropoutReport.created_by_user_id == User.user_id)
-        .outerjoin(Residential, User.residential_id == Residential.residential_id)
+        .outerjoin(User, SchoolDropoutReport.created_by_user_id == User.user_id)
+        .outerjoin(Residential, SchoolDropoutReport.residential_id == Residential.residential_id)
         .order_by(SchoolDropoutReport.report_year.desc(), SchoolDropoutReport.report_month.desc(), SchoolDropoutReport.report_id.desc())
     )
 
-    if current_user.role != "admin":
-        stmt = stmt.where(SchoolDropoutReport.created_by_user_id == current_user.user_id)
+    if current_user.role not in {"admin", "supervisor"}:
+        stmt = stmt.where(
+            SchoolDropoutReport.residential_id == require_record_residential_id(request, current_user)
+        )
     if proposal_id:
         stmt = stmt.where(SchoolDropoutReport.proposal_id == proposal_id)
     if month:
@@ -122,6 +137,7 @@ def school_dropout_reports_index(
 
 @router.post("/create")
 def create_school_dropout_report(
+    request: Request,
     proposal_id: int = Form(...),
     report_month: int = Form(...),
     report_year: int = Form(...),
@@ -145,12 +161,13 @@ def create_school_dropout_report(
     except HTTPException as exc:
         return RedirectResponse(f"/ui/school-dropout?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg={exc.detail}", status_code=303)
 
+    residential_id = require_record_residential_id(request, current_user)
     existing = db.execute(
         select(SchoolDropoutReport).where(
             SchoolDropoutReport.proposal_id == proposal_id,
             SchoolDropoutReport.report_month == report_month,
             SchoolDropoutReport.report_year == report_year,
-            SchoolDropoutReport.created_by_user_id == current_user.user_id,
+            SchoolDropoutReport.residential_id == residential_id,
         )
     ).scalar_one_or_none()
     if existing:
@@ -164,10 +181,18 @@ def create_school_dropout_report(
         report_month=report_month,
         report_year=report_year,
         notes=(notes or "").strip() or None,
+        residential_id=residential_id,
         created_by_user_id=current_user.user_id,
     )
     db.add(report)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return RedirectResponse(
+            f"/ui/school-dropout?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Ya existe un informe de este residencial para esa propuesta, mes y año.",
+            status_code=303,
+        )
 
     return RedirectResponse(
         f"/ui/school-dropout/{report.report_id}?msg=Informe de deserción escolar creado exitosamente.",
@@ -186,8 +211,7 @@ def school_dropout_report_detail(
     report = db.get(SchoolDropoutReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver este informe.")
+    _ensure_report_access(request, current_user, report)
 
     proposal = db.get(Proposal, report.proposal_id)
     report_is_locked = _report_is_locked(proposal, report)
@@ -197,8 +221,8 @@ def school_dropout_report_detail(
         .where(Participant.is_active == True)  # noqa: E712
         .order_by(Participant.apellido_paterno, Participant.nombre)
     )
-    if current_user.role != "admin":
-        participant_stmt = participant_stmt.where(Participant.created_by_user_id == report.created_by_user_id)
+    if report.residential_id is not None:
+        participant_stmt = participant_stmt.where(Participant.residential_id == report.residential_id)
 
     participants = db.execute(participant_stmt).scalars().all()
 
@@ -242,6 +266,7 @@ def school_dropout_report_detail(
 @router.post("/{report_id}/participants/add")
 def add_participant_to_school_dropout_report(
     report_id: int,
+    request: Request,
     participant_id: int = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -249,8 +274,7 @@ def add_participant_to_school_dropout_report(
     report = db.get(SchoolDropoutReport, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Informe no encontrado.")
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -260,8 +284,8 @@ def add_participant_to_school_dropout_report(
     participant = db.get(Participant, participant_id)
     if not participant:
         return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
-    if current_user.role != "admin" and participant.created_by_user_id != report.created_by_user_id:
-        return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: No tienes permiso para usar ese participante.", status_code=303)
+    if report.residential_id is not None and participant.residential_id != report.residential_id:
+        return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: El participante pertenece a otro residencial.", status_code=303)
 
     age = _calc_age(participant.fecha_nacimiento)
     if age is None or age < 0 or age > 21:
@@ -289,6 +313,7 @@ def add_participant_to_school_dropout_report(
 def edit_school_dropout_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     attended_tutoring: str | None = Form(default=None),
     current_grade: str | None = Form(default=None),
     attended_school: str | None = Form(default=None),
@@ -302,8 +327,7 @@ def edit_school_dropout_report_item(
     report = db.get(SchoolDropoutReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-dropout?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")
@@ -331,14 +355,14 @@ def edit_school_dropout_report_item(
 @router.post("/{report_id}/delete")
 def delete_school_dropout_report(
     report_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(SchoolDropoutReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-dropout?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para borrar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "borrar")
@@ -361,14 +385,14 @@ def delete_school_dropout_report(
 def delete_school_dropout_report_item(
     report_id: int,
     report_item_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     report = db.get(SchoolDropoutReport, report_id)
     if not report:
         return RedirectResponse("/ui/school-dropout?msg=Error: Informe no encontrado.", status_code=303)
-    if current_user.role != "admin" and report.created_by_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este informe.")
+    _ensure_report_access(request, current_user, report)
     proposal = db.get(Proposal, report.proposal_id)
     try:
         _ensure_report_editable(proposal, report, "editar")

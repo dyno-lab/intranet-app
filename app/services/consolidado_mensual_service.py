@@ -253,12 +253,11 @@ def build_consolidado_mensual_global(
         }
 
     stmt = (
-        select(ActivitySession, Attendance, Participant, ActivityCode, User, Residential)
+        select(ActivitySession, Attendance, Participant, ActivityCode, Residential)
         .join(Attendance, Attendance.session_id == ActivitySession.session_id)
         .join(Participant, Participant.participant_id == Attendance.participant_id)
         .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
-        .outerjoin(User, User.user_id == ActivitySession.created_by_user_id)
-        .outerjoin(Residential, Residential.residential_id == User.residential_id)
+        .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
         )
@@ -276,9 +275,9 @@ def build_consolidado_mensual_global(
     if proposal_id:
         stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
     if residential_id:
-        stmt = stmt.where(Residential.residential_id == residential_id)
+        stmt = stmt.where(ActivitySession.residential_id == residential_id)
 
-    for session, attendance, participant, activity_code, owner, residential in db.execute(stmt).all():
+    for session, attendance, participant, activity_code, residential in db.execute(stmt).all():
         if not residential or residential.residential_id not in rows_by_residential:
             continue
         residential_row = rows_by_residential[residential.residential_id]

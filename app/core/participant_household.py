@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.participant import Participant
-from app.models.user import User
 
 
 def _normalized_address_value(value: str | None) -> str:
@@ -36,9 +35,8 @@ def require_head_of_household_allowed(
 
     stmt = (
         select(Participant)
-        .join(User, User.user_id == Participant.created_by_user_id)
         .where(
-            User.residential_id == residential_id,
+            Participant.residential_id == residential_id,
             Participant.is_head_of_household == True,  # noqa: E712
             Participant.is_active == True,  # noqa: E712
         )
