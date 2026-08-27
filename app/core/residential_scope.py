@@ -96,7 +96,7 @@ def require_faro_access(
     raise HTTPException(
         status_code=status.HTTP_303_SEE_OTHER,
         headers={
-            "Location": f"/ui/context/residential?next={quote(next_path, safe='')}"
+            "Location": f"/login?next={quote(next_path, safe='')}"
         },
     )
 

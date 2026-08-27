@@ -69,32 +69,26 @@ def _payload_keys(value) -> set[str]:
 
 
 class FaroInstitutionalReportDataTests(unittest.TestCase):
-    def _authorized_request(self) -> _Request:
-        return _Request({institutional_reports._FARO_AUTHORIZED_AT_KEY: 1_000})
-
     def _call(self, *, request=None, db=None, proposal_ids=None, year=None, start_date=None, end_date=None):
-        with (
-            patch.object(institutional_reports, "_configured_faro_pin", return_value="1234"),
-            patch.object(institutional_reports, "_current_timestamp", return_value=1_000),
-        ):
-            return institutional_reports.faro_institutional_report_data(
-                request=request or self._authorized_request(),
-                proposal_ids=proposal_ids,
-                year=year,
-                start_date=start_date,
-                end_date=end_date,
-                db=db or _Database(),
-            )
+        return institutional_reports.faro_institutional_report_data(
+            request=request or _Request(),
+            proposal_ids=proposal_ids,
+            year=year,
+            start_date=start_date,
+            end_date=end_date,
+            db=db or _Database(),
+        )
 
-    def test_data_endpoint_requires_pin_authorization(self):
-        response = self._call(request=_Request(), proposal_ids=["not-an-id"])
+    def test_pin_routes_are_removed(self):
+        route_paths = {route.path for route in institutional_reports.router.routes}
 
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.headers["cache-control"], "no-store")
-        self.assertIn("autorización", _payload(response)["detail"])
+        self.assertNotIn("/reporteinstitucionales/farodeesperanza/pin", route_paths)
+        self.assertNotIn("/reporteinstitucionales/farodeesperanza/logout", route_paths)
 
-    def test_data_endpoint_validates_filters_after_authorization(self):
+    def test_data_endpoint_validates_filters_without_pin(self):
         response = self._call(proposal_ids=["not-an-id"])
+
+        self.assertEqual(response.headers["cache-control"], "no-store")
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("números enteros", _payload(response)["detail"])

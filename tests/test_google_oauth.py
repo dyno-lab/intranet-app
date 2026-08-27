@@ -182,8 +182,13 @@ class SessionAndLocalLoginTests(unittest.TestCase):
 
         self.assertNotIn("Continuar con Google", disabled_response.body.decode())
         self.assertIn("Continuar con Google", enabled_response.body.decode())
-        self.assertNotIn("Continuar con Google", auth.login_page(request).body.decode())
-        self.assertIn("Acceso local", auth.login_page(request).body.decode())
+        login_response = auth.login_page(
+            request=request,
+            next_path=None,
+            db=_Database([]),
+        )
+        self.assertNotIn("Continuar con Google", login_response.body.decode())
+        self.assertIn("Acceso local", login_response.body.decode())
 
 
 class GoogleIdentityValidationTests(unittest.TestCase):

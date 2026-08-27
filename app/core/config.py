@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ENV: str = "dev"
     SECRET_KEY: str = "change-me"
     SESSION_SECRET: str | None = None
+    # Deprecated compatibility setting; report authorization now uses per-user permissions.
     FARO_INSTITUTIONAL_REPORT_PIN: str | None = None
     PLATFORM_SETTINGS_BOOTSTRAP_EMAIL: str | None = None
     PLATFORM_SETTINGS_BOOTSTRAP_PASSWORD: str | None = None

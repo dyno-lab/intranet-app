@@ -120,7 +120,7 @@
       <div class="ui-topbar__right">
         {% if request.session.get('active_residential_name') %}
           {% if request.session.get('available_residential_count', 0) > 1 %}
-          <a class="btn btn-outline-primary btn-sm" href="/ui/context/residential?next={{ current_path }}" title="Cambiar residencial activo">
+          <a class="btn btn-outline-primary btn-sm" href="/login?next={{ current_path }}" title="Cambiar residencial activo">
             <i class="bi bi-buildings" aria-hidden="true"></i>
             <span>{{ request.session.get('active_residential_name') }}</span>
             <i class="bi bi-arrow-left-right" aria-hidden="true"></i>

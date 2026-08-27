@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -18,7 +19,7 @@ from app.core.config import settings as app_settings  # noqa: E402
 app_settings.SESSION_SECRET = "test-session-secret-at-least-32-characters"
 
 from app import main as app_main  # noqa: E402
-from app.api.routes import automation_reports, platform_settings, portal, residential_context  # noqa: E402
+from app.api.routes import auth, automation_reports, platform_settings, portal, residential_context  # noqa: E402
 from app.core.platform_permissions import (  # noqa: E402
     ACCESS_AUTOMATION,
     ACCESS_FARO,
@@ -213,7 +214,7 @@ class ResidentialAccessTests(unittest.TestCase):
 
     def test_residential_templates_compile_without_corrupted_html(self):
         template_names = (
-            "ui/residential_context.html",
+            "auth/login.html",
             "portal/access_denied.html",
             "platform_settings/index.html",
         )
@@ -224,12 +225,16 @@ class ResidentialAccessTests(unittest.TestCase):
             "class</div>=",
             "<span</div>",
             "<</div>strong",
+            "<s</div>trong>",
+            "</d</span>iv>",
+            "<o</select>ption",
+            "<strong>Residencia</strong>l",
         )
         for template_name in template_names:
             with self.subTest(template=template_name):
-                template = residential_context.templates.get_template(template_name)
-                source, _, _ = residential_context.templates.env.loader.get_source(
-                    residential_context.templates.env,
+                template = auth.templates.get_template(template_name)
+                source, _, _ = auth.templates.env.loader.get_source(
+                    auth.templates.env,
                     template_name,
                 )
                 self.assertEqual(template.name, template_name)
@@ -305,7 +310,7 @@ class ResidentialAccessTests(unittest.TestCase):
             require_faro_access(request=request, db=db)
 
         self.assertEqual(context.exception.status_code, 303)
-        self.assertIn("/ui/context/residential?next=", context.exception.headers["Location"])
+        self.assertIn("/login?next=", context.exception.headers["Location"])
 
     def test_admin_and_supervisor_bypass_residential_selection(self):
         for role in ("admin", "supervisor"):
@@ -348,7 +353,7 @@ class ResidentialAccessTests(unittest.TestCase):
                 self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
                 self.assertEqual(db.results, [])
 
-    def test_selector_page_renders_clickable_options_only_for_multi_residential_user(self):
+    def test_legacy_selector_redirects_multi_residential_user_to_login(self):
         user = _user(7)
         residentials = [_residential(1, "A"), _residential(2, "B")]
         request = _Request()
@@ -360,13 +365,172 @@ class ResidentialAccessTests(unittest.TestCase):
             db=db,
             current_user=user,
         )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/login?next=%2Fui")
+
+    def test_login_embeds_residential_selector_for_authenticated_user(self):
+        user = _user(7)
+        residentials = [_residential(1, "A"), _residential(2, "B")]
+        request = _Request({"user_id": user.user_id, "session_version": 1})
+        db = _Database(
+            objects={(User, user.user_id): user},
+            results=[
+                _Result(values=[ACCESS_FARO]),
+                _Result(values=residentials),
+            ],
+        )
+
+        response = auth.login_page(
+            request=request,
+            next_path="/ui/new-list",
+            db=db,
+        )
         body = response.body.decode("utf-8")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Seleccione un residencial", body)
-        self.assertEqual(body.count("residential-picker-option"), 8)
+        self.assertIn("Acceso institucional aprobado", body)
+        self.assertIn("Residencial de trabajo", body)
         self.assertIn("Residencial A", body)
         self.assertIn("Residencial B", body)
+        self.assertIn('action="/login/faro"', body)
+        self.assertIn('<select id="residential-id"', body)
+        self.assertEqual(body.count('<option value="'), 3)
+        self.assertRegex(
+            body,
+            re.compile(r'<option value="1"[^>]*>\s*A · Residencial A · Municipio\s*</option>'),
+        )
+        self.assertRegex(
+            body,
+            re.compile(r'<option value="2"[^>]*>\s*B · Residencial B · Municipio\s*</option>'),
+        )
+        self.assertNotIn('name="password"', body)
+
+    def test_login_shows_entry_actions_without_selector_for_admin_and_supervisor(self):
+        for role in ("admin", "supervisor"):
+            with self.subTest(role=role):
+                user = _user(7, role=role)
+                request = _Request({"user_id": user.user_id, "session_version": 1})
+                db = _Database(
+                    objects={(User, user.user_id): user},
+                    results=[_Result(values=[ACCESS_FARO])],
+                )
+
+                response = auth.login_page(
+                    request=request,
+                    next_path="/ui/new-list",
+                    db=db,
+                )
+                body = response.body.decode("utf-8")
+
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("Entrar a Faro", body)
+                self.assertIn(">Entrar</button>", body)
+                self.assertIn("Volver a Home", body)
+                self.assertNotIn("Residencial de trabajo", body)
+                self.assertEqual(db.results, [])
+
+    def test_login_entry_sets_only_an_assigned_residential(self):
+        user = _user(7)
+        residentials = [_residential(1, "A"), _residential(2, "B")]
+        request = _Request({
+            "user_id": user.user_id,
+            "session_version": 1,
+            auth._FARO_LOGIN_CSRF_SESSION_KEY: "valid-token",
+        })
+        db = _Database(
+            objects={(User, user.user_id): user},
+            results=[
+                _Result(values=[ACCESS_FARO]),
+                _Result(values=residentials),
+            ],
+        )
+
+        response = auth.enter_faro(
+            request=request,
+            residential_id=2,
+            next_path="/ui/new-list",
+            csrf_token="valid-token",
+            db=db,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/ui/new-list")
+        self.assertEqual(request.session[ACTIVE_RESIDENTIAL_SESSION_KEY], 2)
+        self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 2)
+
+    def test_login_entry_rejects_unassigned_residential(self):
+        user = _user(7)
+        request = _Request({
+            "user_id": user.user_id,
+            "session_version": 1,
+            auth._FARO_LOGIN_CSRF_SESSION_KEY: "valid-token",
+        })
+        db = _Database(
+            objects={(User, user.user_id): user},
+            results=[
+                _Result(values=[ACCESS_FARO]),
+                _Result(values=[_residential(1, "A"), _residential(2, "B")]),
+            ],
+        )
+
+        with self.assertRaises(HTTPException) as context:
+            auth.enter_faro(
+                request=request,
+                residential_id=99,
+                next_path="/ui/new-list",
+                csrf_token="valid-token",
+                db=db,
+            )
+
+        self.assertEqual(context.exception.status_code, 403)
+        self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+
+    def test_admin_and_supervisor_enter_faro_without_residential_query(self):
+        for role in ("admin", "supervisor"):
+            with self.subTest(role=role):
+                user = _user(7, role=role)
+                request = _Request({
+                    "user_id": user.user_id,
+                    "session_version": 1,
+                    auth._FARO_LOGIN_CSRF_SESSION_KEY: "valid-token",
+                    ACTIVE_RESIDENTIAL_SESSION_KEY: 99,
+                })
+                db = _Database(
+                    objects={(User, user.user_id): user},
+                    results=[_Result(values=[ACCESS_FARO])],
+                )
+
+                response = auth.enter_faro(
+                    request=request,
+                    residential_id=None,
+                    next_path="/ui/new-list",
+                    csrf_token="valid-token",
+                    db=db,
+                )
+
+                self.assertEqual(response.status_code, 303)
+                self.assertEqual(response.headers["location"], "/ui/new-list")
+                self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
+                self.assertEqual(db.results, [])
+
+    def test_faro_login_rejects_invalid_csrf_and_external_redirects(self):
+        self.assertEqual(
+            auth._safe_faro_next_path("https://attacker.example"),
+            "/ui/new-list",
+        )
+        request = _Request({auth._FARO_LOGIN_CSRF_SESSION_KEY: "expected-token"})
+
+        with self.assertRaises(HTTPException) as context:
+            auth.enter_faro(
+                request=request,
+                residential_id=1,
+                next_path="//attacker.example",
+                csrf_token="wrong-token",
+                db=_Database(),
+            )
+
+        self.assertEqual(context.exception.status_code, 403)
 
     def test_selector_rejects_unassigned_residential(self):
         user = _user(7)
@@ -504,7 +668,7 @@ class ResidentialAccessTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Faro de Esperanza", body)
-        self.assertIn("/ui/context/residential?next=/ui", body)
+        self.assertIn("/login?next=/ui/new-list", body)
         self.assertNotIn("Reportes Institucionales", body)
         self.assertNotIn("Automatizaciones", body)
 

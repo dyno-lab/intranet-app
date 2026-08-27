@@ -168,7 +168,8 @@
       color: var(--faro-text);
     }
 
-    .form-control {
+    .form-control,
+    .form-select {
       border-radius: 14px;
       min-height: 50px;
       border: 1px solid #d6e1ec;
@@ -176,9 +177,61 @@
       box-shadow: none;
     }
 
-    .form-control:focus {
+    .form-control:focus,
+    .form-select:focus {
       border-color: rgba(42, 157, 143, 0.75);
       box-shadow: 0 0 0 0.22rem rgba(42, 157, 143, 0.16);
+    }
+
+    .faro-entry-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      border: 1px solid #dbe7f0;
+      border-radius: 16px;
+      background: var(--faro-soft);
+    }
+
+    .faro-entry-user__icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(135deg, var(--faro-primary), var(--faro-accent));
+      font-weight: 700;
+    }
+
+    .faro-entry-user strong,
+    .faro-entry-user span {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .faro-entry-user span {
+      color: #657b8f;
+      font-size: 0.86rem;
+      margin-top: 2px;
+    }
+
+    .faro-entry-note {
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      border-radius: 16px;
+      color: #31566f;
+      background: #edf7f5;
+      border: 1px solid #cce8e2;
+      line-height: 1.45;
+    }
+
+    .faro-entry-actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
     }
 
     .btn-login {
@@ -284,33 +337,100 @@
 
       <section class="login-panel">
         <div class="login-card">
-          <div class="login-badge">Acceso de contingencia</div>
-          <h2 class="login-title">Acceso local</h2>
-          <p class="login-copy">
-            Utiliza este formulario únicamente si tienes una cuenta local habilitada. El acceso institucional con Google está disponible en el portal principal.
-          </p>
+          {% if current_user %}
+            <div class="login-badge">Acceso institucional aprobado</div>
+            <h2 class="login-title">Entrar a Faro</h2>
+            <p class="login-copy">
+              Confirma el contexto de trabajo antes de entrar al programa Faro de Esperanza.
+            </p>
 
-          {% if error %}
-            <div class="alert alert-danger rounded-4">{{ error }}</div>
+            <div class="faro-entry-user" aria-label="Cuenta institucional activa">
+              <span class="faro-entry-user__icon">{{ (current_user.username or 'US')[:2]|upper }}</span>
+              <div>
+                <strong>{{ current_user.email or current_user.username }}</strong>
+                <span>Rol: {{ current_user.role }}</span>
+              </div>
+            </div>
+
+            {% if error %}
+              <div class="alert alert-danger rounded-4">{{ error }}</div>
+            {% endif %}
+
+            {% if can_access_faro %}
+              {% if current_user.role not in ['admin', 'supervisor'] and not residentials %}
+                <div class="alert alert-warning rounded-4">
+                  No tiene residenciales activos asignados. Solicite la asignación en Configuración de Plataforma.
+                </div>
+                <a class="btn btn-google w-100 d-flex align-items-center justify-content-center" href="/home">Volver a Home</a>
+              {% else %}
+                <form method="post" action="/login/faro">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="next" value="{{ next_path }}">
+
+                  {% if current_user.role not in ['admin', 'supervisor'] and residentials|length > 1 %}
+                    <div class="mb-3">
+                      <label class="form-label" for="residential-id">Residencial de trabajo</label>
+                      <select id="residential-id" class="form-select" name="residential_id" required>
+                        <option value="" disabled {{ 'selected' if not active_residential_id }}>Seleccione un residencial</option>
+                        {% for residential in residentials %}
+                          <option value="{{ residential.residential_id }}" {{ 'selected' if residential.residential_id == active_residential_id }}>
+                            {{ residential.code }} · {{ residential.name }} · {{ residential.municipality }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                  {% elif current_user.role not in ['admin', 'supervisor'] %}
+                    <div class="faro-entry-note">
+                      <strong>Residencial asignado:</strong><br>
+                      {{ residentials[0].code }} · {{ residentials[0].name }}
+                    </div>
+                  {% else %}
+                    <div class="faro-entry-note">
+                      Su rol de {{ current_user.role }} tiene acceso general a Faro y no requiere seleccionar un residencial.
+                    </div>
+                  {% endif %}
+
+                  <div class="faro-entry-actions">
+                    <button class="btn btn-login btn-primary w-100" type="submit">Entrar</button>
+                    <a class="btn btn-google w-100 d-flex align-items-center justify-content-center" href="/home">Volver a Home</a>
+                  </div>
+                </form>
+              {% endif %}
+            {% else %}
+              <div class="alert alert-danger rounded-4">
+                Su cuenta no tiene acceso a Faro. Solicite el permiso en Configuración de Plataforma.
+              </div>
+              <a class="btn btn-google w-100 d-flex align-items-center justify-content-center" href="/home">Volver a Home</a>
+            {% endif %}
+          {% else %}
+            <div class="login-badge">Acceso de contingencia</div>
+            <h2 class="login-title">Acceso local</h2>
+            <p class="login-copy">
+              Utiliza este formulario únicamente si tienes una cuenta local habilitada. El acceso institucional con Google está disponible en el portal principal.
+            </p>
+
+            {% if error %}
+              <div class="alert alert-danger rounded-4">{{ error }}</div>
+            {% endif %}
+
+            <a class="btn btn-google w-100 d-flex align-items-center justify-content-center mb-3" href="/home">
+              Volver al portal principal
+            </a>
+
+            <form method="post">
+              <div class="mb-3">
+                <label class="form-label" for="username">Usuario</label>
+                <input id="username" class="form-control" name="username" placeholder="Ingresa tu usuario" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="password">Contraseña</label>
+                <input id="password" type="password" class="form-control" name="password" placeholder="Ingresa tu contraseña" required>
+              </div>
+
+              <button class="btn btn-login btn-primary w-100">Entrar</button>
+            </form>
           {% endif %}
-
-          <a class="btn btn-google w-100 d-flex align-items-center justify-content-center mb-3" href="/home">
-            Volver al portal principal
-          </a>
-
-          <form method="post">
-            <div class="mb-3">
-              <label class="form-label" for="username">Usuario</label>
-              <input id="username" class="form-control" name="username" placeholder="Ingresa tu usuario" required>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label" for="password">Contraseña</label>
-              <input id="password" type="password" class="form-control" name="password" placeholder="Ingresa tu contraseña" required>
-            </div>
-
-            <button class="btn btn-login btn-primary w-100">Entrar</button>
-          </form>
 
           <div class="login-footer-note">
             Faro de Esperanza · Desarrollo integral con dignidad, respeto y amor.

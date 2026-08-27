@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import secrets
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -19,7 +19,6 @@ from app.models.user import User
 
 
 router = APIRouter(prefix="/ui/context/residential", tags=["residential-context"])
-templates = Jinja2Templates(directory="app/templates")
 _CSRF_SESSION_KEY = "residential_context_csrf_token"
 _FARO_PERMISSION_DEPENDENCY = require_platform_permission(ACCESS_FARO)
 
@@ -34,13 +33,6 @@ def _safe_next_path(value: str | None) -> str:
     return candidate
 
 
-def _csrf_token(request: Request) -> str:
-    token = request.session.get(_CSRF_SESSION_KEY)
-    if not isinstance(token, str) or not token:
-        token = secrets.token_urlsafe(32)
-        request.session[_CSRF_SESSION_KEY] = token
-    return token
-
 
 def _validate_csrf(request: Request, submitted_token: str) -> None:
     expected = request.session.get(_CSRF_SESSION_KEY)
@@ -52,7 +44,7 @@ def _validate_csrf(request: Request, submitted_token: str) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solicitud inválida.")
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get("")
 def residential_context_page(
     request: Request,
     next_path: str | None = Query(default=None, alias="next"),
@@ -64,7 +56,7 @@ def residential_context_page(
         clear_active_residential(request.session)
         return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
 
-    active_residential, residentials = resolve_active_residential(request, db, current_user)
+    _, residentials = resolve_active_residential(request, db, current_user)
     if len(residentials) == 1:
         return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
     if not residentials:
@@ -73,17 +65,9 @@ def residential_context_page(
             detail="No tiene residenciales activos asignados.",
         )
 
-    return templates.TemplateResponse(
-        request=request,
-        name="ui/residential_context.html",
-        context={
-            "request": request,
-            "current_user": current_user,
-            "residentials": residentials,
-            "active_residential": active_residential,
-            "next_path": next_path,
-            "csrf_token": _csrf_token(request),
-        },
+    return RedirectResponse(
+        f"/login?next={quote(next_path, safe='')}",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
