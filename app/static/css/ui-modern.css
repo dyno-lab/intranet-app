@@ -1781,7 +1781,7 @@ body.ui-shell-body {
 
 .attendance-participants-filter__toggle .form-check-label {
   font-size: 0.88rem;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .attendance-participants-table thead th {
