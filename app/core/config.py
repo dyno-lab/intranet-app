@@ -21,9 +21,8 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = "https://servicios.csifpr.org/auth/google/callback"
 
     # Feature flags
-    # FASE 2: habilita UI/validaciones para expediente FE-YYYY-XX-####
-    # Mantén en False para volver al comportamiento estable de FASE 1.
-    PHASE2_EXPEDIENTE_ENABLED: bool = False
+    # El formato estructurado FE-YYYY-{CODIGO_RESIDENCIAL}-#### es el flujo operativo.
+    PHASE2_EXPEDIENTE_ENABLED: bool = True
 
     # Stage 2 only: require a validated residential context for Faro requests.
     RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED: bool = False

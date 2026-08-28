@@ -15,6 +15,7 @@ os.environ.setdefault("DB_PASSWORD", "test-password")
 os.environ.setdefault("SESSION_SECRET", "test-session-secret-at-least-32-characters")
 
 from app.api.routes import participants as participant_routes  # noqa: E402
+from app.core.config import Settings  # noqa: E402
 from app.core.record_identifiers import (  # noqa: E402
     build_expediente_number,
     build_session_control_number,
@@ -128,6 +129,9 @@ def _user(user_id: int, *, role: str = "user", residential_id: int | None = None
 
 
 class ResidentialOwnershipTests(unittest.TestCase):
+    def test_structured_expediente_is_enabled_by_default(self):
+        self.assertIs(Settings.model_fields["PHASE2_EXPEDIENTE_ENABLED"].default, True)
+
     def test_record_identifiers_use_residential_code(self):
         self.assertEqual(
             build_expediente_number(
