@@ -11,8 +11,17 @@
 {% set current_path = request.url.path if request is defined and request.url is defined else "" %}
 {% set admin_active = current_path.startswith("/ui/admin") %}
 <body class="ui-shell-body">
+<script>
+  try {
+    if (window.localStorage.getItem('faro.desktopSidebarCollapsed') === 'true') {
+      document.body.classList.add('ui-sidebar-collapsed');
+    }
+  } catch (error) {
+    // La navegación continúa funcionando si el almacenamiento local no está disponible.
+  }
+</script>
 <div class="ui-shell">
-  <aside class="ui-sidebar d-none d-lg-flex">
+  <aside class="ui-sidebar d-none d-lg-flex" id="desktopSidebar">
     <div class="ui-sidebar__brand">
       <a class="ui-brand-link" href="/ui">
         <span class="ui-brand-mark">
@@ -112,6 +121,9 @@
       <div class="ui-topbar__left">
         <button class="btn ui-menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Abrir navegación">
           <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+        <button class="btn ui-menu-toggle ui-desktop-sidebar-toggle d-none d-lg-inline-flex" type="button" id="desktopSidebarToggle" aria-controls="desktopSidebar" aria-expanded="true" aria-label="Ocultar menú lateral" title="Ocultar menú lateral">
+          <i class="bi bi-chevron-bar-left" aria-hidden="true"></i>
         </button>
         <a class="ui-topbar__title" href="/ui">Programa Faro de Esperanza</a>
       </div>
@@ -266,5 +278,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  const storageKey = 'faro.desktopSidebarCollapsed';
+  const body = document.body;
+  const toggle = document.getElementById('desktopSidebarToggle');
+  if (!toggle) return;
+
+  function syncDesktopSidebarToggle() {
+    const collapsed = body.classList.contains('ui-sidebar-collapsed');
+    const label = collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral';
+    toggle.classList.toggle('is-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', label);
+    toggle.setAttribute('title', label);
+  }
+
+  toggle.addEventListener('click', () => {
+    const collapsed = !body.classList.contains('ui-sidebar-collapsed');
+    body.classList.toggle('ui-sidebar-collapsed', collapsed);
+    try {
+      window.localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
+    } catch (error) {
+      // El estado se mantiene durante la página aunque no pueda persistirse.
+    }
+    syncDesktopSidebarToggle();
+  });
+
+  syncDesktopSidebarToggle();
+})();
+</script>
 </body>
 </html>

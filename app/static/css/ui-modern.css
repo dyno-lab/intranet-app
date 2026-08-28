@@ -68,6 +68,7 @@ body.ui-shell-body {
   box-shadow: 18px 0 45px rgba(2, 6, 23, 0.18);
   z-index: 1030;
   overflow: hidden;
+  transition: transform var(--ui-transition-base);
 }
 
 .ui-sidebar__brand,
@@ -255,6 +256,7 @@ body.ui-shell-body {
 
 .ui-main {
   min-height: 100vh;
+  transition: margin-left var(--ui-transition-base);
 }
 
 .ui-topbar {
@@ -320,6 +322,14 @@ body.ui-shell-body {
 .ui-menu-toggle:hover,
 .ui-logout-btn:hover {
   transform: translateY(-2px);
+}
+
+.ui-desktop-sidebar-toggle i {
+  transition: transform var(--ui-transition-base);
+}
+
+.ui-desktop-sidebar-toggle.is-collapsed i {
+  transform: rotate(180deg);
 }
 
 .ui-logout-btn {
@@ -7255,6 +7265,14 @@ body.ui-shell-body {
 @media (min-width: 992px) {
   .ui-main {
     margin-left: var(--ui-sidebar-width);
+  }
+
+  .ui-shell-body.ui-sidebar-collapsed .ui-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .ui-shell-body.ui-sidebar-collapsed .ui-main {
+    margin-left: 0;
   }
 
   .ui-topbar,
