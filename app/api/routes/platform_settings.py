@@ -608,10 +608,21 @@ def update_user_residentials(
     for residential_id, assignment in assignments_by_residential.items():
         should_be_active = residential_id in selected_ids
         if assignment.is_active != should_be_active:
-            assignment.is_active = should_be_active
+            assignment_values = {"is_active": should_be_active}
             if should_be_active:
-                assignment.assigned_by_user_id = current_user.user_id
-                assignment.assigned_at = func.sysutcdatetime()
+                assignment_values.update(
+                    assigned_by_user_id=current_user.user_id,
+                    assigned_at=func.sysutcdatetime(),
+                )
+            db.execute(
+                update(UserResidential)
+                .where(
+                    UserResidential.user_id == target_user.user_id,
+                    UserResidential.residential_id == residential_id,
+                )
+                .values(**assignment_values)
+                .execution_options(synchronize_session=False)
+            )
             changed = True
 
     for residential_id in selected_ids - assignments_by_residential.keys():

@@ -766,6 +766,57 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(request.session["session_version"], 2)
         self.assertEqual(db.commits, 1)
 
+    def test_admin_can_remove_temporary_residential_without_deleting_history(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        current_user.residential_id = 7
+        assignment = UserResidential(
+            user_id=current_user.user_id,
+            residential_id=7,
+            assigned_by_user_id=current_user.user_id,
+            is_active=True,
+        )
+        db = _Database(
+            users={current_user.user_id: current_user},
+            results=[
+                _Result(values=[assignment]),
+                _Result(),
+                _Result(),
+            ],
+        )
+        request = _Request(
+            {
+                "user_id": current_user.user_id,
+                "session_version": current_user.session_version,
+                platform_settings._CSRF_SESSION_KEY: "valid-token",
+            }
+        )
+
+        response = platform_settings.update_user_residentials(
+            request=request,
+            user_id=current_user.user_id,
+            residential_ids=[],
+            primary_residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        assignment_update = db.statements[1]
+        assignment_sql = str(assignment_update)
+        assignment_values = assignment_update.compile().params.values()
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("UPDATE user_residentials SET", assignment_sql)
+        self.assertIn("user_residentials.user_id =", assignment_sql)
+        self.assertIn("user_residentials.residential_id =", assignment_sql)
+        self.assertIn(False, assignment_values)
+        self.assertIn(current_user.user_id, assignment_values)
+        self.assertIn(assignment.residential_id, assignment_values)
+        self.assertTrue(assignment.is_active)
+        self.assertEqual(db.deleted, [])
+        self.assertEqual(request.session["session_version"], 2)
+        self.assertEqual(db.commits, 1)
+
     def test_user_detail_renders_general_permissions_and_residential_navigation(self):
         current_user = _user(
             1,
