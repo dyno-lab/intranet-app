@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.datastructures import FormData
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete, func, or_, case
+from sqlalchemy import select, update, delete, func, or_, case
 from math import ceil
 from sqlalchemy.orm import Session
 
@@ -1452,10 +1452,8 @@ async def edit_participant_save(
     record_residential = db.get(Residential, record_residential_id)
     if record_residential is None:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El residencial histórico no está disponible.")
-    if p.residential_id is None:
-        p.residential_id = record_residential_id
-
-    if settings.PHASE2_EXPEDIENTE_ENABLED:
+    phase2_expediente_enabled = settings.PHASE2_EXPEDIENTE_ENABLED
+    if phase2_expediente_enabled:
         if exp_year is None:
             return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: Selecciona el año del expediente.")
 
@@ -1526,33 +1524,42 @@ async def edit_participant_save(
         except HTTPException as exc:
             return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", str(exc.detail))
 
-    p.expediente_num = expediente_num_final
-    p.nombre = nombre
-    p.inicial = inicial
-    p.apellido_paterno = apellido_paterno
-    p.apellido_materno = apellido_materno
-    p.fecha_nacimiento = _parse_date(fecha_nacimiento)
-    p.genero = genero
-    p.edificio = edificio
-    p.apart = apart
-    p.estatus = normalized_estatus or None
-    p.is_active = participant_is_active
-    p.vca = vca
-    p.primera_vez = primera_vez
-    p.escolaridad_participante = escolaridad_participante
-    p.composicion_familiar = composicion_familiar
-    p.grupo_familiar = grupo_familiar
-    p.relacion_familiar = relacion_familiar
-    p.fuente_ingreso_principal = fuente_ingreso_principal
-    p.rango_ingreso = rango_ingreso
-    p.is_head_of_household = marked_as_head_of_household
+    participant_values = {
+        "residential_id": record_residential_id,
+        "expediente_num": expediente_num_final,
+        "nombre": nombre,
+        "inicial": inicial,
+        "apellido_paterno": apellido_paterno,
+        "apellido_materno": apellido_materno,
+        "fecha_nacimiento": _parse_date(fecha_nacimiento),
+        "genero": genero,
+        "edificio": edificio,
+        "apart": apart,
+        "estatus": normalized_estatus or None,
+        "is_active": participant_is_active,
+        "vca": vca,
+        "primera_vez": primera_vez,
+        "escolaridad_participante": escolaridad_participante,
+        "composicion_familiar": composicion_familiar,
+        "grupo_familiar": grupo_familiar,
+        "relacion_familiar": relacion_familiar,
+        "fuente_ingreso_principal": fuente_ingreso_principal,
+        "rango_ingreso": rango_ingreso,
+        "is_head_of_household": marked_as_head_of_household,
+    }
+    if phase2_expediente_enabled:
+        participant_values.update(
+            exp_year=exp_year,
+            exp_employee_initials=initials,
+            exp_seq4=seq4,
+        )
 
-    if settings.PHASE2_EXPEDIENTE_ENABLED:
-        p.exp_year = exp_year
-        p.exp_employee_initials = initials
-        p.exp_seq4 = seq4
-
-    db.add(p)
+    db.execute(
+        update(Participant)
+        .where(Participant.participant_id == p.participant_id)
+        .values(**participant_values)
+        .execution_options(synchronize_session=False)
+    )
     save_profile_field_values(db, p, profile_fields, profile_field_values)
     db.commit()
 

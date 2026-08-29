@@ -4,8 +4,10 @@ import os
 import unittest
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi import HTTPException
+from starlette.datastructures import FormData
 
 
 os.environ.setdefault("DB_SERVER", "test-server")
@@ -24,10 +26,14 @@ from app.models.residential import Residential  # noqa: E402
 
 
 class _Request:
-    def __init__(self, residential_id: int | None = None):
+    def __init__(self, residential_id: int | None = None, form_data=None):
         self.session = {}
+        self._form_data = FormData(form_data or {})
         if residential_id is not None:
             self.session[ACTIVE_RESIDENTIAL_SESSION_KEY] = residential_id
+
+    async def form(self):
+        return self._form_data
 
 
 class _Result:
@@ -50,6 +56,8 @@ class _Database:
         self.objects = objects or {}
         self.results = list(results or [])
         self.statements = []
+        self.added = []
+        self.commits = 0
 
     def get(self, model, object_id):
         return self.objects.get((model, object_id))
@@ -59,6 +67,12 @@ class _Database:
         if not self.results:
             raise AssertionError("Unexpected database query")
         return self.results.pop(0)
+
+    def add(self, value):
+        self.added.append(value)
+
+    def commit(self):
+        self.commits += 1
 
 
 def _privileged_user(*, active_residential_id: int | None = None):
@@ -238,6 +252,76 @@ class ResidentialRouteScopeTests(unittest.TestCase):
             [option.residential_id for option in context["report_users"]],
             [7],
         )
+
+
+class ParticipantEditPersistenceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_edit_uses_explicit_update_without_dirtying_participant(self):
+        residential = _residential(1, "AC")
+        participant = SimpleNamespace(
+            participant_id=366,
+            residential_id=1,
+            created_by_user_id=27,
+            nombre="Nombre anterior",
+        )
+        db = _Database(
+            objects={(Residential, 1): residential},
+            results=[
+                _Result(scalar=participant),
+                _Result(),
+                _Result(),
+                _Result(),
+            ],
+        )
+        user = _privileged_user(active_residential_id=1)
+
+        with (
+            patch.object(ui.settings, "PHASE2_EXPEDIENTE_ENABLED", True),
+            patch.object(ui, "load_active_new_list_fields", return_value=[]),
+            patch.object(ui, "save_profile_field_values") as save_profile_values,
+        ):
+            response = await ui.edit_participant_save(
+                participant_id=participant.participant_id,
+                expediente_num=None,
+                exp_year=2026,
+                exp_employee_initials=None,
+                exp_seq4="0042",
+                nombre="Ana",
+                inicial="M",
+                apellido_paterno="Pérez",
+                apellido_materno="Rivera",
+                fecha_nacimiento="1990-01-02",
+                genero="F",
+                edificio="A",
+                apart="101",
+                estatus="Activo",
+                vca="SI",
+                primera_vez="NO",
+                escolaridad_participante="Universidad",
+                composicion_familiar="Familiar",
+                grupo_familiar="2",
+                relacion_familiar="Jefa",
+                fuente_ingreso_principal="Empleo",
+                rango_ingreso="1",
+                is_head_of_household=None,
+                request=_Request(1),
+                db=db,
+                current_user=user,
+            )
+
+        update_statement = db.statements[3]
+        update_sql = str(update_statement)
+        update_values = update_statement.compile().params.values()
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("UPDATE participants SET", update_sql)
+        self.assertIn("participants.participant_id =", update_sql)
+        self.assertIn("FE-2026-AC-0042", update_values)
+        self.assertIn("Ana", update_values)
+        self.assertIn(366, update_values)
+        self.assertEqual(participant.nombre, "Nombre anterior")
+        self.assertEqual(db.added, [])
+        self.assertEqual(db.commits, 1)
+        save_profile_values.assert_called_once_with(db, participant, [], {})
 
 
 if __name__ == "__main__":
