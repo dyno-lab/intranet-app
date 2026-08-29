@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.core.platform_permissions import (
     MANAGE_PLATFORM_SETTINGS,
     require_platform_permission,
 )
+from app.core.security import hash_password
 from app.models.platform_permission import PlatformPermission
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.residential import Residential
@@ -29,6 +30,7 @@ _CSRF_SESSION_KEY = "platform_settings_csrf_token"
 _ALLOWED_EMAIL_DOMAIN = "csifpr.org"
 _VALID_USER_ROLES = {"admin", "supervisor", "user"}
 _VALID_USER_SECTIONS = {"general", "permissions", "residentials"}
+_MIN_LOCAL_PASSWORD_LENGTH = 12
 
 
 def _csrf_token(request: Request) -> str:
@@ -179,6 +181,159 @@ def platform_settings_index(
     )
 
 
+@router.get("/users/new", response_class=HTMLResponse)
+def platform_new_user(
+    request: Request,
+    error: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+    residentials = db.execute(
+        select(Residential)
+        .where(Residential.is_active == True)  # noqa: E712
+        .order_by(Residential.code, Residential.name)
+    ).scalars().all()
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_settings/user_new.html",
+        context={
+            "request": request,
+            "current_user": current_user,
+            "residentials": residentials,
+            "csrf_token": _csrf_token(request),
+            "error": error,
+            "minimum_local_password_length": _MIN_LOCAL_PASSWORD_LENGTH,
+        },
+    )
+
+
+@router.post("/users/create")
+def create_platform_user(
+    request: Request,
+    email: str = Form(...),
+    password: str | None = Form(default=None),
+    local_login_enabled: str | None = Form(default=None),
+    role: str = Form("user"),
+    residential_id: int | None = Form(default=None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    _validate_csrf_token(request, csrf_token)
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
+
+    redirect_path = "/platform/settings/users/new"
+    normalized_email = _normalized_authorized_email(email)
+    if normalized_email is None:
+        return _settings_redirect(
+            path=redirect_path,
+            error="Debe usar un correo institucional @csifpr.org válido.",
+        )
+    if len(normalized_email) > 100:
+        return _settings_redirect(
+            path=redirect_path,
+            error="El correo institucional excede el máximo de 100 caracteres permitido para el usuario.",
+        )
+    if role not in _VALID_USER_ROLES:
+        return _settings_redirect(path=redirect_path, error="El rol seleccionado no es válido.")
+    if role == "user" and residential_id is None:
+        return _settings_redirect(
+            path=redirect_path,
+            error="Debe seleccionar un residencial para usuarios con rol user.",
+        )
+
+    selected_residential = (
+        db.get(Residential, residential_id) if residential_id is not None else None
+    )
+    if residential_id is not None and (
+        selected_residential is None or not selected_residential.is_active
+    ):
+        return _settings_redirect(
+            path=redirect_path,
+            error="El residencial seleccionado no está activo.",
+        )
+
+    existing = db.execute(
+        select(User).where(
+            or_(
+                func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+                func.lower(func.ltrim(func.rtrim(User.username))) == normalized_email,
+            )
+        )
+    ).scalars().first()
+    if existing is not None:
+        return _settings_redirect(
+            path=redirect_path,
+            error="El correo institucional ya está asignado a otra cuenta.",
+        )
+
+    local_enabled = local_login_enabled == "on"
+    normalized_password = (password or "").strip()
+    if local_enabled and len(normalized_password) < _MIN_LOCAL_PASSWORD_LENGTH:
+        return _settings_redirect(
+            path=redirect_path,
+            error=f"La contraseña local debe tener al menos {_MIN_LOCAL_PASSWORD_LENGTH} caracteres.",
+        )
+    if local_enabled and len(normalized_password.encode("utf-8")) > 72:
+        return _settings_redirect(
+            path=redirect_path,
+            error="La contraseña local no puede exceder 72 bytes.",
+        )
+
+    password_to_hash = normalized_password if local_enabled else secrets.token_urlsafe(48)
+    user = User(
+        username=normalized_email,
+        email=normalized_email,
+        google_sub=None,
+        password_hash=hash_password(password_to_hash),
+        local_login_enabled=local_enabled,
+        session_version=1,
+        role=role,
+        residential_id=residential_id,
+        is_active=True,
+    )
+    db.add(user)
+    try:
+        db.flush()
+        if residential_id is not None:
+            db.add(
+                UserResidential(
+                    user_id=user.user_id,
+                    residential_id=residential_id,
+                    assigned_by_user_id=current_user.user_id,
+                    is_active=True,
+                )
+            )
+        db.add(
+            PlatformUserAudit(
+                actor_user_id=current_user.user_id,
+                target_user_id=user.user_id,
+                action="user_created",
+                details=(
+                    f"role={role}; residential_id="
+                    f"{residential_id if residential_id is not None else 'none'}; "
+                    f"local_login={local_enabled}"
+                ),
+            )
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _settings_redirect(
+            path=redirect_path,
+            error="El correo institucional ya está asignado a otra cuenta.",
+        )
+
+    return _user_settings_redirect(
+        user.user_id,
+        section="general",
+        message="Usuario creado correctamente. Configure sus permisos y residenciales.",
+    )
+
+
 @router.get("/users/{user_id}", response_class=HTMLResponse)
 def platform_user_settings(
     request: Request,
@@ -217,9 +372,15 @@ def platform_user_settings(
     ).scalars().all()
     assigned_residential_ids = set(
         db.execute(
-            select(UserResidential.residential_id).where(
+            select(UserResidential.residential_id)
+            .join(
+                Residential,
+                Residential.residential_id == UserResidential.residential_id,
+            )
+            .where(
                 UserResidential.user_id == target_user.user_id,
                 UserResidential.is_active == True,  # noqa: E712
+                Residential.is_active == True,  # noqa: E712
             )
         ).scalars().all()
     )

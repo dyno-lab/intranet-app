@@ -86,7 +86,7 @@
 
       {% else %}
       <section class="platform-user-section">
-        <header class="platform-user-section__header"><span class="platform-user-section__icon platform-user-section__icon--purple"><i class="bi bi-buildings"></i></span><div><h2>Acceso a residenciales</h2><p>Contextos operativos donde la cuenta puede trabajar</p></div><span class="platform-section-count">{{ assigned_residential_ids|length }} asignados</span></header>
+        <header class="platform-user-section__header"><span class="platform-user-section__icon platform-user-section__icon--purple"><i class="bi bi-buildings"></i></span><div><h2>Acceso a residenciales</h2><p>Seleccione uno o más contextos y luego presione Guardar residenciales</p></div><span class="platform-section-count"><span id="assigned-residential-count">{{ assigned_residential_ids|length }}</span> asignados</span></header>
         {% if current_user.role == 'admin' %}
         <form method="post" action="/platform/settings/users/{{ target_user.user_id }}/residentials" class="platform-residential-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="platform-residential-grid">
@@ -103,5 +103,37 @@
     </main>
   </div>
 </div>
+<script>
+(() => {
+  const residentialInputs = Array.from(document.querySelectorAll('.platform-residential-option input[name="residential_ids"]'));
+  const primaryResidential = document.getElementById('primary-residential-id');
+  const assignedCount = document.getElementById('assigned-residential-count');
+  if (!residentialInputs.length) return;
+
+  function refreshResidentialSelection() {
+    const selectedValues = new Set();
+    residentialInputs.forEach((input) => {
+      input.closest('.platform-residential-option')?.classList.toggle('is-selected', input.checked);
+      if (input.checked) selectedValues.add(input.value);
+    });
+
+    if (assignedCount) assignedCount.textContent = String(selectedValues.size);
+    if (!primaryResidential) return;
+
+    Array.from(primaryResidential.options).forEach((option) => {
+      option.disabled = Boolean(option.value) && !selectedValues.has(option.value);
+    });
+    if (primaryResidential.value && !selectedValues.has(primaryResidential.value)) {
+      primaryResidential.value = '';
+    }
+    if (!primaryResidential.value && selectedValues.size) {
+      primaryResidential.value = selectedValues.values().next().value;
+    }
+  }
+
+  residentialInputs.forEach((input) => input.addEventListener('change', refreshResidentialSelection));
+  refreshResidentialSelection();
+})();
+</script>
 </body>
 </html>

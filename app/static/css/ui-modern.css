@@ -10975,6 +10975,7 @@ body.platform-settings-body {
 
 .platform-user-form input[type="text"],
 .platform-user-form input[type="email"],
+.platform-user-form input[type="password"],
 .platform-user-form select,
 .platform-primary-residential select {
   width: 100%;
@@ -11191,6 +11192,17 @@ body.platform-settings-body {
   border: 1px solid #dce6ec;
   border-radius: 10px;
   background: #f9fbfc;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.platform-residential-option:hover {
+  border-color: #a9ccc5;
+}
+
+.platform-residential-option:has(input:focus-visible) {
+  outline: 3px solid rgba(42, 157, 143, 0.2);
+  outline-offset: 2px;
 }
 
 .platform-residential-option.is-selected {
@@ -11257,6 +11269,34 @@ body.platform-settings-body {
   border: 1px solid #e0e8ed;
   border-radius: 10px;
   background: #f8fafb;
+}
+
+.platform-user-create__content {
+  padding: 1rem;
+  background: #f8fafb;
+}
+
+.platform-user-create .platform-user-section {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.platform-new-user-form .platform-account-switches {
+  max-width: 420px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.platform-new-user-form__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #cfe2ed;
+  border-radius: 9px;
+  color: #49677c;
+  background: #f1f7fa;
+  font-size: 0.7rem;
 }
 
 @media (max-width: 767.98px) {

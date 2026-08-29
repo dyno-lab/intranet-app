@@ -33,8 +33,10 @@ from app.db.schema import (  # noqa: E402
 import app.models.residential  # noqa: E402, F401
 from app.models.platform_permission import PlatformPermission  # noqa: E402
 from app.models.platform_user_audit import PlatformUserAudit  # noqa: E402
+from app.models.residential import Residential  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.models.user_platform_permission import UserPlatformPermission  # noqa: E402
+from app.models.user_residential import UserResidential  # noqa: E402
 
 
 class _Request:
@@ -70,8 +72,15 @@ class _Result:
 
 
 class _Database:
-    def __init__(self, *, users: dict[int, User] | None = None, results: list[_Result] | None = None):
+    def __init__(
+        self,
+        *,
+        users: dict[int, User] | None = None,
+        residentials: dict[int, Residential] | None = None,
+        results: list[_Result] | None = None,
+    ):
         self.users = users or {}
+        self.residentials = residentials or {}
         self.results = list(results or [])
         self.statements = []
         self.added = []
@@ -85,6 +94,8 @@ class _Database:
         self.get_calls.append((model, object_id))
         if model is User:
             return self.users.get(object_id)
+        if model is Residential:
+            return self.residentials.get(object_id)
         return None
 
     def execute(self, statement):
@@ -134,6 +145,18 @@ def _user(
     )
     user.user_id = user_id
     return user
+
+
+def _residential(residential_id: int, code: str = "AC") -> Residential:
+    residential = Residential(
+        code=code,
+        name="Aristides Chavier",
+        municipality="Ponce",
+        rq_code=f"RQ-{code}",
+        is_active=True,
+    )
+    residential.residential_id = residential_id
+    return residential
 
 
 def _permission(
@@ -488,9 +511,220 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Usuarios y accesos", body)
         self.assertIn("Buscar por usuario, correo o residencial", body)
-        self.assertIn("/platform/settings/users/", body)
+        self.assertIn('/platform/settings/users/new', body)
+        self.assertNotIn('/ui/admin/users', body)
         self.assertIn("cramirez@csifpr.org", body)
         self.assertNotIn(password_hash, body)
+
+    def test_new_user_page_stays_inside_platform_settings(self):
+        current_user = _user(
+            1,
+            "manager@csifpr.org",
+            email="manager@csifpr.org",
+            role="admin",
+        )
+        residential = _residential(7)
+        db = _Database(results=[_Result(values=[residential])])
+        request = _Request({"user_id": current_user.user_id})
+
+        response = platform_settings.platform_new_user(
+            request=request,
+            error=None,
+            db=db,
+            current_user=current_user,
+        )
+        body = _body(response)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Crear nuevo usuario", body)
+        self.assertIn('action="/platform/settings/users/create"', body)
+        self.assertIn("Aristides Chavier", body)
+        self.assertNotIn("/ui/admin/users", body)
+
+    def test_admin_creates_platform_user_with_initial_residential_and_audit(self):
+        current_user = _user(
+            1,
+            "manager@csifpr.org",
+            email="manager@csifpr.org",
+            role="admin",
+        )
+        residential = _residential(7)
+        db = _Database(
+            users={current_user.user_id: current_user},
+            residentials={residential.residential_id: residential},
+            results=[_Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email=" New.User@CSIFPR.ORG ",
+            password="temporary-password",
+            local_login_enabled="on",
+            role="user",
+            residential_id=residential.residential_id,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        created_user = next(value for value in db.added if isinstance(value, User))
+        assignment = next(value for value in db.added if isinstance(value, UserResidential))
+        audit = next(value for value in db.added if isinstance(value, PlatformUserAudit))
+        self.assertEqual(response.status_code, 303)
+        self.assertIn(f"/platform/settings/users/{created_user.user_id}", response.headers["location"])
+        self.assertEqual(created_user.username, "new.user@csifpr.org")
+        self.assertEqual(created_user.email, "new.user@csifpr.org")
+        self.assertEqual(created_user.residential_id, residential.residential_id)
+        self.assertTrue(created_user.local_login_enabled)
+        self.assertTrue(verify_password("temporary-password", created_user.password_hash))
+        self.assertEqual(assignment.residential_id, residential.residential_id)
+        self.assertEqual(assignment.assigned_by_user_id, current_user.user_id)
+        self.assertEqual(audit.action, "user_created")
+        self.assertEqual(db.commits, 1)
+
+    def test_platform_user_creation_ignores_password_when_local_login_is_disabled(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database(
+            users={current_user.user_id: current_user},
+            results=[_Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        platform_settings.create_platform_user(
+            request=request,
+            email="google.only@csifpr.org",
+            password="weak",
+            local_login_enabled=None,
+            role="supervisor",
+            residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        created_user = next(value for value in db.added if isinstance(value, User))
+        self.assertFalse(created_user.local_login_enabled)
+        self.assertFalse(verify_password("weak", created_user.password_hash))
+
+    def test_platform_user_creation_rejects_overlong_local_password(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database(results=[_Result(values=[])])
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email="employee@csifpr.org",
+            password="x" * 73,
+            local_login_enabled="on",
+            role="supervisor",
+            residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(db.added, [])
+        self.assertIn("72 bytes", _query_parameters(response)["error"][0])
+
+    def test_platform_user_creation_rejects_username_over_column_limit(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database()
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email=("a" * 90) + "@csifpr.org",
+            password=None,
+            local_login_enabled=None,
+            role="supervisor",
+            residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(db.added, [])
+        self.assertIn("100 caracteres", _query_parameters(response)["error"][0])
+
+    def test_platform_user_creation_rejects_unknown_zero_residential(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database()
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email="employee@csifpr.org",
+            password=None,
+            local_login_enabled=None,
+            role="user",
+            residential_id=0,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(db.added, [])
+        self.assertIn("no está activo", _query_parameters(response)["error"][0])
+
+    def test_user_detail_residential_selection_has_visual_feedback(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        target_user = _user(2, "employee@csifpr.org", role="user")
+        residential = _residential(7)
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(values=[]),
+                _Result(values=[]),
+                _Result(values=[residential]),
+                _Result(values=[]),
+            ],
+        )
+        request = _Request({"user_id": current_user.user_id})
+
+        response = platform_settings.platform_user_settings(
+            request=request,
+            user_id=target_user.user_id,
+            section="residentials",
+            msg=None,
+            error=None,
+            db=db,
+            current_user=current_user,
+        )
+        body = _body(response)
+
+        self.assertIn('id="assigned-residential-count"', body)
+        self.assertIn('name="residential_ids"', body)
+        self.assertIn("refreshResidentialSelection", body)
+        self.assertIn('id="primary-residential-id"', body)
+
+    def test_admin_assigns_residential_from_platform_settings(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        target_user = _user(2, "employee@csifpr.org", role="user")
+        residential = _residential(7)
+        db = _Database(
+            users={target_user.user_id: target_user},
+            residentials={residential.residential_id: residential},
+            results=[_Result(values=[residential.residential_id]), _Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_residentials(
+            request=request,
+            user_id=target_user.user_id,
+            residential_ids=[residential.residential_id],
+            primary_residential_id=residential.residential_id,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        assignment = next(value for value in db.added if isinstance(value, UserResidential))
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("section=residentials", response.headers["location"])
+        self.assertEqual(target_user.residential_id, residential.residential_id)
+        self.assertEqual(assignment.residential_id, residential.residential_id)
+        self.assertEqual(db.commits, 1)
 
     def test_user_detail_renders_general_permissions_and_residential_navigation(self):
         current_user = _user(
