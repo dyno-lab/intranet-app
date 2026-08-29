@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.datastructures import FormData
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, update, delete, func, or_, case
+from sqlalchemy import select, update, delete, func, or_
 from math import ceil
 from sqlalchemy.orm import Session
 
@@ -46,6 +46,7 @@ from app.core.residential_scope import (
     require_write_residential_id,
 )
 from app.core.proposal_guard import (
+    FINALIZED_STATUS,
     is_proposal_finalized,
     require_session_proposal_not_finalized,
 )
@@ -566,8 +567,6 @@ def _build_sessions_stmt(current_user: User):
         .outerjoin(Residential, ActivitySession.residential_id == Residential.residential_id)
         .outerjoin(attendance_counts, attendance_counts.c.session_id == ActivitySession.session_id)
         .order_by(
-            case((Proposal.code.is_(None), 1), else_=0),
-            Proposal.code.asc(),
             ActivitySession.session_date.desc(),
             ActivitySession.session_id.desc(),
         )
@@ -588,6 +587,18 @@ def _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int):
     if year_int:
         stmt = stmt.where(func.year(ActivitySession.session_date) == year_int)
     return stmt
+
+
+def _apply_session_proposal_visibility(stmt, proposal_id_int: int | None):
+    if proposal_id_int is not None:
+        return stmt
+    return stmt.where(
+        or_(
+            ActivitySession.proposal_id.is_(None),
+            Proposal.status.is_(None),
+            Proposal.status != FINALIZED_STATUS,
+        )
+    )
 
 
 def _apply_session_residential_filter(
@@ -612,7 +623,10 @@ def _build_filtered_session_ids_stmt(
     residential_id_int: int | None = None,
     control_number_text: str | None = None,
 ):
-    stmt = select(ActivitySession.session_id)
+    stmt = select(ActivitySession.session_id).outerjoin(
+        Proposal,
+        ActivitySession.proposal_id == Proposal.proposal_id,
+    )
     stmt = _apply_session_residential_filter(
         stmt,
         current_user,
@@ -621,6 +635,7 @@ def _build_filtered_session_ids_stmt(
     )
 
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    stmt = _apply_session_proposal_visibility(stmt, proposal_id_int)
 
     if control_number_text:
         stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
@@ -735,6 +750,7 @@ def _render_listado_selector(
         user_joined=True,
     )
     base_stmt = _apply_session_filters(base_stmt, fd, td, proposal_id_int, month_int, year_int)
+    base_stmt = _apply_session_proposal_visibility(base_stmt, proposal_id_int)
     if control_number_text:
         base_stmt = base_stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
 
@@ -1636,6 +1652,7 @@ def export_sessions_csv(
         user_joined=True,
     )
     stmt = _apply_session_filters(stmt, fd, td, proposal_id_int, month_int, year_int)
+    stmt = _apply_session_proposal_visibility(stmt, proposal_id_int)
     if control_number_text:
         stmt = stmt.where(ActivitySession.control_number.ilike(f"%{control_number_text}%"))
     sessions = db.execute(stmt).all()

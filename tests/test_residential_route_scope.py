@@ -17,6 +17,7 @@ os.environ.setdefault("DB_PASSWORD", "test-password")
 os.environ.setdefault("SESSION_SECRET", "test-session-secret-at-least-32-characters")
 
 from app.api.routes import participants, pregnancy, school_dropout, school_grades, sessions, ui  # noqa: E402
+from app.core.proposal_guard import FINALIZED_STATUS  # noqa: E402
 from app.core.residential_scope import ACTIVE_RESIDENTIAL_SESSION_KEY  # noqa: E402
 from app.helpers.report_context import base_reports_context  # noqa: E402
 from app.models.activity_session import ActivitySession  # noqa: E402
@@ -252,6 +253,75 @@ class ResidentialRouteScopeTests(unittest.TestCase):
             [option.residential_id for option in context["report_users"]],
             [7],
         )
+
+    def test_listado_hides_finalized_proposals_until_filtered(self):
+        user = _privileged_user()
+        default_statement = ui._apply_session_proposal_visibility(
+            ui._build_sessions_stmt(user),
+            None,
+        )
+        default_sql = str(default_statement)
+
+        self.assertIn("proposals.status !=", default_sql)
+        self.assertIn(FINALIZED_STATUS, default_statement.compile().params.values())
+
+        filtered_statement = ui._apply_session_filters(
+            ui._build_sessions_stmt(user),
+            None,
+            None,
+            13,
+            None,
+            None,
+        )
+        filtered_statement = ui._apply_session_proposal_visibility(
+            filtered_statement,
+            13,
+        )
+        filtered_sql = str(filtered_statement)
+
+        self.assertIn("activity_sessions.proposal_id =", filtered_sql)
+        self.assertNotIn("proposals.status !=", filtered_sql)
+        self.assertIn(13, filtered_statement.compile().params.values())
+
+    def test_listado_metrics_use_same_finalized_proposal_visibility(self):
+        user = _privileged_user()
+        default_statement = ui._build_filtered_session_ids_stmt(
+            current_user=user,
+            fd=None,
+            td=None,
+            proposal_id_int=None,
+            month_int=None,
+            year_int=None,
+        )
+        default_sql = str(default_statement)
+
+        self.assertIn("LEFT OUTER JOIN proposals", default_sql)
+        self.assertIn("proposals.status !=", default_sql)
+        self.assertIn(FINALIZED_STATUS, default_statement.compile().params.values())
+
+        filtered_statement = ui._build_filtered_session_ids_stmt(
+            current_user=user,
+            fd=None,
+            td=None,
+            proposal_id_int=13,
+            month_int=None,
+            year_int=None,
+        )
+        filtered_sql = str(filtered_statement)
+
+        self.assertIn("activity_sessions.proposal_id =", filtered_sql)
+        self.assertNotIn("proposals.status !=", filtered_sql)
+
+    def test_listado_orders_sessions_from_newest_to_oldest(self):
+        statement_sql = str(ui._build_sessions_stmt(_privileged_user()))
+        order_by_sql = statement_sql.split("ORDER BY", 1)[1].replace("\n", " ").strip()
+
+        self.assertTrue(
+            order_by_sql.startswith(
+                "activity_sessions.session_date DESC, activity_sessions.session_id DESC"
+            )
+        )
+        self.assertNotIn("proposals.code ASC", order_by_sql)
 
 
 class ParticipantEditPersistenceTests(unittest.IsolatedAsyncioTestCase):
