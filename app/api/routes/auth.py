@@ -116,7 +116,7 @@ def _authenticated_login_context(
 ) -> dict[str, object]:
     can_access_faro = user_has_platform_permission(db, current_user, ACCESS_FARO)
     residentials = []
-    if can_access_faro and current_user.role not in {"admin", "supervisor"}:
+    if can_access_faro:
         residentials = assigned_residentials(db, current_user)
     return _login_context(
         request,
@@ -222,11 +222,12 @@ def enter_faro(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
 
     safe_next_path = _safe_faro_next_path(next_path)
-    if current_user.role in {"admin", "supervisor"}:
+    residentials = assigned_residentials(db, current_user)
+    if current_user.role in {"admin", "supervisor"} and residential_id is None:
         clear_active_residential(request.session)
+        request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials) + 1
         return RedirectResponse(safe_next_path, status_code=status.HTTP_303_SEE_OTHER)
 
-    residentials = assigned_residentials(db, current_user)
     if not residentials:
         clear_active_residential(request.session)
         raise HTTPException(
@@ -234,13 +235,17 @@ def enter_faro(
             detail="No tiene residenciales activos asignados.",
         )
 
-    selected_residential = residentials[0] if len(residentials) == 1 else next(
-        (
-            residential
-            for residential in residentials
-            if residential.residential_id == residential_id
-        ),
-        None,
+    selected_residential = (
+        residentials[0]
+        if current_user.role not in {"admin", "supervisor"} and len(residentials) == 1
+        else next(
+            (
+                residential
+                for residential in residentials
+                if residential.residential_id == residential_id
+            ),
+            None,
+        )
     )
     if selected_residential is None:
         raise HTTPException(
@@ -249,7 +254,9 @@ def enter_faro(
         )
 
     set_active_residential(request.session, selected_residential)
-    request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials)
+    request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials) + (
+        1 if current_user.role in {"admin", "supervisor"} else 0
+    )
     return RedirectResponse(safe_next_path, status_code=status.HTTP_303_SEE_OTHER)
 
 

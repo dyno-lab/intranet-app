@@ -183,19 +183,32 @@ class ResidentialOwnershipTests(unittest.TestCase):
         self.assertIn("participants.residential_id", str(sequence_statement))
         self.assertIn(1, sequence_statement.compile().params.values())
 
-    def test_privileged_writes_require_explicit_residential(self):
-        residential = _residential(1, "AC", "Aristides Chavier")
-        db = _Database(objects={(Residential, 1): residential})
+    def test_privileged_writes_follow_global_or_active_residential_mode(self):
+        aristides = _residential(1, "AC", "Aristides Chavier")
+        brisas = _residential(2, "BDM", "Brisas del Mar")
+        db = _Database(
+            objects={
+                (Residential, 1): aristides,
+                (Residential, 2): brisas,
+            }
+        )
         admin = _user(90, role="admin", residential_id=2)
 
         with self.assertRaises(Exception) as context:
-            require_write_residential_id(_Request(2), admin, db)
+            require_write_residential_id(_Request(0), admin, db)
         self.assertEqual(context.exception.status_code, 403)
 
         self.assertEqual(
-            require_write_residential_id(_Request(2), admin, db, 1),
+            require_write_residential_id(_Request(0), admin, db, 1),
             1,
         )
+        self.assertEqual(
+            require_write_residential_id(_Request(2), admin, db),
+            2,
+        )
+        with self.assertRaises(Exception) as mismatch:
+            require_write_residential_id(_Request(2), admin, db, 1)
+        self.assertEqual(mismatch.exception.status_code, 403)
         regular = _user(11, residential_id=1)
         self.assertEqual(
             require_write_residential_id(_Request(1), regular, db, 999),

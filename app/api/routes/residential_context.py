@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
 from app.core.residential_scope import (
+    ACTIVE_RESIDENTIAL_SESSION_KEY,
     assigned_residentials,
-    clear_active_residential,
     resolve_active_residential,
     set_active_residential,
 )
@@ -53,12 +53,20 @@ def residential_context_page(
 ):
     next_path = _safe_next_path(next_path)
     if current_user.role in {"admin", "supervisor"}:
-        clear_active_residential(request.session)
-        return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            f"/login?next={quote(next_path, safe='')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
-    _, residentials = resolve_active_residential(request, db, current_user)
-    if len(residentials) == 1:
+    had_active_residential_context = ACTIVE_RESIDENTIAL_SESSION_KEY in request.session
+    active_residential, residentials = resolve_active_residential(request, db, current_user)
+    if active_residential is not None:
         return RedirectResponse(next_path, status_code=status.HTTP_303_SEE_OTHER)
+    if had_active_residential_context:
+        return RedirectResponse(
+            f"/login?next={quote(next_path, safe='')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     if not residentials:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -82,9 +90,9 @@ def select_residential_context(
 ):
     _validate_csrf(request, csrf_token)
     if current_user.role in {"admin", "supervisor"}:
-        clear_active_residential(request.session)
+        safe_next_path = _safe_next_path(next_path)
         return RedirectResponse(
-            _safe_next_path(next_path),
+            f"/login?next={quote(safe_next_path, safe='')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 

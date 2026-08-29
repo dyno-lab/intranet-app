@@ -12,6 +12,7 @@ from app.api.deps import get_db
 from app.core.auth import get_current_user
 from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.residential_scope import has_global_residential_access
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
@@ -2662,9 +2663,10 @@ def _build_current_month_dashboard_cards(
 ):
     today = date.today()
     month_start = today.replace(day=1)
+    is_global_scope = has_global_residential_access(current_user)
     scope_employee_id = (
         0
-        if current_user.role in ["admin", "supervisor"]
+        if is_global_scope
         else getattr(current_user, "_active_residential_id", None) or current_user.residential_id
     )
 
@@ -2697,12 +2699,12 @@ def _build_current_month_dashboard_cards(
         ActivitySession.session_date >= month_start,
         ActivitySession.session_date <= today,
     )
-    if current_user.role not in ["admin", "supervisor"]:
+    if not is_global_scope:
         session_stmt = session_stmt.where(ActivitySession.residential_id == scope_employee_id)
     activities_count = db.execute(session_stmt).scalar_one() or 0
 
     period_label = f"Del {month_start.strftime('%d/%m/%Y')} al {today.strftime('%d/%m/%Y')}"
-    scope_label = "Global" if current_user.role in ["admin", "supervisor"] else "Residencial"
+    scope_label = "Global" if is_global_scope else "Residencial"
 
     return {
         "dashboard_period_label": period_label,

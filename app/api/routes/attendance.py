@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user, is_admin_or_supervisor
-from app.core.residential_scope import require_record_residential_id
+from app.core.auth import get_current_user
+from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.attendance import Attendance
 from app.models.activity_session import ActivitySession
 from app.models.user import User
@@ -21,7 +21,7 @@ def list_attendance(
     current_user: User = Depends(get_current_user),
 ):
     stmt = select(Attendance)
-    if not is_admin_or_supervisor(current_user):
+    if not has_global_residential_access(current_user):
         stmt = stmt.join(ActivitySession, ActivitySession.session_id == Attendance.session_id).where(
             ActivitySession.residential_id == require_record_residential_id(request, current_user)
         )

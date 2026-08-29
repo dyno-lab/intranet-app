@@ -4,11 +4,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user, is_admin_or_supervisor
+from app.core.auth import get_current_user
 from app.core.config import settings
 from app.core.record_identifiers import build_expediente_number, normalized_residential_code
 from app.core.participant_household import require_head_of_household_allowed
-from app.core.residential_scope import require_record_residential_id, require_write_residential_id
+from app.core.residential_scope import (
+    has_global_residential_access,
+    require_record_residential_id,
+    require_write_residential_id,
+)
 from app.models.participant import Participant
 from app.models.residential import Residential
 from app.models.user import User
@@ -108,7 +112,7 @@ def list_participants(
     current_user: User = Depends(get_current_user),
 ):
     stmt = select(Participant)
-    if not is_admin_or_supervisor(current_user):
+    if not has_global_residential_access(current_user):
         residential_id = require_record_residential_id(request, current_user)
         stmt = stmt.where(Participant.residential_id == residential_id)
     if search:

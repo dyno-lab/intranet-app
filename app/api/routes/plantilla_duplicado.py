@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import require_admin
+from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.proposal import Proposal
 from app.models.residential import Residential
 from app.models.user import User
@@ -63,13 +64,32 @@ def _parse_optional_int(value: str | int | None) -> int | None:
         raise HTTPException(status_code=400, detail="Filtro inválido.")
 
 
-def _base_context(db: Session) -> dict:
+def _resolve_report_residential_id(
+    request: Request,
+    current_user: User,
+    requested_residential_id: int | None,
+) -> int | None:
+    if has_global_residential_access(current_user):
+        return requested_residential_id
+    active_residential_id = require_record_residential_id(request, current_user)
+    if requested_residential_id is not None and requested_residential_id != active_residential_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El reporte solo puede consultarse para el residencial activo.",
+        )
+    return active_residential_id
+
+
+def _base_context(db: Session, residential_id: int | None = None) -> dict:
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
-    residentials = db.execute(
+    residential_stmt = (
         select(Residential)
         .where(Residential.is_active == True)  # noqa: E712
         .order_by(Residential.municipality, Residential.name)
-    ).scalars().all()
+    )
+    if residential_id is not None:
+        residential_stmt = residential_stmt.where(Residential.residential_id == residential_id)
+    residentials = db.execute(residential_stmt).scalars().all()
     return {
         "proposals": proposals,
         "residentials": residentials,
@@ -102,7 +122,8 @@ def _build_context(
         residential_id=residential_id,
         current_user=current_user,
     )
-    return {**_base_context(db), **report, "current_user": current_user, "msg": None}
+    residential_scope_id = None if has_global_residential_access(current_user) else residential_id
+    return {**_base_context(db, residential_scope_id), **report, "current_user": current_user, "msg": None}
 
 
 def _query_params(month: int | None, year: int | None, proposal_id: int | None, residential_id: int | None, period_type: str, start_date: str | None, end_date: str | None) -> str:
@@ -147,13 +168,18 @@ def plantilla_duplicado_index(
 ):
     selected_month = month or date.today().month
     selected_year = year or date.today().year
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
     context = _build_context(
         db,
         current_user,
         selected_month,
         selected_year,
         _parse_optional_int(proposal_id),
-        _parse_optional_int(residential_id),
+        selected_residential_id,
         period_type=period_type,
         start_date=start_date,
         end_date=end_date,
@@ -164,6 +190,7 @@ def plantilla_duplicado_index(
 
 @router.post("/plantilla-duplicado/generar")
 def plantilla_duplicado_generar(
+    request: Request,
     month: int | None = Form(None),
     year: int | None = Form(None),
     period_type: str = Form("monthly"),
@@ -175,11 +202,16 @@ def plantilla_duplicado_generar(
     current_user: User = Depends(require_admin),
 ):
     _validate_period(period_type, month, year, start_date, end_date)
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
     target = "pdf" if output == "pdf" else "excel" if output == "excel" else ""
     if not target:
         raise HTTPException(status_code=400, detail="Salida inválida.")
     return RedirectResponse(
-        f"/ui/admin/plantilla-duplicado/{target}?{_query_params(month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id), period_type, start_date, end_date)}",
+        f"/ui/admin/plantilla-duplicado/{target}?{_query_params(month, year, _parse_optional_int(proposal_id), selected_residential_id, period_type, start_date, end_date)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -197,7 +229,12 @@ def plantilla_duplicado_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id), period_type=period_type, start_date=start_date, end_date=end_date)
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
+    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), selected_residential_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context["request"] = request
     try:
         pdf_bytes = render_template_to_pdf_bytes(
@@ -269,6 +306,7 @@ def _build_excel_bytes(context: dict) -> bytes:
 
 @router.get("/plantilla-duplicado/excel")
 def plantilla_duplicado_excel(
+    request: Request,
     month: int | None = Query(None),
     year: int | None = Query(None),
     period_type: str = Query("monthly"),
@@ -279,6 +317,11 @@ def plantilla_duplicado_excel(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), _parse_optional_int(residential_id), period_type=period_type, start_date=start_date, end_date=end_date)
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
+    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), selected_residential_id, period_type=period_type, start_date=start_date, end_date=end_date)
     filename = _download_filename("plantilla_duplicado", context, "xlsx")
     return StreamingResponse(BytesIO(_build_excel_bytes(context)), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f'attachment; filename="{filename}"'})

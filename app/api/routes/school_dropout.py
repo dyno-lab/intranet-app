@@ -17,7 +17,7 @@ from app.core.period_guard import (
     require_reporting_period_not_future,
 )
 from app.core.proposal_guard import is_proposal_finalized
-from app.core.residential_scope import require_record_residential_id
+from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.participant import Participant
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.proposal import Proposal
@@ -40,12 +40,10 @@ def _calc_age(dob):
 
 
 def _ensure_report_access(request: Request, current_user: User, report: SchoolDropoutReport) -> None:
-    if current_user.role in {"admin", "supervisor"}:
+    if has_global_residential_access(current_user):
         return
     residential_id = require_record_residential_id(request, current_user)
     if report.residential_id == residential_id:
-        return
-    if report.residential_id is None and report.created_by_user_id == current_user.user_id:
         return
     raise HTTPException(status_code=403, detail="No tienes permiso para acceder a este informe.")
 
@@ -94,7 +92,7 @@ def school_dropout_reports_index(
         .order_by(SchoolDropoutReport.report_year.desc(), SchoolDropoutReport.report_month.desc(), SchoolDropoutReport.report_id.desc())
     )
 
-    if current_user.role not in {"admin", "supervisor"}:
+    if not has_global_residential_access(current_user):
         stmt = stmt.where(
             SchoolDropoutReport.residential_id == require_record_residential_id(request, current_user)
         )
@@ -161,6 +159,11 @@ def create_school_dropout_report(
     except HTTPException as exc:
         return RedirectResponse(f"/ui/school-dropout?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg={exc.detail}", status_code=303)
 
+    if has_global_residential_access(current_user):
+        return RedirectResponse(
+            f"/ui/school-dropout?proposal_id={proposal_id}&month={report_month}&year={report_year}&msg=Error: Entre bajo un residencial antes de crear el informe.",
+            status_code=303,
+        )
     residential_id = require_record_residential_id(request, current_user)
     existing = db.execute(
         select(SchoolDropoutReport).where(

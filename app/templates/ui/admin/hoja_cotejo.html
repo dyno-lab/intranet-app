@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-start mb-4">
   <div>
     <h3 class="mb-1">Hoja de Cotejo</h3>
-    <p class="text-muted mb-0">Reporte Admin-only global por programa, basado en Programas Reporte y metas productivas de Actividades.</p>
+    <p class="text-muted mb-0">Reporte administrativo por programa, basado en Programas Reporte y metas productivas de Actividades.</p>
   </div>
   <span class="badge bg-warning text-dark">Solo Admin</span>
 </div>
@@ -15,6 +15,7 @@
   <div class="card-header fw-semibold">Filtros y salida</div>
   <div class="card-body">
     <form id="hojaCotejoFiltersForm" method="get" action="/ui/admin/hoja-cotejo" class="row g-3 align-items-end mb-3">
+      {% if selected_residential_id %}<input type="hidden" name="residential_id" value="{{ selected_residential_id }}">{% endif %}
       <div class="col-md-2">
         <label class="form-label">Tipo de periodo</label>
         <select class="form-select" name="period_type" id="periodTypeSelect">
@@ -65,6 +66,7 @@
       <input type="hidden" name="start_date" value="{{ selected_start_date }}">
       <input type="hidden" name="end_date" value="{{ selected_end_date }}">
       <input type="hidden" name="proposal_id" value="{{ selected_proposal_id or '' }}">
+      {% if selected_residential_id %}<input type="hidden" name="residential_id" value="{{ selected_residential_id }}">{% endif %}
       <div style="min-width: 280px;">
         <label class="form-label mb-1">Funcionario autorizado</label>
         <input class="form-control" type="text" name="authorized_name" value="{{ authorized_name or '' }}">
@@ -79,7 +81,7 @@
 <div class="alert alert-info">
   <strong>Periodo:</strong> {{ period_label|capitalize }} ·
   <strong>Propuesta:</strong> {% if proposal %}{{ proposal.code }} - {{ proposal.name }}{% endif %} ·
-  <strong>Alcance:</strong> Global, no por residencial
+  <strong>Alcance:</strong> {{ 'Global' if is_all_residentials else residential_names }}
 </div>
 
 <div class="row g-3 mb-4">

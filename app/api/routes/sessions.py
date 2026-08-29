@@ -4,10 +4,14 @@ from sqlalchemy import select
 from datetime import date
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user, is_admin_or_supervisor
+from app.core.auth import get_current_user
 from app.core.proposal_guard import require_proposal_id_not_finalized
 from app.core.record_identifiers import build_session_control_number, normalized_residential_code
-from app.core.residential_scope import require_record_residential_id, require_write_residential_id
+from app.core.residential_scope import (
+    has_global_residential_access,
+    require_record_residential_id,
+    require_write_residential_id,
+)
 from app.core.session_rules import require_activity_code_allowed_for_proposal
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
@@ -28,7 +32,7 @@ def list_sessions(
     current_user: User = Depends(get_current_user),
 ):
     stmt = select(ActivitySession)
-    if not is_admin_or_supervisor(current_user):
+    if not has_global_residential_access(current_user):
         residential_id = require_record_residential_id(request, current_user)
         stmt = stmt.where(ActivitySession.residential_id == residential_id)
     if from_date:

@@ -188,7 +188,7 @@ def _display_rq_code(value: str | None) -> str:
 
 def _selected_residentials(db: Session, residential_id: int | None) -> list[Residential]:
     stmt = select(Residential).where(Residential.is_active == True).order_by(Residential.municipality, Residential.name)  # noqa: E712
-    if residential_id:
+    if residential_id is not None:
         stmt = stmt.where(Residential.residential_id == residential_id)
     return sorted(db.execute(stmt).scalars().all(), key=_official_residential_sort_key)
 
@@ -274,7 +274,7 @@ def build_consolidado_mensual_global(
         )
     if proposal_id:
         stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
-    if residential_id:
+    if residential_id is not None:
         stmt = stmt.where(ActivitySession.residential_id == residential_id)
 
     for session, attendance, participant, activity_code, residential in db.execute(stmt).all():

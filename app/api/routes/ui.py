@@ -40,7 +40,11 @@ from app.services.participant_profile_fields import (
 from app.core.config import settings
 from app.core.record_identifiers import build_expediente_number, build_session_control_number
 from app.core.participant_household import require_head_of_household_allowed
-from app.core.residential_scope import require_record_residential_id, require_write_residential_id
+from app.core.residential_scope import (
+    has_global_residential_access,
+    require_record_residential_id,
+    require_write_residential_id,
+)
 from app.core.proposal_guard import (
     is_proposal_finalized,
     require_session_proposal_not_finalized,
@@ -341,23 +345,19 @@ def _hours_from_minutes(minutes: float | None) -> float | None:
 
 
 def _check_participant_access(p: Participant, user: User, request: Request):
-    if is_admin_or_supervisor(user):
+    if has_global_residential_access(user):
         return
     residential_id = require_record_residential_id(request, user)
     if p.residential_id == residential_id:
-        return
-    if p.residential_id is None and p.created_by_user_id == user.user_id:
         return
     raise HTTPException(status_code=403)
 
 
 def _check_session_access(s: ActivitySession, user: User, request: Request):
-    if is_admin_or_supervisor(user):
+    if has_global_residential_access(user):
         return
     residential_id = require_record_residential_id(request, user)
     if s.residential_id == residential_id:
-        return
-    if s.residential_id is None and s.created_by_user_id == user.user_id:
         return
     raise HTTPException(status_code=403)
 
@@ -721,7 +721,7 @@ def _render_listado_selector(
     fd = _parse_date(from_date) if from_date else None
     td = _parse_date(to_date) if to_date else None
     control_number_text = (control_number or "").strip()
-    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    is_admin_supervisor = has_global_residential_access(current_user)
     residential_id_int = _parse_optional_int(residential_id) if is_admin_supervisor else require_record_residential_id(request, current_user)
     proposal_id_int = int(proposal_id) if proposal_id and proposal_id.strip() else None
     month_int = int(month) if month and month.strip() else None
@@ -869,7 +869,7 @@ def new_list(
     current_user: User = Depends(get_current_user),
 ):
     base_stmt = select(Participant)
-    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    is_admin_supervisor = has_global_residential_access(current_user)
     selected_residential_id = _parse_optional_int(residential_id)
     if not is_admin_supervisor:
         selected_residential_id = require_record_residential_id(request, current_user)
@@ -1120,11 +1120,17 @@ async def create_participant(
 @router.post("/new-list/{participant_id}/delete")
 def delete_participant(
     participant_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     if not is_admin_or_supervisor(current_user):
         raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    participant = db.get(Participant, participant_id)
+    if participant is None:
+        raise HTTPException(status_code=404, detail="Participante no existe.")
+    _check_participant_access(participant, current_user, request)
 
     db.execute(delete(Attendance).where(Attendance.participant_id == participant_id))
     db.execute(delete(Participant).where(Participant.participant_id == participant_id))
@@ -1143,7 +1149,7 @@ def export_participants_csv(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    is_admin_supervisor = is_admin_or_supervisor(current_user)
+    is_admin_supervisor = has_global_residential_access(current_user)
     selected_residential_id = _parse_optional_int(residential_id)
     if not is_admin_supervisor:
         selected_residential_id = require_record_residential_id(request, current_user)
@@ -1611,7 +1617,7 @@ def export_sessions_csv(
     control_number_text = (control_number or "").strip()
     residential_id_int = (
         _parse_optional_int(residential_id)
-        if is_admin_or_supervisor(current_user)
+        if has_global_residential_access(current_user)
         else require_record_residential_id(request, current_user)
     )
 
@@ -1771,7 +1777,7 @@ def export_attendance_csv(
     control_number_text = (control_number or "").strip()
     residential_id_int = (
         _parse_optional_int(residential_id)
-        if is_admin_or_supervisor(current_user)
+        if has_global_residential_access(current_user)
         else require_record_residential_id(request, current_user)
     )
 

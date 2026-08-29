@@ -6,6 +6,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.residential_scope import has_global_residential_access
 from app.helpers.reports import normalize_text
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -143,11 +144,20 @@ def rq_from_user(user: User | None) -> str:
 
 def base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
-    residential_records = db.execute(
+    active_residential_id = getattr(current_user, "_active_residential_id", None)
+    if active_residential_id is None and current_user.role not in {"admin", "supervisor"}:
+        active_residential_id = current_user.residential_id
+
+    residential_stmt = (
         select(Residential)
         .where(Residential.is_active == True)  # noqa: E712
         .order_by(Residential.code, Residential.name)
-    ).scalars().all()
+    )
+    if active_residential_id is not None and not has_global_residential_access(current_user):
+        residential_stmt = residential_stmt.where(
+            Residential.residential_id == active_residential_id
+        )
+    residential_records = db.execute(residential_stmt).scalars().all()
     report_residentials = [
         option
         for residential in residential_records
@@ -161,9 +171,12 @@ def base_reports_context(db: Session, current_user: User, month_options: list[tu
         label = f"{residential.code} - {residential.name}"
         residential_option_map[residential.residential_id] = label
         residential_option_map[residential.user_id] = label
-    active_residential_id = getattr(current_user, "_active_residential_id", None) or current_user.residential_id
     current_residential = reporting_residential_option(db.get(Residential, active_residential_id)) if active_residential_id else None
-    residential_name = current_residential.name if current_residential and current_user.role == "user" else None
+    residential_name = (
+        current_residential.name
+        if current_residential and not has_global_residential_access(current_user)
+        else None
+    )
     return {
         "proposals": proposals,
         "report_residentials": report_residentials,
@@ -185,7 +198,14 @@ def resolve_reporting_scope(current_user: User, employee_id: int | None, db: Ses
     residential_id = None
     scope_token = employee_id
 
-    if current_user.role in {"admin", "supervisor"}:
+    active_residential_id = getattr(current_user, "_active_residential_id", None)
+    if active_residential_id is not None:
+        residential_id = active_residential_id
+        residential = db.get(Residential, residential_id)
+        if residential and residential.is_active:
+            selected_residential = reporting_residential_option(residential)
+            scope_token = selected_residential.user_id
+    elif current_user.role in {"admin", "supervisor"}:
         if employee_id == 0:
             is_global = True
         elif employee_id is not None and employee_id < 0:

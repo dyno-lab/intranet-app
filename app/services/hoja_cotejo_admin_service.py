@@ -155,15 +155,19 @@ def build_hoja_cotejo_admin_context(
     start_date: str | None = None,
     end_date: str | None = None,
     proposal_id: int | None = None,
+    residential_id: int | None = None,
     authorized_name: str | None = None,
     current_user: User | None = None,
 ) -> dict[str, Any]:
     proposal = db.get(Proposal, proposal_id) if proposal_id else None
-    active_residentials = db.execute(
+    residential_stmt = (
         select(Residential)
         .where(Residential.is_active == True)  # noqa: E712
         .order_by(Residential.municipality, Residential.name)
-    ).scalars().all()
+    )
+    if residential_id is not None:
+        residential_stmt = residential_stmt.where(Residential.residential_id == residential_id)
+    active_residentials = db.execute(residential_stmt).scalars().all()
     active_residential_count = max(len(active_residentials), 1)
     residential_names = ", ".join(residential.name for residential in active_residentials)
 
@@ -197,6 +201,8 @@ def build_hoja_cotejo_admin_context(
                     Attendance.attended == True,  # noqa: E712
                 )
             )
+            if residential_id is not None:
+                first_attendance_stmt = first_attendance_stmt.where(ActivitySession.residential_id == residential_id)
             if report_end:
                 first_attendance_stmt = first_attendance_stmt.where(ActivitySession.session_date <= report_end)
             first_attendance_date = db.execute(first_attendance_stmt).scalar_one_or_none()
@@ -207,6 +213,8 @@ def build_hoja_cotejo_admin_context(
                 .where(ActivitySession.proposal_id == proposal.proposal_id, ActivitySession.activity_code_id.in_(activity_ids))
                 .group_by(ActivitySession.activity_code_id)
             )
+            if residential_id is not None:
+                session_stmt = session_stmt.where(ActivitySession.residential_id == residential_id)
             session_stmt = _apply_period(session_stmt, period_type=period_type, month=month, year=year, start_date=start_date, end_date=end_date)
             sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in db.execute(session_stmt).all()}
 
@@ -224,6 +232,8 @@ def build_hoja_cotejo_admin_context(
                 )
                 .group_by(ActivitySession.activity_code_id)
             )
+            if residential_id is not None:
+                attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == residential_id)
             attendance_stmt = _apply_period(attendance_stmt, period_type=period_type, month=month, year=year, start_date=start_date, end_date=end_date)
             for activity_id, duplicados, unique_count in db.execute(attendance_stmt).all():
                 attendance_by_activity[activity_id] = int(duplicados or 0)
@@ -239,6 +249,8 @@ def build_hoja_cotejo_admin_context(
                 )
                 .group_by(ActivitySession.activity_code_id)
             )
+            if residential_id is not None:
+                cumulative_stmt = cumulative_stmt.where(ActivitySession.residential_id == residential_id)
             if first_attendance_date:
                 cumulative_stmt = cumulative_stmt.where(ActivitySession.session_date >= first_attendance_date)
             if report_end:
@@ -313,6 +325,8 @@ def build_hoja_cotejo_admin_context(
         "title": "Hoja de Cotejo",
         "proposal": proposal,
         "selected_proposal_id": proposal_id,
+        "selected_residential_id": residential_id,
+        "is_all_residentials": residential_id is None,
         "selected_month": month,
         "selected_year": year,
         "month": month,

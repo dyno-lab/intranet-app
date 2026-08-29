@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.auth import require_admin
+from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.user import User
 from app.services.hoja_cotejo_admin_service import build_hoja_cotejo_admin_context, base_context
 from app.services.report_pdf import PDFBackendUnavailableError, PDFRenderError, render_template_to_pdf_bytes
@@ -54,12 +55,29 @@ def _parse_optional_int(value: str | int | None) -> int | None:
         raise HTTPException(status_code=400, detail="Filtro inválido.")
 
 
+def _resolve_report_residential_id(
+    request: Request,
+    current_user: User,
+    requested_residential_id: int | None,
+) -> int | None:
+    if has_global_residential_access(current_user):
+        return requested_residential_id
+    active_residential_id = require_record_residential_id(request, current_user)
+    if requested_residential_id is not None and requested_residential_id != active_residential_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El reporte solo puede consultarse para el residencial activo.",
+        )
+    return active_residential_id
+
+
 def _build_context(
     db: Session,
     current_user: User,
     month: int | None,
     year: int | None,
     proposal_id: int | None,
+    residential_id: int | None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -74,12 +92,13 @@ def _build_context(
         start_date=start_date,
         end_date=end_date,
         proposal_id=proposal_id,
+        residential_id=residential_id,
         authorized_name=authorized_name,
         current_user=current_user,
     )
 
 
-def _query_params(month: int | None, year: int | None, proposal_id: int | None, period_type: str, start_date: str | None, end_date: str | None, authorized_name: str | None) -> str:
+def _query_params(month: int | None, year: int | None, proposal_id: int | None, residential_id: int | None, period_type: str, start_date: str | None, end_date: str | None, authorized_name: str | None) -> str:
     params = {"period_type": period_type}
     if month:
         params["month"] = month
@@ -87,6 +106,8 @@ def _query_params(month: int | None, year: int | None, proposal_id: int | None, 
         params["year"] = year
     if proposal_id:
         params["proposal_id"] = proposal_id
+    if residential_id:
+        params["residential_id"] = residential_id
     if start_date:
         params["start_date"] = start_date
     if end_date:
@@ -115,14 +136,20 @@ def hoja_cotejo_index(
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
+    residential_id: str | None = Query(None),
     authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     selected_month = month or date.today().month
     selected_year = year or date.today().year
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
     if not proposal_id:
-        context = {**base_context(db), "request": request, "current_user": current_user, "msg": None, "selected_month": selected_month, "selected_year": selected_year, "month": selected_month, "year": selected_year, "selected_period_type": period_type, "selected_start_date": start_date or "", "selected_end_date": end_date or "", "selected_proposal_id": None, "authorized_name": authorized_name or "", "period_label": "", "program_blocks": [], "totals": {"activities_count": 0, "duplicados": 0, "met": 0, "not_met": 0, "rows": 0}}
+        context = {**base_context(db), "request": request, "current_user": current_user, "msg": None, "selected_month": selected_month, "selected_year": selected_year, "month": selected_month, "year": selected_year, "selected_period_type": period_type, "selected_start_date": start_date or "", "selected_end_date": end_date or "", "selected_proposal_id": None, "selected_residential_id": selected_residential_id, "authorized_name": authorized_name or "", "period_label": "", "program_blocks": [], "totals": {"activities_count": 0, "duplicados": 0, "met": 0, "not_met": 0, "rows": 0}}
         return templates.TemplateResponse("ui/admin/hoja_cotejo.html", context)
     context = _build_context(
         db,
@@ -130,6 +157,7 @@ def hoja_cotejo_index(
         selected_month,
         selected_year,
         _parse_optional_int(proposal_id),
+        selected_residential_id,
         period_type=period_type,
         start_date=start_date,
         end_date=end_date,
@@ -141,12 +169,14 @@ def hoja_cotejo_index(
 
 @router.post("/hoja-cotejo/generar")
 def hoja_cotejo_generar(
+    request: Request,
     month: int | None = Form(None),
     year: int | None = Form(None),
     period_type: str = Form("monthly"),
     start_date: str | None = Form(None),
     end_date: str | None = Form(None),
     proposal_id: str | None = Form(None),
+    residential_id: str | None = Form(None),
     authorized_name: str | None = Form(None),
     output: str = Form("pdf"),
     current_user: User = Depends(require_admin),
@@ -155,11 +185,16 @@ def hoja_cotejo_generar(
     proposal_id_int = _parse_optional_int(proposal_id)
     if not proposal_id_int:
         raise HTTPException(status_code=400, detail="Debe seleccionar una propuesta.")
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
     target = "pdf" if output == "pdf" else "excel" if output == "excel" else ""
     if not target:
         raise HTTPException(status_code=400, detail="Salida inválida.")
     return RedirectResponse(
-        f"/ui/admin/hoja-cotejo/{target}?{_query_params(month, year, proposal_id_int, period_type, start_date, end_date, authorized_name)}",
+        f"/ui/admin/hoja-cotejo/{target}?{_query_params(month, year, proposal_id_int, selected_residential_id, period_type, start_date, end_date, authorized_name)}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -173,11 +208,17 @@ def hoja_cotejo_pdf(
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
+    residential_id: str | None = Query(None),
     authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
+    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), selected_residential_id, period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
     context["request"] = request
     try:
         pdf_bytes = render_template_to_pdf_bytes(
@@ -242,16 +283,23 @@ def _build_excel_bytes(context: dict) -> bytes:
 
 @router.get("/hoja-cotejo/excel")
 def hoja_cotejo_excel(
+    request: Request,
     month: int | None = Query(None),
     year: int | None = Query(None),
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
     proposal_id: str | None = Query(None),
+    residential_id: str | None = Query(None),
     authorized_name: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
+    selected_residential_id = _resolve_report_residential_id(
+        request,
+        current_user,
+        _parse_optional_int(residential_id),
+    )
+    context = _build_context(db, current_user, month, year, _parse_optional_int(proposal_id), selected_residential_id, period_type=period_type, start_date=start_date, end_date=end_date, authorized_name=authorized_name)
     filename = _download_filename("hoja_cotejo", context, "xlsx")
     return StreamingResponse(BytesIO(_build_excel_bytes(context)), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f'attachment; filename="{filename}"'})

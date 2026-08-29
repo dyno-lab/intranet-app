@@ -367,7 +367,26 @@
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="next" value="{{ next_path }}">
 
-                  {% if current_user.role not in ['admin', 'supervisor'] and residentials|length > 1 %}
+                  {% if current_user.role in ['admin', 'supervisor'] %}
+                    <div class="mb-3">
+                      <label class="form-label" for="residential-id">Modo de entrada</label>
+                      <select id="residential-id" class="form-select" name="residential_id">
+                        <option value="" {{ 'selected' if not active_residential_id }}>
+                          Entrar como {{ current_user.role }} · acceso general
+                        </option>
+                        {% for residential in residentials %}
+                          <option value="{{ residential.residential_id }}" {{ 'selected' if residential.residential_id == active_residential_id }}>
+                            Entrar bajo {{ residential.code }} · {{ residential.name }} · {{ residential.municipality }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                      {% if not residentials %}
+                        <div class="form-text">No tiene residenciales asignados; puede continuar con acceso general.</div>
+                      {% else %}
+                        <div class="form-text">El modo residencial limita los datos operativos al residencial seleccionado sin eliminar sus permisos de {{ current_user.role }}.</div>
+                      {% endif %}
+                    </div>
+                  {% elif residentials|length > 1 %}
                     <div class="mb-3">
                       <label class="form-label" for="residential-id">Residencial de trabajo</label>
                       <select id="residential-id" class="form-select" name="residential_id" required>
@@ -379,14 +398,10 @@
                         {% endfor %}
                       </select>
                     </div>
-                  {% elif current_user.role not in ['admin', 'supervisor'] %}
+                  {% else %}
                     <div class="faro-entry-note">
                       <strong>Residencial asignado:</strong><br>
                       {{ residentials[0].code }} · {{ residentials[0].name }}
-                    </div>
-                  {% else %}
-                    <div class="faro-entry-note">
-                      Su rol de {{ current_user.role }} tiene acceso general a Faro y no requiere seleccionar un residencial.
                     </div>
                   {% endif %}
 

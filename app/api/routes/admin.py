@@ -21,6 +21,7 @@ from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_o
 from app.core.period_guard import current_reporting_period, proposal_locked_through_label, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.platform_permissions import MANAGE_PLATFORM_SETTINGS, require_platform_permission
+from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.core.security import hash_password, verify_password
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
@@ -205,6 +206,26 @@ def _normalized_sync_value(value):
 
 def _values_differ_for_sync(current_value, source_value) -> bool:
     return _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
+
+
+def _proposal_residential_scope_id(request: Request, current_user: User) -> int | None:
+    if has_global_residential_access(current_user):
+        return None
+    return require_record_residential_id(request, current_user)
+
+
+def _require_proposal_residential_scope(
+    record_residential_id: int | None,
+    scope_residential_id: int | None,
+) -> None:
+    if (
+        scope_residential_id is not None
+        and record_residential_id != scope_residential_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permiso para administrar participantes de otro residencial.",
+        )
 
 
 def _sync_proposal_participant_from_source(
@@ -1791,12 +1812,17 @@ def admin_proposals(
         select(Proposal).order_by(Proposal.code)
     ).scalars().all()
 
-    participant_counts = dict(
-        db.execute(
-            select(ProposalParticipant.proposal_id, func.count(ProposalParticipant.proposal_participant_id))
-            .group_by(ProposalParticipant.proposal_id)
-        ).all()
-    )
+    participant_count_stmt = select(
+        ProposalParticipant.proposal_id,
+        func.count(ProposalParticipant.proposal_participant_id),
+    ).group_by(ProposalParticipant.proposal_id)
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    if scope_residential_id is not None:
+        participant_count_stmt = participant_count_stmt.where(
+            ProposalParticipant.residential_id == scope_residential_id
+        )
+
+    participant_counts = dict(db.execute(participant_count_stmt).all())
 
     return templates.TemplateResponse(
         "ui/admin/proposals.html",
@@ -1829,11 +1855,21 @@ def admin_proposal_participants(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
-    selected_residential_id = int(residential_id) if residential_id and residential_id.strip() else None
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    selected_residential_id = (
+        scope_residential_id
+        if scope_residential_id is not None
+        else int(residential_id) if residential_id and residential_id.strip() else None
+    )
 
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
+    residential_stmt = select(Residential).where(Residential.is_active == True)  # noqa: E712
+    if scope_residential_id is not None:
+        residential_stmt = residential_stmt.where(
+            Residential.residential_id == scope_residential_id
+        )
     residentials = db.execute(
-        select(Residential).where(Residential.is_active == True).order_by(Residential.code)  # noqa: E712
+        residential_stmt.order_by(Residential.code)
     ).scalars().all()
     selected_proposal = db.get(Proposal, proposal_id) if proposal_id else None
 
@@ -1848,6 +1884,10 @@ def admin_proposal_participants(
             .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
             .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
         )
+        if scope_residential_id is not None:
+            assigned_stmt = assigned_stmt.where(
+                ProposalParticipant.residential_id == scope_residential_id
+            )
         assigned_pairs = db.execute(assigned_stmt).all()
         for proposal_participant, person, owner_username, residential_name in assigned_pairs:
             assigned_person_ids.add(person.person_id)
@@ -1856,8 +1896,15 @@ def admin_proposal_participants(
             is_outdated = False
             outdated_fields: list[str] = []
             if person.legacy_participant_id:
+                source_participant_stmt = select(Participant).where(
+                    Participant.participant_id == person.legacy_participant_id
+                )
+                if scope_residential_id is not None:
+                    source_participant_stmt = source_participant_stmt.where(
+                        Participant.residential_id == scope_residential_id
+                    )
                 source_participant = db.execute(
-                    select(Participant).where(Participant.participant_id == person.legacy_participant_id)
+                    source_participant_stmt
                 ).scalar_one_or_none()
 
             if source_participant:
@@ -1966,6 +2013,7 @@ def admin_proposal_participants(
 
 @router.post("/proposal-participants/add")
 def admin_add_participants_to_proposal(
+    request: Request,
     proposal_id: int = Form(...),
     participant_ids: list[int] = Form(default=[]),
     residential_id: int | None = Form(default=None),
@@ -1975,6 +2023,10 @@ def admin_add_participants_to_proposal(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    if scope_residential_id is not None:
+        residential_id = scope_residential_id
+
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
@@ -1993,10 +2045,26 @@ def admin_add_participants_to_proposal(
             "Error: Debe seleccionar al menos un participante.",
         )
 
-    participants = db.execute(
-        select(Participant).where(Participant.participant_id.in_(participant_ids))
-    ).scalars().all()
+    participant_stmt = select(Participant).where(
+        Participant.participant_id.in_(participant_ids)
+    )
+    if scope_residential_id is not None:
+        participant_stmt = participant_stmt.where(
+            Participant.residential_id == scope_residential_id
+        )
+    participants = db.execute(participant_stmt).scalars().all()
     participant_map = {p.participant_id: p for p in participants}
+    if scope_residential_id is not None:
+        if set(participant_ids) - set(participant_map):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permiso para asociar participantes de otro residencial.",
+            )
+        for participant in participants:
+            _require_proposal_residential_scope(
+                participant.residential_id,
+                scope_residential_id,
+            )
 
     created_count = 0
     skipped_count = 0
@@ -2023,12 +2091,15 @@ def admin_add_participants_to_proposal(
             db.add(person)
             db.flush()
 
-        exists = db.execute(
-            select(ProposalParticipant).where(
-                ProposalParticipant.proposal_id == proposal_id,
-                ProposalParticipant.person_id == person.person_id,
+        existing_stmt = select(ProposalParticipant).where(
+            ProposalParticipant.proposal_id == proposal_id,
+            ProposalParticipant.person_id == person.person_id,
+        )
+        if scope_residential_id is not None:
+            existing_stmt = existing_stmt.where(
+                ProposalParticipant.residential_id == scope_residential_id
             )
-        ).scalar_one_or_none()
+        exists = db.execute(existing_stmt).scalar_one_or_none()
         if exists:
             skipped_count += 1
             continue
@@ -2067,6 +2138,7 @@ def admin_add_participants_to_proposal(
 @router.post("/proposal-participants/{proposal_participant_id}/sync")
 def admin_sync_proposal_participant(
     proposal_participant_id: int,
+    request: Request,
     proposal_id: int = Form(...),
     residential_id: int | None = Form(default=None),
     status_filter: str | None = Form(default="active"),
@@ -2075,6 +2147,10 @@ def admin_sync_proposal_participant(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    if scope_residential_id is not None:
+        residential_id = scope_residential_id
+
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
@@ -2087,12 +2163,30 @@ def admin_sync_proposal_participant(
     if redirect:
         return redirect
 
-    proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
+    if scope_residential_id is not None:
+        proposal_participant = db.execute(
+            select(ProposalParticipant).where(
+                ProposalParticipant.proposal_participant_id == proposal_participant_id,
+                ProposalParticipant.proposal_id == proposal_id,
+                ProposalParticipant.residential_id == scope_residential_id,
+            )
+        ).scalar_one_or_none()
+        if proposal_participant is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permiso para administrar participantes de otro residencial.",
+            )
+    else:
+        proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
     if not proposal_participant or proposal_participant.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: Participante asociado no encontrado.",
         )
+    _require_proposal_residential_scope(
+        proposal_participant.residential_id,
+        scope_residential_id,
+    )
 
     person = db.get(Person, proposal_participant.person_id)
     if not person or not person.legacy_participant_id:
@@ -2101,27 +2195,41 @@ def admin_sync_proposal_participant(
             "Error: Este participante asociado no estÃ¡ vinculado a un registro de New-list.",
         )
 
-    participant = db.execute(
-        select(Participant).where(Participant.participant_id == person.legacy_participant_id)
-    ).scalar_one_or_none()
+    participant_stmt = select(Participant).where(
+        Participant.participant_id == person.legacy_participant_id
+    )
+    if scope_residential_id is not None:
+        participant_stmt = participant_stmt.where(
+            Participant.residential_id == scope_residential_id
+        )
+    participant = db.execute(participant_stmt).scalar_one_or_none()
     if not participant:
         return _redirect_with_msg(
             f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: No se encontrÃ³ el participante fuente en New-list.",
         )
+    _require_proposal_residential_scope(
+        participant.residential_id,
+        scope_residential_id,
+    )
 
     _sync_proposal_participant_from_source(proposal_participant, person, participant)
     db.add(person)
     db.add(proposal_participant)
 
-    sibling_rows = db.execute(
+    sibling_stmt = (
         select(ProposalParticipant, Proposal)
         .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
         .where(
             ProposalParticipant.person_id == person.person_id,
             ProposalParticipant.proposal_participant_id != proposal_participant_id,
         )
-    ).all()
+    )
+    if scope_residential_id is not None:
+        sibling_stmt = sibling_stmt.where(
+            ProposalParticipant.residential_id == scope_residential_id
+        )
+    sibling_rows = db.execute(sibling_stmt).all()
 
     synced_count = 1
     for sibling_proposal_participant, sibling_proposal in sibling_rows:
@@ -2145,6 +2253,7 @@ def admin_sync_proposal_participant(
 
 @router.post("/proposal-participants/sync-all")
 def admin_sync_all_proposal_participants(
+    request: Request,
     proposal_id: int = Form(...),
     residential_id: int | None = Form(default=None),
     status_filter: str | None = Form(default="active"),
@@ -2153,6 +2262,10 @@ def admin_sync_all_proposal_participants(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    if scope_residential_id is not None:
+        residential_id = scope_residential_id
+
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
@@ -2180,12 +2293,21 @@ def admin_sync_all_proposal_participants(
             skipped_count += 1
             continue
 
-        participant = db.execute(
-            select(Participant).where(Participant.participant_id == person.legacy_participant_id)
-        ).scalar_one_or_none()
+        participant_stmt = select(Participant).where(
+            Participant.participant_id == person.legacy_participant_id
+        )
+        if scope_residential_id is not None:
+            participant_stmt = participant_stmt.where(
+                Participant.residential_id == scope_residential_id
+            )
+        participant = db.execute(participant_stmt).scalar_one_or_none()
         if not participant:
             skipped_count += 1
             continue
+        _require_proposal_residential_scope(
+            participant.residential_id,
+            scope_residential_id,
+        )
 
         normalized_status_filter = (status_filter or "all").strip().lower()
         participant_is_active = bool(getattr(participant, "is_active", False))
@@ -2247,6 +2369,7 @@ def admin_sync_all_proposal_participants(
 @router.post("/proposal-participants/{proposal_participant_id}/remove")
 def admin_remove_participant_from_proposal(
     proposal_participant_id: int,
+    request: Request,
     proposal_id: int = Form(...),
     residential_id: int | None = Form(default=None),
     status_filter: str | None = Form(default="active"),
@@ -2255,6 +2378,10 @@ def admin_remove_participant_from_proposal(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
+    scope_residential_id = _proposal_residential_scope_id(request, current_user)
+    if scope_residential_id is not None:
+        residential_id = scope_residential_id
+
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
@@ -2267,12 +2394,30 @@ def admin_remove_participant_from_proposal(
     if redirect:
         return redirect
 
-    proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
+    if scope_residential_id is not None:
+        proposal_participant = db.execute(
+            select(ProposalParticipant).where(
+                ProposalParticipant.proposal_participant_id == proposal_participant_id,
+                ProposalParticipant.proposal_id == proposal_id,
+                ProposalParticipant.residential_id == scope_residential_id,
+            )
+        ).scalar_one_or_none()
+        if proposal_participant is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permiso para administrar participantes de otro residencial.",
+            )
+    else:
+        proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
     if not proposal_participant or proposal_participant.proposal_id != proposal_id:
         return _redirect_with_msg(
             f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
             "Error: Participante asociado no encontrado.",
         )
+    _require_proposal_residential_scope(
+        proposal_participant.residential_id,
+        scope_residential_id,
+    )
 
     from app.models.attendance import Attendance
 
@@ -4539,6 +4684,11 @@ def admin_report_template_versions_preview_visual(
     template = db.get(ReportTemplate, report_template_id)
     actual_context = None
     if template and template.report_key == "hoja_cotejo_admin" and preview_proposal_id:
+        preview_residential_id = (
+            None
+            if has_global_residential_access(current_user)
+            else require_record_residential_id(request, current_user)
+        )
         actual_context = build_hoja_cotejo_admin_context(
             db,
             month=preview_month,
@@ -4547,6 +4697,7 @@ def admin_report_template_versions_preview_visual(
             start_date=preview_start_date,
             end_date=preview_end_date,
             proposal_id=preview_proposal_id,
+            residential_id=preview_residential_id,
             authorized_name=preview_authorized_name,
             current_user=current_user,
         )
