@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from app.core.platform_permissions import (
     require_platform_permission,
 )
 from app.core.security import hash_password
+from app.core.session_security import SESSION_VERSION_KEY
 from app.models.platform_permission import PlatformPermission
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.residential import Residential
@@ -631,8 +632,7 @@ def update_user_residentials(
             message="Las asignaciones no tenían cambios.",
         )
 
-    target_user.residential_id = primary_residential_id
-    target_user.session_version = User.session_version + 1
+    next_session_version = int(target_user.session_version or 0) + 1
     db.add(
         PlatformUserAudit(
             actor_user_id=current_user.user_id,
@@ -646,6 +646,15 @@ def update_user_residentials(
         )
     )
     try:
+        db.execute(
+            update(User)
+            .where(User.user_id == target_user.user_id)
+            .values(
+                residential_id=primary_residential_id,
+                session_version=next_session_version,
+            )
+            .execution_options(synchronize_session=False)
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -654,6 +663,9 @@ def update_user_residentials(
             section="residentials",
             error="No se pudieron actualizar las asignaciones residenciales.",
         )
+
+    if target_user.user_id == current_user.user_id:
+        request.session[SESSION_VERSION_KEY] = next_session_version
     return _user_settings_redirect(
         user_id,
         section="residentials",

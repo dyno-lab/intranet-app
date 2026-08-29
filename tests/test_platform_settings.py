@@ -705,7 +705,11 @@ class PlatformSettingsTests(unittest.TestCase):
         db = _Database(
             users={target_user.user_id: target_user},
             residentials={residential.residential_id: residential},
-            results=[_Result(values=[residential.residential_id]), _Result(values=[])],
+            results=[
+                _Result(values=[residential.residential_id]),
+                _Result(values=[]),
+                _Result(),
+            ],
         )
         request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
 
@@ -722,8 +726,44 @@ class PlatformSettingsTests(unittest.TestCase):
         assignment = next(value for value in db.added if isinstance(value, UserResidential))
         self.assertEqual(response.status_code, 303)
         self.assertIn("section=residentials", response.headers["location"])
-        self.assertEqual(target_user.residential_id, residential.residential_id)
         self.assertEqual(assignment.residential_id, residential.residential_id)
+        user_update = db.statements[-1]
+        self.assertIn("UPDATE users SET", str(user_update))
+        self.assertIn(residential.residential_id, user_update.compile().params.values())
+        self.assertEqual(db.commits, 1)
+
+    def test_admin_can_assign_residential_to_self_without_invalidating_session(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        residential = _residential(7)
+        db = _Database(
+            users={current_user.user_id: current_user},
+            residentials={residential.residential_id: residential},
+            results=[
+                _Result(values=[residential.residential_id]),
+                _Result(values=[]),
+                _Result(),
+            ],
+        )
+        request = _Request(
+            {
+                "user_id": current_user.user_id,
+                "session_version": current_user.session_version,
+                platform_settings._CSRF_SESSION_KEY: "valid-token",
+            }
+        )
+
+        response = platform_settings.update_user_residentials(
+            request=request,
+            user_id=current_user.user_id,
+            residential_ids=[residential.residential_id],
+            primary_residential_id=residential.residential_id,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(request.session["session_version"], 2)
         self.assertEqual(db.commits, 1)
 
     def test_user_detail_renders_general_permissions_and_residential_navigation(self):

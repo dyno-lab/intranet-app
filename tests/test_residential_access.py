@@ -76,6 +76,7 @@ class _Database:
         self.objects = objects or {}
         self.results = list(results or [])
         self.added = []
+        self.statements = []
         self.commits = 0
         self.rollbacks = 0
         self.get_calls = []
@@ -85,6 +86,7 @@ class _Database:
         return self.objects.get((model, object_id))
 
     def execute(self, statement):
+        self.statements.append(statement)
         if not self.results:
             raise AssertionError("Unexpected database query")
         return self.results.pop(0)
@@ -640,6 +642,7 @@ class ResidentialAccessTests(unittest.TestCase):
             results=[
                 _Result(values=[1, 2]),
                 _Result(values=[existing]),
+                _Result(),
             ],
         )
 
@@ -654,7 +657,9 @@ class ResidentialAccessTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(target.residential_id, 2)
+        user_update = db.statements[-1]
+        self.assertIn("UPDATE users SET", str(user_update))
+        self.assertIn(2, user_update.compile().params.values())
         self.assertEqual(db.commits, 1)
         added_assignment = next(
             value for value in db.added if isinstance(value, UserResidential)
