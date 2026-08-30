@@ -518,7 +518,6 @@ def update_user_general(
     }
     for field_name, value in updates.items():
         if getattr(target_user, field_name) != value:
-            setattr(target_user, field_name, value)
             changed_fields.append(field_name)
 
     if not changed_fields:
@@ -528,7 +527,6 @@ def update_user_general(
             message="La cuenta no tenía cambios.",
         )
 
-    target_user.session_version = User.session_version + 1
     db.add(
         PlatformUserAudit(
             actor_user_id=current_user.user_id,
@@ -538,6 +536,15 @@ def update_user_general(
         )
     )
     try:
+        db.execute(
+            update(User)
+            .where(User.user_id == target_user.user_id)
+            .values(
+                **updates,
+                session_version=User.session_version + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

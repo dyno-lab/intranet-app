@@ -913,7 +913,7 @@ class PlatformSettingsTests(unittest.TestCase):
         )
         db = _Database(
             users={target_user.user_id: target_user},
-            results=[_Result(values=[])],
+            results=[_Result(values=[]), _Result()],
         )
         request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
 
@@ -934,12 +934,62 @@ class PlatformSettingsTests(unittest.TestCase):
             f"/platform/settings/users/{target_user.user_id}",
             response.headers["location"],
         )
-        self.assertEqual(target_user.email, "employee@csifpr.org")
-        self.assertFalse(target_user.local_login_enabled)
+        user_update = db.statements[-1]
+        update_values = user_update.compile().params.values()
+        self.assertIn("UPDATE users SET", str(user_update))
+        self.assertIn("employee@csifpr.org", update_values)
+        self.assertIn(False, update_values)
+        self.assertEqual(target_user.email, "legacy.user@csifpr.org")
+        self.assertTrue(target_user.local_login_enabled)
         self.assertEqual(db.commits, 1)
         audit = next(value for value in db.added if isinstance(value, PlatformUserAudit))
         self.assertEqual(audit.action, "user_updated")
         self.assertIn("email", audit.details)
+
+    def test_admin_deactivates_user_with_explicit_update(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(
+            2,
+            "reports.user",
+            email="reports.user@csifpr.org",
+            role="user",
+            is_active=True,
+        )
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(values=[]),
+                _Result(values=[]),
+                _Result(),
+            ],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="reports.user@csifpr.org",
+            role="user",
+            is_active=None,
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        user_update = db.statements[-1]
+        update_sql = str(user_update)
+        update_values = user_update.compile().params.values()
+        audit = next(value for value in db.added if isinstance(value, PlatformUserAudit))
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("UPDATE users SET", update_sql)
+        self.assertIn("users.user_id =", update_sql)
+        self.assertIn(False, update_values)
+        self.assertIn(target_user.user_id, update_values)
+        self.assertTrue(target_user.is_active)
+        self.assertIn("is_active", audit.details)
+        self.assertEqual(db.commits, 1)
 
     def test_general_user_update_requires_admin_role(self):
         current_user = _user(1, "manager@csifpr.org", role="supervisor")
@@ -1036,6 +1086,7 @@ class PlatformSettingsTests(unittest.TestCase):
             results=[
                 _Result(values=[]),
                 _Result(values=[]),
+                _Result(),
             ],
         )
         request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
@@ -1052,8 +1103,11 @@ class PlatformSettingsTests(unittest.TestCase):
             current_user=current_user,
         )
 
+        user_update = db.statements[-1]
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(target_user.role, "user")
+        self.assertIn("UPDATE users SET", str(user_update))
+        self.assertIn("user", user_update.compile().params.values())
+        self.assertEqual(target_user.role, "supervisor")
         self.assertEqual(db.commits, 1)
 
     def test_general_user_role_requires_active_residential_for_faro(self):
