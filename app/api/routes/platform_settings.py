@@ -12,8 +12,10 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.platform_permissions import (
+    ACCESS_FARO,
     MANAGE_PLATFORM_SETTINGS,
     require_platform_permission,
+    user_has_platform_permission,
 )
 from app.core.security import hash_password
 from app.core.session_security import SESSION_VERSION_KEY
@@ -101,6 +103,22 @@ def _normalized_authorized_email(email: str) -> str | None:
     ):
         return None
     return normalized
+
+
+def _user_has_active_residential(db: Session, user_id: int) -> bool:
+    assignment_id = db.execute(
+        select(UserResidential.user_residential_id)
+        .join(
+            Residential,
+            Residential.residential_id == UserResidential.residential_id,
+        )
+        .where(
+            UserResidential.user_id == user_id,
+            UserResidential.is_active == True,  # noqa: E712
+            Residential.is_active == True,  # noqa: E712
+        )
+    ).scalars().first()
+    return assignment_id is not None
 
 
 def _active_permission(db: Session, permission_key: str) -> PlatformPermission:
@@ -240,11 +258,6 @@ def create_platform_user(
         )
     if role not in _VALID_USER_ROLES:
         return _settings_redirect(path=redirect_path, error="El rol seleccionado no es válido.")
-    if role == "user" and residential_id is None:
-        return _settings_redirect(
-            path=redirect_path,
-            error="Debe seleccionar un residencial para usuarios con rol user.",
-        )
 
     selected_residential = (
         db.get(Residential, residential_id) if residential_id is not None else None
@@ -485,19 +498,16 @@ def update_user_general(
             error="El correo institucional ya está asignado a otra cuenta.",
         )
 
-    if role == "user":
-        has_residential = db.execute(
-            select(UserResidential.user_residential_id).where(
-                UserResidential.user_id == target_user.user_id,
-                UserResidential.is_active == True,  # noqa: E712
-            )
-        ).scalars().first()
-        if has_residential is None:
-            return _user_settings_redirect(
-                user_id,
-                section="general",
-                error="Asigne al menos un residencial antes de usar el rol user.",
-            )
+    if (
+        role == "user"
+        and user_has_platform_permission(db, target_user, ACCESS_FARO)
+        and not _user_has_active_residential(db, target_user.user_id)
+    ):
+        return _user_settings_redirect(
+            user_id,
+            section="general",
+            error="Asigne al menos un residencial antes de usar Faro con el rol user.",
+        )
 
     changed_fields: list[str] = []
     updates = {
@@ -561,11 +571,15 @@ def update_user_residentials(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
 
     selected_ids = set(residential_ids)
-    if target_user.role == "user" and not selected_ids:
+    if (
+        target_user.role == "user"
+        and not selected_ids
+        and user_has_platform_permission(db, target_user, ACCESS_FARO)
+    ):
         return _user_settings_redirect(
             user_id,
             section="residentials",
-            error="Los usuarios con rol user requieren al menos un residencial.",
+            error="Los usuarios con acceso a Faro requieren al menos un residencial.",
         )
 
     active_residential_ids: set[int] = set()
@@ -715,6 +729,16 @@ def grant_platform_permission(
             user_id,
             section="permissions",
             message="El permiso ya estaba asignado.",
+        )
+    if (
+        permission.key == ACCESS_FARO
+        and target_user.role == "user"
+        and not _user_has_active_residential(db, target_user.user_id)
+    ):
+        return _user_settings_redirect(
+            user_id,
+            section="permissions",
+            error="Asigne al menos un residencial antes de otorgar acceso a Faro.",
         )
 
     db.add(

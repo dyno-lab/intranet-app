@@ -15,6 +15,8 @@ os.environ.setdefault("DB_PASSWORD", "test-password")
 
 from app.api.routes import auth, platform_settings, portal  # noqa: E402
 from app.core.platform_permissions import (  # noqa: E402
+    ACCESS_FARO,
+    ACCESS_INSTITUTIONAL_REPORTS,
     ACCESS_PORTAL_HOME,
     MANAGE_PLATFORM_SETTINGS,
     bootstrap_platform_settings_user,
@@ -539,6 +541,9 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIn("Crear nuevo usuario", body)
         self.assertIn('action="/platform/settings/users/create"', body)
         self.assertIn("Aristides Chavier", body)
+        self.assertIn("Sin residencial inicial", body)
+        self.assertIn("antes de otorgar acceso a Faro", body)
+        self.assertNotIn('id="new-user-residential" required', body)
         self.assertNotIn("/ui/admin/users", body)
 
     def test_admin_creates_platform_user_with_initial_residential_and_audit(self):
@@ -581,6 +586,35 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(assignment.residential_id, residential.residential_id)
         self.assertEqual(assignment.assigned_by_user_id, current_user.user_id)
         self.assertEqual(audit.action, "user_created")
+        self.assertEqual(db.commits, 1)
+
+    def test_admin_creates_user_for_other_applications_without_residential(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database(
+            users={current_user.user_id: current_user},
+            results=[_Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email="reports.user@csifpr.org",
+            password=None,
+            local_login_enabled=None,
+            role="user",
+            residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        created_user = next(value for value in db.added if isinstance(value, User))
+        residential_assignments = [
+            value for value in db.added if isinstance(value, UserResidential)
+        ]
+        self.assertEqual(response.status_code, 303)
+        self.assertIsNone(created_user.residential_id)
+        self.assertEqual(residential_assignments, [])
         self.assertEqual(db.commits, 1)
 
     def test_platform_user_creation_ignores_password_when_local_login_is_disabled(self):
@@ -994,12 +1028,44 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(db.commits, 0)
         self.assertIn("otra cuenta", _query_parameters(response)["error"][0])
 
-    def test_general_user_role_requires_active_residential(self):
+    def test_general_user_role_without_faro_does_not_require_residential(self):
         current_user = _user(1, "admin@csifpr.org", role="admin")
         target_user = _user(2, "target.user", email="target@csifpr.org", role="supervisor")
         db = _Database(
             users={target_user.user_id: target_user},
-            results=[_Result(values=[]), _Result(values=[])],
+            results=[
+                _Result(values=[]),
+                _Result(values=[]),
+            ],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.update_user_general(
+            request=request,
+            user_id=target_user.user_id,
+            email="target@csifpr.org",
+            role="user",
+            is_active="on",
+            local_login_enabled="on",
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(target_user.role, "user")
+        self.assertEqual(db.commits, 1)
+
+    def test_general_user_role_requires_active_residential_for_faro(self):
+        current_user = _user(1, "admin@csifpr.org", role="admin")
+        target_user = _user(2, "target.user", email="target@csifpr.org", role="supervisor")
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(values=[]),
+                _Result(values=[ACCESS_FARO]),
+                _Result(values=[]),
+            ],
         )
         request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
 
@@ -1041,6 +1107,43 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(db.commits, 0)
         self.assertIn("admin", _query_parameters(response)["error"][0])
 
+    def test_institutional_reports_permission_does_not_require_residential(self):
+        current_user = _user(1, "settings.manager", role="admin")
+        target_user = _user(2, "reports.user", role="user")
+        permission = _permission(
+            3,
+            ACCESS_INSTITUTIONAL_REPORTS,
+            name="Acceder a Informes Institucionales",
+        )
+        request = _Request({
+            "user_id": current_user.user_id,
+            platform_settings._CSRF_SESSION_KEY: "valid-token",
+        })
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(scalar=permission),
+                _Result(scalar=None),
+            ],
+        )
+
+        response = platform_settings.grant_platform_permission(
+            request=request,
+            user_id=target_user.user_id,
+            permission_key=permission.key,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        assignments = [
+            value for value in db.added if isinstance(value, UserPlatformPermission)
+        ]
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(len(assignments), 1)
+        self.assertEqual(assignments[0].permission_id, permission.permission_id)
+        self.assertEqual(db.commits, 1)
+
     def test_authorized_grant_adds_permission_and_is_idempotent(self):
         current_user = _user(1, "settings.manager")
         target_user = _user(2, "target.user")
@@ -1051,7 +1154,11 @@ class PlatformSettingsTests(unittest.TestCase):
         })
         db = _Database(
             users={target_user.user_id: target_user},
-            results=[_Result(scalar=permission), _Result(scalar=None)],
+            results=[
+                _Result(scalar=permission),
+                _Result(scalar=None),
+                _Result(values=[1]),
+            ],
         )
 
         response = platform_settings.grant_platform_permission(
@@ -1097,6 +1204,38 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertEqual(duplicate_db.added, [])
         self.assertEqual(duplicate_db.commits, 0)
         self.assertIn("ya estaba asignado", _query_parameters(duplicate_response)["msg"][0])
+
+    def test_faro_permission_requires_residential_for_regular_user(self):
+        current_user = _user(1, "settings.manager", role="admin")
+        target_user = _user(2, "reports.user", role="user")
+        permission = _permission(2, ACCESS_FARO, name="Acceder a Faro")
+        request = _Request({
+            "user_id": current_user.user_id,
+            platform_settings._CSRF_SESSION_KEY: "valid-token",
+        })
+        db = _Database(
+            users={target_user.user_id: target_user},
+            results=[
+                _Result(scalar=permission),
+                _Result(scalar=None),
+                _Result(values=[]),
+            ],
+        )
+
+        response = platform_settings.grant_platform_permission(
+            request=request,
+            user_id=target_user.user_id,
+            permission_key=permission.key,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(db.added, [])
+        self.assertEqual(db.commits, 0)
+        self.assertIn("residencial", _query_parameters(response)["error"][0])
+        self.assertIn("Faro", _query_parameters(response)["error"][0])
 
     def test_authorized_revoke_deletes_assignment(self):
         current_user = _user(1, "settings.manager")

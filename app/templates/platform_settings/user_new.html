@@ -24,7 +24,7 @@
     <section class="platform-user-section">
       <header class="platform-user-section__header">
         <span class="platform-user-section__icon platform-user-section__icon--blue"><i class="bi bi-person-badge"></i></span>
-        <div><h2>Información de la cuenta</h2><p>Correo institucional, rol, residencial y método de acceso</p></div>
+        <div><h2>Información de la cuenta</h2><p>Correo institucional, rol, residencial opcional y método de acceso</p></div>
       </header>
 
       <form method="post" action="/platform/settings/users/create" class="platform-user-form platform-new-user-form">
@@ -42,15 +42,15 @@
               <option value="supervisor">supervisor</option>
               <option value="admin">admin</option>
             </select>
-            <small>El rol user requiere un residencial inicial.</small>
+            <small>Los accesos a cada aplicación se configuran después de crear la cuenta.</small>
           </label>
           <label>
             <span>Residencial inicial</span>
-            <select name="residential_id" id="new-user-residential" required>
-              <option value="">Selecciona un residencial</option>
+            <select name="residential_id" id="new-user-residential">
+              <option value="">Sin residencial inicial</option>
               {% for residential in residentials %}<option value="{{ residential.residential_id }}">{{ residential.code }} · {{ residential.name }} · {{ residential.municipality }}</option>{% endfor %}
             </select>
-            <small id="new-user-residential-help">Será el residencial primario y la primera asignación de la cuenta.</small>
+            <small>Opcional. Se requiere un residencial activo antes de otorgar acceso a Faro.</small>
           </label>
           <label>
             <span>Contraseña local</span>
@@ -83,20 +83,10 @@
 
 <script>
 (() => {
-  const role = document.getElementById('new-user-role');
-  const residential = document.getElementById('new-user-residential');
-  const residentialHelp = document.getElementById('new-user-residential-help');
   const localLogin = document.getElementById('new-user-local-login');
   const localSwitch = document.getElementById('new-user-local-switch');
   const password = document.getElementById('new-user-password');
 
-  function refreshRoleRequirements() {
-    const residentialRequired = role?.value === 'user';
-    if (residential) residential.required = residentialRequired;
-    if (residentialHelp) residentialHelp.textContent = residentialRequired
-      ? 'Obligatorio para el rol user; será su residencial primario.'
-      : 'Opcional para este rol; si se selecciona será su residencial primario.';
-  }
 
   function refreshLocalLoginRequirements() {
     const enabled = Boolean(localLogin?.checked);
@@ -104,9 +94,7 @@
     localSwitch?.classList.toggle('is-on', enabled);
   }
 
-  role?.addEventListener('change', refreshRoleRequirements);
   localLogin?.addEventListener('change', refreshLocalLoginRequirements);
-  refreshRoleRequirements();
   refreshLocalLoginRequirements();
 })();
 </script>
