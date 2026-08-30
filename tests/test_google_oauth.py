@@ -173,6 +173,22 @@ class SessionAndLocalLoginTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("user_id", request.session)
 
+    def test_logout_clears_app_session_and_requires_google_account_selection(self):
+        request = _Request({
+            "user_id": 7,
+            "session_version": 1,
+            "other": "value",
+        })
+
+        response = auth.logout(request)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/home")
+        self.assertEqual(
+            request.session,
+            {auth._GOOGLE_ACCOUNT_SELECTION_SESSION_KEY: True},
+        )
+
     def test_google_button_is_on_home_and_only_when_fully_configured(self):
         request = _Request()
         with patch.object(settings, "GOOGLE_OAUTH_ENABLED", False):
@@ -263,6 +279,50 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
                 await auth.google_login(_Request())
         self.assertEqual(raised.exception.status_code, 503)
         self.assertNotIn("client", raised.exception.detail.lower())
+
+    async def test_google_login_forces_account_selection_after_logout(self):
+        request = _Request({auth._GOOGLE_ACCOUNT_SELECTION_SESSION_KEY: True})
+        oauth_response = object()
+        client = MagicMock()
+        client.authorize_redirect = AsyncMock(return_value=oauth_response)
+
+        with (
+            _enabled_configuration(),
+            patch.object(auth, "new_google_nonce", return_value="new-nonce"),
+            patch.object(auth, "create_google_oauth_client", return_value=client),
+        ):
+            response = await auth.google_login(request)
+
+        self.assertIs(response, oauth_response)
+        client.authorize_redirect.assert_awaited_once_with(
+            request,
+            CONFIGURATION.redirect_uri,
+            nonce="new-nonce",
+            prompt="select_account",
+        )
+        self.assertNotIn(
+            auth._GOOGLE_ACCOUNT_SELECTION_SESSION_KEY,
+            request.session,
+        )
+        self.assertEqual(request.session[GOOGLE_NONCE_SESSION_KEY], "new-nonce")
+
+    async def test_google_login_without_logout_keeps_normal_flow(self):
+        request = _Request()
+        client = MagicMock()
+        client.authorize_redirect = AsyncMock(return_value=object())
+
+        with (
+            _enabled_configuration(),
+            patch.object(auth, "new_google_nonce", return_value="new-nonce"),
+            patch.object(auth, "create_google_oauth_client", return_value=client),
+        ):
+            await auth.google_login(request)
+
+        client.authorize_redirect.assert_awaited_once_with(
+            request,
+            CONFIGURATION.redirect_uri,
+            nonce="new-nonce",
+        )
 
     async def test_state_mismatch_from_authlib_is_rejected(self):
         request = _Request({GOOGLE_NONCE_SESSION_KEY: "expected-nonce"})

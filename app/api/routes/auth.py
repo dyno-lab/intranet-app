@@ -47,6 +47,7 @@ from app.models.user import User
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 _FARO_LOGIN_CSRF_SESSION_KEY = "faro_login_csrf_token"
+_GOOGLE_ACCOUNT_SELECTION_SESSION_KEY = "google_account_selection_required"
 _DEFAULT_FARO_NEXT_PATH = "/ui/new-list"
 
 
@@ -263,15 +264,21 @@ def enter_faro(
 @router.get("/auth/google")
 async def google_login(request: Request):
     configuration = _require_google_oauth_enabled()
+    require_account_selection = bool(
+        request.session.pop(_GOOGLE_ACCOUNT_SELECTION_SESSION_KEY, False)
+    )
     nonce = new_google_nonce()
     clear_google_oauth_session(request.session)
     request.session[GOOGLE_NONCE_SESSION_KEY] = nonce
     client = create_google_oauth_client(configuration)
+    authorization_parameters = {"nonce": nonce}
+    if require_account_selection:
+        authorization_parameters["prompt"] = "select_account"
     try:
         return await client.authorize_redirect(
             request,
             configuration.redirect_uri,
-            nonce=nonce,
+            **authorization_parameters,
         )
     except (OAuthError, httpx.HTTPError):
         return _oauth_error_response(request, status_code=503)
@@ -370,4 +377,5 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 @router.post("/logout")
 def logout(request: Request):
     request.session.clear()
+    request.session[_GOOGLE_ACCOUNT_SELECTION_SESSION_KEY] = True
     return RedirectResponse("/home", status_code=303)
