@@ -156,6 +156,10 @@
           {% endif %}
         </div>
 
+        <a class="btn btn-outline-primary btn-sm ui-home-btn" href="/home">
+          <i class="bi bi-house-door" aria-hidden="true"></i>
+          <span>Volver a Home</span>
+        </a>
         <form method="post" action="/logout" class="mb-0">
           <button class="btn btn-outline-secondary btn-sm ui-logout-btn">
             <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
@@ -266,7 +270,11 @@
           {% endif %}
         </div>
       </div>
-      <form method="post" action="/logout" class="mt-3">
+      <a class="btn btn-outline-primary w-100 mt-3 ui-home-btn" href="/home">
+        <i class="bi bi-house-door" aria-hidden="true"></i>
+        <span>Volver a Home</span>
+      </a>
+      <form method="post" action="/logout" class="mt-2">
         <button class="btn btn-outline-secondary w-100 ui-logout-btn">
           <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
           <span>Cerrar sesión</span>

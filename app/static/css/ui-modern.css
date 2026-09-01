@@ -38,6 +38,7 @@ body.ui-shell-body {
 .ui-subnav-link,
 .ui-topbar__title,
 .ui-menu-toggle,
+.ui-home-btn,
 .ui-logout-btn {
   transition:
     color var(--ui-transition-fast),
@@ -8107,7 +8108,8 @@ body.ui-shell-body {
     gap: 0.55rem;
   }
 
-  .ui-logout-btn span {
+  .ui-topbar .ui-home-btn span,
+  .ui-topbar .ui-logout-btn span {
     display: none;
   }
 
