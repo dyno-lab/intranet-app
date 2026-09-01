@@ -15,7 +15,7 @@
   {% set selected_scope_label = 'Global' %}
 {% elif selected_user %}
   {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
-{% elif current_user.role not in ['admin', 'supervisor'] %}
+{% elif current_user.role not in ['admin', 'supervisor', 'viewer'] %}
   {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
 {% set adm_totals = namespace(services=0, duplicados=0, no_duplicados=0) %}
@@ -120,7 +120,7 @@
 
           <div class="adm-filter-field adm-filter-field--wide">
             <label class="form-label" for="adm_employee_id">Residencial *</label>
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <select class="form-select" name="employee_id" id="adm_employee_id" required>
               <option value="">Selecciona...</option>
               <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
@@ -136,7 +136,7 @@
 
           <div class="adm-filter-field adm-filter-field--wide">
             <label class="form-label" for="adm_authorized_name">Funcionario autorizado</label>
-            <input class="form-control" type="text" name="authorized_name" id="adm_authorized_name" value="{{ authorized_name or '' }}">
+            <input class="form-control" type="text" name="authorized_name" id="adm_authorized_name" value="{{ authorized_name or '' }}" {% if current_user.role == 'viewer' %}readonly{% endif %}>
           </div>
 
           <div class="adm-actions" aria-label="Acciones del reporte">

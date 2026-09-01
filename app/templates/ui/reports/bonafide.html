@@ -98,7 +98,7 @@
 
           <div class="bonafide-filter-field bonafide-filter-field--wide">
             <label class="form-label" for="bonafide_employee_id">Residencial *</label>
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <select class="form-select" name="employee_id" id="bonafide_employee_id" required>
               <option value="">Selecciona...</option>
               <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
@@ -168,7 +168,7 @@
             <span>Municipio</span>
             <strong>{{ municipality or 'Sin municipio disponible' }}</strong>
           </div>
-          {% if current_user.role in ['admin', 'supervisor'] %}
+          {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
           <div class="bonafide-summary-item">
             <span>Empleado seleccionado</span>
             <strong>

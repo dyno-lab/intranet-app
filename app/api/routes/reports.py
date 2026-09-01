@@ -13,6 +13,7 @@ from app.core.auth import get_current_user
 from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.residential_scope import has_global_residential_access
+from app.core.roles import report_authorized_name
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
@@ -360,7 +361,7 @@ def reports_home(
             "selected_employee_id": employee_id,
             "selected_output": output,
             "selected_period_type": period_type,
-            "authorized_name": (authorized_name or "").strip(),
+            "authorized_name": report_authorized_name(current_user, authorized_name),
             "selected_start_date": start_date or "",
             "selected_end_date": end_date or "",
             "default_report_month": today.month,
@@ -384,9 +385,11 @@ def reports_run(
     authorized_name: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     month_value = int(month) if (month or "").strip() else None
     year_value = int(year) if (year or "").strip() else None
+    authorized_name = report_authorized_name(current_user, authorized_name)
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
 
     if report_key == "productividad":
@@ -1400,7 +1403,7 @@ def _build_adm_context(
         "sociodemographic_total": sociodemographic_total,
         "family_rows": family_rows,
         "family_total": family_total,
-        "authorized_name": authorized_name or "",
+        "authorized_name": report_authorized_name(current_user, authorized_name),
     }
 
 
@@ -1559,7 +1562,10 @@ def all_reports_pdf(
     current_user: User = Depends(get_current_user),
 ):
     bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
-    shared_context = {"current_user": current_user, "authorized_name": authorized_name or ""}
+    shared_context = {
+        "current_user": current_user,
+        "authorized_name": report_authorized_name(current_user, authorized_name),
+    }
 
     pdf_specs = [
         ("bonafide", "ui/reports/bonafide_pdf.html", {**bundle["bonafide"], **shared_context}, _pdf_download_filename("bonafide", bundle["bonafide"])),
@@ -2294,7 +2300,7 @@ def _build_visits_context(
         "rows": payload["rows"],
         "summary": payload["summary"],
         "mapped_activity_ids": payload["mapped_activity_ids"],
-        "authorized_name": authorized_name or "",
+        "authorized_name": report_authorized_name(current_user, authorized_name),
         "visit_report": payload["visit_report"],
         "referral_rows": payload["referral_rows"],
         "referral_count": payload["referral_count"],
@@ -2782,7 +2788,7 @@ def _build_no_duplicado_context(
         "total_f": metric["total_f"],
         "total_m": metric["total_m"],
         "total_all": metric["total_all"],
-        "authorized_name": (authorized_name or "").strip(),
+        "authorized_name": report_authorized_name(current_user, authorized_name),
     }
 
 
@@ -3798,7 +3804,7 @@ def _build_por_programa_context(
         "residential_name": residential_name,
         "municipality": municipality,
         "rq_code": rq_code,
-        "authorized_name": (authorized_name or "").strip(),
+        "authorized_name": report_authorized_name(current_user, authorized_name),
         "program_sections": program_sections,
         "overall_total_f": overall_total_f,
         "overall_total_m": overall_total_m,

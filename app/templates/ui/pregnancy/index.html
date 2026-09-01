@@ -2,11 +2,16 @@
 {% block title %}Embarazo{% endblock %}
 
 {% block content %}
+{% set is_viewer = current_user and current_user.role == 'viewer' %}
 {% if msg %}
 <div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
   {{ msg }}
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
+{% endif %}
+
+{% if is_viewer %}
+<div class="alert alert-info"><strong>Modo de consulta:</strong> puedes filtrar y abrir informes, pero no crear ni borrar registros.</div>
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -53,6 +58,7 @@
   </div>
 </div>
 
+{% if not is_viewer %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Crear Informe de Embarazo</h5>
@@ -95,6 +101,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <div class="card shadow-sm">
   <div class="card-body table-responsive">
@@ -105,7 +112,7 @@
           <th>Propuesta</th>
           <th>Mes</th>
           <th>Año</th>
-          {% if current_user and current_user.role in ["admin", "supervisor"] %}
+          {% if current_user and current_user.role in ["admin", "supervisor", "viewer"] %}
           <th>Creado por</th>
           {% endif %}
           <th>Observaciones</th>
@@ -123,7 +130,7 @@
           <td><span class="badge bg-info text-dark">{{ proposal_code }}</span> {{ proposal_name }}</td>
           <td>{{ month_lookup.get(report.report_month, report.report_month) }}</td>
           <td>{{ report.report_year }}</td>
-          {% if current_user and current_user.role in ["admin", "supervisor"] %}
+          {% if current_user and current_user.role in ["admin", "supervisor", "viewer"] %}
           <td>
             <span class="badge bg-secondary">{{ created_by_username or '-' }}</span>
             <div class="small text-muted">{{ created_by_residential or '-' }}</div>
@@ -133,15 +140,17 @@
           <td class="text-end">
             <div class="d-inline-flex gap-1">
               <a class="btn btn-sm btn-primary" href="/ui/pregnancy/{{ report.report_id }}">Abrir</a>
+              {% if not is_viewer %}
               <form method="post" action="/ui/pregnancy/{{ report.report_id }}/delete" class="d-inline" onsubmit="return confirm('¿Borrar este informe de embarazo completo?');">
                 <button class="btn btn-sm btn-outline-danger">Borrar</button>
               </form>
+              {% endif %}
             </div>
           </td>
         </tr>
         {% endfor %}
         {% if reports|length == 0 %}
-        <tr><td colspan="{{ 6 if current_user and current_user.role in ["admin", "supervisor"] else 5 }}" class="text-muted">No hay informes de embarazo creados.</td></tr>
+        <tr><td colspan="{{ 6 if current_user and current_user.role in ["admin", "supervisor", "viewer"] else 5 }}" class="text-muted">No hay informes de embarazo creados.</td></tr>
         {% endif %}
       </tbody>
     </table>

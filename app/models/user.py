@@ -40,7 +40,7 @@ class User(Base):
         server_default=text("1"),
     )
 
-    # Roles esperados: "admin" | "supervisor" | "user"
+    # Roles esperados: "admin" | "supervisor" | "viewer" | "user"
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")
 
     residential_id: Mapped[int | None] = mapped_column(

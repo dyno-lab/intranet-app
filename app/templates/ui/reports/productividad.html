@@ -68,7 +68,7 @@
       </div>
       <div class="productivity-filter-field productivity-filter-field--scope">
         <label class="form-label">Residencial / alcance *</label>
-        {% if current_user.role in ['admin', 'supervisor'] %}
+        {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
         <select class="form-select" name="employee_id" required>
           <option value="">Selecciona...</option>
           <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>

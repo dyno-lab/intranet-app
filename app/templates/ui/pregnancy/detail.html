@@ -2,11 +2,17 @@
 {% block title %}Informe de embarazo{% endblock %}
 
 {% block content %}
+{% set is_viewer = current_user and current_user.role == 'viewer' %}
+{% set is_read_only = report_is_locked or is_viewer %}
 {% if msg %}
 <div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
   {{ msg }}
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
+{% endif %}
+
+{% if is_viewer %}
+<div class="alert alert-info"><strong>Modo de consulta:</strong> este informe es completamente de solo lectura.</div>
 {% endif %}
 
 {% if report_is_locked %}
@@ -21,7 +27,7 @@
     </div>
   </div>
   <div class="d-flex gap-2">
-    {% if not report_is_locked %}
+    {% if not is_read_only %}
     <form method="post" action="/ui/pregnancy/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de embarazo completo?');">
       <button class="btn btn-outline-danger">Borrar informe</button>
     </form>
@@ -30,7 +36,7 @@
   </div>
 </div>
 
-{% if not report_is_locked %}
+{% if not is_read_only %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Añadir participante (8 a 19 años)</h5>
@@ -61,7 +67,7 @@
   <div class="card-body table-responsive">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Participantes añadidos</h5>
-      <span class="text-muted small">Guarda cada fila luego de editar los datos.</span>
+      <span class="text-muted small">{% if is_read_only %}Datos en solo lectura.{% else %}Guarda cada fila luego de editar los datos.{% endif %}</span>
     </div>
     <table class="table table-sm table-hover align-middle">
       <thead>
@@ -89,16 +95,16 @@
             <td>{{ p.nombre }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>
             <td>{{ age_map.get(p.participant_id, '') }}</td>
             <td>{{ p.genero or '' }}</td>
-            <td class="text-center"><input type="checkbox" name="participated_workshops" {% if item.participated_workshops %}checked{% endif %}></td>
-            <td class="text-center"><input type="checkbox" name="is_pregnant" {% if item.is_pregnant %}checked{% endif %}></td>
-            <td><input class="form-control form-control-sm" name="gestation_time" value="{{ item.gestation_time or '' }}" placeholder="Ej. 3 meses"></td>
-            <td class="text-center"><input type="checkbox" name="has_children" {% if item.has_children %}checked{% endif %}></td>
-            <td><input class="form-control form-control-sm text-center" type="number" min="0" name="children_count" value="{{ item.children_count if item.children_count is not none else '' }}"></td>
-            <td><input class="form-control form-control-sm" name="children_ages" value="{{ item.children_ages or '' }}" placeholder="Ej. 2, 5 (separadas por coma)"></td>
+            <td class="text-center"><input type="checkbox" name="participated_workshops" {% if item.participated_workshops %}checked{% endif %} {% if is_read_only %}disabled{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="is_pregnant" {% if item.is_pregnant %}checked{% endif %} {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm" name="gestation_time" value="{{ item.gestation_time or '' }}" placeholder="Ej. 3 meses" {% if is_read_only %}disabled{% endif %}></td>
+            <td class="text-center"><input type="checkbox" name="has_children" {% if item.has_children %}checked{% endif %} {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" type="number" min="0" name="children_count" value="{{ item.children_count if item.children_count is not none else '' }}" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm" name="children_ages" value="{{ item.children_ages or '' }}" placeholder="Ej. 2, 5 (separadas por coma)" {% if is_read_only %}disabled{% endif %}></td>
             <td class="text-nowrap">
-              {% if not report_is_locked %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
+              {% if not is_read_only %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
           </form>
-              {% if not report_is_locked %}
+              {% if not is_read_only %}
               <form method="post" action="/ui/pregnancy/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
                 <button class="btn btn-sm btn-outline-danger">Quitar</button>
               </form>

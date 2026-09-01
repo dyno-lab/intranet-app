@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
+from app.core.roles import can_read_globally
 from app.core.residential_scope import (
     ACTIVE_RESIDENTIAL_SESSION_KEY,
     assigned_residentials,
@@ -52,7 +53,7 @@ def residential_context_page(
     current_user: User = Depends(_FARO_PERMISSION_DEPENDENCY),
 ):
     next_path = _safe_next_path(next_path)
-    if current_user.role in {"admin", "supervisor"}:
+    if can_read_globally(current_user):
         return RedirectResponse(
             f"/login?next={quote(next_path, safe='')}",
             status_code=status.HTTP_303_SEE_OTHER,
@@ -89,7 +90,7 @@ def select_residential_context(
     current_user: User = Depends(_FARO_PERMISSION_DEPENDENCY),
 ):
     _validate_csrf(request, csrf_token)
-    if current_user.role in {"admin", "supervisor"}:
+    if can_read_globally(current_user):
         safe_next_path = _safe_next_path(next_path)
         return RedirectResponse(
             f"/login?next={quote(safe_next_path, safe='')}",

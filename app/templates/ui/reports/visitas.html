@@ -18,7 +18,7 @@
   {% set selected_scope_label = 'Global' %}
 {% elif selected_user %}
   {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
-{% elif current_user.role not in ['admin', 'supervisor'] %}
+{% elif current_user.role not in ['admin', 'supervisor', 'viewer'] %}
   {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
 
@@ -114,7 +114,7 @@
 
           <div class="visitas-filter-field visitas-filter-field--wide">
             <label class="form-label" for="visitas_employee_id">Residencial *</label>
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <select class="form-select" name="employee_id" id="visitas_employee_id" required>
               <option value="">Selecciona...</option>
               <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
@@ -129,12 +129,12 @@
           </div>
 
           <div class="visitas-filter-note">
-            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+            Admin, supervisor y viewer pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
           </div>
 
           <div class="visitas-filter-field visitas-filter-field--wide">
             <label class="form-label" for="visitas_authorized_name">Funcionario autorizado</label>
-            <input class="form-control" type="text" name="authorized_name" id="visitas_authorized_name" value="{{ authorized_name or '' }}">
+            <input class="form-control" type="text" name="authorized_name" id="visitas_authorized_name" value="{{ authorized_name or '' }}" {% if current_user.role == 'viewer' %}readonly{% endif %}>
           </div>
 
           <div class="visitas-actions" aria-label="Acciones del reporte">
@@ -233,7 +233,7 @@
           <span class="visitas-count-pill">Formulario mensual</span>
         </div>
 
-        {% if can_manage_referrals %}
+        {% if can_manage_referrals and current_user.role != 'viewer' %}
         <form method="post" action="/ui/reports/visitas/referrals/save" id="visitReferralsForm" class="visitas-referral-form">
           <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
           <input type="hidden" name="month" value="{{ selected_month or 0 }}">
@@ -260,7 +260,7 @@
 
           <div id="referralRowsContainer" class="visitas-referral-rows"></div>
         </form>
-        {% else %}
+        {% elif not can_manage_referrals %}
         <div class="visitas-disabled-note">
           <i class="bi bi-calendar-range" aria-hidden="true"></i>
           <span>Periodo personalizado activo: los referidos manuales solo se preparan, guardan o eliminan desde periodos mensuales.</span>
@@ -273,7 +273,7 @@
               <h3>Referidos guardados</h3>
               <p>Tipos disponibles: Interno, Externo y Visita Agencia.</p>
             </div>
-            {% if can_manage_referrals and visit_report and not visits_period_locked %}
+            {% if can_manage_referrals and current_user.role != 'viewer' and visit_report and not visits_period_locked %}
             <form method="post" action="/ui/reports/visitas/delete" class="visitas-delete-form">
               <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
               <input type="hidden" name="month" value="{{ selected_month or 0 }}">

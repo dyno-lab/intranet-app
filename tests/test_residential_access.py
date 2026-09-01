@@ -48,6 +48,7 @@ class _URL:
 class _Request:
     def __init__(self, session: dict | None = None):
         self.session = session if session is not None else {}
+        self.method = "GET"
         self.url = _URL()
 
     def url_for(self, name: str, **path_params) -> str:
@@ -337,8 +338,8 @@ class ResidentialAccessTests(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 303)
         self.assertIn("/login?next=", context.exception.headers["Location"])
 
-    def test_admin_and_supervisor_revoked_context_redirects_to_login(self):
-        for role in ("admin", "supervisor"):
+    def test_global_read_roles_with_revoked_context_redirect_to_login(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 request = _Request({
@@ -365,8 +366,8 @@ class ResidentialAccessTests(unittest.TestCase):
                 self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 1)
                 self.assertEqual(db.results, [])
 
-    def test_admin_and_supervisor_without_selected_context_keep_global_mode(self):
-        for role in ("admin", "supervisor"):
+    def test_global_read_roles_without_selected_context_keep_global_mode(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 request = _Request({
@@ -385,8 +386,8 @@ class ResidentialAccessTests(unittest.TestCase):
                 self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 1)
                 self.assertEqual(db.results, [])
 
-    def test_admin_and_supervisor_keep_assigned_residential_context(self):
-        for role in ("admin", "supervisor"):
+    def test_global_read_roles_keep_assigned_residential_context(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 residential = _residential(2, "B")
@@ -416,8 +417,8 @@ class ResidentialAccessTests(unittest.TestCase):
                 )
                 self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 2)
 
-    def test_selector_route_sends_admin_and_supervisor_to_explicit_mode_selection(self):
-        for role in ("admin", "supervisor"):
+    def test_selector_route_sends_global_read_roles_to_explicit_mode_selection(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 request = _Request({ACTIVE_RESIDENTIAL_SESSION_KEY: 99})
@@ -488,8 +489,8 @@ class ResidentialAccessTests(unittest.TestCase):
         )
         self.assertNotIn('name="password"', body)
 
-    def test_login_shows_global_and_assigned_modes_for_admin_and_supervisor(self):
-        for role in ("admin", "supervisor"):
+    def test_login_shows_global_and_assigned_modes_for_global_read_roles(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 residentials = [_residential(1, "A"), _residential(2, "B")]
@@ -575,8 +576,8 @@ class ResidentialAccessTests(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 403)
         self.assertNotIn(ACTIVE_RESIDENTIAL_SESSION_KEY, request.session)
 
-    def test_admin_and_supervisor_enter_faro_without_residential_query(self):
-        for role in ("admin", "supervisor"):
+    def test_global_read_roles_enter_faro_without_residential_query(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 request = _Request({
@@ -604,8 +605,8 @@ class ResidentialAccessTests(unittest.TestCase):
                 self.assertEqual(request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY], 1)
                 self.assertEqual(db.results, [])
 
-    def test_admin_and_supervisor_enter_under_assigned_residential(self):
-        for role in ("admin", "supervisor"):
+    def test_global_read_roles_enter_under_assigned_residential(self):
+        for role in ("admin", "supervisor", "viewer"):
             with self.subTest(role=role):
                 user = _user(7, role=role)
                 residentials = [_residential(1, "A"), _residential(2, "B")]

@@ -37,6 +37,7 @@ from app.core.residential_scope import (
     clear_active_residential,
     set_active_residential,
 )
+from app.core.roles import can_read_globally
 from app.core.security import verify_password
 from app.core.session_security import establish_authenticated_session
 from app.models.platform_user_audit import PlatformUserAudit
@@ -238,7 +239,7 @@ def enter_faro(
 
     safe_next_path = _safe_faro_next_path(next_path)
     residentials = assigned_residentials(db, current_user)
-    if current_user.role in {"admin", "supervisor"} and residential_id is None:
+    if can_read_globally(current_user) and residential_id is None:
         clear_active_residential(request.session)
         request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials) + 1
         return RedirectResponse(safe_next_path, status_code=status.HTTP_303_SEE_OTHER)
@@ -252,7 +253,7 @@ def enter_faro(
 
     selected_residential = (
         residentials[0]
-        if current_user.role not in {"admin", "supervisor"} and len(residentials) == 1
+        if not can_read_globally(current_user) and len(residentials) == 1
         else next(
             (
                 residential
@@ -270,7 +271,7 @@ def enter_faro(
 
     set_active_residential(request.session, selected_residential)
     request.session[AVAILABLE_RESIDENTIAL_COUNT_SESSION_KEY] = len(residentials) + (
-        1 if current_user.role in {"admin", "supervisor"} else 0
+        1 if can_read_globally(current_user) else 0
     )
     return RedirectResponse(safe_next_path, status_code=status.HTTP_303_SEE_OTHER)
 

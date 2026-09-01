@@ -17,6 +17,7 @@ from app.core.platform_permissions import (
     require_platform_permission,
     user_has_platform_permission,
 )
+from app.core.roles import VALID_USER_ROLES
 from app.core.security import hash_password
 from app.core.session_security import SESSION_VERSION_KEY
 from app.models.platform_permission import PlatformPermission
@@ -31,7 +32,6 @@ router = APIRouter(prefix="/platform/settings", tags=["platform-settings"])
 templates = Jinja2Templates(directory="app/templates")
 _CSRF_SESSION_KEY = "platform_settings_csrf_token"
 _ALLOWED_EMAIL_DOMAIN = "csifpr.org"
-_VALID_USER_ROLES = {"admin", "supervisor", "user"}
 _VALID_USER_SECTIONS = {"general", "permissions", "residentials"}
 _MIN_LOCAL_PASSWORD_LENGTH = 12
 
@@ -256,7 +256,7 @@ def create_platform_user(
             path=redirect_path,
             error="El correo institucional excede el máximo de 100 caracteres permitido para el usuario.",
         )
-    if role not in _VALID_USER_ROLES:
+    if role not in VALID_USER_ROLES:
         return _settings_redirect(path=redirect_path, error="El rol seleccionado no es válido.")
 
     selected_residential = (
@@ -445,7 +445,7 @@ def update_user_general(
             section="general",
             error="Debe usar un correo institucional @csifpr.org válido.",
         )
-    if role not in _VALID_USER_ROLES:
+    if role not in VALID_USER_ROLES:
         return _user_settings_redirect(
             user_id,
             section="general",

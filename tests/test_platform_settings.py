@@ -544,6 +544,7 @@ class PlatformSettingsTests(unittest.TestCase):
         self.assertIn("Sin residencial inicial", body)
         self.assertIn("antes de otorgar acceso a Faro", body)
         self.assertNotIn('id="new-user-residential" required', body)
+        self.assertIn('<option value="viewer">viewer</option>', body)
         self.assertNotIn("/ui/admin/users", body)
 
     def test_admin_creates_platform_user_with_initial_residential_and_audit(self):
@@ -613,6 +614,36 @@ class PlatformSettingsTests(unittest.TestCase):
             value for value in db.added if isinstance(value, UserResidential)
         ]
         self.assertEqual(response.status_code, 303)
+        self.assertIsNone(created_user.residential_id)
+        self.assertEqual(residential_assignments, [])
+        self.assertEqual(db.commits, 1)
+
+    def test_admin_creates_viewer_without_residential(self):
+        current_user = _user(1, "manager@csifpr.org", role="admin")
+        db = _Database(
+            users={current_user.user_id: current_user},
+            results=[_Result(values=[])],
+        )
+        request = _Request({platform_settings._CSRF_SESSION_KEY: "valid-token"})
+
+        response = platform_settings.create_platform_user(
+            request=request,
+            email="viewer@csifpr.org",
+            password=None,
+            local_login_enabled=None,
+            role="viewer",
+            residential_id=None,
+            csrf_token="valid-token",
+            db=db,
+            current_user=current_user,
+        )
+
+        created_user = next(value for value in db.added if isinstance(value, User))
+        residential_assignments = [
+            value for value in db.added if isinstance(value, UserResidential)
+        ]
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(created_user.role, "viewer")
         self.assertIsNone(created_user.residential_id)
         self.assertEqual(residential_assignments, [])
         self.assertEqual(db.commits, 1)

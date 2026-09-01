@@ -2,6 +2,7 @@ from fastapi import Request, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.roles import ADMIN_ROLE, SUPERVISOR_ROLE, VIEWER_ROLE
 from app.core.session_security import session_matches_user
 from app.models.user import User
 
@@ -33,15 +34,19 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
 
 def is_admin(user: User) -> bool:
-    return user.role == "admin"
+    return user.role == ADMIN_ROLE
 
 
 def is_supervisor(user: User) -> bool:
-    return user.role == "supervisor"
+    return user.role == SUPERVISOR_ROLE
+
+
+def is_viewer(user: User) -> bool:
+    return user.role == VIEWER_ROLE
 
 
 def is_admin_or_supervisor(user: User) -> bool:
-    return user.role in {"admin", "supervisor"}
+    return user.role in {ADMIN_ROLE, SUPERVISOR_ROLE}
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:

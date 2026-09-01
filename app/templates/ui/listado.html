@@ -3,9 +3,14 @@
 
 {% block content %}
 {% set session_edit_form = edit_form if edit_form is defined else {} %}
-{% set session_read_only = proposal_is_finalized or session_period_locked %}
+{% set session_read_only = proposal_is_finalized or session_period_locked or current_user.role == 'viewer' %}
 
 <div class="attendance-detail-page">
+  {% if current_user.role == 'viewer' %}
+  <div class="alert alert-info" role="status">
+    Modo de consulta: puede ver las asistencias marcadas, pero no modificar la sesión ni sus participantes.
+  </div>
+  {% endif %}
   {% if proposal_is_finalized %}
   <div class="alert alert-warning" role="alert">
     Esta sesión pertenece a una <strong>propuesta finalizada</strong>. Se muestra en modo solo lectura.
@@ -129,7 +134,11 @@
       <div class="attendance-detail-note">
         <div class="attendance-detail-note__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div>
         <p class="mb-0">
+          {% if current_user.role == 'viewer' %}
+          Las marcas reflejan la asistencia registrada y están disponibles únicamente para consulta.
+          {% else %}
           Marca los participantes operativos de esta propuesta que asistieron y presiona <strong>Guardar Asistencia</strong>. Los participantes inactivos aparecen en rojo y no se pueden marcar.
+          {% endif %}
         </p>
       </div>
 

@@ -10670,6 +10670,11 @@ body.platform-settings-body {
   background: #def5ef;
 }
 
+.platform-role-badge--viewer {
+  color: #5b3f8c;
+  background: #eee7fb;
+}
+
 .platform-residential-badge {
   gap: 0.35rem;
   max-width: 250px;

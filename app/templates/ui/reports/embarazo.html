@@ -19,7 +19,7 @@
   {% set selected_scope_label = 'Global' %}
 {% elif selected_user %}
   {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
-{% elif current_user.role not in ['admin', 'supervisor'] %}
+{% elif current_user.role not in ['admin', 'supervisor', 'viewer'] %}
   {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
 
@@ -108,7 +108,7 @@
 
           <div class="embarazo-filter-field embarazo-filter-field--wide">
             <label class="form-label" for="embarazo_employee_id">Residencial *</label>
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <select class="form-select" name="employee_id" id="embarazo_employee_id" required>
               <option value="">Selecciona...</option>
               <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
@@ -123,7 +123,7 @@
           </div>
 
           <div class="embarazo-filter-note">
-            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+            Admin, supervisor y viewer pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
           </div>
 
           <div class="embarazo-actions" aria-label="Acciones del reporte">

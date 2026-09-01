@@ -2,11 +2,17 @@
 {% block title %}Informe de notas{% endblock %}
 
 {% block content %}
+{% set is_viewer = current_user and current_user.role == 'viewer' %}
+{% set is_read_only = report_is_locked or is_viewer %}
 {% if msg %}
 <div class="alert {{ 'alert-danger' if 'Error' in msg else 'alert-success' }} alert-dismissible fade show" role="alert">
   {{ msg }}
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
+{% endif %}
+
+{% if is_viewer %}
+<div class="alert alert-info"><strong>Modo de consulta:</strong> este informe es completamente de solo lectura.</div>
 {% endif %}
 
 {% if report_is_locked %}
@@ -21,7 +27,7 @@
     </div>
   </div>
   <div class="d-flex gap-2">
-    {% if not report_is_locked %}
+    {% if not is_read_only %}
     <form method="post" action="/ui/school-grades/{{ report.report_id }}/delete" onsubmit="return confirm('¿Borrar este informe de notas completo?');">
       <button class="btn btn-outline-danger">Borrar informe</button>
     </form>
@@ -30,7 +36,7 @@
   </div>
 </div>
 
-{% if not report_is_locked %}
+{% if not is_read_only %}
 <div class="card shadow-sm mb-4">
   <div class="card-body">
     <h5 class="mb-3">Añadir participante (0 a 21 años)</h5>
@@ -76,7 +82,7 @@
   <div class="card-body table-responsive">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Participantes añadidos</h5>
-      <span class="text-muted small">Guarda cada fila luego de editar notas o grado.</span>
+      <span class="text-muted small">{% if is_read_only %}Datos en solo lectura.{% else %}Guarda cada fila luego de editar notas o grado.{% endif %}</span>
     </div>
     <table class="table table-sm table-hover align-middle">
       <thead>
@@ -114,7 +120,7 @@
             <td>{{ age_map.get(p.participant_id, '') }}</td>
             <td>{{ p.genero or '' }}</td>
             <td>
-              <select class="form-select form-select-sm" name="grade_level">
+              <select class="form-select form-select-sm" name="grade_level" {% if is_read_only %}disabled{% endif %}>
                 <option value="">Selecciona...</option>
                 {% for grade in grade_options %}
                 <option value="{{ grade }}" {% if item.grade_level == grade %}selected{% endif %}>{{ grade }}</option>
@@ -122,17 +128,17 @@
               </select>
             </td>
             <td class="text-center">
-              <input type="checkbox" name="is_content_room" {% if item.is_content_room %}checked{% endif %}>
+              <input type="checkbox" name="is_content_room" {% if item.is_content_room %}checked{% endif %} {% if is_read_only %}disabled{% endif %}>
             </td>
-            <td><input class="form-control form-control-sm text-center" name="spanish_grade" value="{{ item.spanish_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="english_grade" value="{{ item.english_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="math_grade" value="{{ item.math_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="science_grade" value="{{ item.science_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="social_studies_grade" value="{{ item.social_studies_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="elective_1_grade" value="{{ item.elective_1_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="elective_2_grade" value="{{ item.elective_2_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="elective_3_grade" value="{{ item.elective_3_grade or '' }}" placeholder="0-100"></td>
-            <td><input class="form-control form-control-sm text-center" name="elective_4_grade" value="{{ item.elective_4_grade or '' }}" placeholder="0-100"></td>
+            <td><input class="form-control form-control-sm text-center" name="spanish_grade" value="{{ item.spanish_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="english_grade" value="{{ item.english_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="math_grade" value="{{ item.math_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="science_grade" value="{{ item.science_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="social_studies_grade" value="{{ item.social_studies_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_1_grade" value="{{ item.elective_1_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_2_grade" value="{{ item.elective_2_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_3_grade" value="{{ item.elective_3_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-center" name="elective_4_grade" value="{{ item.elective_4_grade or '' }}" placeholder="0-100" {% if is_read_only %}disabled{% endif %}></td>
             <td>
               {% if item.average_grade is not none %}
               <span class="badge bg-primary">{{ item.average_grade }}</span>
@@ -145,9 +151,9 @@
               {% endif %}
             </td>
             <td class="text-nowrap">
-              {% if not report_is_locked %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
+              {% if not is_read_only %}<button class="btn btn-sm btn-success">Guardar</button>{% endif %}
           </form>
-              {% if not report_is_locked %}
+              {% if not is_read_only %}
               <form method="post" action="/ui/school-grades/{{ report.report_id }}/items/{{ item.report_item_id }}/delete" class="d-inline" onsubmit="return confirm('¿Quitar participante del informe?');">
                 <button class="btn btn-sm btn-outline-danger">Quitar</button>
               </form>

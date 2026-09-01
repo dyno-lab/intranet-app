@@ -357,7 +357,7 @@
             {% endif %}
 
             {% if can_access_faro %}
-              {% if current_user.role not in ['admin', 'supervisor'] and not residentials %}
+              {% if current_user.role not in ['admin', 'supervisor', 'viewer'] and not residentials %}
                 <div class="alert alert-warning rounded-4">
                   No tiene residenciales activos asignados. Solicite la asignación en Configuración de Plataforma.
                 </div>
@@ -367,7 +367,7 @@
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="next" value="{{ next_path }}">
 
-                  {% if current_user.role in ['admin', 'supervisor'] %}
+                  {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
                     <div class="mb-3">
                       <label class="form-label" for="residential-id">Modo de entrada</label>
                       <select id="residential-id" class="form-select" name="residential_id">

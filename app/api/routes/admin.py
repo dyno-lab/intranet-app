@@ -22,6 +22,7 @@ from app.core.period_guard import current_reporting_period, proposal_locked_thro
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.platform_permissions import MANAGE_PLATFORM_SETTINGS, require_platform_permission
 from app.core.residential_scope import has_global_residential_access, require_record_residential_id
+from app.core.roles import VALID_USER_ROLES
 from app.core.security import hash_password, verify_password
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.user import User
@@ -72,7 +73,6 @@ from app.services.activity_proposals import (
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-VALID_USER_ROLES = {"admin", "supervisor", "user"}
 DEFAULT_POPULATION_GROUP_OPTIONS = [
     ("ninos", "NiÃ±os", 0, 12, 1),
     ("jovenes", "JÃ³venes", 13, 17, 2),

@@ -7,6 +7,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.roles import is_viewer
 from app.core.security import hash_password
 from app.core.session_security import session_matches_user
 from app.models.platform_permission import PlatformPermission
@@ -134,6 +135,8 @@ def user_permission_keys(db: Session, user: User) -> set[str]:
 def user_has_platform_permission(db: Session, user: User, permission_key: str) -> bool:
     normalized_key = permission_key.strip()
     if not normalized_key:
+        return False
+    if is_viewer(user) and normalized_key == MANAGE_PLATFORM_SETTINGS:
         return False
     return normalized_key in user_permission_keys(db, user)
 

@@ -19,6 +19,7 @@ from app.core.platform_permissions import (
     get_optional_current_user,
     user_permission_keys,
 )
+from app.core.roles import is_viewer
 
 
 router = APIRouter()
@@ -50,7 +51,10 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
         )
 
     permission_keys = user_permission_keys(db, current_user)
-    can_manage_platform_settings = MANAGE_PLATFORM_SETTINGS in permission_keys
+    can_manage_platform_settings = (
+        not is_viewer(current_user)
+        and MANAGE_PLATFORM_SETTINGS in permission_keys
+    )
     if ACCESS_PORTAL_HOME not in permission_keys:
         return templates.TemplateResponse(
             request=request,

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.platform_permissions import ACCESS_FARO, require_platform_permission
+from app.core.roles import can_read_globally, is_viewer
 from app.models.residential import Residential
 from app.models.user import User
 from app.models.user_residential import UserResidential
@@ -90,7 +91,7 @@ def active_record_residential_id(request: Request, user: User) -> int | None:
 
 def has_global_residential_access(user: User) -> bool:
     return (
-        user.role in {"admin", "supervisor"}
+        can_read_globally(user)
         and getattr(user, "_active_residential_id", None) is None
     )
 
@@ -111,7 +112,12 @@ def require_write_residential_id(
     db: Session,
     requested_residential_id: int | None = None,
 ) -> int:
-    if user.role not in {"admin", "supervisor"}:
+    if is_viewer(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El rol viewer tiene acceso de consulta solamente.",
+        )
+    if not can_read_globally(user):
         return require_record_residential_id(request, user)
 
     active_residential_id = active_record_residential_id(request, user)
@@ -140,12 +146,41 @@ def require_write_residential_id(
     return residential.residential_id
 
 
+def _enforce_viewer_read_only(request: Request, user: User) -> None:
+    if not is_viewer(user):
+        return
+
+    path = request.url.path.rstrip("/") or "/"
+    if path == "/ui/admin" or path.startswith("/ui/admin/"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El rol viewer no tiene acceso a configuraciones.",
+        )
+
+    if request.method.upper() in {"GET", "HEAD", "OPTIONS"}:
+        if path.startswith("/ui/new-list/") and path.endswith("/edit"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El rol viewer tiene acceso de consulta solamente.",
+            )
+        return
+
+    if request.method.upper() == "POST" and path == "/ui/reports/notas/pdf":
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="El rol viewer tiene acceso de consulta solamente.",
+    )
+
+
 def require_faro_access(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
     user = _FARO_PERMISSION_DEPENDENCY(request=request, db=db)
-    if user.role in {"admin", "supervisor"}:
+    _enforce_viewer_read_only(request, user)
+    if can_read_globally(user):
         had_active_residential_context = ACTIVE_RESIDENTIAL_SESSION_KEY in request.session
         residentials = assigned_residentials(db, user)
         residential_by_id = {

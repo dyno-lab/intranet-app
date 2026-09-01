@@ -18,7 +18,7 @@
   {% set selected_scope_label = 'Global' %}
 {% elif selected_user %}
   {% set selected_scope_label = user_residential_map.get(selected_user.user_id, selected_user.username) %}
-{% elif current_user.role not in ['admin', 'supervisor'] %}
+{% elif current_user.role not in ['admin', 'supervisor', 'viewer'] %}
   {% set selected_scope_label = residential_name or current_user.username %}
 {% endif %}
 
@@ -106,7 +106,7 @@
           </div>
 
           <div class="desercion-filter-field desercion-filter-field--wide">
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <label class="form-label" for="desercion_employee_id">Residencial *</label>
             <select class="form-select" name="employee_id" id="desercion_employee_id" required>
               <option value="">Selecciona...</option>
@@ -123,7 +123,7 @@
           </div>
 
           <div class="desercion-filter-note">
-            Admin y supervisor pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
+            Admin, supervisor y viewer pueden seleccionar residencial o Global. Un usuario regular conserva su residencial asignado.
           </div>
 
           <div class="desercion-actions" aria-label="Acciones del reporte">

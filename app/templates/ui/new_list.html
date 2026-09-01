@@ -8,10 +8,12 @@
       <span class="participants-hero__eyebrow">Modulo operativo</span>
       <h1 class="participants-hero__title">Registro de Participantes</h1>
       <div class="participants-hero__actions">
+        {% if current_user.role != 'viewer' %}
         <a class="btn btn-primary participants-hero__cta" href="#participant-register-card">
           <i class="bi bi-person-plus" aria-hidden="true"></i>
           <span>Registrar participante</span>
         </a>
+        {% endif %}
         <a class="btn btn-outline-secondary" href="#participants-table-card">
           <i class="bi bi-table" aria-hidden="true"></i>
           <span>Ver participantes</span>
@@ -79,6 +81,7 @@
     {% endif %}
   </section>
 
+  {% if current_user.role != 'viewer' %}
   <section class="participants-section">
     <div class="participants-section__header">
       <div>
@@ -337,6 +340,11 @@
       </div>
     </div>
   </section>
+  {% else %}
+  <div class="alert alert-info" role="status">
+    Modo de consulta: puede revisar los participantes, pero no crear ni modificar expedientes.
+  </div>
+  {% endif %}
 
   <section class="participants-section">
     <div class="participants-toolbar">
@@ -493,7 +501,9 @@
                   <td class="text-end">
                     <div class="participants-actions">
                       <a class="btn btn-sm btn-outline-secondary" href="/ui/new-list/{{ p.participant_id }}/expediente">Expediente</a>
+                      {% if current_user.role != 'viewer' %}
                       <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
+                      {% endif %}
 
                       {% if current_user and current_user.role in ["admin", "supervisor"] %}
                       <form method="post"

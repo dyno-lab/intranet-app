@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.residential_scope import has_global_residential_access
+from app.core.roles import can_read_globally
 from app.helpers.reports import normalize_text
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -145,7 +146,7 @@ def rq_from_user(user: User | None) -> str:
 def base_reports_context(db: Session, current_user: User, month_options: list[tuple[int, str]]):
     proposals = db.execute(select(Proposal).where(Proposal.is_active == True).order_by(Proposal.code)).scalars().all()  # noqa: E712
     active_residential_id = getattr(current_user, "_active_residential_id", None)
-    if active_residential_id is None and current_user.role not in {"admin", "supervisor"}:
+    if active_residential_id is None and not can_read_globally(current_user):
         active_residential_id = current_user.residential_id
 
     residential_stmt = (
@@ -205,7 +206,7 @@ def resolve_reporting_scope(current_user: User, employee_id: int | None, db: Ses
         if residential and residential.is_active:
             selected_residential = reporting_residential_option(residential)
             scope_token = selected_residential.user_id
-    elif current_user.role in {"admin", "supervisor"}:
+    elif can_read_globally(current_user):
         if employee_id == 0:
             is_global = True
         elif employee_id is not None and employee_id < 0:

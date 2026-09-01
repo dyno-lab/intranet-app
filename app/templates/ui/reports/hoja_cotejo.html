@@ -110,7 +110,7 @@
 
           <div class="hoja-cotejo-filter-field hoja-cotejo-filter-field--wide">
             <label class="form-label" for="hoja_cotejo_employee_id">Residencial *</label>
-            {% if current_user.role in ['admin', 'supervisor'] %}
+            {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
             <select class="form-select" name="employee_id" id="hoja_cotejo_employee_id" required>
               <option value="">Selecciona...</option>
               <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>

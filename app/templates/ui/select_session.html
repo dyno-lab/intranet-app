@@ -143,6 +143,7 @@
     </div>
   </section>
 
+  {% if current_user.role != 'viewer' %}
   <section class="attendance-section">
     <div class="attendance-section__header attendance-section__header--compact">
       <div>
@@ -216,6 +217,11 @@
       </div>
     </div>
   </section>
+  {% else %}
+  <div class="alert alert-info" role="status">
+    Modo de consulta: puede revisar sesiones y asistencias, pero no crear ni modificar registros.
+  </div>
+  {% endif %}
 
   <section class="attendance-section">
     <div class="attendance-section__header attendance-section__header--tight">

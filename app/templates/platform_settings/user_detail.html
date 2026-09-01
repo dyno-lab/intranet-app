@@ -52,7 +52,7 @@
               {% if target_user.role == 'admin' %}
               <input type="hidden" name="role" value="admin"><select disabled><option selected>admin</option></select><small>Cuenta protegida contra degradación.</small>
               {% else %}
-              <select name="role" required><option value="user" {{ 'selected' if target_user.role == 'user' }}>user</option><option value="supervisor" {{ 'selected' if target_user.role == 'supervisor' }}>supervisor</option></select><small>El rol user requiere al menos un residencial.</small>
+              <select name="role" required><option value="user" {{ 'selected' if target_user.role == 'user' }}>user</option><option value="supervisor" {{ 'selected' if target_user.role == 'supervisor' }}>supervisor</option><option value="viewer" {{ 'selected' if target_user.role == 'viewer' }}>viewer</option></select><small>El rol user requiere al menos un residencial; viewer es global y de solo lectura.</small>
               {% endif %}
             </label>
             <div class="platform-user-form__readonly"><span>Identidad Google</span><strong>{{ 'Vinculada' if target_user.google_sub or target_user.google_linked_at else 'Pendiente' }}</strong><small>La vinculación ocurre en el primer acceso institucional válido.</small></div>
