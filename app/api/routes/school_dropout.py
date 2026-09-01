@@ -25,6 +25,7 @@ from app.models.residential import Residential
 from app.models.school_dropout_report import SchoolDropoutReport
 from app.models.school_dropout_report_item import SchoolDropoutReportItem
 from app.models.user import User
+from app.services.report_item_writes import delete_report_item, update_report_item_fields
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -341,15 +342,20 @@ def edit_school_dropout_report_item(
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
-    item.attended_tutoring = attended_tutoring == "on"
-    item.current_grade = (current_grade or "").strip() or None
-    item.attended_school = attended_school == "on"
-    item.report_10_weeks = report_10_weeks == "on"
-    item.report_20_weeks = report_20_weeks == "on"
-    item.report_30_weeks = report_30_weeks == "on"
-    item.report_40_weeks = report_40_weeks == "on"
-
-    db.add(item)
+    update_report_item_fields(
+        db,
+        SchoolDropoutReportItem,
+        report_item_id,
+        {
+            "attended_tutoring": attended_tutoring == "on",
+            "current_grade": (current_grade or "").strip() or None,
+            "attended_school": attended_school == "on",
+            "report_10_weeks": report_10_weeks == "on",
+            "report_20_weeks": report_20_weeks == "on",
+            "report_30_weeks": report_30_weeks == "on",
+            "report_40_weeks": report_40_weeks == "on",
+        },
+    )
     db.commit()
 
     return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Registro actualizado exitosamente.", status_code=303)
@@ -406,7 +412,7 @@ def delete_school_dropout_report_item(
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
-    db.delete(item)
+    delete_report_item(db, SchoolDropoutReportItem, report_item_id)
     db.commit()
 
     return RedirectResponse(f"/ui/school-dropout/{report_id}?msg=Participante removido del informe.", status_code=303)

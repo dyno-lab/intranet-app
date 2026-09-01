@@ -25,6 +25,7 @@ from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.user import User
+from app.services.report_item_writes import delete_report_item, update_report_item_fields
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -421,14 +422,17 @@ def edit_school_grade_report_item(
     except ValueError as exc:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: {exc}", status_code=303)
 
-    item.grade_level = (grade_level or "").strip() or None
-    item.is_content_room = is_content_room == "on"
-    for field, value in values.items():
-        setattr(item, field, value)
-
-    item.average_grade = _compute_average([values[field] for field in GRADE_FIELDS])
-
-    db.add(item)
+    values.update({
+        "grade_level": (grade_level or "").strip() or None,
+        "is_content_room": is_content_room == "on",
+        "average_grade": _compute_average([values[field] for field in GRADE_FIELDS]),
+    })
+    update_report_item_fields(
+        db,
+        SchoolGradeReportItem,
+        report_item_id,
+        values,
+    )
     db.commit()
 
     return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Registro actualizado exitosamente.", status_code=303)
@@ -485,7 +489,7 @@ def delete_school_grade_report_item(
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
-    db.delete(item)
+    delete_report_item(db, SchoolGradeReportItem, report_item_id)
     db.commit()
 
     return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Participante removido del informe.", status_code=303)

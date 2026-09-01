@@ -25,6 +25,7 @@ from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.proposal import Proposal
 from app.models.residential import Residential
 from app.models.user import User
+from app.services.report_item_writes import delete_report_item, update_report_item_fields
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -337,14 +338,19 @@ def edit_pregnancy_report_item(
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
-    item.participated_workshops = participated_workshops == "on"
-    item.is_pregnant = is_pregnant == "on"
-    item.gestation_time = (gestation_time or "").strip() or None
-    item.has_children = has_children == "on"
-    item.children_count = children_count
-    item.children_ages = (children_ages or "").strip() or None
-
-    db.add(item)
+    update_report_item_fields(
+        db,
+        PregnancyReportItem,
+        report_item_id,
+        {
+            "participated_workshops": participated_workshops == "on",
+            "is_pregnant": is_pregnant == "on",
+            "gestation_time": (gestation_time or "").strip() or None,
+            "has_children": has_children == "on",
+            "children_count": children_count,
+            "children_ages": (children_ages or "").strip() or None,
+        },
+    )
     db.commit()
 
     return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Registro actualizado exitosamente.", status_code=303)
@@ -401,7 +407,7 @@ def delete_pregnancy_report_item(
     if not item or item.report_id != report_id:
         return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Error: Registro no encontrado.", status_code=303)
 
-    db.delete(item)
+    delete_report_item(db, PregnancyReportItem, report_item_id)
     db.commit()
 
     return RedirectResponse(f"/ui/pregnancy/{report_id}?msg=Participante removido del informe.", status_code=303)
