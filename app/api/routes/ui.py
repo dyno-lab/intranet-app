@@ -38,7 +38,7 @@ from app.services.participant_profile_fields import (
     validate_profile_field_inputs,
 )
 from app.core.config import settings
-from app.core.record_identifiers import build_expediente_number, build_session_control_number
+from app.core.record_identifiers import build_expediente_number
 from app.core.participant_household import require_head_of_household_allowed
 from app.core.residential_scope import (
     has_global_residential_access,
@@ -58,6 +58,7 @@ from app.core.period_guard import (
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
+from app.services.session_control_numbers import persist_session_control_number
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -2029,11 +2030,7 @@ def create_session_ui(
 
     db.add(s)
     db.flush()
-    s.control_number = build_session_control_number(
-        residential_code=record_residential.code,
-        session_id=s.session_id,
-        session_date=parsed_session_date,
-    )
+    persist_session_control_number(db, s, record_residential.code)
     db.commit()
     db.refresh(s)
 

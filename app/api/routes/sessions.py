@@ -6,7 +6,7 @@ from datetime import date
 from app.api.deps import get_db
 from app.core.auth import get_current_user
 from app.core.proposal_guard import require_proposal_id_not_finalized
-from app.core.record_identifiers import build_session_control_number, normalized_residential_code
+from app.core.record_identifiers import normalized_residential_code
 from app.core.residential_scope import (
     has_global_residential_access,
     require_record_residential_id,
@@ -20,6 +20,7 @@ from app.models.proposal import Proposal
 from app.models.residential import Residential
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut
+from app.services.session_control_numbers import persist_session_control_number
 
 router = APIRouter()
 
@@ -94,11 +95,7 @@ def create_session(
     )
     db.add(obj)
     db.flush()
-    obj.control_number = build_session_control_number(
-        residential_code=residential_code,
-        session_id=obj.session_id,
-        session_date=obj.session_date,
-    )
+    persist_session_control_number(db, obj, residential_code)
     db.commit()
     db.refresh(obj)
     return obj
