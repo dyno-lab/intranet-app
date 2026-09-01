@@ -141,6 +141,20 @@ def _oauth_error_response(request: Request, status_code: int = 403):
     )
 
 
+def _oauth_access_denied_response(request: Request):
+    clear_google_oauth_session(request.session)
+    return templates.TemplateResponse(
+        request=request,
+        name="portal/access_denied.html",
+        context={
+            "request": request,
+            "current_user": None,
+            "can_manage_platform_settings": False,
+        },
+        status_code=status.HTTP_403_FORBIDDEN,
+    )
+
+
 def _require_google_oauth_enabled():
     if not settings.GOOGLE_OAUTH_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -326,7 +340,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email
             )
         ).scalars().all()
-        if len(users_by_email) != 1:
+        if not users_by_email:
+            return _oauth_access_denied_response(request)
+        if len(users_by_email) > 1:
             return _oauth_error_response(request)
 
         user = users_by_email[0]
@@ -352,8 +368,24 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     google_linked_at=func.sysutcdatetime(),
                     session_version=User.session_version + 1,
                 )
+                .execution_options(synchronize_session=False)
             )
-            if link_result.rowcount != 1:
+            if link_result.rowcount == 0:
+                db.rollback()
+                return _oauth_error_response(request)
+
+            linked_user_count = db.execute(
+                select(func.count())
+                .select_from(User)
+                .where(
+                    User.user_id == user.user_id,
+                    User.google_sub == google_sub,
+                    User.google_linked_at.is_not(None),
+                    User.is_active == True,  # noqa: E712
+                    func.lower(func.ltrim(func.rtrim(User.email))) == normalized_email,
+                )
+            ).scalar_one()
+            if linked_user_count != 1:
                 db.rollback()
                 return _oauth_error_response(request)
             db.add(

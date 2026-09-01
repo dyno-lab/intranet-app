@@ -49,7 +49,7 @@ class _Request:
 
 
 class _Result:
-    def __init__(self, values: list[User], *, rowcount: int | None = None):
+    def __init__(self, values: list[object], *, rowcount: int | None = None):
         self.values = values
         self.rowcount = rowcount
 
@@ -64,11 +64,16 @@ class _Result:
             raise AssertionError("Expected at most one scalar result")
         return self.values[0] if self.values else None
 
+    def scalar_one(self):
+        if len(self.values) != 1:
+            raise AssertionError("Expected exactly one scalar result")
+        return self.values[0]
+
 
 class _Database:
     def __init__(
         self,
-        results: list[list[User]],
+        results: list[list[object]],
         *,
         commit_error: Exception | None = None,
         update_rowcount: int = 1,
@@ -361,32 +366,56 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("user_id", request.session)
         self.assertEqual(db.commits, 0)
 
-    async def test_unknown_user_is_rejected(self):
+    async def test_unknown_user_is_sent_to_access_denied_page(self):
         response, request, db = await self._callback([[], []])
+        response_body = response.body.decode()
         self.assertEqual(response.status_code, 403)
+        self.assertIn("No tiene acceso habilitado", response_body)
+        self.assertIn("cramirez@csifpr.org", response_body)
         self.assertNotIn("user_id", request.session)
         self.assertEqual(db.commits, 0)
 
     async def test_duplicate_email_is_rejected(self):
         response, request, db = await self._callback([[], [_user(1), _user(2)]])
         self.assertEqual(response.status_code, 403)
+        self.assertNotIn("cramirez@csifpr.org", response.body.decode())
         self.assertNotIn("user_id", request.session)
         self.assertEqual(db.commits, 0)
 
     async def test_first_login_links_google_subject(self):
         user = _user(7)
-        response, request, db = await self._callback([[], [user]])
+        response, request, db = await self._callback([[], [user], [1]])
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/home")
         self.assertEqual(user.google_sub, "google-subject-123")
         self.assertEqual(request.session, {"user_id": 7, "session_version": 2})
         self.assertEqual(db.commits, 1)
 
+    async def test_sql_server_unknown_rowcount_accepts_confirmed_link(self):
+        user = _user(7)
+        response, request, db = await self._callback(
+            [[], [user], [1]],
+            update_rowcount=-1,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(request.session, {"user_id": 7, "session_version": 2})
+        self.assertEqual(db.commits, 1)
+
+    async def test_sql_server_unknown_rowcount_rejects_unconfirmed_link(self):
+        user = _user(7)
+        response, request, db = await self._callback(
+            [[], [user], [0]],
+            update_rowcount=-1,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(db.rollbacks, 1)
+        self.assertNotIn("user_id", request.session)
+
     async def test_link_integrity_error_rolls_back_and_rejects_login(self):
         user = _user(7)
         integrity_error = IntegrityError("UPDATE users", {}, Exception("duplicate"))
         request = _Request({GOOGLE_NONCE_SESSION_KEY: "expected-nonce"})
-        db = _Database([[], [user]], commit_error=integrity_error)
+        db = _Database([[], [user], [1]], commit_error=integrity_error)
         client = MagicMock()
         client.authorize_access_token = AsyncMock(return_value={"userinfo": _claims()})
         with (
@@ -437,9 +466,14 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("user_id", request.session)
         self.assertEqual(db.commits, 0)
 
-    async def _callback(self, results: list[list[User]]):
+    async def _callback(
+        self,
+        results: list[list[object]],
+        *,
+        update_rowcount: int = 1,
+    ):
         request = _Request({GOOGLE_NONCE_SESSION_KEY: "expected-nonce"})
-        db = _Database(results)
+        db = _Database(results, update_rowcount=update_rowcount)
         client = MagicMock()
         client.authorize_access_token = AsyncMock(return_value={"userinfo": _claims()})
         with (
