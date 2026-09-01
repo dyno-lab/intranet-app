@@ -202,7 +202,12 @@ class SessionAndLocalLoginTests(unittest.TestCase):
             enabled_response = portal.portal_home(request, _Database([]))
 
         self.assertNotIn("Continuar con Google", disabled_response.body.decode())
-        self.assertIn("Continuar con Google", enabled_response.body.decode())
+        enabled_body = enabled_response.body.decode()
+        self.assertIn("Continuar con Google", enabled_body)
+        self.assertRegex(
+            enabled_body,
+            r'/static/css/ui-modern\.css\?v=[0-9a-f]{12}',
+        )
         login_response = auth.login_page(
             request=request,
             next_path=None,

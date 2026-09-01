@@ -1,4 +1,6 @@
 from datetime import date
+from hashlib import sha256
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import HTMLResponse
@@ -21,6 +23,9 @@ from app.core.platform_permissions import (
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+_UI_MODERN_CSS_VERSION = sha256(
+    Path("app/static/css/ui-modern.css").read_bytes()
+).hexdigest()[:12]
 
 
 @router.get("/home", response_class=HTMLResponse)
@@ -33,6 +38,7 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
             context={
                 "request": request,
                 "current_year": date.today().year,
+                "ui_modern_css_version": _UI_MODERN_CSS_VERSION,
                 "current_user": None,
                 "google_oauth_available": google_oauth_is_available(),
                 "can_manage_platform_settings": False,
@@ -63,6 +69,7 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
         context={
             "request": request,
             "current_year": date.today().year,
+            "ui_modern_css_version": _UI_MODERN_CSS_VERSION,
             "current_user": current_user,
             "google_oauth_available": google_oauth_is_available(),
             "can_manage_platform_settings": can_manage_platform_settings,
