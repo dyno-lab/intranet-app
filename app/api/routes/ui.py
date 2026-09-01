@@ -58,7 +58,7 @@ from app.core.period_guard import (
 )
 from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
-from app.services.session_control_numbers import persist_session_control_number
+from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -2327,6 +2327,7 @@ def edit_session(
             open_edit_session_form=True,
         )
 
+    assert parsed_session_date is not None
     _check_session_access(s, current_user, request)
 
     try:
@@ -2396,30 +2397,27 @@ def edit_session(
                 },
                 open_edit_session_form=True,
             )
-        s.proposal_id = proposal.proposal_id
+        selected_proposal_id = proposal.proposal_id
     else:
-        s.proposal_id = None
+        selected_proposal_id = None
 
     activity_code = db.get(ActivityCode, activity_code_id)
     if not activity_code:
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: El código de actividad seleccionado no existe.")
-    if not activity_code_allowed_for_proposal(db, activity_code, s.proposal_id):
+    if not activity_code_allowed_for_proposal(db, activity_code, selected_proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
     record_residential = db.get(Residential, s.residential_id) if s.residential_id else None
-    if record_residential and record_residential.code and record_residential.code.strip():
-        s.control_number = build_session_control_number(
-            residential_code=record_residential.code,
-            session_id=s.session_id,
-            session_date=parsed_session_date,
-        )
-
-    s.session_date = parsed_session_date
-    s.activity_code_id = activity_code_id
-    s.employee_id = employee_id
-    s.hours = _hours_from_minutes(hours_minutes)
-
-    db.add(s)
+    update_session_fields(
+        db,
+        s,
+        record_residential.code if record_residential else None,
+        session_date=parsed_session_date,
+        activity_code_id=activity_code_id,
+        employee_id=employee_id,
+        proposal_id=selected_proposal_id,
+        hours=_hours_from_minutes(hours_minutes),
+    )
     db.commit()
 
     return _redirect_with_msg(f"/ui/listado/{session_id}", "Sesión actualizada exitosamente.")

@@ -11,7 +11,7 @@ from app.models.activity_session import ActivitySession
 from app.models.employee import Employee  # noqa: F401
 from app.models.proposal import Proposal  # noqa: F401
 from app.models.residential import Residential  # noqa: F401
-from app.services.session_control_numbers import persist_session_control_number
+from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 
 
 class _Database:
@@ -99,6 +99,27 @@ class SessionControlNumberTests(unittest.TestCase):
                 db.refresh(activity_session)
 
                 self.assertEqual(activity_session.control_number, "JDG422026")
+
+                executed_statements.clear()
+                update_session_fields(
+                    db,
+                    activity_session,
+                    "JDG",
+                    session_date=date(2026, 8, 25),
+                    activity_code_id=9,
+                    employee_id=8,
+                    proposal_id=6,
+                    hours=1.5,
+                )
+                db.commit()
+                db.refresh(activity_session)
+
+                self.assertEqual(activity_session.control_number, "JDG422026")
+                self.assertEqual(activity_session.session_date, date(2026, 8, 25))
+                self.assertEqual(activity_session.activity_code_id, 9)
+                self.assertEqual(activity_session.employee_id, 8)
+                self.assertEqual(activity_session.proposal_id, 6)
+                self.assertEqual(activity_session.hours, 1.5)
 
             update_statements = [
                 statement

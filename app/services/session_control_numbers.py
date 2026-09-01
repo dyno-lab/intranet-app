@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 from app.core.record_identifiers import build_session_control_number
@@ -29,5 +31,45 @@ def persist_session_control_number(
         table.update()
         .where(table.c.session_id == activity_session.session_id)
         .values(control_number=control_number)
+    )
+    return control_number
+
+
+def update_session_fields(
+    db: Session,
+    activity_session: ActivitySession,
+    residential_code: str | None,
+    *,
+    session_date: date,
+    activity_code_id: int,
+    employee_id: int,
+    proposal_id: int | None,
+    hours: float | None,
+) -> str | None:
+    """Update a session without an ORM-managed row-count check."""
+    if activity_session.session_id is None:
+        raise ValueError("La sesión debe existir antes de actualizarse.")
+
+    values: dict[str, object] = {
+        "session_date": session_date,
+        "activity_code_id": activity_code_id,
+        "employee_id": employee_id,
+        "proposal_id": proposal_id,
+        "hours": hours,
+    }
+    control_number = None
+    if (residential_code or "").strip():
+        control_number = build_session_control_number(
+            residential_code=residential_code or "",
+            session_id=activity_session.session_id,
+            session_date=session_date,
+        )
+        values["control_number"] = control_number
+
+    table = ActivitySession.__table__
+    db.execute(
+        table.update()
+        .where(table.c.session_id == activity_session.session_id)
+        .values(**values)
     )
     return control_number
