@@ -183,6 +183,16 @@ def _apply_age_filters(stmt, min_age: int | None, max_age: int | None):
     return stmt
 
 
+def _apply_expediente_filter(stmt, expediente_num: str | None):
+    normalized_expediente = (expediente_num or "").strip().upper()
+    if not normalized_expediente:
+        return stmt
+    return stmt.where(
+        func.upper(func.ltrim(func.rtrim(Participant.expediente_num)))
+        == normalized_expediente
+    )
+
+
 def _normalized_sync_value(value):
     if value is None:
         return ""
@@ -879,6 +889,7 @@ def new_list(
     age_range: str | None = None,
     age_min: str | None = None,
     age_max: str | None = None,
+    expediente_num: str | None = None,
     residential_id: str | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
@@ -894,9 +905,11 @@ def new_list(
         _parse_optional_int(age_min),
         _parse_optional_int(age_max),
     )
+    selected_expediente_num = (expediente_num or "").strip().upper()
 
     if selected_age_min is not None or selected_age_max is not None:
         base_stmt = _apply_age_filters(base_stmt, selected_age_min, selected_age_max)
+    base_stmt = _apply_expediente_filter(base_stmt, selected_expediente_num)
 
     if selected_residential_id:
         base_stmt = base_stmt.where(Participant.residential_id == selected_residential_id)
@@ -906,6 +919,7 @@ def new_list(
         "age_range": age_range or "",
         "age_min": "" if selected_age_min is None else selected_age_min,
         "age_max": "" if selected_age_max is None else selected_age_max,
+        "expediente_num": selected_expediente_num,
     }
     if is_admin_supervisor:
         query_params["residential_id"] = selected_residential_id or ""
@@ -973,6 +987,7 @@ def new_list(
         "selected_age_range": age_range or "",
         "selected_age_min": selected_age_min,
         "selected_age_max": selected_age_max,
+        "selected_expediente_num": selected_expediente_num,
         "residentials": residentials,
         "selected_residential_id": selected_residential_id if is_admin_supervisor else None,
         "expediente_residential": expediente_residential,
@@ -1161,6 +1176,7 @@ def export_participants_csv(
     age_range: str | None = None,
     age_min: str | None = None,
     age_max: str | None = None,
+    expediente_num: str | None = None,
     residential_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1183,6 +1199,7 @@ def export_participants_csv(
 
     if selected_age_min is not None or selected_age_max is not None:
         stmt = _apply_age_filters(stmt, selected_age_min, selected_age_max)
+    stmt = _apply_expediente_filter(stmt, expediente_num)
 
     if selected_residential_id:
         stmt = stmt.where(Participant.residential_id == selected_residential_id)
