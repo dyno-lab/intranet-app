@@ -215,6 +215,11 @@ def _participant_initial_error(value: str | None) -> str | None:
     return None
 
 
+def _normalize_required_participant_gender(value: str | None) -> str | None:
+    normalized = (value or "").strip().upper()
+    return normalized if normalized in {"F", "M"} else None
+
+
 def _proposal_participant_needs_sync(
     proposal_participant: ProposalParticipant,
     person: Person,
@@ -1050,6 +1055,13 @@ async def create_participant(
     if record_residential is None or not record_residential.is_active:
         return _redirect_with_msg("/ui/new-list", "Error: El residencial activo no está disponible.")
 
+    normalized_gender = _normalize_required_participant_gender(genero)
+    if normalized_gender is None:
+        return _redirect_with_msg(
+            "/ui/new-list",
+            "Error: Selecciona el sexo del participante (F o M).",
+        )
+
     if settings.PHASE2_EXPEDIENTE_ENABLED:
         if exp_year is None:
             return _redirect_with_msg("/ui/new-list", "Error: Selecciona el año del expediente.")
@@ -1123,7 +1135,7 @@ async def create_participant(
         apellido_paterno=apellido_paterno,
         apellido_materno=apellido_materno,
         fecha_nacimiento=_parse_date(fecha_nacimiento),
-        genero=genero,
+        genero=normalized_gender,
         edificio=edificio,
         apart=apart,
         estatus=normalized_estatus or None,
@@ -1576,6 +1588,14 @@ async def edit_participant_save(
     record_residential = db.get(Residential, record_residential_id)
     if record_residential is None:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El residencial histórico no está disponible.")
+
+    normalized_gender = _normalize_required_participant_gender(genero)
+    if normalized_gender is None:
+        return _redirect_with_msg(
+            f"/ui/new-list/{participant_id}/edit",
+            "Error: Selecciona el sexo del participante (F o M).",
+        )
+
     phase2_expediente_enabled = settings.PHASE2_EXPEDIENTE_ENABLED
     if phase2_expediente_enabled:
         if exp_year is None:
@@ -1656,7 +1676,7 @@ async def edit_participant_save(
         "apellido_paterno": apellido_paterno,
         "apellido_materno": apellido_materno,
         "fecha_nacimiento": _parse_date(fecha_nacimiento),
-        "genero": genero,
+        "genero": normalized_gender,
         "edificio": edificio,
         "apart": apart,
         "estatus": normalized_estatus or None,

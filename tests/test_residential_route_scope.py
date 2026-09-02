@@ -332,6 +332,55 @@ class ResidentialRouteScopeTests(unittest.TestCase):
         self.assertNotIn("proposals.code ASC", order_by_sql)
 
 
+class ParticipantGenderValidationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_create_requires_participant_gender(self):
+        residential = _residential(1, "AC")
+        db = _Database(objects={(Residential, 1): residential})
+
+        response = await ui.create_participant(
+            residential_id=1,
+            nombre="Ana",
+            apellido_paterno="Pérez",
+            genero=None,
+            request=_Request(1),
+            db=db,
+            current_user=_privileged_user(active_residential_id=1),
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("sexo", response.headers["location"])
+        self.assertEqual(db.statements, [])
+        self.assertEqual(db.added, [])
+        self.assertEqual(db.commits, 0)
+
+    async def test_edit_requires_participant_gender(self):
+        residential = _residential(1, "AC")
+        participant = SimpleNamespace(
+            participant_id=366,
+            residential_id=1,
+            created_by_user_id=27,
+        )
+        db = _Database(
+            objects={(Residential, 1): residential},
+            results=[_Result(scalar=participant)],
+        )
+
+        response = await ui.edit_participant_save(
+            participant_id=participant.participant_id,
+            nombre="Ana",
+            apellido_paterno="Pérez",
+            genero=None,
+            request=_Request(1),
+            db=db,
+            current_user=_privileged_user(active_residential_id=1),
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("sexo", response.headers["location"])
+        self.assertEqual(len(db.statements), 1)
+        self.assertEqual(db.commits, 0)
+
+
 class ParticipantDeletionTests(unittest.TestCase):
     def test_delete_removes_only_empty_profile_rows_before_participant(self):
         participant = SimpleNamespace(

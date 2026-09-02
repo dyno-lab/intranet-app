@@ -1,4 +1,6 @@
 from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 class ParticipantCreate(BaseModel):
@@ -14,7 +16,7 @@ class ParticipantCreate(BaseModel):
     inicial: str | None = Field(default=None, max_length=12)
     apellido_paterno: str
     apellido_materno: str | None = None
-    genero: str | None = None
+    genero: Literal["F", "M"]
     fecha_nacimiento: date | None = None
     edificio: str | None = None
     apart: str | None = None

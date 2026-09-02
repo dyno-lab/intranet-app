@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 
@@ -164,6 +165,7 @@ class ResidentialOwnershipTests(unittest.TestCase):
             exp_seq4="0001",
             nombre="Ana",
             apellido_paterno="Pérez",
+            genero="F",
         )
 
         with patch.object(participant_routes.settings, "PHASE2_EXPEDIENTE_ENABLED", True):
@@ -182,6 +184,23 @@ class ResidentialOwnershipTests(unittest.TestCase):
         sequence_statement = db.statements[0]
         self.assertIn("participants.residential_id", str(sequence_statement))
         self.assertIn(1, sequence_statement.compile().params.values())
+
+    def test_api_requires_female_or_male_participant_gender(self):
+        for invalid_gender in (None, "", "X"):
+            with self.subTest(gender=invalid_gender):
+                with self.assertRaises(ValidationError):
+                    ParticipantCreate(
+                        nombre="Ana",
+                        apellido_paterno="Pérez",
+                        genero=invalid_gender,
+                    )
+
+        participant = ParticipantCreate(
+            nombre="Ana",
+            apellido_paterno="Pérez",
+            genero="M",
+        )
+        self.assertEqual(participant.genero, "M")
 
     def test_privileged_writes_follow_global_or_active_residential_mode(self):
         aristides = _residential(1, "AC", "Aristides Chavier")
