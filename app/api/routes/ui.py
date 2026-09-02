@@ -10,10 +10,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.datastructures import FormData
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, update, delete, func, or_
+from sqlalchemy.exc import IntegrityError
 from math import ceil
 from sqlalchemy.orm import Session
 
 from app.models.participant import Participant
+from app.models.participant_profile_field_value import ParticipantProfileFieldValue
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
 from app.models.employee import Employee
@@ -25,6 +27,9 @@ from app.models.catalog_option import CatalogOption
 from app.models.residential import Residential
 from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
+from app.models.pregnancy_report_item import PregnancyReportItem
+from app.models.school_dropout_report_item import SchoolDropoutReportItem
+from app.models.school_grade_report_item import SchoolGradeReportItem
 
 from app.core.auth import get_current_user, require_admin, is_admin_or_supervisor
 from app.services.participant_profile_fields import (
@@ -1149,6 +1154,54 @@ async def create_participant(
     return _redirect_with_msg("/ui/new-list", "Participante creado exitosamente.")
 
 
+def _participant_delete_blockers(db: Session, participant_id: int) -> list[str]:
+    reference_checks = (
+        (
+            "asistencias",
+            select(Attendance.attendance_id).where(
+                Attendance.participant_id == participant_id
+            ),
+        ),
+        (
+            "campos adicionales del expediente",
+            select(ParticipantProfileFieldValue.participant_profile_field_value_id).where(
+                ParticipantProfileFieldValue.participant_id == participant_id
+            ),
+        ),
+        (
+            "informes de notas escolares",
+            select(SchoolGradeReportItem.report_item_id).where(
+                SchoolGradeReportItem.participant_id == participant_id
+            ),
+        ),
+        (
+            "informes de deserción escolar",
+            select(SchoolDropoutReportItem.report_item_id).where(
+                SchoolDropoutReportItem.participant_id == participant_id
+            ),
+        ),
+        (
+            "informes de embarazo",
+            select(PregnancyReportItem.report_item_id).where(
+                PregnancyReportItem.participant_id == participant_id
+            ),
+        ),
+        (
+            "propuestas",
+            select(ProposalParticipant.proposal_participant_id)
+            .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .where(Person.legacy_participant_id == participant_id),
+        ),
+    )
+
+    blockers = []
+    for label, statement in reference_checks:
+        reference_id = db.execute(statement.limit(1)).scalar_one_or_none()
+        if reference_id is not None:
+            blockers.append(label)
+    return blockers
+
+
 @router.post("/new-list/{participant_id}/delete")
 def delete_participant(
     participant_id: int,
@@ -1164,9 +1217,27 @@ def delete_participant(
         raise HTTPException(status_code=404, detail="Participante no existe.")
     _check_participant_access(participant, current_user, request)
 
-    db.execute(delete(Attendance).where(Attendance.participant_id == participant_id))
-    db.execute(delete(Participant).where(Participant.participant_id == participant_id))
-    db.commit()
+    blockers = _participant_delete_blockers(db, participant_id)
+    if blockers:
+        return _redirect_with_msg(
+            "/ui/new-list",
+            "Error: No se puede eliminar en modo seguridad. "
+            f"El expediente conserva referencias en: {', '.join(blockers)}.",
+        )
+
+    try:
+        db.execute(
+            Participant.__table__.delete().where(
+                Participant.__table__.c.participant_id == participant_id
+            )
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _redirect_with_msg(
+            "/ui/new-list",
+            "Error: El expediente conserva datos relacionados y no pudo eliminarse.",
+        )
 
     return _redirect_with_msg("/ui/new-list", "Participante eliminado exitosamente.")
 

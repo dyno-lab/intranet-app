@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from starlette.datastructures import FormData
 
 
@@ -59,6 +60,7 @@ class _Database:
         self.statements = []
         self.added = []
         self.commits = 0
+        self.rollbacks = 0
 
     def get(self, model, object_id):
         return self.objects.get((model, object_id))
@@ -67,13 +69,19 @@ class _Database:
         self.statements.append(statement)
         if not self.results:
             raise AssertionError("Unexpected database query")
-        return self.results.pop(0)
+        result = self.results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
 
     def add(self, value):
         self.added.append(value)
 
     def commit(self):
         self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
 
 
 def _privileged_user(*, active_residential_id: int | None = None):
@@ -322,6 +330,103 @@ class ResidentialRouteScopeTests(unittest.TestCase):
             )
         )
         self.assertNotIn("proposals.code ASC", order_by_sql)
+
+
+class ParticipantDeletionTests(unittest.TestCase):
+    def test_delete_only_removes_unreferenced_participant(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            residential_id=1,
+            created_by_user_id=90,
+        )
+        db = _Database(
+            objects={(Participant, participant.participant_id): participant},
+            results=[_Result() for _ in range(7)],
+        )
+
+        response = ui.delete_participant(
+            participant_id=participant.participant_id,
+            request=_Request(),
+            db=db,
+            current_user=_privileged_user(),
+        )
+
+        statements = [str(statement) for statement in db.statements]
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(db.commits, 1)
+        self.assertEqual(len(statements), 7)
+        for statement in statements[:6]:
+            self.assertTrue(statement.lstrip().startswith("SELECT"))
+        self.assertIn("DELETE FROM participants", statements[6])
+        for statement in db.statements:
+            self.assertIn(
+                participant.participant_id,
+                statement.compile().params.values(),
+            )
+
+    def test_delete_blocks_profile_references_without_modifying_data(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            residential_id=1,
+            created_by_user_id=90,
+        )
+        db = _Database(
+            objects={(Participant, participant.participant_id): participant},
+            results=[
+                _Result(),
+                _Result(scalar=27),
+                _Result(),
+                _Result(),
+                _Result(),
+                _Result(),
+            ],
+        )
+
+        response = ui.delete_participant(
+            participant_id=participant.participant_id,
+            request=_Request(),
+            db=db,
+            current_user=_privileged_user(),
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(db.commits, 0)
+        self.assertEqual(db.rollbacks, 0)
+        self.assertEqual(len(db.statements), 6)
+        self.assertTrue(all(
+            str(statement).lstrip().startswith("SELECT")
+            for statement in db.statements
+        ))
+        self.assertIn("modo%20seguridad", response.headers["location"])
+        self.assertIn("campos%20adicionales", response.headers["location"])
+
+    def test_delete_rolls_back_an_unexpected_related_record(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            residential_id=1,
+            created_by_user_id=90,
+        )
+        integrity_error = IntegrityError(
+            "DELETE FROM participants",
+            {"participant_id": participant.participant_id},
+            Exception("foreign key conflict"),
+        )
+        db = _Database(
+            objects={(Participant, participant.participant_id): participant},
+            results=[*[_Result() for _ in range(6)], integrity_error],
+        )
+
+        response = ui.delete_participant(
+            participant_id=participant.participant_id,
+            request=_Request(),
+            db=db,
+            current_user=_privileged_user(),
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(db.commits, 0)
+        self.assertEqual(db.rollbacks, 1)
+        self.assertIn("no%20pudo%20eliminarse", response.headers["location"])
 
 
 class ParticipantEditPersistenceTests(unittest.IsolatedAsyncioTestCase):
