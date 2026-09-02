@@ -355,11 +355,12 @@ class ParticipantDeletionTests(unittest.TestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(db.commits, 1)
         self.assertEqual(len(statements), 8)
-        for statement in statements[:6]:
+        for statement in statements[:5]:
             self.assertTrue(statement.lstrip().startswith("SELECT"))
-        self.assertIn("DELETE FROM participant_profile_field_values", statements[6])
-        self.assertIn("participant_profile_field_values.value IS NULL", statements[6])
-        self.assertIn("ltrim(rtrim(participant_profile_field_values.value)) =", statements[6])
+        self.assertIn("DELETE FROM participant_profile_field_values", statements[5])
+        self.assertIn("participant_profile_field_values.value IS NULL", statements[5])
+        self.assertIn("ltrim(rtrim(participant_profile_field_values.value)) =", statements[5])
+        self.assertIn("SELECT participant_profile_field_values", statements[6])
         self.assertIn("DELETE FROM participants", statements[7])
         for statement in db.statements:
             self.assertIn(
@@ -367,7 +368,7 @@ class ParticipantDeletionTests(unittest.TestCase):
                 statement.compile().params.values(),
             )
 
-    def test_delete_blocks_nonempty_profile_references_without_modifying_data(self):
+    def test_delete_blocks_attendance_without_cleaning_profile_rows(self):
         participant = SimpleNamespace(
             participant_id=2141,
             residential_id=1,
@@ -375,14 +376,7 @@ class ParticipantDeletionTests(unittest.TestCase):
         )
         db = _Database(
             objects={(Participant, participant.participant_id): participant},
-            results=[
-                _Result(),
-                _Result(scalar=27),
-                _Result(),
-                _Result(),
-                _Result(),
-                _Result(),
-            ],
+            results=[_Result(scalar=31), *[_Result() for _ in range(4)]],
         )
 
         response = ui.delete_participant(
@@ -395,14 +389,47 @@ class ParticipantDeletionTests(unittest.TestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(db.commits, 0)
         self.assertEqual(db.rollbacks, 0)
-        self.assertEqual(len(db.statements), 6)
+        self.assertEqual(len(db.statements), 5)
         self.assertTrue(all(
             str(statement).lstrip().startswith("SELECT")
             for statement in db.statements
         ))
-        profile_reference_sql = str(db.statements[1])
-        self.assertIn("participant_profile_field_values.value IS NOT NULL", profile_reference_sql)
-        self.assertIn("ltrim(rtrim(participant_profile_field_values.value)) !=", profile_reference_sql)
+        self.assertIn("asistencias", response.headers["location"])
+
+    def test_delete_rolls_back_cleanup_when_nonempty_profile_value_remains(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            residential_id=1,
+            created_by_user_id=90,
+        )
+        db = _Database(
+            objects={(Participant, participant.participant_id): participant},
+            results=[
+                *[_Result() for _ in range(6)],
+                _Result(scalar=27),
+            ],
+        )
+
+        response = ui.delete_participant(
+            participant_id=participant.participant_id,
+            request=_Request(),
+            db=db,
+            current_user=_privileged_user(),
+        )
+
+        statements = [str(statement) for statement in db.statements]
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(db.commits, 0)
+        self.assertEqual(db.rollbacks, 1)
+        self.assertEqual(len(statements), 7)
+        for statement in statements[:5]:
+            self.assertTrue(statement.lstrip().startswith("SELECT"))
+        self.assertIn("DELETE FROM participant_profile_field_values", statements[5])
+        self.assertTrue(statements[6].lstrip().startswith("SELECT"))
+        self.assertFalse(any(
+            "DELETE FROM participants" in statement
+            for statement in statements
+        ))
         self.assertIn("modo%20seguridad", response.headers["location"])
         self.assertIn("campos%20adicionales", response.headers["location"])
 

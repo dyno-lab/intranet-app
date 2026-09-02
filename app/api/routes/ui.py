@@ -1162,14 +1162,7 @@ def _participant_delete_blockers(db: Session, participant_id: int) -> list[str]:
                 Attendance.participant_id == participant_id
             ),
         ),
-        (
-            "campos adicionales del expediente con información",
-            select(ParticipantProfileFieldValue.participant_profile_field_value_id).where(
-                ParticipantProfileFieldValue.participant_id == participant_id,
-                ParticipantProfileFieldValue.value.is_not(None),
-                func.ltrim(func.rtrim(ParticipantProfileFieldValue.value)) != "",
-            ),
-        ),
+
         (
             "informes de notas escolares",
             select(SchoolGradeReportItem.report_item_id).where(
@@ -1238,6 +1231,20 @@ def delete_participant(
                 ),
             )
         )
+        remaining_profile_value_id = db.execute(
+            select(profile_field_values.c.participant_profile_field_value_id)
+            .where(profile_field_values.c.participant_id == participant_id)
+            .limit(1)
+        ).scalar_one_or_none()
+        if remaining_profile_value_id is not None:
+            db.rollback()
+            return _redirect_with_msg(
+                "/ui/new-list",
+                "Error: No se puede eliminar en modo seguridad. "
+                "El expediente conserva referencias en: "
+                "campos adicionales del expediente con información.",
+            )
+
         db.execute(
             Participant.__table__.delete().where(
                 Participant.__table__.c.participant_id == participant_id
