@@ -333,7 +333,7 @@ class ResidentialRouteScopeTests(unittest.TestCase):
 
 
 class ParticipantDeletionTests(unittest.TestCase):
-    def test_delete_only_removes_unreferenced_participant(self):
+    def test_delete_removes_only_empty_profile_rows_before_participant(self):
         participant = SimpleNamespace(
             participant_id=2141,
             residential_id=1,
@@ -341,7 +341,7 @@ class ParticipantDeletionTests(unittest.TestCase):
         )
         db = _Database(
             objects={(Participant, participant.participant_id): participant},
-            results=[_Result() for _ in range(7)],
+            results=[_Result() for _ in range(8)],
         )
 
         response = ui.delete_participant(
@@ -354,17 +354,20 @@ class ParticipantDeletionTests(unittest.TestCase):
         statements = [str(statement) for statement in db.statements]
         self.assertEqual(response.status_code, 303)
         self.assertEqual(db.commits, 1)
-        self.assertEqual(len(statements), 7)
+        self.assertEqual(len(statements), 8)
         for statement in statements[:6]:
             self.assertTrue(statement.lstrip().startswith("SELECT"))
-        self.assertIn("DELETE FROM participants", statements[6])
+        self.assertIn("DELETE FROM participant_profile_field_values", statements[6])
+        self.assertIn("participant_profile_field_values.value IS NULL", statements[6])
+        self.assertIn("ltrim(rtrim(participant_profile_field_values.value)) =", statements[6])
+        self.assertIn("DELETE FROM participants", statements[7])
         for statement in db.statements:
             self.assertIn(
                 participant.participant_id,
                 statement.compile().params.values(),
             )
 
-    def test_delete_blocks_profile_references_without_modifying_data(self):
+    def test_delete_blocks_nonempty_profile_references_without_modifying_data(self):
         participant = SimpleNamespace(
             participant_id=2141,
             residential_id=1,
@@ -397,6 +400,9 @@ class ParticipantDeletionTests(unittest.TestCase):
             str(statement).lstrip().startswith("SELECT")
             for statement in db.statements
         ))
+        profile_reference_sql = str(db.statements[1])
+        self.assertIn("participant_profile_field_values.value IS NOT NULL", profile_reference_sql)
+        self.assertIn("ltrim(rtrim(participant_profile_field_values.value)) !=", profile_reference_sql)
         self.assertIn("modo%20seguridad", response.headers["location"])
         self.assertIn("campos%20adicionales", response.headers["location"])
 
@@ -413,7 +419,7 @@ class ParticipantDeletionTests(unittest.TestCase):
         )
         db = _Database(
             objects={(Participant, participant.participant_id): participant},
-            results=[*[_Result() for _ in range(6)], integrity_error],
+            results=[*[_Result() for _ in range(7)], integrity_error],
         )
 
         response = ui.delete_participant(

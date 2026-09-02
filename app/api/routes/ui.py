@@ -1163,9 +1163,11 @@ def _participant_delete_blockers(db: Session, participant_id: int) -> list[str]:
             ),
         ),
         (
-            "campos adicionales del expediente",
+            "campos adicionales del expediente con información",
             select(ParticipantProfileFieldValue.participant_profile_field_value_id).where(
-                ParticipantProfileFieldValue.participant_id == participant_id
+                ParticipantProfileFieldValue.participant_id == participant_id,
+                ParticipantProfileFieldValue.value.is_not(None),
+                func.ltrim(func.rtrim(ParticipantProfileFieldValue.value)) != "",
             ),
         ),
         (
@@ -1226,6 +1228,16 @@ def delete_participant(
         )
 
     try:
+        profile_field_values = ParticipantProfileFieldValue.__table__
+        db.execute(
+            profile_field_values.delete().where(
+                profile_field_values.c.participant_id == participant_id,
+                or_(
+                    profile_field_values.c.value.is_(None),
+                    func.ltrim(func.rtrim(profile_field_values.c.value)) == "",
+                ),
+            )
+        )
         db.execute(
             Participant.__table__.delete().where(
                 Participant.__table__.c.participant_id == participant_id
