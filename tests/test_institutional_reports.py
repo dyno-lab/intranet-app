@@ -414,7 +414,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("attendance.attended", people_sql)
         self.assertIn("left outer join participants", people_sql)
         self.assertIn("persons.legacy_participant_id = participants.participant_id", people_sql)
-        self.assertIn("participants.is_head_of_household", people_sql)
+        self.assertIn("proposal_participants.is_head_of_household", people_sql)
         self.assertNotIn("join users", people_sql)
         self.assertIn("left outer join residentials", people_sql)
         self.assertIn("participants.residential_id = residentials.residential_id", people_sql)

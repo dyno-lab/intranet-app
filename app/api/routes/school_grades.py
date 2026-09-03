@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete
+from sqlalchemy import and_, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -19,12 +19,15 @@ from app.core.period_guard import (
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.participant import Participant
+from app.models.person import Person
 from app.models.proposal import Proposal
+from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
 from app.models.user import User
+from app.services.proposal_participant_snapshots import participant_snapshot_view
 from app.services.report_item_writes import delete_report_item, update_report_item_fields
 
 router = APIRouter()
@@ -290,12 +293,28 @@ def school_grade_report_detail(
         eligible_rows.append({"p": participant, "age": age})
         age_map[participant.participant_id] = age
 
-    report_items = db.execute(
-        select(SchoolGradeReportItem, Participant)
+    report_item_rows = db.execute(
+        select(SchoolGradeReportItem, Participant, ProposalParticipant)
+        .select_from(SchoolGradeReportItem)
         .join(Participant, SchoolGradeReportItem.participant_id == Participant.participant_id)
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .outerjoin(
+            ProposalParticipant,
+            and_(
+                ProposalParticipant.person_id == Person.person_id,
+                ProposalParticipant.proposal_id == report.proposal_id,
+            ),
+        )
         .where(SchoolGradeReportItem.report_id == report_id)
         .order_by(Participant.apellido_paterno, Participant.nombre)
     ).all()
+    report_items = [
+        (item, participant_snapshot_view(participant, proposal_participant))
+        for item, participant, proposal_participant in report_item_rows
+    ]
+    for _, participant in report_items:
+        age = _calc_age(participant.fecha_nacimiento)
+        age_map[participant.participant_id] = age if age is not None else ""
 
     existing_participant_ids = {row[0].participant_id for row in report_items}
 

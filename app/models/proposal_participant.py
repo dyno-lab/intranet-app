@@ -1,8 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -25,6 +34,13 @@ class ProposalParticipant(Base):
     )
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.user_id"), nullable=True, index=True)
 
+    nombre: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    inicial: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    apellido_paterno: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    apellido_materno: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    genero: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     exp_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exp_employee_initials: Mapped[str | None] = mapped_column(String(20), nullable=True)
     exp_seq4: Mapped[str | None] = mapped_column(String(4), nullable=True)
@@ -34,11 +50,14 @@ class ProposalParticipant(Base):
     apart: Mapped[str | None] = mapped_column(String(50), nullable=True)
     vca: Mapped[str | None] = mapped_column(String(5), nullable=True)
     primera_vez: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    escolaridad_participante: Mapped[str | None] = mapped_column(String(150), nullable=True)
     composicion_familiar: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    relacion_familiar: Mapped[str | None] = mapped_column(String(100), nullable=True)
     estatus: Mapped[str | None] = mapped_column(String(50), nullable=True)
     grupo_familiar: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fuente_ingreso_principal: Mapped[str | None] = mapped_column(String(100), nullable=True)
     rango_ingreso: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    is_head_of_household: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
     created_at: Mapped[datetime] = mapped_column(

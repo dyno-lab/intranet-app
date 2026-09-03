@@ -63,6 +63,8 @@ class _Database:
 
     def execute(self, statement):
         self.statements.append(statement)
+        if getattr(statement, "is_update", False):
+            return _Result()
         if not self.results:
             raise AssertionError("Unexpected database query")
         return self.results.pop(0)
@@ -289,7 +291,7 @@ class ProposalResidentialScopeTests(unittest.TestCase):
         self.assertIn(1, _statement_values(db.statements[3]))
         self.assertNotIn("participants.created_by_user_id =", available_sql)
 
-    def test_global_participant_page_keeps_global_assigned_access(self):
+    def test_global_participant_page_honors_selected_residential(self):
         proposal = _proposal()
         db = _Database(
             objects={(Proposal, proposal.proposal_id): proposal},
@@ -323,10 +325,11 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             "residentials.residential_id =",
             _statement_sql(db.statements[1]),
         )
-        self.assertNotIn(
+        self.assertIn(
             "proposal_participants.residential_id =",
             _statement_sql(db.statements[2]),
         )
+        self.assertIn(2, _statement_values(db.statements[2]))
         self.assertIn(
             "participants.residential_id =",
             _statement_sql(db.statements[3]),
@@ -457,10 +460,11 @@ class ProposalResidentialScopeTests(unittest.TestCase):
         self.assertEqual(db.commits, 0)
         self.assertEqual(db.added, [])
 
-    def test_single_sync_limits_sibling_updates_to_active_residential(self):
+    def test_single_sync_updates_only_selected_association_in_active_scope(self):
         proposal = _proposal()
         association = _proposal_participant(40, residential_id=1)
         person = _person(association.person_id, 20)
+        original_person_name = person.nombre
         source = _participant(20, 1, name="Nombre actualizado")
         db = _Database(
             objects={
@@ -471,7 +475,6 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             results=[
                 _Result(scalar=association),
                 _Result(scalar=source),
-                _Result(),
             ],
         )
 
@@ -483,28 +486,36 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             status_filter="active",
             q=None,
             only_available=1,
+            sync_filter="outdated",
             db=db,
             current_user=_user(10, active_residential_id=1),
         )
 
-        sibling_sql = _statement_sql(db.statements[2])
-        self.assertIn("proposal_participants.residential_id =", sibling_sql)
-        self.assertIn(1, _statement_values(db.statements[2]))
-        self.assertEqual(person.nombre, "Nombre actualizado")
+        update_statements = [
+            statement
+            for statement in db.statements
+            if getattr(statement, "is_update", False)
+        ]
+        self.assertEqual(len(update_statements), 1)
+        update_sql = _statement_sql(update_statements[0])
+        self.assertIn("proposal_participants.proposal_participant_id =", update_sql)
+        self.assertIn("proposal_participants.proposal_id =", update_sql)
+        self.assertIn(association.proposal_participant_id, _statement_values(update_statements[0]))
+        self.assertIn(proposal.proposal_id, _statement_values(update_statements[0]))
+        self.assertEqual(person.nombre, original_person_name)
+        self.assertFalse(
+            any("UPDATE persons" in _statement_sql(statement) for statement in db.statements)
+        )
         self.assertEqual(db.commits, 1)
         self.assertIn("residential_id=1", response.headers["location"])
 
     def test_sync_all_forces_active_residential_filter(self):
         proposal = _proposal()
         association = _proposal_participant(40, residential_id=1)
-        person = _person(association.person_id, 20)
         source = _participant(20, 1, name="Nombre actualizado")
         db = _Database(
             objects={(Proposal, proposal.proposal_id): proposal},
-            results=[
-                _Result(values=[(association, person)]),
-                _Result(scalar=source),
-            ],
+            results=[_Result(values=[(association, source)])],
         )
 
         response = admin_routes.admin_sync_all_proposal_participants(
@@ -514,30 +525,38 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             status_filter="active",
             q=None,
             only_available=1,
+            sync_filter="outdated",
             db=db,
             current_user=_user(10, active_residential_id=1),
         )
 
-        sync_sql = _statement_sql(db.statements[0])
-        self.assertIn("proposal_participants.residential_id =", sync_sql)
-        self.assertIn(1, _statement_values(db.statements[0]))
-        self.assertNotIn(2, _statement_values(db.statements[0]))
-        self.assertIn("participants.residential_id =", _statement_sql(db.statements[1]))
-        self.assertIn(1, _statement_values(db.statements[1]))
-        self.assertEqual(person.nombre, "Nombre actualizado")
+        select_statement = db.statements[0]
+        select_sql = _statement_sql(select_statement)
+        self.assertIn("proposal_participants.residential_id =", select_sql)
+        self.assertIn("participants.residential_id =", select_sql)
+        self.assertIn(1, _statement_values(select_statement))
+        self.assertNotIn(2, _statement_values(select_statement))
+
+        update_statements = [
+            statement
+            for statement in db.statements
+            if getattr(statement, "is_update", False)
+        ]
+        self.assertEqual(len(update_statements), 1)
+        self.assertIn(
+            association.proposal_participant_id,
+            _statement_values(update_statements[0]),
+        )
+        self.assertIn(proposal.proposal_id, _statement_values(update_statements[0]))
         self.assertEqual(db.commits, 1)
         self.assertIn("residential_id=1", response.headers["location"])
 
-    def test_sync_all_rejects_source_from_another_residential(self):
+    def test_sync_all_scopes_source_join_to_active_residential(self):
         proposal = _proposal()
         association = _proposal_participant(40, residential_id=1)
-        person = _person(association.person_id, 20)
         db = _Database(
             objects={(Proposal, proposal.proposal_id): proposal},
-            results=[
-                _Result(values=[(association, person)]),
-                _Result(),
-            ],
+            results=[_Result(values=[(association, None)])],
         )
 
         response = admin_routes.admin_sync_all_proposal_participants(
@@ -547,13 +566,21 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             status_filter="active",
             q=None,
             only_available=1,
+            sync_filter="outdated",
             db=db,
             current_user=_user(10, active_residential_id=1),
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertIn("participants.residential_id =", _statement_sql(db.statements[1]))
-        self.assertIn(1, _statement_values(db.statements[1]))
+        select_statement = db.statements[0]
+        select_sql = _statement_sql(select_statement)
+        self.assertIn("participants.residential_id =", select_sql)
+        self.assertIn("proposal_participants.residential_id =", select_sql)
+        self.assertIn(1, _statement_values(select_statement))
+        self.assertNotIn(2, _statement_values(select_statement))
+        self.assertFalse(
+            any(getattr(statement, "is_update", False) for statement in db.statements)
+        )
         self.assertEqual(db.commits, 1)
         self.assertEqual(db.added, [])
 

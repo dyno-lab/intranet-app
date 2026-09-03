@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.datastructures import FormData
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, update, delete, func, or_
+from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from math import ceil
 from sqlalchemy.orm import Session
@@ -64,6 +64,7 @@ from app.core.period_guard import (
 from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
+from app.services.proposal_participant_sync import get_different_proposal_participant_fields
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -199,15 +200,6 @@ def _apply_expediente_filter(stmt, expediente_num: str | None):
     )
 
 
-def _normalized_sync_value(value):
-    if value is None:
-        return ""
-    if isinstance(value, bool):
-        return "1" if value else "0"
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    return str(value).strip()
-
 
 def _participant_initial_error(value: str | None) -> str | None:
     if value is not None and len(value) > 12:
@@ -222,31 +214,13 @@ def _normalize_required_participant_gender(value: str | None) -> str | None:
 
 def _proposal_participant_needs_sync(
     proposal_participant: ProposalParticipant,
-    person: Person,
     participant: Participant,
 ) -> bool:
-    comparisons = [
-        (person.nombre, participant.nombre),
-        (person.inicial, participant.inicial),
-        (person.apellido_paterno, participant.apellido_paterno),
-        (person.apellido_materno, participant.apellido_materno),
-        (person.genero, participant.genero),
-        (person.fecha_nacimiento, participant.fecha_nacimiento),
-        (proposal_participant.expediente_num, participant.expediente_num),
-        (proposal_participant.edificio, participant.edificio),
-        (proposal_participant.apart, participant.apart),
-        (proposal_participant.vca, participant.vca),
-        (proposal_participant.primera_vez, participant.primera_vez),
-        (proposal_participant.composicion_familiar, participant.composicion_familiar),
-        (proposal_participant.estatus, participant.estatus),
-        (proposal_participant.grupo_familiar, participant.grupo_familiar),
-        (proposal_participant.fuente_ingreso_principal, participant.fuente_ingreso_principal),
-        (proposal_participant.rango_ingreso, participant.rango_ingreso),
-        (bool(getattr(proposal_participant, "is_active", False)), bool(getattr(participant, "is_active", False))),
-    ]
-    return any(
-        _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
-        for current_value, source_value in comparisons
+    return bool(
+        get_different_proposal_participant_fields(
+            proposal_participant,
+            participant,
+        )
     )
 
 
@@ -328,7 +302,10 @@ def _build_new_list_dashboard(
                 continue
 
             assigned_participant_ids.add(participant_id)
-            if _proposal_participant_needs_sync(proposal_participant, person, participants_by_id[participant_id]):
+            if _proposal_participant_needs_sync(
+                proposal_participant,
+                participants_by_id[participant_id],
+            ):
                 pending_sync_participant_ids.add(participant_id)
 
     for participant_id in assigned_participant_ids:
@@ -512,23 +489,25 @@ def _load_session_proposal_participants(db: Session, session: ActivitySession, c
         return []
 
     stmt = (
-        select(ProposalParticipant, Person)
-        .join(Person, Person.person_id == ProposalParticipant.person_id)
+        select(ProposalParticipant)
         .where(ProposalParticipant.proposal_id == session.proposal_id)
-        .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
+        .order_by(
+            ProposalParticipant.apellido_paterno,
+            ProposalParticipant.apellido_materno,
+            ProposalParticipant.nombre,
+        )
     )
 
     if session.residential_id is not None:
         stmt = stmt.where(ProposalParticipant.residential_id == session.residential_id)
 
-    rows = db.execute(stmt).all()
+    proposal_participants = db.execute(stmt).scalars().all()
     result = []
-    for proposal_participant, person in rows:
+    for proposal_participant in proposal_participants:
         result.append({
             "proposal_participant": proposal_participant,
-            "person": person,
             "is_active": bool(getattr(proposal_participant, "is_active", False)),
-            "age": _calc_age(person.fecha_nacimiento),
+            "age": _calc_age(proposal_participant.fecha_nacimiento),
         })
     return result
 
@@ -2490,6 +2469,7 @@ def export_attendance_csv(
         else require_record_residential_id(request, current_user)
     )
 
+    has_proposal_snapshot = ProposalParticipant.proposal_participant_id.is_not(None)
     stmt = (
         select(
             ActivitySession.session_id,
@@ -2502,16 +2482,42 @@ def export_attendance_csv(
             Employee.employee_code,
             Employee.full_name.label("employee_name"),
             Participant.participant_id,
-            Participant.expediente_num,
-            Participant.nombre,
-            Participant.apellido_paterno,
-            Participant.apellido_materno,
-            Participant.genero,
-            Participant.estatus,
+            case(
+                (has_proposal_snapshot, ProposalParticipant.expediente_num),
+                else_=Participant.expediente_num,
+            ).label("expediente_num"),
+            case(
+                (has_proposal_snapshot, ProposalParticipant.nombre),
+                else_=Participant.nombre,
+            ).label("nombre"),
+            case(
+                (has_proposal_snapshot, ProposalParticipant.apellido_paterno),
+                else_=Participant.apellido_paterno,
+            ).label("apellido_paterno"),
+            case(
+                (has_proposal_snapshot, ProposalParticipant.apellido_materno),
+                else_=Participant.apellido_materno,
+            ).label("apellido_materno"),
+            case(
+                (has_proposal_snapshot, ProposalParticipant.genero),
+                else_=Participant.genero,
+            ).label("genero"),
+            case(
+                (has_proposal_snapshot, ProposalParticipant.estatus),
+                else_=Participant.estatus,
+            ).label("estatus"),
             Attendance.attended,
         )
         .join(Attendance, Attendance.session_id == ActivitySession.session_id)
         .join(Participant, Participant.participant_id == Attendance.participant_id)
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .outerjoin(
+            ProposalParticipant,
+            and_(
+                ProposalParticipant.person_id == Person.person_id,
+                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+            ),
+        )
         .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
         .outerjoin(Proposal, ActivitySession.proposal_id == Proposal.proposal_id)

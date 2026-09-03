@@ -1082,19 +1082,28 @@ BEGIN
         proposal_id INT NOT NULL,
         person_id INT NOT NULL,
         created_by_user_id INT NULL,
+        nombre VARCHAR(150) NULL,
+        inicial VARCHAR(12) NULL,
+        apellido_paterno VARCHAR(150) NULL,
+        apellido_materno VARCHAR(150) NULL,
+        genero VARCHAR(10) NULL,
+        fecha_nacimiento DATE NULL,
         exp_year INT NULL,
-        exp_employee_initials VARCHAR(10) NULL,
+        exp_employee_initials VARCHAR(20) NULL,
         exp_seq4 VARCHAR(4) NULL,
         expediente_num VARCHAR(50) NULL,
         edificio VARCHAR(50) NULL,
         apart VARCHAR(50) NULL,
         vca VARCHAR(5) NULL,
         primera_vez VARCHAR(5) NULL,
+        escolaridad_participante VARCHAR(150) NULL,
         composicion_familiar VARCHAR(100) NULL,
+        relacion_familiar VARCHAR(100) NULL,
         estatus VARCHAR(50) NULL,
         grupo_familiar VARCHAR(20) NULL,
         fuente_ingreso_principal VARCHAR(100) NULL,
         rango_ingreso VARCHAR(30) NULL,
+        is_head_of_household BIT NOT NULL CONSTRAINT DF_proposal_participants_is_head_of_household DEFAULT 0,
         is_active BIT NOT NULL CONSTRAINT DF_proposal_participants_is_active DEFAULT 1,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_created_at DEFAULT SYSUTCDATETIME(),
         updated_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_proposal_participants_updated_at DEFAULT SYSUTCDATETIME()
@@ -1477,6 +1486,12 @@ INSERT INTO dbo.proposal_participants (
     proposal_id,
     person_id,
     created_by_user_id,
+    nombre,
+    inicial,
+    apellido_paterno,
+    apellido_materno,
+    genero,
+    fecha_nacimiento,
     exp_year,
     exp_employee_initials,
     exp_seq4,
@@ -1485,11 +1500,14 @@ INSERT INTO dbo.proposal_participants (
     apart,
     vca,
     primera_vez,
+    escolaridad_participante,
     composicion_familiar,
+    relacion_familiar,
     estatus,
     grupo_familiar,
     fuente_ingreso_principal,
     rango_ingreso,
+    is_head_of_household,
     is_active,
     created_at,
     updated_at
@@ -1498,6 +1516,12 @@ SELECT DISTINCT
     s.proposal_id,
     ppm.person_id,
     p.created_by_user_id,
+    per.nombre,
+    per.inicial,
+    per.apellido_paterno,
+    per.apellido_materno,
+    per.genero,
+    per.fecha_nacimiento,
     p.exp_year,
     p.exp_employee_initials,
     p.exp_seq4,
@@ -1506,11 +1530,14 @@ SELECT DISTINCT
     p.apart,
     p.vca,
     p.primera_vez,
+    p.escolaridad_participante,
     p.composicion_familiar,
+    p.relacion_familiar,
     p.estatus,
     p.grupo_familiar,
     p.fuente_ingreso_principal,
     p.rango_ingreso,
+    p.is_head_of_household,
     p.is_active,
     p.created_at,
     p.updated_at
@@ -1518,6 +1545,7 @@ FROM dbo.attendance a
 INNER JOIN dbo.activity_sessions s ON s.session_id = a.session_id
 INNER JOIN dbo.participants p ON p.participant_id = a.participant_id
 INNER JOIN @ParticipantPersonMap ppm ON ppm.participant_id = p.participant_id
+INNER JOIN dbo.persons per ON per.person_id = ppm.person_id
 WHERE s.proposal_id IS NOT NULL
   AND a.participant_id IS NOT NULL
   AND NOT EXISTS (
@@ -1549,6 +1577,95 @@ INNER JOIN dbo.persons per
     ON per.person_id = pp.person_id
 WHERE a.participant_id IS NULL
   AND per.legacy_participant_id IS NOT NULL;
+"""
+
+
+PROPOSAL_PARTICIPANT_SNAPSHOT_COLUMNS_SQL = """
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF OBJECT_ID(N'dbo.proposal_participants', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.proposal_participants', N'nombre') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD nombre VARCHAR(150) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'inicial') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD inicial VARCHAR(12) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'apellido_paterno') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD apellido_paterno VARCHAR(150) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'apellido_materno') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD apellido_materno VARCHAR(150) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'genero') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD genero VARCHAR(10) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'fecha_nacimiento') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD fecha_nacimiento DATE NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'escolaridad_participante') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD escolaridad_participante VARCHAR(150) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'relacion_familiar') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD relacion_familiar VARCHAR(100) NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'is_head_of_household') IS NULL
+        ALTER TABLE dbo.proposal_participants ADD is_head_of_household BIT NULL;
+
+    IF COL_LENGTH(N'dbo.proposal_participants', N'exp_employee_initials') < 20
+        ALTER TABLE dbo.proposal_participants ALTER COLUMN exp_employee_initials VARCHAR(20) NULL;
+
+    EXEC sys.sp_executesql N'
+        UPDATE pp
+        SET nombre = COALESCE(person.nombre, participant.nombre),
+            inicial = COALESCE(person.inicial, participant.inicial),
+            apellido_paterno = COALESCE(person.apellido_paterno, participant.apellido_paterno),
+            apellido_materno = COALESCE(person.apellido_materno, participant.apellido_materno),
+            genero = COALESCE(person.genero, participant.genero),
+            fecha_nacimiento = COALESCE(person.fecha_nacimiento, participant.fecha_nacimiento),
+            escolaridad_participante = participant.escolaridad_participante,
+            relacion_familiar = participant.relacion_familiar,
+            is_head_of_household = COALESCE(participant.is_head_of_household, CONVERT(BIT, 0))
+        FROM dbo.proposal_participants AS pp
+        INNER JOIN dbo.persons AS person ON person.person_id = pp.person_id
+        LEFT JOIN dbo.participants AS participant ON participant.participant_id = person.legacy_participant_id
+        WHERE pp.nombre IS NULL
+          AND pp.apellido_paterno IS NULL;
+    ';
+
+    EXEC sys.sp_executesql N'
+        UPDATE dbo.proposal_participants
+        SET is_head_of_household = 0
+        WHERE is_head_of_household IS NULL;
+    ';
+
+    IF EXISTS (
+        SELECT 1
+        FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'dbo.proposal_participants')
+          AND [name] = N'is_head_of_household'
+          AND is_nullable = 1
+    )
+        ALTER TABLE dbo.proposal_participants
+        ALTER COLUMN is_head_of_household BIT NOT NULL;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sys.default_constraints AS defaults
+        INNER JOIN sys.columns AS columns
+            ON columns.object_id = defaults.parent_object_id
+           AND columns.column_id = defaults.parent_column_id
+        WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.proposal_participants')
+          AND columns.[name] = N'is_head_of_household'
+    )
+        ALTER TABLE dbo.proposal_participants
+        ADD CONSTRAINT DF_proposal_participants_is_head_of_household
+        DEFAULT 0 FOR is_head_of_household;
+END;
+
+SET NOCOUNT OFF;
+SET XACT_ABORT OFF;
 """
 
 
@@ -2119,6 +2236,9 @@ AND COL_LENGTH(N'dbo.pregnancy_reports', N'residential_id') IS NULL
 IF OBJECT_ID(N'dbo.visit_reports', N'U') IS NOT NULL
 AND COL_LENGTH(N'dbo.visit_reports', N'residential_id') IS NULL
     ALTER TABLE dbo.visit_reports ADD residential_id INT NULL;
+
+SET NOCOUNT OFF;
+SET XACT_ABORT OFF;
 """
 
 
@@ -2292,6 +2412,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_key_columns AS columns WHERE columns.parent_object_id = OBJECT_ID(N'dbo.visit_reports') AND COL_NAME(columns.parent_object_id, columns.parent_column_id) = N'residential_id' AND columns.referenced_object_id = OBJECT_ID(N'dbo.residentials'))
         ALTER TABLE dbo.visit_reports WITH CHECK ADD CONSTRAINT FK_visit_reports_residentials FOREIGN KEY (residential_id) REFERENCES dbo.residentials(residential_id);
 END;
+
+SET NOCOUNT OFF;
+SET XACT_ABORT OFF;
 """
 
 
@@ -2485,6 +2608,9 @@ BEGIN
     IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.visit_reports') AND name = N'uq_visit_reports_period_user')
         ALTER TABLE dbo.visit_reports DROP CONSTRAINT uq_visit_reports_period_user;
 END;
+
+SET NOCOUNT OFF;
+SET XACT_ABORT OFF;
 """
 
 
@@ -2511,6 +2637,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(RECORD_RESIDENTIAL_COLUMNS_SQL)
 
     with engine.begin() as conn:
+        conn.exec_driver_sql(PROPOSAL_PARTICIPANT_SNAPSHOT_COLUMNS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
         conn.exec_driver_sql(RECORD_RESIDENTIAL_SNAPSHOT_SQL)
 

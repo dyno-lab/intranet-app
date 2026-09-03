@@ -5,7 +5,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, extract, func, distinct
+from sqlalchemy import and_, case, distinct, extract, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -17,7 +17,9 @@ from app.core.roles import report_authorized_name
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
+from app.models.person import Person
 from app.models.proposal import Proposal
+from app.models.proposal_participant import ProposalParticipant
 from app.models.user import User
 from app.models.residential import Residential
 from app.models.activity_code import ActivityCode
@@ -96,6 +98,10 @@ from app.services.report_pdf import (
     render_template_to_pdf_bytes,
 )
 from app.services.notes_chart_svg import build_notes_pdf_chart_images
+from app.services.proposal_participant_snapshots import (
+    PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS as _PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS,
+    participant_snapshot_view as _participant_snapshot_view,
+)
 from app.services.visits import (
     resolve_report_scope,
     get_or_create_visit_report,
@@ -123,6 +129,11 @@ FIXED_SIGNATURES = [
 ]
 
 ROWS_PER_BONAFIDE_PAGE = 24
+
+
+def _participant_sort_key(participant, *field_names: str) -> tuple[str, ...]:
+    return tuple(_normalize_text(getattr(participant, field_name)).casefold() for field_name in field_names)
+
 
 def _apply_session_period_filter(stmt, period: dict):
     if period["is_custom"]:
@@ -176,19 +187,40 @@ def _build_bonafide_context(
             municipality = _municipality_from_user(selected_user)
 
         stmt = (
-            select(Participant)
+            select(Participant, ProposalParticipant)
+            .select_from(Participant)
             .join(Attendance, Attendance.participant_id == Participant.participant_id)
             .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+            .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+            .outerjoin(
+                ProposalParticipant,
+                and_(
+                    ProposalParticipant.person_id == Person.person_id,
+                    ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                ),
+            )
             .where(
                 Attendance.attended == True,  # noqa: E712
                 ActivitySession.proposal_id == proposal_id,
             )
         )
-        stmt = _apply_session_period_filter(stmt, period)
-        stmt = stmt.distinct().order_by(Participant.edificio, Participant.apart, Participant.apellido_paterno, Participant.nombre)
+        stmt = _apply_session_period_filter(stmt, period).distinct()
         if not is_global:
             stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
-        participants = db.execute(stmt).scalars().all()
+        participant_rows = db.execute(stmt).all()
+        participants = [
+            _participant_snapshot_view(participant, proposal_participant)
+            for participant, proposal_participant in participant_rows
+        ]
+        participants.sort(
+            key=lambda participant: _participant_sort_key(
+                participant,
+                "edificio",
+                "apart",
+                "apellido_paterno",
+                "nombre",
+            )
+        )
 
         for idx, participant in enumerate(participants, start=1):
             gender = _normalize_text(participant.genero).upper()
@@ -1150,14 +1182,30 @@ def _build_vca_context(
             ).all()
             activity_to_column = {activity.activity_code_id: column.vca_column_id for _, activity, column in mapping_rows}
 
+            effective_vca = case(
+                (
+                    ProposalParticipant.proposal_participant_id.is_not(None),
+                    ProposalParticipant.vca,
+                ),
+                else_=Participant.vca,
+            )
             participant_stmt = (
-                select(Participant)
+                select(Participant, ProposalParticipant)
+                .select_from(Participant)
                 .join(Attendance, Attendance.participant_id == Participant.participant_id)
                 .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+                .outerjoin(
+                    ProposalParticipant,
+                    and_(
+                        ProposalParticipant.person_id == Person.person_id,
+                        ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                    ),
+                )
                 .where(
                     Attendance.attended == True,  # noqa: E712
                     ActivitySession.proposal_id == proposal_id,
-                    func.upper(func.ltrim(func.rtrim(func.isnull(Participant.vca, "")))) == "SI",
+                    func.upper(func.ltrim(func.rtrim(effective_vca))) == "SI",
                 )
             )
             participant_stmt = _apply_session_period_filter(participant_stmt, period)
@@ -1166,8 +1214,18 @@ def _build_vca_context(
             else:
                 participant_stmt = participant_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
-            participants = participant_stmt.distinct().order_by(Participant.apellido_paterno, Participant.nombre)
-            participant_rows = db.execute(participants).scalars().all()
+            participant_pairs = db.execute(participant_stmt.distinct()).all()
+            participant_rows = [
+                _participant_snapshot_view(participant, proposal_participant)
+                for participant, proposal_participant in participant_pairs
+            ]
+            participant_rows.sort(
+                key=lambda participant: _participant_sort_key(
+                    participant,
+                    "apellido_paterno",
+                    "nombre",
+                )
+            )
 
             attendance_stmt = (
                 select(Attendance.participant_id, ActivitySession.activity_code_id)
@@ -1316,8 +1374,31 @@ def _build_adm_context(
 
             participant_rows = []
             if unique_participant_ids:
-                participant_stmt = select(Participant).where(Participant.participant_id.in_(unique_participant_ids))
-                participant_rows = db.execute(participant_stmt).scalars().all()
+                participant_stmt = (
+                    select(Participant, ProposalParticipant)
+                    .select_from(Participant)
+                    .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+                    .outerjoin(
+                        ProposalParticipant,
+                        and_(
+                            ProposalParticipant.person_id == Person.person_id,
+                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                        ),
+                    )
+                    .where(
+                        Participant.participant_id.in_(unique_participant_ids),
+                        Attendance.attended == True,  # noqa: E712
+                        Attendance.session_id.in_(session_ids),
+                        ActivitySession.proposal_id == proposal_id,
+                    )
+                    .distinct()
+                )
+                participant_rows = [
+                    _participant_snapshot_view(participant, proposal_participant)
+                    for participant, proposal_participant in db.execute(participant_stmt).all()
+                ]
 
             sociodemographic_summary = {
                 key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
@@ -1722,9 +1803,24 @@ def _build_school_dropout_summary_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(SchoolDropoutReportItem, SchoolDropoutReport, Participant, Residential)
+            select(
+                SchoolDropoutReportItem,
+                SchoolDropoutReport,
+                Participant,
+                Residential,
+                ProposalParticipant,
+            )
+            .select_from(SchoolDropoutReportItem)
             .join(SchoolDropoutReport, SchoolDropoutReport.report_id == SchoolDropoutReportItem.report_id)
             .join(Participant, Participant.participant_id == SchoolDropoutReportItem.participant_id)
+            .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+            .outerjoin(
+                ProposalParticipant,
+                and_(
+                    ProposalParticipant.person_id == Person.person_id,
+                    ProposalParticipant.proposal_id == SchoolDropoutReport.proposal_id,
+                ),
+            )
             .outerjoin(Residential, Residential.residential_id == SchoolDropoutReport.residential_id)
             .where(SchoolDropoutReport.proposal_id == proposal_id)
         )
@@ -1749,7 +1845,8 @@ def _build_school_dropout_summary_context(
         grouped: dict[int | str, dict] = {}
         participant_snapshots: dict[tuple[int | str, int], dict] = {}
 
-        for item, report, participant, residential in db.execute(stmt).all():
+        for item, report, participant, residential, proposal_participant in db.execute(stmt).all():
+            participant = _participant_snapshot_view(participant, proposal_participant)
             residential_key = report.residential_id if report.residential_id is not None else "unassigned"
             residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
             grouped.setdefault(
@@ -1913,9 +2010,24 @@ def _build_pregnancy_summary_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(PregnancyReportItem, PregnancyReport, Participant, Residential)
+            select(
+                PregnancyReportItem,
+                PregnancyReport,
+                Participant,
+                Residential,
+                ProposalParticipant,
+            )
+            .select_from(PregnancyReportItem)
             .join(PregnancyReport, PregnancyReport.report_id == PregnancyReportItem.report_id)
             .join(Participant, Participant.participant_id == PregnancyReportItem.participant_id)
+            .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+            .outerjoin(
+                ProposalParticipant,
+                and_(
+                    ProposalParticipant.person_id == Person.person_id,
+                    ProposalParticipant.proposal_id == PregnancyReport.proposal_id,
+                ),
+            )
             .outerjoin(Residential, Residential.residential_id == PregnancyReport.residential_id)
             .where(PregnancyReport.proposal_id == proposal_id)
         )
@@ -1940,7 +2052,8 @@ def _build_pregnancy_summary_context(
         grouped: dict[int | str, dict] = {}
         participant_snapshots: dict[tuple[int | str, int], dict] = {}
 
-        for item, report, participant, residential in db.execute(stmt).all():
+        for item, report, participant, residential, proposal_participant in db.execute(stmt).all():
+            participant = _participant_snapshot_view(participant, proposal_participant)
             residential_key = report.residential_id if report.residential_id is not None else "unassigned"
             residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
             grouped.setdefault(
@@ -2090,9 +2203,24 @@ def _build_notes_context(
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         stmt = (
-            select(SchoolGradeReportItem, SchoolGradeReport, Participant, Residential)
+            select(
+                SchoolGradeReportItem,
+                SchoolGradeReport,
+                Participant,
+                Residential,
+                ProposalParticipant,
+            )
+            .select_from(SchoolGradeReportItem)
             .join(SchoolGradeReport, SchoolGradeReport.report_id == SchoolGradeReportItem.report_id)
             .join(Participant, Participant.participant_id == SchoolGradeReportItem.participant_id)
+            .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+            .outerjoin(
+                ProposalParticipant,
+                and_(
+                    ProposalParticipant.person_id == Person.person_id,
+                    ProposalParticipant.proposal_id == SchoolGradeReport.proposal_id,
+                ),
+            )
             .outerjoin(Residential, Residential.residential_id == SchoolGradeReport.residential_id)
             .where(SchoolGradeReport.proposal_id == proposal_id)
         )
@@ -2115,7 +2243,8 @@ def _build_notes_context(
             residential_name = _residential_from_user(selected_user)
 
         participant_snapshots: dict[tuple[int | str, int], dict] = {}
-        for item, report, participant, residential in db.execute(stmt).all():
+        for item, report, participant, residential, proposal_participant in db.execute(stmt).all():
+            participant = _participant_snapshot_view(participant, proposal_participant)
             residential_key = report.residential_id if report.residential_id is not None else "unassigned"
             residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
             key = (residential_key, participant.participant_id)
@@ -2580,22 +2709,46 @@ def _calculate_no_duplicado_metric(
 
     if (((proposal_id is not None) and ((period["month"] and period["year"]) or period["is_custom"])) or period["is_custom"]) and (selected_user or is_global):
         if duplicated:
-            stmt = (
-                select(Attendance, Participant)
-                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
-                .join(Participant, Participant.participant_id == Attendance.participant_id)
-                .where(
-                    Attendance.attended == True,  # noqa: E712
-                )
-            )
             if proposal_id is not None:
-                stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
+                stmt = (
+                    select(Attendance, Participant, ProposalParticipant)
+                    .select_from(Attendance)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .join(Participant, Participant.participant_id == Attendance.participant_id)
+                    .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+                    .outerjoin(
+                        ProposalParticipant,
+                        and_(
+                            ProposalParticipant.person_id == Person.person_id,
+                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                        ),
+                    )
+                    .where(
+                        Attendance.attended == True,  # noqa: E712
+                        ActivitySession.proposal_id == proposal_id,
+                    )
+                )
+            else:
+                stmt = (
+                    select(Attendance, Participant)
+                    .select_from(Attendance)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .join(Participant, Participant.participant_id == Attendance.participant_id)
+                    .where(
+                        Attendance.attended == True,  # noqa: E712
+                    )
+                )
             stmt = _apply_session_period_filter(stmt, period)
             if not is_global:
                 stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             attendance_rows = db.execute(stmt).all()
-            for _, participant in attendance_rows:
+            for attendance_row in attendance_rows:
+                if proposal_id is not None:
+                    _, participant, proposal_participant = attendance_row
+                    participant = _participant_snapshot_view(participant, proposal_participant)
+                else:
+                    _, participant = attendance_row
                 age = _calc_age(participant.fecha_nacimiento)
                 bucket = _get_age_bucket(age)
                 if not bucket:
@@ -2607,22 +2760,51 @@ def _calculate_no_duplicado_metric(
                     summary[bucket]["m"] += 1
                 summary[bucket]["total"] += 1
         else:
-            stmt = (
-                select(Participant)
-                .join(Attendance, Attendance.participant_id == Participant.participant_id)
-                .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
-                .where(
-                    Attendance.attended == True,  # noqa: E712
-                )
-            )
             if proposal_id is not None:
-                stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
-            stmt = _apply_session_period_filter(stmt, period)
-            stmt = stmt.distinct()
+                stmt = (
+                    select(Participant, ProposalParticipant)
+                    .select_from(Participant)
+                    .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+                    .outerjoin(
+                        ProposalParticipant,
+                        and_(
+                            ProposalParticipant.person_id == Person.person_id,
+                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                        ),
+                    )
+                    .where(
+                        Attendance.attended == True,  # noqa: E712
+                        ActivitySession.proposal_id == proposal_id,
+                    )
+                )
+            else:
+                stmt = (
+                    select(Participant)
+                    .select_from(Participant)
+                    .join(Attendance, Attendance.participant_id == Participant.participant_id)
+                    .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                    .where(
+                        Attendance.attended == True,  # noqa: E712
+                    )
+                )
+            stmt = _apply_session_period_filter(stmt, period).distinct()
             if not is_global:
                 stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
-            participants = db.execute(stmt).scalars().all()
+            if proposal_id is not None:
+                participant_pairs = db.execute(stmt).all()
+                participants = [
+                    _participant_snapshot_view(participant, proposal_participant)
+                    for participant, proposal_participant in participant_pairs
+                ]
+            else:
+                participant_rows = db.execute(stmt).scalars().all()
+                participants = list({
+                    participant.participant_id: participant
+                    for participant in participant_rows
+                }.values())
             for participant in participants:
                 age = _calc_age(participant.fecha_nacimiento)
                 bucket = _get_age_bucket(age)
@@ -3759,9 +3941,18 @@ def _build_por_programa_context(
                 continue
 
             stmt = (
-                select(Participant)
+                select(Participant, ProposalParticipant)
+                .select_from(Participant)
                 .join(Attendance, Attendance.participant_id == Participant.participant_id)
                 .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+                .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+                .outerjoin(
+                    ProposalParticipant,
+                    and_(
+                        ProposalParticipant.person_id == Person.person_id,
+                        ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                    ),
+                )
                 .where(
                     Attendance.attended == True,  # noqa: E712
                     ActivitySession.proposal_id == proposal_id,
@@ -3773,7 +3964,11 @@ def _build_por_programa_context(
             if not is_global:
                 stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
-            participants = db.execute(stmt).scalars().all()
+            participant_pairs = db.execute(stmt).all()
+            participants = [
+                _participant_snapshot_view(participant, proposal_participant)
+                for participant, proposal_participant in participant_pairs
+            ]
             participant_summary = _summarize_participants_by_age_and_gender(participants)
             overall_total_f += participant_summary["total_f"]
             overall_total_m += participant_summary["total_m"]

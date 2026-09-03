@@ -39,15 +39,22 @@
         </select>
       </div>
       <div class="col-md-3">
-        <label class="form-label">Mostrar</label>
+        <label class="form-label">Disponibles</label>
         <select name="only_available" class="form-select" onchange="this.form.submit()">
           <option value="1" {% if only_available %}selected{% endif %}>Solo pendientes de asociar</option>
           <option value="0" {% if not only_available %}selected{% endif %}>Todos</option>
         </select>
       </div>
-      <div class="col-md-8">
+      <div class="col-md-5">
         <label class="form-label">Buscar (opcional)</label>
         <input type="text" name="q" class="form-control" value="{{ q or '' }}" placeholder="Nombre, apellido o expediente">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Participantes asociados</label>
+        <select name="sync_filter" class="form-select" onchange="this.form.submit()">
+          <option value="outdated" {% if selected_sync_filter == 'outdated' %}selected{% endif %}>Solo participantes a sincronizar</option>
+          <option value="all" {% if selected_sync_filter == 'all' %}selected{% endif %}>Todos los asociados</option>
+        </select>
       </div>
       <div class="col-md-2 d-grid">
         <button class="btn btn-primary" type="submit">Filtrar</button>
@@ -83,6 +90,7 @@
           <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
           <input type="hidden" name="q" value="{{ q or '' }}">
           <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+          <input type="hidden" name="sync_filter" value="{{ selected_sync_filter }}">
 
           {% if selected_proposal.status != 'finalized' %}
           <div class="d-flex gap-2 mb-3 flex-wrap">
@@ -150,14 +158,18 @@
         <span class="badge bg-secondary">{{ assigned_rows|length }}</span>
       </div>
       <div class="card-body">
-        {% if selected_proposal.status != 'finalized' and assigned_rows %}
-        <form method="post" action="/ui/admin/proposal-participants/sync-all" class="mb-3" onsubmit="return confirm('¿Sincronizar todos los participantes asociados visibles desde New-list? Esto actualizará la fecha de última actualización de los registros sincronizados.');">
+        <div class="small text-muted mb-3">
+          El filtro de asociados controla esta tabla. La sincronización actualiza únicamente esta propuesta.
+        </div>
+        {% if selected_proposal.status != 'finalized' and assigned_outdated_count %}
+        <form method="post" action="/ui/admin/proposal-participants/sync-all" class="mb-3" onsubmit="return confirm('¿Sincronizar los participantes pendientes visibles desde New-list únicamente en esta propuesta?');">
           <input type="hidden" name="proposal_id" value="{{ selected_proposal.proposal_id }}">
           <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
           <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
           <input type="hidden" name="q" value="{{ q or '' }}">
           <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
-          <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar todos desde New-list</button>
+          <input type="hidden" name="sync_filter" value="{{ selected_sync_filter }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Sincronizar pendientes visibles</button>
         </form>
         {% endif %}
 
@@ -177,7 +189,7 @@
               {% for row in assigned_rows %}
               <tr class="{{ 'table-danger' if not row.is_active else ('table-warning' if row.is_outdated else '') }}">
                 <td>{{ row.proposal_participant.expediente_num or '-' }}</td>
-                <td>{{ row.person.nombre }} {{ row.person.apellido_paterno }} {{ row.person.apellido_materno or '' }}</td>
+                <td>{{ row.proposal_participant.nombre or row.person.nombre }} {{ row.proposal_participant.apellido_paterno or row.person.apellido_paterno }} {{ row.proposal_participant.apellido_materno or row.person.apellido_materno or '' }}</td>
                 <td>
                   {% if row.is_active %}
                   <span class="badge bg-success">Activo</span>
@@ -207,6 +219,7 @@
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+                      <input type="hidden" name="sync_filter" value="{{ selected_sync_filter }}">
                       <button type="submit" class="btn btn-sm btn-outline-primary w-100">Sync</button>
                     </form>
                     <form class="mb-0" method="post" action="/ui/admin/proposal-participants/{{ row.proposal_participant.proposal_participant_id }}/remove" onsubmit="return confirm('¿Remover este participante de la propuesta?');">
@@ -215,6 +228,7 @@
                       <input type="hidden" name="status_filter" value="{{ selected_status_filter }}">
                       <input type="hidden" name="q" value="{{ q or '' }}">
                       <input type="hidden" name="only_available" value="{{ 1 if only_available else 0 }}">
+                      <input type="hidden" name="sync_filter" value="{{ selected_sync_filter }}">
                       <button type="submit" class="btn btn-sm btn-outline-danger w-100">Quitar</button>
                     </form>
                   </div>
@@ -228,7 +242,11 @@
           </table>
         </div>
         {% else %}
-        <p class="text-muted mb-0">Esta propuesta aún no tiene participantes asociados.</p>
+          {% if selected_sync_filter == 'outdated' %}
+          <p class="text-muted mb-0">No hay participantes pendientes de sincronizar con estos filtros.</p>
+          {% else %}
+          <p class="text-muted mb-0">Esta propuesta aún no tiene participantes asociados con estos filtros.</p>
+          {% endif %}
         {% endif %}
       </div>
     </div>

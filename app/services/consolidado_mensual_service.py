@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from sqlalchemy import extract, select
+from sqlalchemy import and_, extract, select
 from sqlalchemy.orm import Session
 
 from app.helpers.reports import build_period_filter, describe_period
@@ -12,10 +12,13 @@ from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.participant import Participant
+from app.models.person import Person
 from app.models.proposal import Proposal
+from app.models.proposal_participant import ProposalParticipant
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.residential import Residential
 from app.models.user import User
+from app.services.proposal_participant_snapshots import participant_snapshot_view
 from app.services.report_programs import resolve_effective_program_activity_code_ids
 
 
@@ -253,10 +256,25 @@ def build_consolidado_mensual_global(
         }
 
     stmt = (
-        select(ActivitySession, Attendance, Participant, ActivityCode, Residential)
+        select(
+            ActivitySession,
+            Attendance,
+            Participant,
+            ActivityCode,
+            Residential,
+            ProposalParticipant,
+        )
         .join(Attendance, Attendance.session_id == ActivitySession.session_id)
         .join(Participant, Participant.participant_id == Attendance.participant_id)
         .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .outerjoin(
+            ProposalParticipant,
+            and_(
+                ProposalParticipant.person_id == Person.person_id,
+                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+            ),
+        )
         .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
@@ -277,7 +295,14 @@ def build_consolidado_mensual_global(
     if residential_id is not None:
         stmt = stmt.where(ActivitySession.residential_id == residential_id)
 
-    for session, attendance, participant, activity_code, residential in db.execute(stmt).all():
+    for (
+        session,
+        attendance,
+        participant,
+        activity_code,
+        residential,
+        proposal_participant,
+    ) in db.execute(stmt).all():
         if not residential or residential.residential_id not in rows_by_residential:
             continue
         residential_row = rows_by_residential[residential.residential_id]
@@ -295,8 +320,9 @@ def build_consolidado_mensual_global(
             },
         )
 
-        gender = _normalize_gender(participant.genero)
-        age = _calc_age_at(participant.fecha_nacimiento, session.session_date) if participant.fecha_nacimiento else None
+        demographic_participant = participant_snapshot_view(participant, proposal_participant)
+        gender = _normalize_gender(demographic_participant.genero)
+        age = _calc_age_at(demographic_participant.fecha_nacimiento, session.session_date)
         bucket_key = _bucket_key_for_age(age)
 
         residential_row["attendances"] += 1

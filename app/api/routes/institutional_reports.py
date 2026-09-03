@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import distinct, extract, func, select
+from sqlalchemy import and_, case, distinct, extract, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.api.deps import get_db
@@ -287,6 +287,8 @@ def _aggregate_unique_people(
     municipality_by_person: dict[int, str | None] = {}
     household_head_person_ids: set[int] = set()
     for person_id, birth_date, education, is_head_of_household, municipality in person_rows:
+        if person_id is None:
+            continue
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
             education_by_person[person_id] = None
@@ -453,7 +455,25 @@ def _faro_adm_summary(
         )
 
     attendance_participant = aliased(Participant, name="attendance_participant")
+    attendance_person = aliased(Person, name="attendance_person")
     legacy_participant = aliased(Participant, name="legacy_participant")
+    has_proposal_snapshot = ProposalParticipant.proposal_participant_id.is_not(None)
+    effective_birth_date = case(
+        (has_proposal_snapshot, ProposalParticipant.fecha_nacimiento),
+        else_=attendance_participant.fecha_nacimiento,
+    )
+    effective_gender = case(
+        (has_proposal_snapshot, ProposalParticipant.genero),
+        else_=attendance_participant.genero,
+    )
+    effective_vca = case(
+        (has_proposal_snapshot, ProposalParticipant.vca),
+        else_=attendance_participant.vca,
+    )
+    effective_family_composition = case(
+        (has_proposal_snapshot, ProposalParticipant.composicion_familiar),
+        else_=attendance_participant.composicion_familiar,
+    )
     attendance_stmt = (
         select(
             Attendance.session_id,
@@ -467,10 +487,10 @@ def _faro_adm_summary(
             attendance_participant.vca,
             attendance_participant.composicion_familiar,
             legacy_participant.participant_id,
-            legacy_participant.fecha_nacimiento,
-            legacy_participant.genero,
-            legacy_participant.vca,
-            legacy_participant.composicion_familiar,
+            effective_birth_date,
+            effective_gender,
+            effective_vca,
+            effective_family_composition,
         )
         .select_from(Attendance)
         .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
@@ -485,15 +505,29 @@ def _faro_adm_summary(
             == ADMServiceTypeActivityCode.adm_service_type_id,
         )
         .outerjoin(
-            ProposalParticipant,
-            Attendance.proposal_participant_id
-            == ProposalParticipant.proposal_participant_id,
-        )
-        .outerjoin(Person, ProposalParticipant.person_id == Person.person_id)
-        .outerjoin(
             attendance_participant,
             Attendance.participant_id == attendance_participant.participant_id,
         )
+        .outerjoin(
+            attendance_person,
+            attendance_person.legacy_participant_id
+            == attendance_participant.participant_id,
+        )
+        .outerjoin(
+            ProposalParticipant,
+            and_(
+                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+                or_(
+                    Attendance.proposal_participant_id
+                    == ProposalParticipant.proposal_participant_id,
+                    and_(
+                        Attendance.proposal_participant_id.is_(None),
+                        ProposalParticipant.person_id == attendance_person.person_id,
+                    ),
+                ),
+            ),
+        )
+        .outerjoin(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(
             legacy_participant,
             Person.legacy_participant_id == legacy_participant.participant_id,
@@ -524,15 +558,15 @@ def _faro_adm_summary(
             legacy_participant_id,
             service_type_id,
             attendance_profile_id,
-            attendance_birth_date,
-            attendance_gender,
-            attendance_vca,
-            attendance_family_composition,
+            _attendance_birth_date,
+            _attendance_gender,
+            _attendance_vca,
+            _attendance_family_composition,
             legacy_profile_id,
-            legacy_birth_date,
-            legacy_gender,
-            legacy_vca,
-            legacy_family_composition,
+            effective_birth_date,
+            effective_gender,
+            effective_vca,
+            effective_family_composition,
         ) = attendance_row
         normalized_service_type_id = int(service_type_id)
         identity: tuple[str, int] | None = None
@@ -554,19 +588,19 @@ def _faro_adm_summary(
 
         if attendance_profile_id is not None:
             participant_profiles[int(attendance_profile_id)] = (
-                attendance_birth_date,
-                attendance_gender,
-                attendance_vca,
-                attendance_family_composition,
+                effective_birth_date,
+                effective_gender,
+                effective_vca,
+                effective_family_composition,
             )
         elif legacy_profile_id is not None:
             participant_profiles.setdefault(
                 int(legacy_profile_id),
                 (
-                    legacy_birth_date,
-                    legacy_gender,
-                    legacy_vca,
-                    legacy_family_composition,
+                    effective_birth_date,
+                    effective_gender,
+                    effective_vca,
+                    effective_family_composition,
                 ),
             )
 
@@ -825,16 +859,17 @@ def faro_institutional_report_data(
     unique_people_stmt = (
         select(
             Person.person_id,
-            Person.fecha_nacimiento,
-            Participant.escolaridad_participante,
-            Participant.is_head_of_household,
+            ProposalParticipant.fecha_nacimiento,
+            ProposalParticipant.escolaridad_participante,
+            ProposalParticipant.is_head_of_household,
             Residential.municipality,
         )
         .select_from(Attendance)
         .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
         .join(
             ProposalParticipant,
-            Attendance.proposal_participant_id == ProposalParticipant.proposal_participant_id,
+            Attendance.proposal_participant_id
+            == ProposalParticipant.proposal_participant_id,
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(Participant, Person.legacy_participant_id == Participant.participant_id)
@@ -904,6 +939,9 @@ def faro_institutional_report_data(
         PregnancyReport.report_month,
         1,
     )
+    pregnancy_has_proposal_snapshot = (
+        ProposalParticipant.proposal_participant_id.is_not(None)
+    )
     pregnancy_stmt = (
         select(
             PregnancyReportItem.participated_workshops,
@@ -912,7 +950,10 @@ def faro_institutional_report_data(
             PregnancyReport.report_month,
             PregnancyReport.report_id,
             Participant.participant_id,
-            Participant.genero,
+            case(
+                (pregnancy_has_proposal_snapshot, ProposalParticipant.genero),
+                else_=Participant.genero,
+            ),
             Person.person_id,
         )
         .select_from(PregnancyReportItem)
@@ -925,6 +966,13 @@ def faro_institutional_report_data(
             Participant.participant_id == PregnancyReportItem.participant_id,
         )
         .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
+        .outerjoin(
+            ProposalParticipant,
+            and_(
+                ProposalParticipant.person_id == Person.person_id,
+                ProposalParticipant.proposal_id == PregnancyReport.proposal_id,
+            ),
+        )
         .where(PregnancyReport.proposal_id.in_(normalized_proposal_ids))
     )
     if normalized_year is not None:

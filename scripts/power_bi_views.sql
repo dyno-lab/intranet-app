@@ -196,23 +196,43 @@ SELECT
     r.name AS residential_name,
     r.municipality,
     r.rq_code,
-    pt.expediente_num AS participant_expediente,
-    LTRIM(RTRIM(
-        CONCAT(
-            COALESCE(pt.nombre, ''), ' ',
-            COALESCE(pt.inicial + ' ', ''),
-            COALESCE(pt.apellido_paterno, ''), ' ',
-            COALESCE(pt.apellido_materno, '')
-        )
-    )) AS participant_full_name,
-    pt.genero AS participant_genero,
-    pt.is_active AS participant_is_active,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.expediente_num
+        ELSE pt.expediente_num
+    END AS participant_expediente,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN
+            LTRIM(RTRIM(CONCAT(
+                COALESCE(pp.nombre, ''), ' ',
+                COALESCE(pp.inicial + ' ', ''),
+                COALESCE(pp.apellido_paterno, ''), ' ',
+                COALESCE(pp.apellido_materno, '')
+            )))
+        ELSE
+            LTRIM(RTRIM(CONCAT(
+                COALESCE(pt.nombre, ''), ' ',
+                COALESCE(pt.inicial + ' ', ''),
+                COALESCE(pt.apellido_paterno, ''), ' ',
+                COALESCE(pt.apellido_materno, '')
+            )))
+    END AS participant_full_name,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.genero
+        ELSE pt.genero
+    END AS participant_genero,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.is_active
+        ELSE pt.is_active
+    END AS participant_is_active,
     CAST(ISNULL(s.hours, 0) AS decimal(10,2)) AS session_hours
 FROM dbo.attendance a
 INNER JOIN dbo.activity_sessions s
     ON s.session_id = a.session_id
 LEFT JOIN dbo.participants pt
     ON pt.participant_id = a.participant_id
+LEFT JOIN dbo.proposal_participants pp
+    ON pp.proposal_participant_id = a.proposal_participant_id
+   AND pp.proposal_id = s.proposal_id
 LEFT JOIN dbo.users u
     ON u.user_id = s.created_by_user_id
 LEFT JOIN dbo.residentials r
@@ -582,23 +602,34 @@ SELECT
     a.proposal_participant_id,
     pp.person_id,
     prs.legacy_participant_id,
-    COALESCE(pp.expediente_num, pt.expediente_num) AS expediente_num,
-    COALESCE(
-        NULLIF(LTRIM(RTRIM(CONCAT(
-            COALESCE(prs.nombre, ''), ' ',
-            COALESCE(prs.inicial + ' ', ''),
-            COALESCE(prs.apellido_paterno, ''), ' ',
-            COALESCE(prs.apellido_materno, '')
-        ))), ''),
-        NULLIF(LTRIM(RTRIM(CONCAT(
-            COALESCE(pt.nombre, ''), ' ',
-            COALESCE(pt.inicial + ' ', ''),
-            COALESCE(pt.apellido_paterno, ''), ' ',
-            COALESCE(pt.apellido_materno, '')
-        ))), '')
-    ) AS participant_full_name,
-    COALESCE(prs.genero, pt.genero) AS participant_genero,
-    COALESCE(prs.fecha_nacimiento, pt.fecha_nacimiento) AS participant_birth_date,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.expediente_num
+        ELSE pt.expediente_num
+    END AS expediente_num,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN
+            NULLIF(LTRIM(RTRIM(CONCAT(
+                COALESCE(pp.nombre, ''), ' ',
+                COALESCE(pp.inicial + ' ', ''),
+                COALESCE(pp.apellido_paterno, ''), ' ',
+                COALESCE(pp.apellido_materno, '')
+            ))), '')
+        ELSE
+            NULLIF(LTRIM(RTRIM(CONCAT(
+                COALESCE(pt.nombre, ''), ' ',
+                COALESCE(pt.inicial + ' ', ''),
+                COALESCE(pt.apellido_paterno, ''), ' ',
+                COALESCE(pt.apellido_materno, '')
+            ))), '')
+    END AS participant_full_name,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.genero
+        ELSE pt.genero
+    END AS participant_genero,
+    CASE
+        WHEN pp.proposal_participant_id IS NOT NULL THEN pp.fecha_nacimiento
+        ELSE pt.fecha_nacimiento
+    END AS participant_birth_date,
     pp.edificio AS proposal_participant_building,
     pp.apart AS proposal_participant_apartment,
     pt.edificio AS participant_building,
@@ -625,6 +656,7 @@ LEFT JOIN dbo.residentials r
     ON r.residential_id = s.residential_id
 LEFT JOIN dbo.proposal_participants pp
     ON pp.proposal_participant_id = a.proposal_participant_id
+   AND pp.proposal_id = s.proposal_id
 LEFT JOIN dbo.persons prs
     ON prs.person_id = pp.person_id
 LEFT JOIN dbo.participants pt

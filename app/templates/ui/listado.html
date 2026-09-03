@@ -293,13 +293,12 @@
                 {% if session.proposal_id %}
                   {% for row in proposal_participant_rows %}
                   {% set pp = row.proposal_participant %}
-                  {% set person = row.person %}
                   {% set is_active = row.is_active %}
                   <tr class="attendance-participants-row {{ '' if is_active else 'table-danger attendance-participants-row--inactive' }}" data-participant-row="1" data-age="{{ row.age if row.age is not none else '' }}" data-is-active="{{ '1' if is_active else '0' }}">
                     <td>{{ pp.expediente_num or '—' }}</td>
-                    <td>{{ person.nombre }}</td>
-                    <td>{{ person.inicial or '' }}</td>
-                    <td>{{ person.apellido_paterno }} {{ person.apellido_materno or '' }}</td>
+                    <td>{{ pp.nombre or '—' }}</td>
+                    <td>{{ pp.inicial or '' }}</td>
+                    <td>{{ pp.apellido_paterno or '—' }} {{ pp.apellido_materno or '' }}</td>
                     <td>{{ row.age if row.age is not none else '—' }}</td>
                     <td>
                       {% if is_active %}

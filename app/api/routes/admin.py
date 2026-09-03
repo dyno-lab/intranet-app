@@ -12,7 +12,7 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote_plus
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, FileResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -46,6 +46,10 @@ from app.models.visit_activity_mapping import VisitActivityMapping
 from app.models.visit_report import VisitReport
 from app.models.visit_report_referral import VisitReportReferral
 from app.services.visits import delete_visit_reports_and_referrals
+from app.services.proposal_participant_sync import (
+    get_different_proposal_participant_fields,
+    get_proposal_participant_update_values,
+)
 from app.models.pregnancy_report import PregnancyReport
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_dropout_report import SchoolDropoutReport
@@ -194,18 +198,79 @@ def _calc_age(dob: date | None):
     return today.year - dob.year - (((today.month, today.day) < (dob.month, dob.day)))
 
 
-def _normalized_sync_value(value):
-    if value is None:
-        return ""
-    if isinstance(value, bool):
-        return "1" if value else "0"
-    if isinstance(value, date):
-        return value.isoformat()
-    return str(value).strip()
+def _normalize_sync_filter(value: object) -> str:
+    normalized = value.strip().lower() if isinstance(value, str) else "outdated"
+    return normalized if normalized in {"all", "outdated"} else "outdated"
 
 
-def _values_differ_for_sync(current_value, source_value) -> bool:
-    return _normalized_sync_value(current_value) != _normalized_sync_value(source_value)
+def _proposal_participant_matches_filters(
+    proposal_participant: ProposalParticipant,
+    participant: Participant | None,
+    *,
+    status_filter: str,
+    q: str,
+    sync_filter: str,
+    outdated_fields: list[str],
+) -> bool:
+    participant_is_active = bool(
+        getattr(participant, "is_active", proposal_participant.is_active)
+    )
+    if status_filter == "active" and not participant_is_active:
+        return False
+    if status_filter == "inactive" and participant_is_active:
+        return False
+
+    if q:
+        searchable_values = [
+            proposal_participant.expediente_num,
+            proposal_participant.nombre,
+            proposal_participant.apellido_paterno,
+            proposal_participant.apellido_materno,
+        ]
+        if participant is not None:
+            searchable_values.extend(
+                [
+                    participant.expediente_num,
+                    participant.nombre,
+                    participant.apellido_paterno,
+                    participant.apellido_materno,
+                ]
+            )
+        haystack = " ".join(str(value) for value in searchable_values if value).lower()
+        if q not in haystack:
+            return False
+
+    return sync_filter != "outdated" or bool(participant and outdated_fields)
+
+
+def _proposal_participant_source_join(scope_residential_id: int | None):
+    source_join = Participant.participant_id == Person.legacy_participant_id
+    if scope_residential_id is not None:
+        source_join = and_(
+            source_join,
+            Participant.residential_id == scope_residential_id,
+        )
+    return source_join
+
+
+def _proposal_participants_url(
+    proposal_id: int,
+    residential_id: int | None,
+    status_filter: object,
+    q: object,
+    only_available: int,
+    sync_filter: object,
+) -> str:
+    normalized_status = status_filter.strip() if isinstance(status_filter, str) else "active"
+    normalized_q = q.strip() if isinstance(q, str) else ""
+    return (
+        f"/ui/admin/proposal-participants?proposal_id={proposal_id}"
+        f"&residential_id={residential_id or ''}"
+        f"&status_filter={quote_plus(normalized_status)}"
+        f"&q={quote_plus(normalized_q)}"
+        f"&only_available={1 if only_available else 0}"
+        f"&sync_filter={_normalize_sync_filter(sync_filter)}"
+    )
 
 
 def _proposal_residential_scope_id(request: Request, current_user: User) -> int | None:
@@ -227,35 +292,6 @@ def _require_proposal_residential_scope(
             detail="No tiene permiso para administrar participantes de otro residencial.",
         )
 
-
-def _sync_proposal_participant_from_source(
-    proposal_participant: ProposalParticipant,
-    person: Person,
-    participant: Participant,
-) -> None:
-    person.nombre = participant.nombre
-    person.inicial = participant.inicial
-    person.apellido_paterno = participant.apellido_paterno
-    person.apellido_materno = participant.apellido_materno
-    person.genero = participant.genero
-    person.fecha_nacimiento = participant.fecha_nacimiento
-
-    if proposal_participant.residential_id is None:
-        proposal_participant.residential_id = participant.residential_id
-    proposal_participant.exp_year = participant.exp_year
-    proposal_participant.exp_employee_initials = participant.exp_employee_initials
-    proposal_participant.exp_seq4 = participant.exp_seq4
-    proposal_participant.expediente_num = participant.expediente_num
-    proposal_participant.edificio = participant.edificio
-    proposal_participant.apart = participant.apart
-    proposal_participant.vca = participant.vca
-    proposal_participant.primera_vez = participant.primera_vez
-    proposal_participant.composicion_familiar = participant.composicion_familiar
-    proposal_participant.estatus = participant.estatus
-    proposal_participant.grupo_familiar = participant.grupo_familiar
-    proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
-    proposal_participant.rango_ingreso = participant.rango_ingreso
-    proposal_participant.is_active = bool(getattr(participant, "is_active", False))
 
 
 def _normalize_activity_productivity_goal(
@@ -1851,16 +1887,26 @@ def admin_proposal_participants(
     status_filter: str | None = "active",
     q: str | None = None,
     only_available: int = 1,
+    sync_filter: str = "outdated",
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
     scope_residential_id = _proposal_residential_scope_id(request, current_user)
-    selected_residential_id = (
-        scope_residential_id
-        if scope_residential_id is not None
-        else int(residential_id) if residential_id and residential_id.strip() else None
-    )
+    if scope_residential_id is not None:
+        selected_residential_id = scope_residential_id
+    else:
+        try:
+            selected_residential_id = int(residential_id) if residential_id and residential_id.strip() else None
+        except (TypeError, ValueError):
+            selected_residential_id = None
+
+    q_value = (q or "").strip()
+    normalized_q = q_value.lower()
+    normalized_status_filter = (status_filter or "active").strip().lower()
+    if normalized_status_filter not in {"active", "inactive", "all"}:
+        normalized_status_filter = "active"
+    normalized_sync_filter = _normalize_sync_filter(sync_filter)
 
     proposals = db.execute(select(Proposal).order_by(Proposal.code)).scalars().all()
     residential_stmt = select(Residential).where(Residential.is_active == True)  # noqa: E712
@@ -1877,60 +1923,52 @@ def admin_proposal_participants(
     assigned_person_ids: set[int] = set()
     if selected_proposal:
         assigned_stmt = (
-            select(ProposalParticipant, Person, User.username.label("owner_username"), Residential.name.label("residential_name"))
+            select(
+                ProposalParticipant,
+                Person,
+                Participant,
+                User.username.label("owner_username"),
+                Residential.name.label("residential_name"),
+            )
             .join(Person, Person.person_id == ProposalParticipant.person_id)
+            .outerjoin(
+                Participant,
+                _proposal_participant_source_join(scope_residential_id),
+            )
             .outerjoin(User, User.user_id == ProposalParticipant.created_by_user_id)
             .outerjoin(Residential, Residential.residential_id == ProposalParticipant.residential_id)
             .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
-            .order_by(Person.apellido_paterno, Person.apellido_materno, Person.nombre)
-        )
-        if scope_residential_id is not None:
-            assigned_stmt = assigned_stmt.where(
-                ProposalParticipant.residential_id == scope_residential_id
+            .order_by(
+                ProposalParticipant.apellido_paterno,
+                ProposalParticipant.apellido_materno,
+                ProposalParticipant.nombre,
             )
+        )
+        if selected_residential_id is not None:
+            assigned_stmt = assigned_stmt.where(
+                ProposalParticipant.residential_id == selected_residential_id
+            )
+
         assigned_pairs = db.execute(assigned_stmt).all()
-        for proposal_participant, person, owner_username, residential_name in assigned_pairs:
+        for proposal_participant, person, source_participant, owner_username, residential_name in assigned_pairs:
             assigned_person_ids.add(person.person_id)
-
-            source_participant = None
-            is_outdated = False
-            outdated_fields: list[str] = []
-            if person.legacy_participant_id:
-                source_participant_stmt = select(Participant).where(
-                    Participant.participant_id == person.legacy_participant_id
+            outdated_fields = (
+                get_different_proposal_participant_fields(
+                    proposal_participant,
+                    source_participant,
                 )
-                if scope_residential_id is not None:
-                    source_participant_stmt = source_participant_stmt.where(
-                        Participant.residential_id == scope_residential_id
-                    )
-                source_participant = db.execute(
-                    source_participant_stmt
-                ).scalar_one_or_none()
-
-            if source_participant:
-                comparisons = [
-                    ("nombre", person.nombre, source_participant.nombre),
-                    ("inicial", person.inicial, source_participant.inicial),
-                    ("apellido_paterno", person.apellido_paterno, source_participant.apellido_paterno),
-                    ("apellido_materno", person.apellido_materno, source_participant.apellido_materno),
-                    ("genero", person.genero, source_participant.genero),
-                    ("fecha_nacimiento", person.fecha_nacimiento, source_participant.fecha_nacimiento),
-                    ("expediente", proposal_participant.expediente_num, source_participant.expediente_num),
-                    ("edificio", proposal_participant.edificio, source_participant.edificio),
-                    ("apartamento", proposal_participant.apart, source_participant.apart),
-                    ("vca", proposal_participant.vca, source_participant.vca),
-                    ("primera_vez", proposal_participant.primera_vez, source_participant.primera_vez),
-                    ("composicion_familiar", proposal_participant.composicion_familiar, source_participant.composicion_familiar),
-                    ("estatus", proposal_participant.estatus, source_participant.estatus),
-                    ("grupo_familiar", proposal_participant.grupo_familiar, source_participant.grupo_familiar),
-                    ("fuente_ingreso_principal", proposal_participant.fuente_ingreso_principal, source_participant.fuente_ingreso_principal),
-                    ("rango_ingreso", proposal_participant.rango_ingreso, source_participant.rango_ingreso),
-                    ("is_active", bool(getattr(proposal_participant, "is_active", False)), bool(getattr(source_participant, "is_active", False))),
-                ]
-                for field_name, current_value, source_value in comparisons:
-                    if _values_differ_for_sync(current_value, source_value):
-                        is_outdated = True
-                        outdated_fields.append(field_name)
+                if source_participant is not None
+                else []
+            )
+            if not _proposal_participant_matches_filters(
+                proposal_participant,
+                source_participant,
+                status_filter=normalized_status_filter,
+                q=normalized_q,
+                sync_filter=normalized_sync_filter,
+                outdated_fields=outdated_fields,
+            ):
+                continue
 
             assigned_rows.append({
                 "proposal_participant": proposal_participant,
@@ -1938,15 +1976,12 @@ def admin_proposal_participants(
                 "owner_username": owner_username,
                 "residential_name": residential_name,
                 "is_active": bool(getattr(proposal_participant, "is_active", False)),
-                "is_outdated": is_outdated,
+                "is_outdated": bool(outdated_fields),
                 "outdated_fields": outdated_fields,
                 "has_source_participant": source_participant is not None,
             })
 
     available_rows = []
-    q_value = (q or "").strip()
-    normalized_status_filter = (status_filter or "all").strip().lower()
-
     if selected_proposal:
         participant_stmt = (
             select(
@@ -1961,7 +1996,7 @@ def admin_proposal_participants(
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .order_by(Residential.name, Participant.apellido_paterno, Participant.apellido_materno, Participant.nombre)
         )
-        if selected_residential_id:
+        if selected_residential_id is not None:
             participant_stmt = participant_stmt.where(Participant.residential_id == selected_residential_id)
 
         if normalized_status_filter == "active":
@@ -2003,7 +2038,11 @@ def admin_proposal_participants(
             "selected_proposal": selected_proposal,
             "selected_residential_id": selected_residential_id,
             "selected_status_filter": normalized_status_filter,
+            "selected_sync_filter": normalized_sync_filter,
             "assigned_rows": assigned_rows,
+            "assigned_outdated_count": sum(
+                1 for row in assigned_rows if row["is_outdated"]
+            ),
             "available_rows": available_rows,
             "q": q_value,
             "only_available": bool(only_available),
@@ -2020,12 +2059,21 @@ def admin_add_participants_to_proposal(
     status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
+    sync_filter: str = Form(default="outdated"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
     scope_residential_id = _proposal_residential_scope_id(request, current_user)
     if scope_residential_id is not None:
         residential_id = scope_residential_id
+    redirect_url = _proposal_participants_url(
+        proposal_id,
+        residential_id,
+        status_filter,
+        q,
+        only_available,
+        sync_filter,
+    )
 
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
@@ -2033,15 +2081,22 @@ def admin_add_participants_to_proposal(
 
     redirect = _redirect_if_proposal_finalized(
         proposal,
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta estÃ¡ finalizada y no permite asociar participantes.",
+        redirect_url,
+        "Error: La propuesta está finalizada y no permite asociar participantes.",
     )
     if redirect:
         return redirect
 
     if not participant_ids:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            _proposal_participants_url(
+                proposal_id,
+                residential_id,
+                status_filter,
+                q,
+                only_available,
+                sync_filter,
+            ),
             "Error: Debe seleccionar al menos un participante.",
         )
 
@@ -2109,20 +2164,7 @@ def admin_add_participants_to_proposal(
             person_id=person.person_id,
             residential_id=participant.residential_id,
             created_by_user_id=current_user.user_id,
-            exp_year=participant.exp_year,
-            exp_employee_initials=participant.exp_employee_initials,
-            exp_seq4=participant.exp_seq4,
-            expediente_num=participant.expediente_num,
-            edificio=participant.edificio,
-            apart=participant.apart,
-            vca=participant.vca,
-            primera_vez=participant.primera_vez,
-            composicion_familiar=participant.composicion_familiar,
-            estatus=participant.estatus,
-            grupo_familiar=participant.grupo_familiar,
-            fuente_ingreso_principal=participant.fuente_ingreso_principal,
-            rango_ingreso=participant.rango_ingreso,
-            is_active=bool(getattr(participant, "is_active", False)),
+            **get_proposal_participant_update_values(participant),
         )
         db.add(proposal_participant)
         created_count += 1
@@ -2130,7 +2172,14 @@ def admin_add_participants_to_proposal(
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        _proposal_participants_url(
+            proposal_id,
+            residential_id,
+            status_filter,
+            q,
+            only_available,
+            sync_filter,
+        ),
         f"{created_count} participante(s) asociado(s) exitosamente. {skipped_count} omitido(s).",
     )
 
@@ -2144,12 +2193,21 @@ def admin_sync_proposal_participant(
     status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
+    sync_filter: str = Form(default="outdated"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
     scope_residential_id = _proposal_residential_scope_id(request, current_user)
     if scope_residential_id is not None:
         residential_id = scope_residential_id
+    redirect_url = _proposal_participants_url(
+        proposal_id,
+        residential_id,
+        status_filter,
+        q,
+        only_available,
+        sync_filter,
+    )
 
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
@@ -2157,8 +2215,8 @@ def admin_sync_proposal_participant(
 
     redirect = _redirect_if_proposal_finalized(
         proposal,
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta estÃ¡ finalizada y no permite sincronizar participantes.",
+        redirect_url,
+        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
     )
     if redirect:
         return redirect
@@ -2180,7 +2238,7 @@ def admin_sync_proposal_participant(
         proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
     if not proposal_participant or proposal_participant.proposal_id != proposal_id:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            redirect_url,
             "Error: Participante asociado no encontrado.",
         )
     _require_proposal_residential_scope(
@@ -2191,8 +2249,8 @@ def admin_sync_proposal_participant(
     person = db.get(Person, proposal_participant.person_id)
     if not person or not person.legacy_participant_id:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-            "Error: Este participante asociado no estÃ¡ vinculado a un registro de New-list.",
+            redirect_url,
+            "Error: Este participante asociado no está vinculado a un registro de New-list.",
         )
 
     participant_stmt = select(Participant).where(
@@ -2205,49 +2263,42 @@ def admin_sync_proposal_participant(
     participant = db.execute(participant_stmt).scalar_one_or_none()
     if not participant:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-            "Error: No se encontrÃ³ el participante fuente en New-list.",
+            redirect_url,
+            "Error: No se encontró el participante fuente en New-list.",
         )
     _require_proposal_residential_scope(
         participant.residential_id,
         scope_residential_id,
     )
 
-    _sync_proposal_participant_from_source(proposal_participant, person, participant)
-    db.add(person)
-    db.add(proposal_participant)
-
-    sibling_stmt = (
-        select(ProposalParticipant, Proposal)
-        .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
-        .where(
-            ProposalParticipant.person_id == person.person_id,
-            ProposalParticipant.proposal_participant_id != proposal_participant_id,
-        )
+    outdated_fields = get_different_proposal_participant_fields(
+        proposal_participant,
+        participant,
     )
-    if scope_residential_id is not None:
-        sibling_stmt = sibling_stmt.where(
-            ProposalParticipant.residential_id == scope_residential_id
+    if not outdated_fields:
+        return _redirect_with_msg(
+            redirect_url,
+            "El participante ya se encontraba al día en la propuesta seleccionada.",
         )
-    sibling_rows = db.execute(sibling_stmt).all()
 
-    synced_count = 1
-    for sibling_proposal_participant, sibling_proposal in sibling_rows:
-        if (
-            is_proposal_finalized(sibling_proposal)
-            or not bool(getattr(sibling_proposal, "is_active", False))
-            or (getattr(sibling_proposal, "status", "") or "").strip().lower() != "active"
-        ):
-            continue
-        _sync_proposal_participant_from_source(sibling_proposal_participant, person, participant)
-        db.add(sibling_proposal_participant)
-        synced_count += 1
-
+    update_values = get_proposal_participant_update_values(participant)
+    if proposal_participant.residential_id is None:
+        update_values["residential_id"] = participant.residential_id
+    update_values["updated_at"] = func.sysutcdatetime()
+    db.execute(
+        update(ProposalParticipant)
+        .where(
+            ProposalParticipant.proposal_participant_id == proposal_participant_id,
+            ProposalParticipant.proposal_id == proposal_id,
+        )
+        .values(**update_values)
+        .execution_options(synchronize_session=False)
+    )
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-        f"Participante sincronizado desde New-list exitosamente en {synced_count} propuesta(s) activa(s).",
+        redirect_url,
+        "Participante sincronizado únicamente en la propuesta seleccionada.",
     )
 
 
@@ -2259,12 +2310,21 @@ def admin_sync_all_proposal_participants(
     status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
+    sync_filter: str = Form(default="outdated"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
     scope_residential_id = _proposal_residential_scope_id(request, current_user)
     if scope_residential_id is not None:
         residential_id = scope_residential_id
+    redirect_url = _proposal_participants_url(
+        proposal_id,
+        residential_id,
+        status_filter,
+        q,
+        only_available,
+        sync_filter,
+    )
 
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
@@ -2272,97 +2332,90 @@ def admin_sync_all_proposal_participants(
 
     redirect = _redirect_if_proposal_finalized(
         proposal,
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta estÃ¡ finalizada y no permite sincronizar participantes.",
+        redirect_url,
+        "Error: La propuesta está finalizada y no permite sincronizar participantes.",
     )
     if redirect:
         return redirect
 
-    stmt = select(ProposalParticipant, Person).join(Person, Person.person_id == ProposalParticipant.person_id).where(
-        ProposalParticipant.proposal_id == proposal_id
+    stmt = (
+        select(ProposalParticipant, Participant)
+        .join(Person, Person.person_id == ProposalParticipant.person_id)
+        .outerjoin(
+            Participant,
+            _proposal_participant_source_join(scope_residential_id),
+        )
+        .where(ProposalParticipant.proposal_id == proposal_id)
     )
-    if residential_id:
+    if residential_id is not None:
         stmt = stmt.where(ProposalParticipant.residential_id == residential_id)
 
     rows = db.execute(stmt).all()
+    normalized_status_filter = (
+        status_filter.strip().lower() if isinstance(status_filter, str) else "active"
+    )
+    if normalized_status_filter not in {"active", "inactive", "all"}:
+        normalized_status_filter = "active"
+    normalized_q = q.strip().lower() if isinstance(q, str) else ""
+    normalized_sync_filter = _normalize_sync_filter(sync_filter)
     synced_count = 0
-    skipped_count = 0
+    unchanged_count = 0
+    missing_source_count = 0
 
-    for proposal_participant, person in rows:
-        if not person.legacy_participant_id:
-            skipped_count += 1
-            continue
-
-        participant_stmt = select(Participant).where(
-            Participant.participant_id == person.legacy_participant_id
-        )
-        if scope_residential_id is not None:
-            participant_stmt = participant_stmt.where(
-                Participant.residential_id == scope_residential_id
+    for proposal_participant, participant in rows:
+        outdated_fields = (
+            get_different_proposal_participant_fields(
+                proposal_participant,
+                participant,
             )
-        participant = db.execute(participant_stmt).scalar_one_or_none()
-        if not participant:
-            skipped_count += 1
+            if participant is not None
+            else []
+        )
+        if not _proposal_participant_matches_filters(
+            proposal_participant,
+            participant,
+            status_filter=normalized_status_filter,
+            q=normalized_q,
+            sync_filter=normalized_sync_filter,
+            outdated_fields=outdated_fields,
+        ):
+            continue
+        if participant is None:
+            missing_source_count += 1
             continue
         _require_proposal_residential_scope(
             participant.residential_id,
             scope_residential_id,
         )
-
-        normalized_status_filter = (status_filter or "all").strip().lower()
-        participant_is_active = bool(getattr(participant, "is_active", False))
-        if normalized_status_filter == "active" and not participant_is_active:
-            skipped_count += 1
-            continue
-        if normalized_status_filter == "inactive" and participant_is_active:
-            skipped_count += 1
+        if not outdated_fields:
+            unchanged_count += 1
             continue
 
-        q_value = (q or "").strip().lower()
-        if q_value:
-            haystack = " ".join([
-                participant.expediente_num or "",
-                participant.nombre or "",
-                participant.apellido_paterno or "",
-                participant.apellido_materno or "",
-            ]).lower()
-            if q_value not in haystack:
-                skipped_count += 1
-                continue
-
-        person.nombre = participant.nombre
-        person.inicial = participant.inicial
-        person.apellido_paterno = participant.apellido_paterno
-        person.apellido_materno = participant.apellido_materno
-        person.genero = participant.genero
-        person.fecha_nacimiento = participant.fecha_nacimiento
-
+        update_values = get_proposal_participant_update_values(participant)
         if proposal_participant.residential_id is None:
-            proposal_participant.residential_id = participant.residential_id
-        proposal_participant.exp_year = participant.exp_year
-        proposal_participant.exp_employee_initials = participant.exp_employee_initials
-        proposal_participant.exp_seq4 = participant.exp_seq4
-        proposal_participant.expediente_num = participant.expediente_num
-        proposal_participant.edificio = participant.edificio
-        proposal_participant.apart = participant.apart
-        proposal_participant.vca = participant.vca
-        proposal_participant.primera_vez = participant.primera_vez
-        proposal_participant.composicion_familiar = participant.composicion_familiar
-        proposal_participant.estatus = participant.estatus
-        proposal_participant.grupo_familiar = participant.grupo_familiar
-        proposal_participant.fuente_ingreso_principal = participant.fuente_ingreso_principal
-        proposal_participant.rango_ingreso = participant.rango_ingreso
-        proposal_participant.is_active = participant_is_active
-
-        db.add(person)
-        db.add(proposal_participant)
+            update_values["residential_id"] = participant.residential_id
+        update_values["updated_at"] = func.sysutcdatetime()
+        db.execute(
+            update(ProposalParticipant)
+            .where(
+                ProposalParticipant.proposal_participant_id
+                == proposal_participant.proposal_participant_id,
+                ProposalParticipant.proposal_id == proposal_id,
+            )
+            .values(**update_values)
+            .execution_options(synchronize_session=False)
+        )
         synced_count += 1
 
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
-        f"SincronizaciÃ³n completada. {synced_count} participante(s) actualizado(s). {skipped_count} omitido(s).",
+        redirect_url,
+        (
+            f"Sincronización completada en la propuesta seleccionada: "
+            f"{synced_count} actualizado(s), {unchanged_count} al día y "
+            f"{missing_source_count} sin fuente."
+        ),
     )
 
 
@@ -2375,6 +2428,7 @@ def admin_remove_participant_from_proposal(
     status_filter: str | None = Form(default="active"),
     q: str | None = Form(default=None),
     only_available: int = Form(default=1),
+    sync_filter: str = Form(default="outdated"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_supervisor),
 ):
@@ -2382,14 +2436,22 @@ def admin_remove_participant_from_proposal(
     if scope_residential_id is not None:
         residential_id = scope_residential_id
 
+    redirect_url = _proposal_participants_url(
+        proposal_id,
+        residential_id,
+        status_filter,
+        q,
+        only_available,
+        sync_filter,
+    )
     proposal = db.get(Proposal, proposal_id)
     if not proposal:
         return _redirect_with_msg("/ui/admin/proposal-participants", "Error: Propuesta no encontrada.")
 
     redirect = _redirect_if_proposal_finalized(
         proposal,
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}",
-        "Error: La propuesta estÃ¡ finalizada y no permite remover participantes.",
+        redirect_url,
+        "Error: La propuesta está finalizada y no permite remover participantes.",
     )
     if redirect:
         return redirect
@@ -2411,7 +2473,7 @@ def admin_remove_participant_from_proposal(
         proposal_participant = db.get(ProposalParticipant, proposal_participant_id)
     if not proposal_participant or proposal_participant.proposal_id != proposal_id:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            redirect_url,
             "Error: Participante asociado no encontrado.",
         )
     _require_proposal_residential_scope(
@@ -2429,7 +2491,7 @@ def admin_remove_participant_from_proposal(
 
     if used_count > 0:
         return _redirect_with_msg(
-            f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+            redirect_url,
             "Error: No se puede remover porque ya tiene asistencias registradas en esta propuesta.",
         )
 
@@ -2437,7 +2499,7 @@ def admin_remove_participant_from_proposal(
     db.commit()
 
     return _redirect_with_msg(
-        f"/ui/admin/proposal-participants?proposal_id={proposal_id}&residential_id={residential_id or ''}&status_filter={quote_plus((status_filter or 'active').strip())}&q={quote_plus((q or '').strip())}&only_available={only_available}",
+        redirect_url,
         "Participante removido de la propuesta exitosamente.",
     )
 
