@@ -518,6 +518,133 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
         )
         self.assertIsNone(ui._parse_optional_filter_date("not-a-date"))
 
+    def test_participation_chart_sql_aggregates_months_with_filters_and_scope(self):
+        statement = ui._build_participant_participation_chart_stmt(
+            participant_id=2141,
+            person_id=41,
+            scoped_residential_id=7,
+            period_start=date(2025, 11, 1),
+            period_end=date(2026, 2, 20),
+            proposal_id=12,
+            activity="salud",
+        )
+        statement_sql = " ".join(str(statement).split())
+        statement_values = statement.compile().params.values()
+
+        self.assertIn(
+            "SELECT year(activity_sessions.session_date) AS year, "
+            "month(activity_sessions.session_date) AS month, "
+            "count(attendance.attendance_id) AS value",
+            statement_sql,
+        )
+        self.assertIn("LEFT OUTER JOIN proposal_participants", statement_sql)
+        self.assertIn("JOIN activity_sessions", statement_sql)
+        self.assertIn("JOIN activity_codes", statement_sql)
+        self.assertIn("attendance.attended = true", statement_sql)
+        self.assertIn("attendance.participant_id =", statement_sql)
+        self.assertIn("proposal_participants.person_id =", statement_sql)
+        self.assertIn("activity_sessions.residential_id =", statement_sql)
+        self.assertIn("proposal_participants.residential_id =", statement_sql)
+        self.assertIn("activity_sessions.session_date >=", statement_sql)
+        self.assertIn("activity_sessions.session_date <=", statement_sql)
+        self.assertIn("activity_sessions.proposal_id =", statement_sql)
+        self.assertIn("activity_codes.code", statement_sql)
+        self.assertIn("activity_codes.description", statement_sql)
+        self.assertIn(
+            "GROUP BY year(activity_sessions.session_date), "
+            "month(activity_sessions.session_date)",
+            statement_sql,
+        )
+        self.assertNotIn(" LIMIT ", f" {statement_sql} ")
+        self.assertNotIn(" OFFSET ", f" {statement_sql} ")
+        for expected_value in (
+            2141,
+            41,
+            7,
+            date(2025, 11, 1),
+            date(2026, 2, 20),
+            12,
+            "%salud%",
+        ):
+            self.assertIn(expected_value, statement_values)
+
+    def test_participation_chart_crosses_years_and_fills_zero_months(self):
+        period_start, period_end = ui._participant_participation_chart_period(
+            date(2025, 11, 15),
+            date(2026, 2, 20),
+        )
+
+        context = ui._build_participation_chart_context(
+            [
+                SimpleNamespace(year=2025, month=12, value=2),
+                SimpleNamespace(year=2026, month=2, value=4),
+            ],
+            period_start,
+            period_end,
+        )
+
+        self.assertEqual(period_start, date(2025, 11, 1))
+        self.assertEqual(period_end, date(2026, 2, 20))
+        self.assertEqual(
+            context["participation_chart_rows"],
+            [
+                {
+                    "year": 2025,
+                    "month": 11,
+                    "label": "Nov 2025",
+                    "value": 0,
+                    "percentage": 0,
+                },
+                {
+                    "year": 2025,
+                    "month": 12,
+                    "label": "Dic 2025",
+                    "value": 2,
+                    "percentage": 50,
+                },
+                {
+                    "year": 2026,
+                    "month": 1,
+                    "label": "Ene 2026",
+                    "value": 0,
+                    "percentage": 0,
+                },
+                {
+                    "year": 2026,
+                    "month": 2,
+                    "label": "Feb 2026",
+                    "value": 4,
+                    "percentage": 100,
+                },
+            ],
+        )
+        self.assertEqual(context["participation_chart_total"], 6)
+        self.assertEqual(
+            context["participation_chart_period_label"],
+            "Nov 2025 – Feb 2026",
+        )
+        self.assertTrue(context["participation_chart_has_data"])
+
+        maximum_period_start, maximum_period_end = (
+            ui._participant_participation_chart_period(
+                date(2020, 1, 1),
+                date(2026, 2, 20),
+            )
+        )
+        empty_context = ui._build_participation_chart_context(
+            [],
+            maximum_period_start,
+            maximum_period_end,
+        )
+        self.assertEqual(maximum_period_start, date(2025, 3, 1))
+        self.assertEqual(len(empty_context["participation_chart_rows"]), 12)
+        self.assertEqual(empty_context["participation_chart_total"], 0)
+        self.assertFalse(empty_context["participation_chart_has_data"])
+        self.assertTrue(all(
+            row["value"] == 0 and row["percentage"] == 0
+            for row in empty_context["participation_chart_rows"]
+        ))
+
     def test_expediente_context_filters_rows_and_returns_complete_urls(self):
         participant = SimpleNamespace(
             participant_id=2141,
@@ -585,6 +712,12 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
                     ]
                 ),
                 _Result(scalar=metrics),
+                _Result(
+                    values=[
+                        SimpleNamespace(year=2026, month=1, value=2),
+                        SimpleNamespace(year=2026, month=2, value=3),
+                    ]
+                ),
             ]
         )
 
@@ -616,6 +749,32 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
         self.assertEqual(context["participation_total"], 88)
         self.assertEqual(context["last_participation_date"], date(2026, 2, 20))
         self.assertEqual(context["participation_pagination"]["page"], 3)
+        self.assertEqual(
+            context["participation_chart_rows"],
+            [
+                {
+                    "year": 2026,
+                    "month": 1,
+                    "label": "Ene",
+                    "value": 2,
+                    "percentage": 67,
+                },
+                {
+                    "year": 2026,
+                    "month": 2,
+                    "label": "Feb",
+                    "value": 3,
+                    "percentage": 100,
+                },
+            ],
+        )
+        self.assertEqual(context["participation_chart_total"], 5)
+        self.assertEqual(context["participation_chart_period_label"], "Ene 2026 – Feb 2026")
+        self.assertTrue(context["participation_chart_has_data"])
+        self.assertIsNotNone(db.statements[6]._limit_clause)
+        self.assertIsNotNone(db.statements[6]._offset_clause)
+        self.assertIsNone(db.statements[8]._limit_clause)
+        self.assertIsNone(db.statements[8]._offset_clause)
         self.assertEqual(
             context["participation_filters"],
             {

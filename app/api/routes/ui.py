@@ -1722,6 +1722,141 @@ def _apply_participant_participation_filters(
     return stmt
 
 
+_PARTICIPATION_MONTH_LABELS = (
+    "",
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+)
+
+
+def _shift_month_start(reference: date, months: int) -> date:
+    month_index = reference.year * 12 + reference.month - 1 + months
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def _participant_participation_chart_period(
+    from_date: date | None,
+    to_date: date | None,
+) -> tuple[date, date]:
+    period_end = to_date or date.today()
+    base_start = _shift_month_start(period_end.replace(day=1), -11)
+    if from_date is None or from_date <= base_start:
+        return base_start, period_end
+    return from_date.replace(day=1), period_end
+
+
+def _build_participant_participation_chart_stmt(
+    participant_id: int,
+    person_id: int | None,
+    scoped_residential_id: int | None,
+    period_start: date,
+    period_end: date,
+    proposal_id: int | None,
+    activity: str,
+):
+    participation_year = func.year(ActivitySession.session_date)
+    participation_month = func.month(ActivitySession.session_date)
+    stmt = (
+        select(
+            participation_year.label("year"),
+            participation_month.label("month"),
+            func.count(Attendance.attendance_id).label("value"),
+        )
+        .select_from(Attendance)
+        .outerjoin(
+            ProposalParticipant,
+            ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+        )
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .where(
+            *_participant_attendance_conditions(
+                participant_id,
+                person_id,
+                scoped_residential_id,
+            )
+        )
+    )
+    stmt = _apply_participant_participation_filters(
+        stmt,
+        period_start,
+        period_end,
+        proposal_id,
+        activity,
+    )
+    return stmt.group_by(
+        participation_year,
+        participation_month,
+    ).order_by(
+        participation_year,
+        participation_month,
+    )
+
+
+def _build_participation_chart_context(
+    monthly_rows,
+    period_start: date,
+    period_end: date,
+):
+    monthly_values: dict[tuple[int, int], int] = {}
+    for row in monthly_rows:
+        key = (int(row.year), int(row.month))
+        monthly_values[key] = monthly_values.get(key, 0) + max(0, int(row.value or 0))
+
+    month_starts = []
+    current_month = period_start
+    while current_month <= period_end:
+        month_starts.append(current_month)
+        current_month = _shift_month_start(current_month, 1)
+
+    max_value = max(monthly_values.values(), default=0)
+    include_year = len({month_start.year for month_start in month_starts}) > 1
+    chart_rows = []
+    for month_start in month_starts:
+        value = monthly_values.get((month_start.year, month_start.month), 0)
+        percentage = round(value * 100 / max_value) if max_value else 0
+        chart_rows.append(
+            {
+                "year": month_start.year,
+                "month": month_start.month,
+                "label": (
+                    f"{_PARTICIPATION_MONTH_LABELS[month_start.month]} {month_start.year}"
+                    if include_year
+                    else _PARTICIPATION_MONTH_LABELS[month_start.month]
+                ),
+                "value": value,
+                "percentage": min(100, max(0, int(percentage))),
+            }
+        )
+
+    if not month_starts:
+        period_label = ""
+    else:
+        first_month = month_starts[0]
+        last_month = month_starts[-1]
+        first_label = f"{_PARTICIPATION_MONTH_LABELS[first_month.month]} {first_month.year}"
+        last_label = f"{_PARTICIPATION_MONTH_LABELS[last_month.month]} {last_month.year}"
+        period_label = first_label if first_month == last_month else f"{first_label} – {last_label}"
+
+    chart_total = sum(row["value"] for row in chart_rows)
+    return {
+        "participation_chart_rows": chart_rows,
+        "participation_chart_total": chart_total,
+        "participation_chart_period_label": period_label,
+        "participation_chart_has_data": chart_total > 0,
+    }
+
+
 def _build_participant_participation_metrics_stmt(
     participant_id: int,
     person_id: int | None,
@@ -1902,10 +2037,31 @@ def _load_participant_expediente_context(
             scoped_residential_id,
         )
     ).one()
+
+    participation_chart_period_start, participation_chart_period_end = (
+        _participant_participation_chart_period(from_date, to_date)
+    )
+    participation_chart_monthly_rows = db.execute(
+        _build_participant_participation_chart_stmt(
+            participant.participant_id,
+            person_id,
+            scoped_residential_id,
+            participation_chart_period_start,
+            participation_chart_period_end,
+            proposal_id,
+            activity,
+        )
+    ).all()
+    participation_chart_context = _build_participation_chart_context(
+        participation_chart_monthly_rows,
+        participation_chart_period_start,
+        participation_chart_period_end,
+    )
     normalized_return_query = _normalize_new_list_return_query(return_query)
 
     context = {
         **profile_context,
+        **participation_chart_context,
         "participant_residential": participant_residential,
         "person": person,
         "proposal_participants": proposal_participants,

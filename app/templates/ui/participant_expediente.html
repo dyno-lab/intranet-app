@@ -77,7 +77,7 @@
       <div class="participants-hero__actions participants-expediente__actions">
         <a class="btn btn-outline-secondary" href="{{ back_to_list_url }}">
           <i class="bi bi-arrow-left" aria-hidden="true"></i>
-          <span>Volver a resultados</span>
+          <span>Volver a Listado</span>
         </a>
         {% if current_user.role != 'viewer' %}
         <a class="btn btn-primary participants-hero__cta" href="/ui/new-list/{{ p.participant_id }}/edit">
@@ -455,6 +455,44 @@
             <a class="btn btn-outline-secondary" href="{{ participation_clear_url }}#historial">Limpiar</a>
           </div>
         </form>
+
+        <section class="participants-expediente-chart" aria-labelledby="participation-chart-title">
+          <div class="participants-expediente-chart__header">
+            <div>
+              <span class="participants-expediente-chart__ey</div>ebrow">Tendencia</span>
+              <h3 class="participants-expediente-chart__title" id="participation-chart-title">Participaciones por mes</h3>
+              <p class="participants-expediente-chart__text">Asistencias confirmadas durante {{ participation_chart_period_label }}.</p>
+            </div>
+            <div class="participants-expediente-chart__total" aria-label="Total del período">
+              <span>Total del período</span>
+              <strong>{{ participation_chart_total }}</strong>
+            </div>
+          </div>
+
+          {% if participation_chart_has_data %}
+          <div class="participants-expediente-chart__scroll" tabindex="0" aria-label="Gráfico desplazable de participaciones mensuales">
+            <div class="participants-expediente-chart__plot" style="--chart-columns: {{ participation_chart_rows|length }}" role="list" aria-label="Participaciones por mes">
+              {% for chart_row in participation_chart_rows %}
+              <div class="participants-expediente-chart__item {{ 'participants-expediente-chart__item--has-value' if chart_row.value else '' }}" role="listitem" aria-label="{{ chart_row.label }}: {{ chart_row.value }} participaciones">
+                <strong class="participants-expediente-chart__value">{{ chart_row.value }}</strong>
+                <div class="participants-expediente-chart__track" aria-hidden="true">
+                  <span class="participants-expediente-chart__bar" style="--bar-height: {{ chart_row.percentage }}%"></span>
+                </div>
+                <span class="participants-expediente-chart__label">{{ chart_row.label }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <div class="participants-expediente-empty participants-expediente-chart__empty" role="status">
+            <span class="participants-expediente-empty__icon"><i class="bi bi-bar-chart" aria-hidden="true"></i></span>
+            <div>
+              <strong>No hay</div> participaciones para graficar</strong>
+              <p>El gráfico se actualizará cuando existan asistencias confirmadas</p> para este período y los filtros seleccionados.</p>
+            </div>
+          </div>
+          {% endif %}
+        </section>
 
         {% if participation_rows %}
         <div class="d-none d-lg-block participants-expediente-table-wrap participants-expediente-table-wrap--history">
