@@ -500,7 +500,7 @@
                   <td>{{ p.edificio or '' }}</td>
                   <td class="text-end">
                     <div class="participants-actions">
-                      <a class="btn btn-sm btn-outline-secondary" href="/ui/new-list/{{ p.participant_id }}/expediente">Expediente</a>
+                      <a class="btn btn-sm btn-outline-secondary" href="{{ r.expediente_url }}">Expediente</a>
                       {% if current_user.role != 'viewer' %}
                       <a class="btn btn-sm btn-primary" href="/ui/new-list/{{ p.participant_id }}/edit">Editar</a>
                       {% endif %}

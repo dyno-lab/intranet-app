@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -51,6 +52,16 @@ class _Result:
 
     def scalar_one_or_none(self):
         return self.scalar_value
+
+    def scalar_one(self):
+        return self.scalar_value
+
+    def one(self):
+        if self.scalar_value is not None:
+            return self.scalar_value
+        if len(self.values) != 1:
+            raise AssertionError("Expected exactly one result row")
+        return self.values[0]
 
 
 class _Database:
@@ -330,6 +341,343 @@ class ResidentialRouteScopeTests(unittest.TestCase):
             )
         )
         self.assertNotIn("proposals.code ASC", order_by_sql)
+
+
+class ParticipantExpedienteBackendTests(unittest.TestCase):
+    def test_return_query_is_whitelisted_normalized_and_uses_fixed_path(self):
+        return_query = (
+            "page=-3&per_page=25&age_range=8_10&age_min=20&age_max=10"
+            "&expediente_num=%20fe-2026-ac-0001%20&residential_id=7"
+            "&next=https%3A%2F%2Fevil.example&return_url=%2F%2Fevil.example"
+        )
+
+        normalized = ui._normalize_new_list_return_query(return_query)
+        normalized_params = parse_qs(normalized)
+
+        self.assertEqual(
+            normalized_params,
+            {
+                "page": ["1"],
+                "per_page": ["25"],
+                "age_range": ["8_10"],
+                "age_min": ["10"],
+                "age_max": ["20"],
+                "expediente_num": ["FE-2026-AC-0001"],
+                "residential_id": ["7"],
+            },
+        )
+        self.assertEqual(
+            ui._build_new_list_url(return_query),
+            f"/ui/new-list?{normalized}",
+        )
+        self.assertNotIn("evil.example", ui._build_new_list_url(return_query))
+
+    def test_new_list_expediente_link_preserves_filters_and_current_page(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            fecha_nacimiento=date(2016, 5, 10),
+            is_active=True,
+            is_head_of_household=False,
+        )
+        db = _Database(
+            objects={(Residential, 7): _residential(7, "AC")},
+            results=[
+                _Result(scalar=51),
+                _Result(values=[participant]),
+            ],
+        )
+        dashboard = {
+            "totals": {
+                "registered_count": 0,
+                "assigned_count": 0,
+                "pending_sync_count": 0,
+            },
+            "residential_rows": [],
+            "show_residential_breakdown": False,
+        }
+
+        with (
+            patch.object(ui, "_build_new_list_dashboard", return_value=dashboard),
+            patch.object(ui, "load_profile_field_presence_by_participants", return_value={}),
+            patch.object(ui, "_participant_form_catalogs", return_value={}),
+            patch.object(ui, "_participant_profile_context", return_value={}),
+            patch.object(
+                ui.templates,
+                "TemplateResponse",
+                side_effect=lambda _template, context: context,
+            ),
+        ):
+            context = ui.new_list(
+                request=_Request(7),
+                page=3,
+                per_page=25,
+                age_range="8_10",
+                age_min=None,
+                age_max=None,
+                expediente_num=" fe-2026-ac-0001 ",
+                residential_id=None,
+                db=db,
+                current_user=_privileged_user(active_residential_id=7),
+            )
+
+        expediente_url = context["rows"][0]["expediente_url"]
+        parsed_url = urlsplit(expediente_url)
+        nested_return_query = parse_qs(parsed_url.query)["return_query"][0]
+
+        self.assertEqual(
+            parsed_url.path,
+            f"/ui/new-list/{participant.participant_id}/expediente",
+        )
+        self.assertEqual(
+            parse_qs(nested_return_query),
+            {
+                "page": ["3"],
+                "per_page": ["25"],
+                "age_range": ["8_10"],
+                "age_min": ["8"],
+                "age_max": ["10"],
+                "expediente_num": ["FE-2026-AC-0001"],
+            },
+        )
+        self.assertEqual(context["new_list_return_query"], nested_return_query)
+
+    def test_proposal_and_attendance_statements_apply_residential_scope(self):
+        formal_stmt = ui._build_participant_formal_proposals_stmt(
+            person_id=41,
+            scoped_residential_id=7,
+        )
+        historical_stmt = ui._build_participant_historical_proposals_stmt(
+            participant_id=2141,
+            person_id=41,
+            scoped_residential_id=7,
+        )
+        participation_stmt = ui._build_participant_participation_stmt(
+            participant_id=2141,
+            person_id=41,
+            scoped_residential_id=7,
+        )
+
+        formal_sql = str(formal_stmt)
+        historical_sql = str(historical_stmt)
+        participation_sql = str(participation_stmt)
+
+        self.assertIn("proposal_participants.residential_id =", formal_sql)
+        for statement, statement_sql in (
+            (historical_stmt, historical_sql),
+            (participation_stmt, participation_sql),
+        ):
+            self.assertIn("activity_sessions.residential_id =", statement_sql)
+            self.assertIn("proposal_participants.residential_id =", statement_sql)
+            self.assertIn("attendance.participant_id =", statement_sql)
+            self.assertIn("proposal_participants.person_id =", statement_sql)
+            self.assertIn(7, statement.compile().params.values())
+        self.assertIn(7, formal_stmt.compile().params.values())
+
+    def test_participation_filters_pagination_and_order_are_deterministic(self):
+        statement = ui._apply_participant_participation_filters(
+            ui._build_participant_participation_stmt(
+                participant_id=2141,
+                person_id=41,
+                scoped_residential_id=7,
+            ),
+            date(2026, 1, 1),
+            date(2026, 2, 28),
+            12,
+            "salud",
+        )
+        statement_sql = str(statement)
+        order_by_sql = statement_sql.split("ORDER BY", 1)[1].replace("\n", " ").strip()
+        statement_values = statement.compile().params.values()
+
+        self.assertIn("activity_sessions.session_date >=", statement_sql)
+        self.assertIn("activity_sessions.session_date <=", statement_sql)
+        self.assertIn("activity_sessions.proposal_id =", statement_sql)
+        self.assertIn("activity_codes.code", statement_sql)
+        self.assertIn("activity_codes.description", statement_sql)
+        self.assertIn("%salud%", statement_values)
+        self.assertIn(12, statement_values)
+        self.assertTrue(
+            order_by_sql.startswith(
+                "activity_sessions.session_date DESC, "
+                "activity_sessions.session_id DESC, attendance.attendance_id DESC"
+            )
+        )
+        self.assertEqual(
+            ui._paginate(total_items=61, page=99, per_page=25),
+            {
+                "page": 3,
+                "per_page": 25,
+                "total_items": 61,
+                "total_pages": 3,
+                "offset": 50,
+                "has_prev": True,
+                "has_next": False,
+                "prev_page": 2,
+                "next_page": None,
+            },
+        )
+        self.assertIsNone(ui._parse_optional_filter_date("not-a-date"))
+
+    def test_expediente_context_filters_rows_and_returns_complete_urls(self):
+        participant = SimpleNamespace(
+            participant_id=2141,
+            residential_id=7,
+            fecha_nacimiento=date(1990, 1, 2),
+            is_active=True,
+            is_head_of_household=False,
+        )
+        residential = _residential(7, "AC")
+        person = SimpleNamespace(person_id=41)
+        formal_proposal = SimpleNamespace(proposal_id=12, code="P-12", name="Formal")
+        historical_proposal = SimpleNamespace(proposal_id=15, code="P-15", name="Histórica")
+        proposal_participant = SimpleNamespace(
+            proposal_participant_id=71,
+            proposal_id=12,
+        )
+        direct_attendance = SimpleNamespace(
+            attendance_id=501,
+            proposal_participant_id=None,
+        )
+        proposal_attendance = SimpleNamespace(
+            attendance_id=500,
+            proposal_participant_id=71,
+        )
+        newest_session = SimpleNamespace(
+            session_id=91,
+            session_date=date(2026, 2, 20),
+        )
+        older_session = SimpleNamespace(
+            session_id=90,
+            session_date=date(2026, 2, 19),
+        )
+        activity_code = SimpleNamespace(code="1.1", description="Salud preventiva")
+        employee = SimpleNamespace(full_name="Ada Rivera")
+        metrics = SimpleNamespace(
+            participation_total=88,
+            last_participation_date=date(2026, 2, 20),
+        )
+        db = _Database(
+            results=[
+                _Result(scalar=participant),
+                _Result(scalar=residential),
+                _Result(scalar=person),
+                _Result(values=[(proposal_participant, formal_proposal)]),
+                _Result(values=[formal_proposal, historical_proposal]),
+                _Result(scalar=61),
+                _Result(
+                    values=[
+                        (
+                            direct_attendance,
+                            newest_session,
+                            activity_code,
+                            employee,
+                            formal_proposal,
+                            None,
+                        ),
+                        (
+                            proposal_attendance,
+                            older_session,
+                            activity_code,
+                            employee,
+                            formal_proposal,
+                            proposal_participant,
+                        ),
+                    ]
+                ),
+                _Result(scalar=metrics),
+            ]
+        )
+
+        with (
+            patch.object(ui, "load_all_profile_fields", return_value=[]),
+            patch.object(ui, "load_participant_profile_values", return_value={}),
+            patch.object(
+                ui.templates,
+                "TemplateResponse",
+                side_effect=lambda _template, context: context,
+            ),
+        ):
+            context = ui.participant_expediente(
+                participant_id=participant.participant_id,
+                request=_Request(7),
+                return_query="page=2&age_min=9&redirect=https%3A%2F%2Fevil.example",
+                participation_page=99,
+                participation_from_date="2026-02-28",
+                participation_to_date="2026-01-01",
+                participation_proposal_id="12",
+                participation_activity=" salud ",
+                db=db,
+                current_user=_privileged_user(active_residential_id=7),
+            )
+
+        self.assertIs(context["participant_residential"], residential)
+        self.assertEqual(context["back_to_list_url"], "/ui/new-list?page=2&age_min=9")
+        self.assertEqual(context["proposal_count"], 2)
+        self.assertEqual(context["participation_total"], 88)
+        self.assertEqual(context["last_participation_date"], date(2026, 2, 20))
+        self.assertEqual(context["participation_pagination"]["page"], 3)
+        self.assertEqual(
+            context["participation_filters"],
+            {
+                "from_date": "2026-01-01",
+                "to_date": "2026-02-28",
+                "proposal_id": "12",
+                "activity": "salud",
+            },
+        )
+        self.assertEqual(
+            [row["source"] for row in context["participation_rows"]],
+            ["New-list directo", "Propuesta"],
+        )
+        self.assertEqual(
+            context["participation_rows"][0]["session_url"],
+            "/ui/listado/91",
+        )
+
+        first_params = parse_qs(urlsplit(context["participation_first_url"]).query)
+        self.assertEqual(first_params["return_query"], ["page=2&age_min=9"])
+        self.assertEqual(first_params["participation_from_date"], ["2026-01-01"])
+        self.assertEqual(first_params["participation_to_date"], ["2026-02-28"])
+        self.assertEqual(first_params["participation_proposal_id"], ["12"])
+        self.assertEqual(first_params["participation_activity"], ["salud"])
+        self.assertEqual(first_params["participation_page"], ["1"])
+        self.assertEqual(
+            parse_qs(urlsplit(context["participation_clear_url"]).query),
+            {"return_query": ["page=2&age_min=9"]},
+        )
+
+    def test_historical_profile_fields_require_a_nonempty_value(self):
+        active_empty = SimpleNamespace(
+            participant_profile_field_id=1,
+            is_active=True,
+            applies_to_new_list=True,
+        )
+        historical_empty = SimpleNamespace(
+            participant_profile_field_id=2,
+            is_active=False,
+            applies_to_new_list=True,
+        )
+        historical_value = SimpleNamespace(
+            participant_profile_field_id=3,
+            is_active=False,
+            applies_to_new_list=True,
+        )
+
+        context = ui._build_expediente_profile_context(
+            [active_empty, historical_empty, historical_value],
+            {1: "", 2: "   ", 3: "teléfono anterior"},
+        )
+
+        self.assertEqual(
+            [item["field"].participant_profile_field_id for item in context["profile_items"]],
+            [1, 3],
+        )
+        self.assertFalse(context["profile_items"][0]["is_historical"])
+        self.assertFalse(context["profile_items"][0]["has_value"])
+        self.assertTrue(context["profile_items"][1]["is_historical"])
+        self.assertTrue(context["profile_items"][1]["has_value"])
+        self.assertEqual(context["missing_profile_fields"], [active_empty])
+        self.assertEqual(context["missing_profile_count"], 1)
 
 
 class ParticipantGenderValidationTests(unittest.IsolatedAsyncioTestCase):

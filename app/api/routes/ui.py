@@ -4,7 +4,7 @@ import csv
 import io
 import unicodedata
 from datetime import date, datetime
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.datastructures import FormData
@@ -738,6 +738,102 @@ def _paginate(total_items: int, page: int, per_page: int):
     }
 
 
+_NEW_LIST_RETURN_QUERY_KEYS = (
+    "page",
+    "per_page",
+    "age_range",
+    "age_min",
+    "age_max",
+    "expediente_num",
+    "residential_id",
+)
+
+
+def _normalize_new_list_return_query(return_query: str | None) -> str:
+    parsed_values = {
+        key: value.strip()
+        for key, value in parse_qsl(return_query or "", keep_blank_values=False)
+        if key in _NEW_LIST_RETURN_QUERY_KEYS and value.strip()
+    }
+
+    normalized_values: dict[str, str | int] = {}
+    for key in ("page", "per_page"):
+        parsed = _parse_optional_int(parsed_values.get(key))
+        if parsed is not None:
+            normalized_values[key] = max(1, parsed)
+
+    age_range = parsed_values.get("age_range")
+    if age_range and any(option["value"] == age_range for option in ATTENDANCE_AGE_RANGE_OPTIONS):
+        normalized_values["age_range"] = age_range
+
+    age_min = _parse_optional_int(parsed_values.get("age_min"))
+    age_max = _parse_optional_int(parsed_values.get("age_max"))
+    age_min = age_min if age_min is not None and age_min >= 0 else None
+    age_max = age_max if age_max is not None and age_max >= 0 else None
+    if age_min is not None and age_max is not None and age_min > age_max:
+        age_min, age_max = age_max, age_min
+    if age_min is not None:
+        normalized_values["age_min"] = age_min
+    if age_max is not None:
+        normalized_values["age_max"] = age_max
+
+    expediente_num = parsed_values.get("expediente_num")
+    if expediente_num:
+        normalized_values["expediente_num"] = expediente_num.upper()
+
+    residential_id = _parse_optional_int(parsed_values.get("residential_id"))
+    if residential_id is not None and residential_id > 0:
+        normalized_values["residential_id"] = residential_id
+
+    return urlencode(normalized_values)
+
+
+def _build_new_list_url(return_query: str | None) -> str:
+    normalized_return_query = _normalize_new_list_return_query(return_query)
+    if normalized_return_query:
+        return f"/ui/new-list?{normalized_return_query}"
+    return "/ui/new-list"
+
+
+def _build_participant_expediente_url(participant_id: int, return_query: str | None) -> str:
+    normalized_return_query = _normalize_new_list_return_query(return_query)
+    path = f"/ui/new-list/{participant_id}/expediente"
+    if normalized_return_query:
+        return f"{path}?{urlencode({'return_query': normalized_return_query})}"
+    return path
+
+
+def _parse_optional_filter_date(value: str | None) -> date | None:
+    try:
+        return _parse_date((value or "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_participation_url(
+    participant_id: int,
+    return_query: str,
+    filters: dict[str, str],
+    page: int | None = None,
+) -> str:
+    params: list[tuple[str, str | int]] = []
+    if return_query:
+        params.append(("return_query", return_query))
+    for context_key, query_key in (
+        ("from_date", "participation_from_date"),
+        ("to_date", "participation_to_date"),
+        ("proposal_id", "participation_proposal_id"),
+        ("activity", "participation_activity"),
+    ):
+        if filters.get(context_key):
+            params.append((query_key, filters[context_key]))
+    if page is not None:
+        params.append(("participation_page", max(1, page)))
+
+    path = f"/ui/new-list/{participant_id}/expediente"
+    return f"{path}?{urlencode(params)}" if params else path
+
+
 def _render_listado_selector(
     request: Request,
     db: Session,
@@ -975,6 +1071,9 @@ def new_list(
         ["telefono", "email"],
     )
 
+    current_return_query = _normalize_new_list_return_query(
+        urlencode({"page": pagination["page"], **query_params})
+    )
     rows = [
         {
             "p": p,
@@ -983,6 +1082,10 @@ def new_list(
             "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
             "has_phone": participant_profile_presence.get(p.participant_id, {}).get("telefono", False),
             "has_email": participant_profile_presence.get(p.participant_id, {}).get("email", False),
+            "expediente_url": _build_participant_expediente_url(
+                p.participant_id,
+                current_return_query,
+            ),
         }
         for p in participants
     ]
@@ -1004,6 +1107,7 @@ def new_list(
         "expediente_residential": expediente_residential,
         "is_admin_or_supervisor_view": is_admin_supervisor,
         "new_list_query_string": query_string,
+        "new_list_return_query": current_return_query,
         "new_list_dashboard": new_list_dashboard,
         "msg": msg,
     }
@@ -1370,6 +1474,12 @@ def export_participants_csv(
 def participant_expediente(
     participant_id: int,
     request: Request,
+    return_query: str | None = None,
+    participation_page: int = 1,
+    participation_from_date: str | None = None,
+    participation_to_date: str | None = None,
+    participation_proposal_id: str | None = None,
+    participation_activity: str | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1381,6 +1491,7 @@ def participant_expediente(
         raise HTTPException(status_code=404, detail="Participante no existe.")
 
     _check_participant_access(p, current_user, request)
+    normalized_return_query = _normalize_new_list_return_query(return_query)
 
     context = {
         "request": request,
@@ -1390,9 +1501,23 @@ def participant_expediente(
         "phase2_expediente_enabled": settings.PHASE2_EXPEDIENTE_ENABLED,
         "is_active": _is_participant_active(p),
         "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
+        "return_query": normalized_return_query,
+        "back_to_list_url": _build_new_list_url(normalized_return_query),
         "msg": msg,
     }
-    context.update(_load_participant_expediente_context(db, p))
+    context.update(
+        _load_participant_expediente_context(
+            db,
+            p,
+            current_user=current_user,
+            return_query=normalized_return_query,
+            participation_page=participation_page,
+            participation_from_date=participation_from_date,
+            participation_to_date=participation_to_date,
+            participation_proposal_id=participation_proposal_id,
+            participation_activity=participation_activity,
+        )
+    )
 
     return templates.TemplateResponse("ui/participant_expediente.html", context)
 
@@ -1432,24 +1557,244 @@ def edit_participant_form(
     return templates.TemplateResponse("ui/edit_participant.html", context)
 
 
-def _load_participant_expediente_context(db: Session, participant: Participant):
-    profile_fields = load_all_profile_fields(db)
+def _build_expediente_profile_context(profile_fields: list, profile_values_by_field: dict[int, str]):
+    profile_items = []
+    missing_profile_fields = []
+    for field in profile_fields:
+        field_id = field.participant_profile_field_id
+        value = profile_values_by_field.get(field_id, "") or ""
+        has_value = bool(value.strip())
+        is_historical = not (
+            bool(getattr(field, "is_active", False))
+            and bool(getattr(field, "applies_to_new_list", False))
+        )
+        if is_historical and not has_value:
+            continue
+
+        item = {
+            "field": field,
+            "value": value,
+            "has_value": has_value,
+            "is_historical": is_historical,
+        }
+        profile_items.append(item)
+        if not is_historical and not has_value:
+            missing_profile_fields.append(field)
+
+    return {
+        "profile_items": profile_items,
+        "profile_fields": [item["field"] for item in profile_items],
+        "profile_values_by_field": profile_values_by_field,
+        "missing_profile_fields": missing_profile_fields,
+        "missing_profile_count": len(missing_profile_fields),
+    }
+
+
+def _participant_attendance_conditions(
+    participant_id: int,
+    person_id: int | None,
+    scoped_residential_id: int | None,
+):
+    identity_condition = Attendance.participant_id == participant_id
+    if person_id is not None:
+        identity_condition = or_(
+            identity_condition,
+            ProposalParticipant.person_id == person_id,
+        )
+
+    conditions = [
+        identity_condition,
+        Attendance.attended == True,  # noqa: E712
+    ]
+    if scoped_residential_id is not None:
+        conditions.extend(
+            [
+                ActivitySession.residential_id == scoped_residential_id,
+                or_(
+                    Attendance.proposal_participant_id.is_(None),
+                    ProposalParticipant.residential_id == scoped_residential_id,
+                ),
+            ]
+        )
+    return conditions
+
+
+def _build_participant_formal_proposals_stmt(
+    person_id: int,
+    scoped_residential_id: int | None,
+):
+    stmt = (
+        select(ProposalParticipant, Proposal)
+        .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
+        .where(ProposalParticipant.person_id == person_id)
+        .order_by(Proposal.code, Proposal.name)
+    )
+    if scoped_residential_id is not None:
+        stmt = stmt.where(ProposalParticipant.residential_id == scoped_residential_id)
+    return stmt
+
+
+def _build_participant_historical_proposals_stmt(
+    participant_id: int,
+    person_id: int | None,
+    scoped_residential_id: int | None,
+):
+    return (
+        select(Proposal)
+        .select_from(Attendance)
+        .outerjoin(
+            ProposalParticipant,
+            ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+        )
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
+        .where(
+            *_participant_attendance_conditions(
+                participant_id,
+                person_id,
+                scoped_residential_id,
+            )
+        )
+        .distinct()
+        .order_by(Proposal.code, Proposal.name)
+    )
+
+
+def _build_participant_participation_stmt(
+    participant_id: int,
+    person_id: int | None,
+    scoped_residential_id: int | None,
+):
+    return (
+        select(
+            Attendance,
+            ActivitySession,
+            ActivityCode,
+            Employee,
+            Proposal,
+            ProposalParticipant,
+        )
+        .select_from(Attendance)
+        .outerjoin(
+            ProposalParticipant,
+            ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+        )
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .join(Employee, Employee.employee_id == ActivitySession.employee_id)
+        .outerjoin(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
+        .where(
+            *_participant_attendance_conditions(
+                participant_id,
+                person_id,
+                scoped_residential_id,
+            )
+        )
+        .order_by(
+            ActivitySession.session_date.desc(),
+            ActivitySession.session_id.desc(),
+            Attendance.attendance_id.desc(),
+        )
+    )
+
+
+def _apply_participant_participation_filters(
+    stmt,
+    from_date: date | None,
+    to_date: date | None,
+    proposal_id: int | None,
+    activity: str,
+):
+    if from_date is not None:
+        stmt = stmt.where(ActivitySession.session_date >= from_date)
+    if to_date is not None:
+        stmt = stmt.where(ActivitySession.session_date <= to_date)
+    if proposal_id is not None:
+        stmt = stmt.where(ActivitySession.proposal_id == proposal_id)
+    if activity:
+        activity_search = f"%{activity}%"
+        stmt = stmt.where(
+            or_(
+                ActivityCode.code.ilike(activity_search),
+                ActivityCode.description.ilike(activity_search),
+            )
+        )
+    return stmt
+
+
+def _build_participant_participation_metrics_stmt(
+    participant_id: int,
+    person_id: int | None,
+    scoped_residential_id: int | None,
+):
+    return (
+        select(
+            func.count(Attendance.attendance_id).label("participation_total"),
+            func.max(ActivitySession.session_date).label("last_participation_date"),
+        )
+        .select_from(Attendance)
+        .outerjoin(
+            ProposalParticipant,
+            ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+        )
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .where(
+            *_participant_attendance_conditions(
+                participant_id,
+                person_id,
+                scoped_residential_id,
+            )
+        )
+    )
+
+
+def _load_participant_expediente_context(
+    db: Session,
+    participant: Participant,
+    *,
+    current_user: User,
+    return_query: str = "",
+    participation_page: int = 1,
+    participation_from_date: str | None = None,
+    participation_to_date: str | None = None,
+    participation_proposal_id: str | None = None,
+    participation_activity: str | None = None,
+):
+    all_profile_fields = load_all_profile_fields(db)
     profile_values_by_field = build_profile_field_form_values(
-        profile_fields,
+        all_profile_fields,
         load_participant_profile_values(db, participant.participant_id),
     )
+    profile_context = _build_expediente_profile_context(
+        all_profile_fields,
+        profile_values_by_field,
+    )
+
+    participant_residential = None
+    if participant.residential_id:
+        participant_residential = db.execute(
+            select(Residential).where(
+                Residential.residential_id == participant.residential_id
+            )
+        ).scalar_one_or_none()
 
     person = db.execute(
         select(Person).where(Person.legacy_participant_id == participant.participant_id)
     ).scalar_one_or_none()
+    person_id = person.person_id if person else None
+    scoped_residential_id = (
+        None
+        if has_global_residential_access(current_user)
+        else participant.residential_id
+    )
 
     proposal_participants_by_proposal_id: dict[int, dict[str, object | None]] = {}
-    if person:
+    if person_id is not None:
         proposal_rows = db.execute(
-            select(ProposalParticipant, Proposal)
-            .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
-            .where(ProposalParticipant.person_id == person.person_id)
-            .order_by(Proposal.code)
+            _build_participant_formal_proposals_stmt(
+                person_id,
+                scoped_residential_id,
+            )
         ).all()
         for proposal_participant, proposal in proposal_rows:
             proposal_participants_by_proposal_id[proposal.proposal_id] = {
@@ -1458,94 +1803,150 @@ def _load_participant_expediente_context(db: Session, participant: Participant):
                 "relationship_source": "formal",
             }
 
-    participation_rows_by_attendance_id = {}
-
-    direct_attendance_rows = db.execute(
-        select(Attendance, ActivitySession, ActivityCode, Employee, Proposal)
-        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
-        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
-        .join(Employee, Employee.employee_id == ActivitySession.employee_id)
-        .outerjoin(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
-        .where(
-            Attendance.participant_id == participant.participant_id,
-            Attendance.attended == True,  # noqa: E712
+    historical_proposals = db.execute(
+        _build_participant_historical_proposals_stmt(
+            participant.participant_id,
+            person_id,
+            scoped_residential_id,
         )
-    ).all()
-
-    for attendance, session, activity_code, employee, proposal in direct_attendance_rows:
-        if proposal and proposal.proposal_id not in proposal_participants_by_proposal_id:
+    ).scalars().all()
+    for proposal in historical_proposals:
+        if proposal.proposal_id not in proposal_participants_by_proposal_id:
             proposal_participants_by_proposal_id[proposal.proposal_id] = {
                 "proposal_participant": None,
                 "proposal": proposal,
                 "relationship_source": "historical",
             }
-        participation_rows_by_attendance_id[attendance.attendance_id] = {
+
+    proposal_participants = sorted(
+        proposal_participants_by_proposal_id.values(),
+        key=lambda row: (
+            ((row["proposal"].code if row["proposal"] else "") or ""),
+            ((row["proposal"].name if row["proposal"] else "") or ""),
+        ),
+    )
+
+    from_date = _parse_optional_filter_date(participation_from_date)
+    to_date = _parse_optional_filter_date(participation_to_date)
+    if from_date is not None and to_date is not None and from_date > to_date:
+        from_date, to_date = to_date, from_date
+
+    proposal_id = _parse_optional_int(participation_proposal_id)
+    if proposal_id is not None and proposal_id <= 0:
+        proposal_id = None
+    activity = (participation_activity or "").strip()
+    participation_filters = {
+        "from_date": from_date.isoformat() if from_date else "",
+        "to_date": to_date.isoformat() if to_date else "",
+        "proposal_id": str(proposal_id) if proposal_id is not None else "",
+        "activity": activity,
+    }
+
+    base_participation_stmt = _build_participant_participation_stmt(
+        participant.participant_id,
+        person_id,
+        scoped_residential_id,
+    )
+    filtered_participation_stmt = _apply_participant_participation_filters(
+        base_participation_stmt,
+        from_date,
+        to_date,
+        proposal_id,
+        activity,
+    )
+    participation_total_items = db.execute(
+        select(func.count()).select_from(
+            filtered_participation_stmt.order_by(None).subquery()
+        )
+    ).scalar_one()
+    participation_pagination = _paginate(
+        total_items=participation_total_items,
+        page=participation_page,
+        per_page=25,
+    )
+
+    participation_result_rows = db.execute(
+        filtered_participation_stmt
+        .offset(participation_pagination["offset"])
+        .limit(participation_pagination["per_page"])
+    ).all()
+    participation_rows = [
+        {
             "attendance": attendance,
             "session": session,
             "activity_code": activity_code,
             "employee": employee,
             "proposal": proposal,
-            "source": "New-list directo",
-        }
-
-    if person:
-        proposal_attendance_rows = db.execute(
-            select(Attendance, ActivitySession, ActivityCode, Employee, Proposal, ProposalParticipant)
-            .join(ProposalParticipant, ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id)
-            .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
-            .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
-            .join(Employee, Employee.employee_id == ActivitySession.employee_id)
-            .outerjoin(Proposal, Proposal.proposal_id == ActivitySession.proposal_id)
-            .where(
-                ProposalParticipant.person_id == person.person_id,
-                Attendance.attended == True,  # noqa: E712
-            )
-        ).all()
-
-        for attendance, session, activity_code, employee, proposal, proposal_participant in proposal_attendance_rows:
-            if proposal and proposal.proposal_id not in proposal_participants_by_proposal_id:
-                proposal_participants_by_proposal_id[proposal.proposal_id] = {
-                    "proposal_participant": proposal_participant,
-                    "proposal": proposal,
-                    "relationship_source": "historical",
-                }
-            participation_rows_by_attendance_id[attendance.attendance_id] = {
-                "attendance": attendance,
-                "session": session,
-                "activity_code": activity_code,
-                "employee": employee,
-                "proposal": proposal,
-                "proposal_participant": proposal_participant,
-                "source": "Propuesta",
-            }
-
-    participation_rows = sorted(
-        participation_rows_by_attendance_id.values(),
-        key=lambda row: (row["session"].session_date, row["session"].session_id),
-        reverse=True,
-    )
-    proposal_participants = [
-        {
-            "proposal_participant": row["proposal_participant"],
-            "proposal": row["proposal"],
-            "relationship_source": row["relationship_source"],
-        }
-        for row in sorted(
-            proposal_participants_by_proposal_id.values(),
-            key=lambda row: (
-                ((row["proposal"].code if row["proposal"] else "") or ""),
-                ((row["proposal"].name if row["proposal"] else "") or ""),
+            "proposal_participant": proposal_participant,
+            "source": (
+                "Propuesta"
+                if attendance.proposal_participant_id is not None
+                else "New-list directo"
             ),
-        )
+            "session_url": f"/ui/listado/{session.session_id}",
+        }
+        for (
+            attendance,
+            session,
+            activity_code,
+            employee,
+            proposal,
+            proposal_participant,
+        ) in participation_result_rows
     ]
 
-    return {
-        "profile_fields": profile_fields,
-        "profile_values_by_field": profile_values_by_field,
+    metrics_row = db.execute(
+        _build_participant_participation_metrics_stmt(
+            participant.participant_id,
+            person_id,
+            scoped_residential_id,
+        )
+    ).one()
+    normalized_return_query = _normalize_new_list_return_query(return_query)
+
+    context = {
+        **profile_context,
+        "participant_residential": participant_residential,
         "person": person,
         "proposal_participants": proposal_participants,
+        "proposal_count": len(proposal_participants),
         "participation_rows": participation_rows,
+        "participation_total": metrics_row.participation_total or 0,
+        "last_participation_date": metrics_row.last_participation_date,
+        "participation_filters": participation_filters,
+        "participation_pagination": participation_pagination,
+        "participation_first_url": _build_participation_url(
+            participant.participant_id,
+            normalized_return_query,
+            participation_filters,
+            1,
+        ),
+        "participation_prev_url": _build_participation_url(
+            participant.participant_id,
+            normalized_return_query,
+            participation_filters,
+            participation_pagination["prev_page"] or 1,
+        ),
+        "participation_next_url": _build_participation_url(
+            participant.participant_id,
+            normalized_return_query,
+            participation_filters,
+            participation_pagination["next_page"]
+            or participation_pagination["total_pages"],
+        ),
+        "participation_last_url": _build_participation_url(
+            participant.participant_id,
+            normalized_return_query,
+            participation_filters,
+            participation_pagination["total_pages"],
+        ),
+        "participation_clear_url": _build_participation_url(
+            participant.participant_id,
+            normalized_return_query,
+            {},
+        ),
     }
+    return context
 
 
 @router.post("/new-list/{participant_id}/edit")
