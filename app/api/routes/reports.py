@@ -1348,13 +1348,31 @@ def _build_adm_context(
 
             attendance_by_service_type: dict[int, int] = {}
             unique_participants_by_service_type: dict[int, set[int]] = {}
+            # Keep the eligible sessions in SQL instead of expanding thousands
+            # of session/participant IDs into SQL Server bind parameters.
+            eligible_session_ids = (
+                session_stmt.with_only_columns(ActivitySession.session_id)
+                .join(
+                    ADMServiceTypeActivityCode,
+                    ADMServiceTypeActivityCode.activity_code_id == ActivitySession.activity_code_id,
+                )
+                .join(
+                    ADMServiceType,
+                    ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id,
+                )
+                .where(
+                    ADMServiceType.proposal_id == proposal_id,
+                    ADMServiceType.is_active == True,  # noqa: E712
+                )
+                .correlate(None)
+            )
             if session_ids:
                 attendance_stmt = (
                     select(Attendance.session_id, Attendance.participant_id, ActivitySession.activity_code_id)
                     .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
                     .where(
                         Attendance.attended == True,  # noqa: E712
-                        Attendance.session_id.in_(session_ids),
+                        Attendance.session_id.in_(eligible_session_ids),
                     )
                 )
                 if not is_global:
@@ -1388,9 +1406,8 @@ def _build_adm_context(
                         ),
                     )
                     .where(
-                        Participant.participant_id.in_(unique_participant_ids),
                         Attendance.attended == True,  # noqa: E712
-                        Attendance.session_id.in_(session_ids),
+                        Attendance.session_id.in_(eligible_session_ids),
                         ActivitySession.proposal_id == proposal_id,
                     )
                     .distinct()

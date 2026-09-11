@@ -301,6 +301,51 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
         )
         _assert_session_snapshot_join(self, db.statements[4])
 
+    def test_adm_large_period_keeps_sql_parameters_bounded(self):
+        from sqlalchemy.dialects import mssql
+
+        service_type = SimpleNamespace(adm_service_type_id=81, name="Service")
+        activity = SimpleNamespace(activity_code_id=ACTIVITY_CODE_ID)
+        count = 2201
+        for period_type in ("custom", "monthly"):
+            for is_global in (True, False):
+                with self.subTest(period_type=period_type, is_global=is_global):
+                    db = _Database(
+                        objects={(Proposal, PROPOSAL_ID): SimpleNamespace()},
+                        results=[
+                            _Result([service_type]),
+                            _Result([(SimpleNamespace(), activity, service_type)]),
+                            _Result([(i, ACTIVITY_CODE_ID) for i in range(1, count + 1)]),
+                            _Result([(i, i, ACTIVITY_CODE_ID) for i in range(1, count + 1)]),
+                            _Result([(_participant(i), None) for i in range(1, count + 1)]),
+                            _Result([]),
+                        ],
+                    )
+                    scope = dict(selected_user=SimpleNamespace(residential_id=9),
+                                 is_global=is_global, employee_id=0 if is_global else 99)
+                    with _global_report_context(), patch.object(
+                        reports, "_resolve_reporting_scope", return_value=scope
+                    ), patch.object(reports, "_residential_from_user", return_value="Residential"):
+                        context = reports._build_adm_context(
+                            db, _user(), PROPOSAL_ID, 9, 2026, scope["employee_id"],
+                            period_type=period_type, start_date="2026-07-01", end_date="2026-09-11",
+                        )
+                    self.assertEqual(context["rows"][0]["no_duplicados"], count)
+                    self.assertEqual(context["rows"][0]["duplicados"], count)
+                    self.assertEqual(context["rows"][0]["services_count"], count)
+                    self.assertEqual(context["sociodemographic_total"]["total"], count)
+                    for statement in db.statements[3:5]:
+                        compiled = statement.compile(dialect=mssql.dialect(),
+                                                     compile_kwargs={"render_postcompile": True})
+                        self.assertLess(len(compiled.params), 20)
+                        sql = _sql(statement)
+                        self.assertIn("adm_service_types.is_active", sql)
+                        self.assertIn("activity_sessions.proposal_id", sql)
+                        self.assertEqual("activity_sessions.residential_id" in sql, not is_global)
+                        if period_type == "custom":
+                            self.assertIn(date(2026, 7, 1), compiled.params.values())
+                            self.assertIn(date(2026, 9, 11), compiled.params.values())
+
     def test_report_table_summaries_join_and_use_proposal_snapshots(self):
         participant = _participant()
         proposal_participant = _proposal_participant()
