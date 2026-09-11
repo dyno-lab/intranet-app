@@ -30,6 +30,13 @@
     .sig-name { font-size: 10px; line-height: 1.15; }
     .sig-title { margin-top: 4px; font-size: 10px; font-weight: 700; line-height: 1.2; }
     .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 28px; }
+    {% if pdf_renderer == 'wkhtmltopdf' %}
+    /* The download renderer scales the sheet down; use its remaining bottom space.
+       Browser printing keeps the spacing above so the report still fits Letter. */
+    .footer { margin-top: 36px; }
+    .signatures-table td { padding-top: 100px; }
+    .page-number { margin-top: 80px; }
+    {% endif %}
   </style>
 </head>
 <body>

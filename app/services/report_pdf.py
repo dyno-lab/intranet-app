@@ -165,7 +165,7 @@ def render_template_to_pdf_bytes(
 ) -> bytes:
     env: Environment = templates.env
     template = env.get_template(template_name)
-    rendered_html = template.render(context)
+    rendered_html = template.render({**context, "pdf_renderer": "wkhtmltopdf"})
     prepared_html = _prepare_html_document(rendered_html, request=request)
     wkhtmltopdf_binary = _resolve_wkhtmltopdf_binary()
 
