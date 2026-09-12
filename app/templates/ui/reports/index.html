@@ -430,6 +430,7 @@
     const hasOption = Array.from(select.options).some(option => option.value === String(value));
     if (hasOption) {
       select.value = String(value);
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     }
   };
 
