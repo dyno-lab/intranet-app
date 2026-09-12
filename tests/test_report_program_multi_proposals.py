@@ -14,7 +14,11 @@ from app.models.proposal_report_program_activity import ProposalReportProgramAct
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.models.proposal_report_program_population import ProposalReportProgramPopulation
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
-from app.services.report_programs import resolve_effective_program_population_blocks
+from app.services.report_programs import (
+    resolve_effective_program_population_blocks,
+    resolve_effective_program_activity_code_ids,
+    effective_program_activity_code_select,
+)
 
 
 class ReportProgramMultiProposalTests(unittest.TestCase):
@@ -76,6 +80,21 @@ class ReportProgramMultiProposalTests(unittest.TestCase):
         population = blocks[0]["population_blocks"][0]
         self.assertEqual(population["population_label"], "Adultos")
         self.assertEqual([row["activity_code_id"] for row in population["rows"]], [10, 20])
+
+    def test_activity_subquery_preserves_population_precedence_and_legacy_fallback(self):
+        self.insert(ProposalReportProgramActivity, program_activity_id=1,
+                    program_id=1, code="legacy", label="Actividad", is_active=False)
+        self.insert(ProposalReportProgramActivityCode, program_activity_id=1, activity_code_id=10)
+        def check(expected):
+            self.assertEqual(set(self.db.execute(effective_program_activity_code_select(1)).scalars()), expected)
+            self.assertEqual(resolve_effective_program_activity_code_ids(self.db, 1), expected)
+        check({10})
+        self.add_population(1, [20])
+        check({20})
+        self.db.execute(self.tables[ProposalReportProgramPopulationActivityCode].delete())
+        check(set())  # An empty active population must not fall back to legacy assignments.
+        self.db.execute(self.tables[ProposalReportProgramPopulation].update().values(is_active=False))
+        check({10})
 
     def test_single_proposal_list_preserves_existing_shape_and_rows(self):
         self.add_population(1, [10])

@@ -57,6 +57,10 @@ class ConsolidatedReportTests(unittest.TestCase):
         self.insert("vca_column_activity_codes", [{"id": i, "vca_column_id": i * 10, "activity_code_id": 100} for i in (1, 2, 3)])
         self.insert("proposal_report_programs", [{"program_id": i, "proposal_id": i, "code": "P", "name": "Programa",
                     "is_active": True, "sort_order": 1} for i in (1, 2, 3)])
+        self.insert("proposal_report_program_activities", [
+            {"program_activity_id": i, "program_id": i} for i in (1, 2, 3)])
+        self.insert("proposal_report_program_activity_codes", [
+            {"id": i, "program_activity_id": i, "activity_code_id": 100} for i in (1, 2, 3)])
         scope = {"selected_user": SimpleNamespace(residential_id=7), "is_global": True, "employee_id": 0}
         for name, value in {
             "_base_reports_context": {"proposals": [], "report_users": [], "year_options": [2026], "month_lookup": {7:"Julio"}, "user_residential_map": {}},
@@ -75,6 +79,44 @@ class ConsolidatedReportTests(unittest.TestCase):
     def context(self, builder, ids, **kwargs):
         return builder(self.db, SimpleNamespace(), ids, 7, 2026, 0,
                        period_type="custom", start_date="2026-07-01", end_date="2026-07-31", **kwargs)
+
+    def test_program_large_catalog_keeps_sql_parameters_bounded(self):
+        from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
+        from app.services.report_programs import resolve_effective_program_activity_code_ids
+        # Thousands of assignments, using the real legacy configuration resolver.
+        self.insert("proposal_report_program_activity_codes", [
+            {"id": proposal * 10000 + activity, "program_activity_id": proposal,
+             "activity_code_id": activity}
+            for proposal in (1, 2) for activity in range(1, 2501) if activity != 100])
+        original = self.db.execute
+        parameter_counts = []
+        def execute(statement, *args, **kwargs):
+            compiled = statement.compile(dialect=MSDialect_pyodbc(paramstyle="qmark"),
+                                         compile_kwargs={"render_postcompile": True})
+            parameter_counts.append(len(compiled.positiontup or []))
+            return original(statement, *args, **kwargs)
+        with patch.object(reports, "_resolve_effective_program_activity_code_ids",
+                          side_effect=resolve_effective_program_activity_code_ids), \
+             patch.object(self.db, "execute", side_effect=execute):
+            for ids in (1, [1, 2]):
+                context = self.context(reports._build_por_programa_context, ids)
+                self.assertEqual(context["overall_total_all"], 1)
+                self.assertEqual(context["program_sections"][0]["assigned_activity_count"], 2500)
+        self.assertLess(max(parameter_counts), 50)
+
+    def test_program_assignments_stay_with_their_proposal(self):
+        # Activity 100 remains eligible in P1, but P2 now only assigns 200.
+        self.db.execute(self.tables["proposal_report_program_activity_codes"].update()
+                        .where(self.tables["proposal_report_program_activity_codes"].c.id == 2)
+                        .values(activity_code_id=200))
+        self.db.flush()
+        self.insert("participants", [{"participant_id": 2, "nombre": "Otra", "genero": "M",
+                    "fecha_nacimiento": date(2000, 1, 1)}])
+        self.insert("attendance", [{"attendance_id": 20, "participant_id": 2,
+                                   "session_id": 3, "attended": True}])
+        context = self.context(reports._build_por_programa_context, [1, 2])
+        self.assertEqual(context["overall_total_all"], 1)
+        self.assertEqual(context["overall_total_m"], 0)
 
     def test_approved_example_one_unique_five_attendances(self):
         unique = self.context(reports._build_no_duplicado_context, [1, 2])

@@ -62,6 +62,32 @@ def resolve_effective_program_activity_code_ids(db: Session, program_id: int) ->
     return {activity_code_id for (activity_code_id,) in rows}
 
 
+def effective_program_activity_code_select(program_id: int):
+    """Keep the existing population-first assignment rule inside SQL."""
+    active_population = select(ProposalReportProgramPopulation.program_population_id).where(
+        ProposalReportProgramPopulation.program_id == program_id,
+        ProposalReportProgramPopulation.is_active == True,  # noqa: E712
+    ).correlate(None).exists()
+    population_codes = (
+        select(ProposalReportProgramPopulationActivityCode.activity_code_id)
+        .join(ProposalReportProgramPopulation,
+              ProposalReportProgramPopulation.program_population_id
+              == ProposalReportProgramPopulationActivityCode.program_population_id)
+        .where(ProposalReportProgramPopulation.program_id == program_id,
+               ProposalReportProgramPopulation.is_active == True)  # noqa: E712
+        .correlate(None)
+    )
+    legacy_codes = (
+        select(ProposalReportProgramActivityCode.activity_code_id)
+        .join(ProposalReportProgramActivity,
+              ProposalReportProgramActivity.program_activity_id
+              == ProposalReportProgramActivityCode.program_activity_id)
+        .where(ProposalReportProgramActivity.program_id == program_id, ~active_population)
+        .correlate(None)
+    )
+    return population_codes.union(legacy_codes)
+
+
 def activity_code_is_assigned_anywhere_in_proposal(
     db: Session,
     proposal_id: int,

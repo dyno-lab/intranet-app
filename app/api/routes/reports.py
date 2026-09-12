@@ -87,6 +87,7 @@ from app.services.report_excel_builders import (
     workbook_to_bytes,
 )
 from app.services.report_programs import (
+    effective_program_activity_code_select as _effective_program_activity_code_select,
     program_display_name as _program_report_display_name,
     program_uses_population_structure as _program_uses_population_structure,
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
@@ -4082,7 +4083,7 @@ def _build_por_programa_context(
                 activity_ids = program_activity_code_ids[program.program_id]
                 program_scopes.setdefault(canonical.program_id, []).append(and_(
                     ActivitySession.proposal_id == program.proposal_id,
-                    ActivitySession.activity_code_id.in_(activity_ids),
+                    ActivitySession.activity_code_id.in_(_effective_program_activity_code_select(program.program_id)),
                 ))
                 if canonical.program_id != program.program_id:
                     program_activity_code_ids[canonical.program_id] |= activity_ids
@@ -4118,11 +4119,14 @@ def _build_por_programa_context(
                 .where(
                     Attendance.attended == True,  # noqa: E712
                     _proposal_filter(ActivitySession.proposal_id, proposal_id),
-                    ActivitySession.activity_code_id.in_(activity_code_ids),
                 )
             )
             if program.program_id in program_scopes:
                 stmt = stmt.where(or_(*program_scopes[program.program_id]))
+            else:
+                stmt = stmt.where(ActivitySession.activity_code_id.in_(
+                    _effective_program_activity_code_select(program.program_id)
+                ))
             stmt = _apply_session_period_filter(stmt, period)
             stmt = stmt.distinct()
             if not is_global:
