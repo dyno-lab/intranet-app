@@ -81,22 +81,28 @@ def build_visit_attendance_map(db: Session, session_ids: list[int]) -> dict[int,
     if not session_ids:
         return {}
 
-    attendance_stmt = (
-        select(
-            Attendance.session_id,
-            func.count(Attendance.attendance_id).label("attendances"),
+    # Keep the already-filtered sessions and stay below SQL Server's parameter
+    # limit, even for long global periods. Each session belongs to one batch.
+    unique_session_ids = list(dict.fromkeys(session_ids))
+    attendance_map: dict[int, int] = {}
+    batch_size = 1000
+    for offset in range(0, len(unique_session_ids), batch_size):
+        attendance_stmt = (
+            select(
+                Attendance.session_id,
+                func.count(Attendance.attendance_id).label("attendances"),
+            )
+            .where(
+                Attendance.attended == True,  # noqa: E712
+                Attendance.session_id.in_(unique_session_ids[offset:offset + batch_size]),
+            )
+            .group_by(Attendance.session_id)
         )
-        .where(
-            Attendance.attended == True,
-            Attendance.session_id.in_(session_ids),
-        )
-        .group_by(Attendance.session_id)
-    )  # noqa: E712
-
-    return {
-        session_id: int(attendance_count or 0)
-        for session_id, attendance_count in db.execute(attendance_stmt).all()
-    }
+        attendance_map.update({
+            session_id: int(attendance_count or 0)
+            for session_id, attendance_count in db.execute(attendance_stmt).all()
+        })
+    return attendance_map
 
 
 def calculate_visits_rows_and_summary(
