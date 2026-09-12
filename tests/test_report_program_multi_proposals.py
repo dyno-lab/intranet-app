@@ -96,6 +96,55 @@ class ReportProgramMultiProposalTests(unittest.TestCase):
         self.db.execute(self.tables[ProposalReportProgramPopulation].update().values(is_active=False))
         check({10})
 
+    def test_large_configuration_keeps_program_and_population_ids_in_sql(self):
+        from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
+        from unittest.mock import patch
+        ids = range(10, 2211)
+        self.db.execute(self.tables[ProposalReportProgram].insert(), [
+            {"program_id": i, "proposal_id": 1, "code": str(i), "name": str(i),
+             "sort_order": i, "is_active": True, "population_group_id": 1} for i in ids])
+        self.db.execute(self.tables[ProposalReportProgramPopulation].insert(), [
+            {"program_population_id": i, "program_id": i, "population_group_id": 1,
+             "sort_order": i, "is_active": True} for i in ids])
+        self.db.execute(self.tables[ProposalReportProgramPopulationActivityCode].insert(), [
+            {"program_population_id": i, "activity_code_id": 10} for i in ids])
+        # Excluded inactive program must not leak its population into the report.
+        self.db.execute(self.tables[ProposalReportProgram].update()
+                        .where(self.tables[ProposalReportProgram].c.program_id == 2210).values(is_active=False))
+        original = self.db.execute
+        counts = []
+        def execute(statement, *args, **kwargs):
+            compiled = statement.compile(dialect=MSDialect_pyodbc(paramstyle="qmark"),
+                                         compile_kwargs={"render_postcompile": True})
+            counts.append(len(compiled.positiontup or []))
+            return original(statement, *args, **kwargs)
+        with patch.object(self.db, "execute", side_effect=execute):
+            blocks = resolve_effective_program_population_blocks(self.db, 1)
+        self.assertEqual(len(blocks), 2201)
+        self.assertEqual(sum(len(p["rows"]) for b in blocks for p in b["population_blocks"]), 2200)
+        self.assertNotIn(2210, [b["program"].program_id for b in blocks])
+        self.assertLess(max(counts), 10)
+
+    def test_large_legacy_configuration_keeps_activity_mapping_ids_in_sql(self):
+        from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
+        from unittest.mock import patch
+        ids = range(10, 2211)
+        self.db.execute(self.tables[ProposalReportProgramActivity].insert(), [
+            {"program_activity_id": i, "program_id": 1, "code": str(i), "label": str(i),
+             "is_active": i % 2 == 0} for i in ids])
+        self.db.execute(self.tables[ProposalReportProgramActivityCode].insert(), [
+            {"program_activity_id": i, "activity_code_id": 10 if i % 2 else 20} for i in ids])
+        original = self.db.execute
+        counts = []
+        def execute(statement, *args, **kwargs):
+            compiled = statement.compile(dialect=MSDialect_pyodbc(paramstyle="qmark"),
+                                         compile_kwargs={"render_postcompile": True})
+            counts.append(len(compiled.positiontup or []))
+            return original(statement, *args, **kwargs)
+        with patch.object(self.db, "execute", side_effect=execute):
+            self.assertEqual(resolve_effective_program_activity_code_ids(self.db, 1), {10, 20})
+        self.assertLess(max(counts), 10)
+
     def test_single_proposal_list_preserves_existing_shape_and_rows(self):
         self.add_population(1, [10])
         scalar_blocks = resolve_effective_program_population_blocks(self.db, 1)

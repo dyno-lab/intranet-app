@@ -158,6 +158,72 @@ class ConsolidatedReportTests(unittest.TestCase):
         self.assertEqual(len(context["summary_rows"]), 1)
         self.assertEqual(context["summary_rows"][0]["global_executed"], 5)
 
+    def test_hoja_large_catalog_preserves_metrics_and_limits_parameters(self):
+        from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
+        structure = [{"program": SimpleNamespace(program_id=1), "population_blocks": [{
+            "population_label": "Población", "rows": [
+                {"activity_code_id": i, "activity_code": str(i)} for i in range(1, 2502)]}]}]
+        # Put activity with data on each side of the batch boundaries.
+        self.insert("activity_sessions", [
+            {"session_id": 10, "proposal_id": 1, "activity_code_id": 1001,
+             "session_date": date(2026, 7, 10), "residential_id": 7, "hours": 2},
+            {"session_id": 11, "proposal_id": 2, "activity_code_id": 2001,
+             "session_date": date(2026, 7, 11), "residential_id": 7, "hours": 3}])
+        self.insert("attendance", [
+            {"attendance_id": i, "session_id": i, "participant_id": 1, "attended": True}
+            for i in (10, 11)])
+        original = self.db.execute
+        counts = []
+        def execute(statement, *args, **kwargs):
+            compiled = statement.compile(dialect=MSDialect_pyodbc(paramstyle="qmark"),
+                                         compile_kwargs={"render_postcompile": True})
+            counts.append(len(compiled.positiontup or []))
+            return original(statement, *args, **kwargs)
+        with patch.object(reports, "_resolve_effective_program_population_blocks", return_value=structure), \
+             patch.object(self.db, "execute", side_effect=execute):
+            context = self.context(reports._build_hoja_cotejo_context, [1, 2])
+            rows = {r["activity_code_id"]: r for r in context["program_blocks"][0]["population_blocks"][0]["rows"]}
+            self.assertEqual(context["total_contact_hours"], 10.0)
+            for activity, expected in ((100, (5, 5, 1, 5.0)), (1001, (1, 1, 1, 2.0)), (2001, (1, 1, 1, 3.0))):
+                self.assertEqual(tuple(rows[activity][key] for key in
+                    ("activities_count", "duplicados", "unique_participants", "contact_hours")), expected)
+            single = self.context(reports._build_hoja_cotejo_context, 1)
+            self.assertEqual(single["total_contact_hours"], 4.0)
+            empty = reports._build_hoja_cotejo_context(self.db, SimpleNamespace(), [1, 2], 8, 2026, 0)
+            self.assertEqual(empty["total_contact_hours"], 0)
+            with patch.object(reports, "_resolve_reporting_scope", return_value={
+                "selected_user": SimpleNamespace(residential_id=9), "is_global": False, "employee_id": -9}):
+                self.assertEqual(self.context(reports._build_hoja_cotejo_context, [1, 2])["total_contact_hours"], 0)
+        self.assertLess(max(counts), 1100)
+
+    def test_admin_hoja_large_catalog_preserves_goals_and_totals(self):
+        from app.services import hoja_cotejo_admin_service as service
+        from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
+        structure = [{"program": SimpleNamespace(program_id=1, code="P", name="Programa", formal_name="Programa"),
+                      "population_blocks": [{"rows": [{"activity_code_id": i, "activity_code": str(i),
+                          "activity_description": str(i)} for i in range(1, 2502)]}]}]
+        self.insert("activity_productivity_goals", [{"productivity_goal_id": 1, "proposal_id": 1,
+            "activity_code_id": 100, "goal_type": "global_fixed", "goal_value": 10,
+            "period_goal_value": 20, "is_active": True}])
+        original = self.db.execute
+        counts = []
+        def execute(statement, *args, **kwargs):
+            compiled = statement.compile(dialect=MSDialect_pyodbc(paramstyle="qmark"),
+                                         compile_kwargs={"render_postcompile": True})
+            counts.append(len(compiled.positiontup or []))
+            return original(statement, *args, **kwargs)
+        with patch.object(service, "resolve_effective_program_population_blocks", return_value=structure), \
+             patch.object(self.db, "execute", side_effect=execute):
+            large = service.build_hoja_cotejo_admin_context(self.db, month=7, year=2026,
+                period_type="custom", start_date="2026-07-01", end_date="2026-07-31", proposal_id=1)
+            structure[0]["population_blocks"][0]["rows"] = [structure[0]["population_blocks"][0]["rows"][99]]
+            small = service.build_hoja_cotejo_admin_context(self.db, month=7, year=2026,
+                period_type="custom", start_date="2026-07-01", end_date="2026-07-31", proposal_id=1)
+        self.assertEqual(large["program_blocks"][0]["rows"][99], small["program_blocks"][0]["rows"][0])
+        self.assertEqual(large["totals"]["activities_count"], 2)
+        self.assertEqual(large["totals"]["duplicados"], 2)
+        self.assertLess(max(counts), 1100)
+
     def test_period_and_residential_filters_are_preserved(self):
         with patch.object(reports, "_resolve_reporting_scope", return_value={"selected_user":SimpleNamespace(residential_id=9), "is_global":False, "employee_id":-9}), patch.object(reports, "_residential_from_user", return_value="Otro"):
             context = self.context(reports._build_no_duplicado_context, [1, 2])

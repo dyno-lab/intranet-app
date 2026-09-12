@@ -93,6 +93,7 @@ from app.services.report_programs import (
     resolve_effective_program_activity_code_ids as _resolve_effective_program_activity_code_ids,
     resolve_effective_program_population_blocks as _resolve_effective_program_population_blocks,
 )
+from app.helpers.sql_batches import query_rows_by_id_batches
 from app.services.report_templates import (
     report_template_columns as _report_template_columns,
     resolve_report_template_config as _resolve_report_template_config,
@@ -3932,14 +3933,15 @@ def _build_hoja_cotejo_context(
                 )
                 .where(
                     _proposal_filter(ActivitySession.proposal_id, proposal_id),
-                    ActivitySession.activity_code_id.in_(activity_code_ids),
                 )
                 .group_by(ActivitySession.activity_code_id)
             )
             session_stmt = _apply_session_period_filter(session_stmt, period)
             if not is_global:
                 session_stmt = session_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
-            for activity_code_id_value, activities_count, contact_hours in db.execute(session_stmt).all():
+            for activity_code_id_value, activities_count, contact_hours in query_rows_by_id_batches(
+                db, session_stmt, ActivitySession.activity_code_id, activity_code_ids
+            ):
                 session_metrics_by_activity_code_id[activity_code_id_value] = {
                     "activities_count": int(activities_count or 0),
                     "contact_hours": float(contact_hours or 0),
@@ -3954,7 +3956,6 @@ def _build_hoja_cotejo_context(
                 .join(Attendance, Attendance.session_id == ActivitySession.session_id)
                 .where(
                     _proposal_filter(ActivitySession.proposal_id, proposal_id),
-                    ActivitySession.activity_code_id.in_(activity_code_ids),
                     Attendance.attended == True,  # noqa: E712
                 )
                 .group_by(ActivitySession.activity_code_id)
@@ -3962,7 +3963,9 @@ def _build_hoja_cotejo_context(
             attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
             if not is_global:
                 attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
-            for activity_code_id_value, duplicados, unique_participants in db.execute(attendance_stmt).all():
+            for activity_code_id_value, duplicados, unique_participants in query_rows_by_id_batches(
+                db, attendance_stmt, ActivitySession.activity_code_id, activity_code_ids
+            ):
                 attendance_metrics_by_activity_code_id[activity_code_id_value] = {
                     "duplicados": int(duplicados or 0),
                     "unique_participants": int(unique_participants or 0),

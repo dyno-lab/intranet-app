@@ -17,6 +17,7 @@ from app.models.residential import Residential
 from app.models.user import User
 from app.services.consolidado_mensual_service import MONTH_NAMES
 from app.services.report_programs import resolve_effective_program_population_blocks
+from app.helpers.sql_batches import query_rows_by_id_batches
 
 
 PERIOD_TYPE_OPTIONS = [
@@ -210,13 +211,15 @@ def build_hoja_cotejo_admin_context(
 
             session_stmt = (
                 select(ActivitySession.activity_code_id, func.count(distinct(ActivitySession.session_id)))
-                .where(ActivitySession.proposal_id == proposal.proposal_id, ActivitySession.activity_code_id.in_(activity_ids))
+                .where(ActivitySession.proposal_id == proposal.proposal_id)
                 .group_by(ActivitySession.activity_code_id)
             )
             if residential_id is not None:
                 session_stmt = session_stmt.where(ActivitySession.residential_id == residential_id)
             session_stmt = _apply_period(session_stmt, period_type=period_type, month=month, year=year, start_date=start_date, end_date=end_date)
-            sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in db.execute(session_stmt).all()}
+            sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in query_rows_by_id_batches(
+                db, session_stmt, ActivitySession.activity_code_id, activity_ids
+            )}
 
             attendance_stmt = (
                 select(
@@ -227,7 +230,6 @@ def build_hoja_cotejo_admin_context(
                 .join(Attendance, Attendance.session_id == ActivitySession.session_id)
                 .where(
                     ActivitySession.proposal_id == proposal.proposal_id,
-                    ActivitySession.activity_code_id.in_(activity_ids),
                     Attendance.attended == True,  # noqa: E712
                 )
                 .group_by(ActivitySession.activity_code_id)
@@ -235,7 +237,9 @@ def build_hoja_cotejo_admin_context(
             if residential_id is not None:
                 attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == residential_id)
             attendance_stmt = _apply_period(attendance_stmt, period_type=period_type, month=month, year=year, start_date=start_date, end_date=end_date)
-            for activity_id, duplicados, unique_count in db.execute(attendance_stmt).all():
+            for activity_id, duplicados, unique_count in query_rows_by_id_batches(
+                db, attendance_stmt, ActivitySession.activity_code_id, activity_ids
+            ):
                 attendance_by_activity[activity_id] = int(duplicados or 0)
                 unique_by_activity[activity_id] = int(unique_count or 0)
 
@@ -244,7 +248,6 @@ def build_hoja_cotejo_admin_context(
                 .join(Attendance, Attendance.session_id == ActivitySession.session_id)
                 .where(
                     ActivitySession.proposal_id == proposal.proposal_id,
-                    ActivitySession.activity_code_id.in_(activity_ids),
                     Attendance.attended == True,  # noqa: E712
                 )
                 .group_by(ActivitySession.activity_code_id)
@@ -255,15 +258,16 @@ def build_hoja_cotejo_admin_context(
                 cumulative_stmt = cumulative_stmt.where(ActivitySession.session_date >= first_attendance_date)
             if report_end:
                 cumulative_stmt = cumulative_stmt.where(ActivitySession.session_date <= report_end)
-            cumulative_sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in db.execute(cumulative_stmt).all()}
+            cumulative_sessions_by_activity = {activity_id: int(count or 0) for activity_id, count in query_rows_by_id_batches(
+                db, cumulative_stmt, ActivitySession.activity_code_id, activity_ids
+            )}
 
-            goal_rows = db.execute(
+            goal_rows = query_rows_by_id_batches(db,
                 select(ActivityProductivityGoal).where(
                     ActivityProductivityGoal.proposal_id == proposal.proposal_id,
-                    ActivityProductivityGoal.activity_code_id.in_(activity_ids),
                     ActivityProductivityGoal.is_active == True,  # noqa: E712
-                )
-            ).scalars().all()
+                ), ActivityProductivityGoal.activity_code_id, activity_ids, scalars=True
+            )
             goals_by_activity = {goal.activity_code_id: goal for goal in goal_rows}
 
         for block in structure_blocks:

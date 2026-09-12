@@ -55,7 +55,9 @@ def resolve_effective_program_activity_code_ids(db: Session, program_id: int) ->
         select(ProposalReportProgramActivityCode.activity_code_id)
         .where(
             ProposalReportProgramActivityCode.program_activity_id.in_(
-                [activity.program_activity_id for activity in synthetic_activities]
+                select(ProposalReportProgramActivity.program_activity_id).where(
+                    ProposalReportProgramActivity.program_id == program_id
+                )
             )
         )
     ).all()
@@ -198,7 +200,10 @@ def _resolve_proposal_program_population_blocks(db: Session, proposal_id: int) -
     )
     activity_code_by_id = {activity.activity_code_id: activity for activity in activity_codes}
 
-    program_ids = [program.program_id for program in programs]
+    program_ids = select(ProposalReportProgram.program_id).where(
+        ProposalReportProgram.proposal_id == proposal_id,
+        ProposalReportProgram.is_active == True,  # noqa: E712
+    )
     program_populations = db.execute(
         select(ProposalReportProgramPopulation)
         .where(
@@ -206,16 +211,19 @@ def _resolve_proposal_program_population_blocks(db: Session, proposal_id: int) -
             ProposalReportProgramPopulation.is_active == True,  # noqa: E712
         )
         .order_by(ProposalReportProgramPopulation.sort_order, ProposalReportProgramPopulation.program_population_id)
-    ).scalars().all() if program_ids else []
+    ).scalars().all()
     populations_by_program_id: dict[int, list[ProposalReportProgramPopulation]] = {}
     for population in program_populations:
         populations_by_program_id.setdefault(population.program_id, []).append(population)
 
-    program_population_ids = [population.program_population_id for population in program_populations]
+    program_population_ids = select(ProposalReportProgramPopulation.program_population_id).where(
+        ProposalReportProgramPopulation.program_id.in_(program_ids),
+        ProposalReportProgramPopulation.is_active == True,  # noqa: E712
+    )
     population_activity_rows = db.execute(
         select(ProposalReportProgramPopulationActivityCode)
         .where(ProposalReportProgramPopulationActivityCode.program_population_id.in_(program_population_ids))
-    ).scalars().all() if program_population_ids else []
+    ).scalars().all() if program_populations else []
     population_activity_ids_by_population_id: dict[int, set[int]] = {}
     for mapping in population_activity_rows:
         population_activity_ids_by_population_id.setdefault(mapping.program_population_id, set()).add(mapping.activity_code_id)
