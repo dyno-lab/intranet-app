@@ -1,4 +1,5 @@
 {% extends "ui/_base.html" %}
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
 {% block title %}Reportes{% endblock %}
 
 {% block content %}
@@ -118,13 +119,13 @@
           </select>
         </div>
         <div class="reports-config-form__field reports-config-form__field--proposal">
-          <label class="form-label">Propuesta *</label>
-          <select class="form-select" name="proposal_id" required>
-            <option value="">Selecciona...</option>
+          <label class="form-label">Propuestas *</label>
+          <select class="form-select" name="proposal_id" multiple size="3" aria-describedby="report-proposals-help" required>
             {% for proposal in proposals %}
-            <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+            <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id in report_proposal_ids %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
             {% endfor %}
           </select>
+            <div class="form-text" id="report-proposals-help">Selecciona una o varias propuestas. Mantén Ctrl presionado para agregar o quitar opciones.</div>
         </div>
         <div class="reports-config-form__field reports-config-form__field--period">
           <label class="form-label">Período *</label>
@@ -436,7 +437,9 @@
     periodType.value = 'monthly';
     setSelectValueIfAvailable(monthSelect, configPanel ? configPanel.dataset.defaultMonth : '');
     setSelectValueIfAvailable(yearSelect, configPanel ? configPanel.dataset.defaultYear : '');
-    setSelectValueIfAvailable(proposalSelect, configPanel ? configPanel.dataset.latestProposalId : '');
+    if (proposalSelect && proposalSelect.selectedOptions.length === 0) {
+      setSelectValueIfAvailable(proposalSelect, configPanel ? configPanel.dataset.latestProposalId : '');
+    }
     refreshPeriodUI();
   };
 

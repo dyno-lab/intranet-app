@@ -1,4 +1,5 @@
 {% extends "ui/_base.html" %}
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
 {% block title %}Reporte por Programa{% endblock %}
 
 {% block content %}
@@ -6,8 +7,8 @@
 {% set has_programs = program_sections|length > 0 %}
 {% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
 {% for proposal in proposals %}
-  {% if selected_proposal_id == proposal.proposal_id %}
-    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% if proposal.proposal_id in report_proposal_ids %}
+    {% set report_state.proposal_label = (report_state.proposal_label ~ '; ' if report_state.proposal_label != 'Sin propuesta seleccionada' else '') ~ proposal.code ~ ' - ' ~ proposal.name %}
   {% endif %}
 {% endfor %}
 {% set selected_scope_label = 'Sin empleado seleccionado' %}
@@ -53,13 +54,13 @@
 
         <form method="get" action="/ui/reports/por-programa" class="por-programa-filter-form" id="por-programa-report-form">
           <div class="por-programa-filter-field por-programa-filter-field--wide">
-            <label class="form-label" for="por_programa_proposal_id">Propuesta *</label>
-            <select class="form-select" name="proposal_id" id="por_programa_proposal_id" required>
-              <option value="">Selecciona...</option>
+            <label class="form-label" for="por_programa_proposal_id">Propuestas *</label>
+            <select class="form-select" name="proposal_id" id="por_programa_proposal_id" multiple size="3" aria-describedby="report-proposals-help" required>
               {% for proposal in proposals %}
-              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id in report_proposal_ids %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
               {% endfor %}
             </select>
+            <div class="form-text" id="report-proposals-help">Selecciona una o varias propuestas. Mantén Ctrl presionado para agregar o quitar opciones.</div>
           </div>
 
           <div class="por-programa-filter-field">

@@ -115,9 +115,10 @@ def make_sheet(wb: Workbook, title: str):
 
 
 def proposal_label_from_context(context: dict) -> str:
-    return next(
-        (f"{proposal.code} - {proposal.name}" for proposal in context.get("proposals", []) if proposal.proposal_id == context.get("selected_proposal_id")),
-        "",
+    selected_ids = context.get("selected_proposal_ids") or [context.get("selected_proposal_id")]
+    return "; ".join(
+        f"{proposal.code} - {proposal.name}" for proposal in context.get("proposals", [])
+        if proposal.proposal_id in selected_ids
     )
 
 

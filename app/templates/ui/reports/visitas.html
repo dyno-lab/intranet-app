@@ -1,16 +1,17 @@
 {% extends "ui/_base.html" %}
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
 {% block title %}Visitas{% endblock %}
 
 {% block content %}
 {% set has_selection = selected_proposal_id and period_label and (selected_user or is_global) %}
 {% set is_custom_period = selected_period_type == 'custom' %}
-{% set can_manage_referrals = has_selection and not is_custom_period and not is_global %}
+{% set can_manage_referrals = has_selection and not is_custom_period and not is_global and report_proposal_ids|length == 1 %}
 {% set has_visit_rows = rows|length > 0 %}
 {% set has_mapped_visits = mapped_activity_ids|length > 0 %}
 {% set report_state = namespace(proposal_label='Sin propuesta seleccionada') %}
 {% for proposal in proposals %}
-  {% if selected_proposal_id == proposal.proposal_id %}
-    {% set report_state.proposal_label = proposal.code ~ ' - ' ~ proposal.name %}
+  {% if proposal.proposal_id in report_proposal_ids %}
+    {% set report_state.proposal_label = (report_state.proposal_label ~ '; ' if report_state.proposal_label != 'Sin propuesta seleccionada' else '') ~ proposal.code ~ ' - ' ~ proposal.name %}
   {% endif %}
 {% endfor %}
 {% set selected_scope_label = 'Sin residencial seleccionado' %}
@@ -61,13 +62,13 @@
 
         <form method="get" action="/ui/reports/visitas" class="visitas-filter-form" id="visitas-report-form">
           <div class="visitas-filter-field visitas-filter-field--wide">
-            <label class="form-label" for="visitas_proposal_id">Propuesta *</label>
-            <select class="form-select" name="proposal_id" id="visitas_proposal_id" required>
-              <option value="">Selecciona...</option>
+            <label class="form-label" for="visitas_proposal_id">Propuestas *</label>
+            <select class="form-select" name="proposal_id" id="visitas_proposal_id" multiple size="3" aria-describedby="report-proposals-help" required>
               {% for proposal in proposals %}
-              <option value="{{ proposal.proposal_id }}" {% if selected_proposal_id == proposal.proposal_id %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id in report_proposal_ids %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
               {% endfor %}
             </select>
+            <div class="form-text" id="report-proposals-help">Selecciona una o varias propuestas. Mantén Ctrl presionado para agregar o quitar opciones.</div>
           </div>
 
           <div class="visitas-filter-field">
@@ -263,7 +264,7 @@
         {% elif not can_manage_referrals %}
         <div class="visitas-disabled-note">
           <i class="bi bi-calendar-range" aria-hidden="true"></i>
-          <span>Periodo personalizado activo: los referidos manuales solo se preparan, guardan o eliminan desde periodos mensuales.</span>
+          <span>Para preparar, guardar o eliminar referidos manuales, selecciona una sola propuesta, un residencial y un periodo mensual.</span>
         </div>
         {% endif %}
 

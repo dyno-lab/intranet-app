@@ -1,3 +1,4 @@
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
 <!doctype html>
 <html lang="es">
 <head>
@@ -38,7 +39,7 @@
 
     <div class="meta">
       <div class="meta-row">
-        <div><strong>Propuesta:</strong> {% for proposal in proposals %}{% if proposal.proposal_id == selected_proposal_id %}{{ proposal.code }} - {{ proposal.name }}{% endif %}{% endfor %}</div>
+        <div><strong>Propuesta:</strong> {% for proposal in proposals if proposal.proposal_id in report_proposal_ids %}{{ '; ' if not loop.first else '' }}{{ proposal.code }} - {{ proposal.name }}{% endfor %}</div>
         <div><strong>Periodo reportado:</strong> {{ period_label }}</div>
         <div><strong>Residencial:</strong> {{ residential_name or '' }}</div>
       </div>

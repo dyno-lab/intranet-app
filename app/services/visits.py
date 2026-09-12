@@ -4,6 +4,7 @@ from datetime import date
 from typing import Callable, Any
 
 from app.helpers.report_context import resolve_reporting_scope
+from app.helpers.report_proposals import proposal_ids, proposal_filter
 from app.models.user import User
 
 from sqlalchemy import func, select
@@ -27,13 +28,13 @@ def resolve_report_scope(current_user: User, employee_id: int | None, db: Sessio
     return resolve_reporting_scope(current_user, employee_id, db)
 
 
-def resolve_visit_activity_ids(db: Session, proposal_id: int | None) -> list[int]:
+def resolve_visit_activity_ids(db: Session, proposal_id: int | list[int] | None) -> list[int]:
     if not proposal_id:
         return []
     return db.execute(
         select(VisitActivityMapping.activity_code_id)
         .where(
-            VisitActivityMapping.proposal_id == proposal_id,
+            proposal_filter(VisitActivityMapping.proposal_id, proposal_id),
             VisitActivityMapping.is_active == True,
         )
     ).scalars().all()  # noqa: E712
@@ -41,7 +42,7 @@ def resolve_visit_activity_ids(db: Session, proposal_id: int | None) -> list[int
 
 def query_visit_sessions(
     db: Session,
-    proposal_id: int,
+    proposal_id: int | list[int] | None,
     mapped_activity_ids: list[int],
     period: dict,
     apply_period_filter: Callable,
@@ -64,8 +65,12 @@ def query_visit_sessions(
         .join(Employee, Employee.employee_id == ActivitySession.employee_id)
         .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
         .where(
-            ActivitySession.proposal_id == proposal_id,
-            ActivitySession.activity_code_id.in_(mapped_activity_ids),
+            proposal_filter(ActivitySession.proposal_id, proposal_id),
+            select(VisitActivityMapping.mapping_id).where(
+                VisitActivityMapping.proposal_id == ActivitySession.proposal_id,
+                VisitActivityMapping.activity_code_id == ActivitySession.activity_code_id,
+                VisitActivityMapping.is_active == True,  # noqa: E712
+            ).exists(),
         )
         .order_by(Employee.full_name)
     )
@@ -167,13 +172,13 @@ def get_visit_report(
 def get_visit_reports(
     db: Session,
     *,
-    proposal_id: int,
+    proposal_id: int | list[int] | None,
     report_month: int,
     report_year: int,
 ):
     return db.execute(
         select(VisitReport).where(
-            VisitReport.proposal_id == proposal_id,
+            proposal_filter(VisitReport.proposal_id, proposal_id),
             VisitReport.report_month == report_month,
             VisitReport.report_year == report_year,
         )
@@ -191,11 +196,15 @@ def get_visit_referrals(db: Session, report_id: int):
 def get_visit_referrals_for_reports(db: Session, report_ids: list[int]):
     if not report_ids:
         return []
-    return db.execute(
-        select(VisitReportReferral)
-        .where(VisitReportReferral.report_id.in_(report_ids))
-        .order_by(VisitReportReferral.report_id, VisitReportReferral.sort_order, VisitReportReferral.referral_id)
-    ).scalars().all()
+    referrals = []
+    unique_report_ids = sorted(set(report_ids))
+    for offset in range(0, len(unique_report_ids), 1000):
+        referrals.extend(db.execute(
+            select(VisitReportReferral)
+            .where(VisitReportReferral.report_id.in_(unique_report_ids[offset:offset + 1000]))
+            .order_by(VisitReportReferral.report_id, VisitReportReferral.sort_order, VisitReportReferral.referral_id)
+        ).scalars().all())
+    return referrals
 
 
 def get_or_create_visit_report(
@@ -296,7 +305,7 @@ def delete_visit_referrals_only(db: Session, reports: list[VisitReport]):
 def build_visits_report_payload(
     db: Session,
     *,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     period: dict,
     selected_user,
     is_global: bool,
@@ -304,6 +313,8 @@ def build_visits_report_payload(
     residential_name_resolver: Callable,
     apply_period_filter: Callable,
 ):
+    selected_proposals = proposal_ids(proposal_id)
+    proposal_id = selected_proposals[0] if len(selected_proposals) == 1 else selected_proposals
     residential_name = None
     rows = []
     summary = {"visits": 0, "attendances": 0, "hours": 0.0}
@@ -325,8 +336,8 @@ def build_visits_report_payload(
 
     mapped_activity_ids = resolve_visit_activity_ids(db, proposal_id)
 
-    if is_global:
-        residential_name = "Global"
+    if is_global or len(proposal_ids(proposal_id)) > 1:
+        residential_name = "Global" if is_global else residential_name_resolver(selected_user)
         if not period["is_custom"] and period["month"] and period["year"]:
             visit_reports = get_visit_reports(
                 db,
@@ -334,6 +345,11 @@ def build_visits_report_payload(
                 report_month=period["month"],
                 report_year=period["year"],
             )
+            if not is_global:
+                visit_reports = [
+                    report for report in visit_reports
+                    if report.residential_id == selected_user.residential_id
+                ]
             report_ids = [report.report_id for report in visit_reports]
             if report_ids:
                 report_residential_map = {
@@ -343,7 +359,7 @@ def build_visits_report_payload(
                 referrals = get_visit_referrals_for_reports(db, report_ids)
                 referral_rows = [
                     {
-                        "residential_name": report_residential_map.get(referral.report_id, "Sin residencial"),
+                        **({"residential_name": report_residential_map.get(referral.report_id, "Sin residencial")} if is_global else {}),
                         "referral_type": referral.referral_type,
                         "agency": referral.agency or "",
                         "reference_or_purpose": referral.reference_or_purpose or "",

@@ -11,6 +11,7 @@ from app.models.proposal_population_group import ProposalPopulationGroup
 from app.models.activity_code import ActivityCode
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
 from app.services.activity_proposals import load_activity_codes_for_proposal
+from app.helpers.report_proposals import proposal_ids
 
 
 def program_display_name(program: ProposalReportProgram) -> str:
@@ -114,7 +115,39 @@ def activity_code_is_assigned_anywhere_in_proposal(
     return new_match is not None
 
 
-def resolve_effective_program_population_blocks(db: Session, proposal_id: int) -> list[dict]:
+def resolve_effective_program_population_blocks(db: Session, proposal_id: int | list[int]) -> list[dict]:
+    selected_ids = proposal_ids(proposal_id)
+    if len(selected_ids) == 1:
+        return _resolve_proposal_program_population_blocks(db, selected_ids[0])
+
+    # Program and population database IDs belong to each proposal. Their report
+    # headings define matching blocks; activities still merge only by global ID.
+    blocks_by_code: dict[str, dict] = {}
+    populations_by_code: dict[str, dict[str, dict]] = {}
+    activity_ids_by_population: dict[tuple[str, str], set[int]] = {}
+    for selected_id in selected_ids:
+        for block in _resolve_proposal_program_population_blocks(db, selected_id):
+            code = block["program"].code
+            if code not in blocks_by_code:
+                blocks_by_code[code] = {**block, "population_blocks": []}
+                populations_by_code[code] = {}
+            for population in block["population_blocks"]:
+                label = population["population_label"]
+                if label not in populations_by_code[code]:
+                    merged_population = {**population, "rows": []}
+                    populations_by_code[code][label] = merged_population
+                    blocks_by_code[code]["population_blocks"].append(merged_population)
+                    activity_ids_by_population[(code, label)] = set()
+                merged_population = populations_by_code[code][label]
+                seen_activity_ids = activity_ids_by_population[(code, label)]
+                for row in population["rows"]:
+                    if row["activity_code_id"] not in seen_activity_ids:
+                        merged_population["rows"].append(row)
+                        seen_activity_ids.add(row["activity_code_id"])
+    return list(blocks_by_code.values())
+
+
+def _resolve_proposal_program_population_blocks(db: Session, proposal_id: int) -> list[dict]:
     programs = db.execute(
         select(ProposalReportProgram)
         .where(

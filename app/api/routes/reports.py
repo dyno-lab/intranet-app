@@ -5,7 +5,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import and_, case, distinct, extract, func, select
+from sqlalchemy import and_, or_, case, distinct, extract, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -42,6 +42,12 @@ from app.models.proposal_report_program_activity import ProposalReportProgramAct
 from app.models.proposal_report_program_activity_code import ProposalReportProgramActivityCode
 from app.models.proposal_report_program_population import ProposalReportProgramPopulation
 from app.models.proposal_report_program_population_activity_code import ProposalReportProgramPopulationActivityCode
+from app.helpers.report_proposals import (
+    proposal_ids as _proposal_ids,
+    primary_proposal_id as _primary_proposal_id,
+    proposal_filter as _proposal_filter,
+    report_proposal_selection as _report_proposal_selection,
+)
 from app.helpers.report_context import (
     base_reports_context as _base_reports_context,
     municipality_from_user as _municipality_from_user,
@@ -98,6 +104,7 @@ from app.services.report_pdf import (
     render_template_to_pdf_bytes,
 )
 from app.services.notes_chart_svg import build_notes_pdf_chart_images
+from app.services.report_productivity_consolidation import consolidate_productivity_inputs
 from app.services.proposal_participant_snapshots import (
     PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS as _PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS,
     participant_snapshot_view as _participant_snapshot_view,
@@ -135,6 +142,50 @@ def _participant_sort_key(participant, *field_names: str) -> tuple[str, ...]:
     return tuple(_normalize_text(getattr(participant, field_name)).casefold() for field_name in field_names)
 
 
+def _report_participant_views(pairs, proposal_id):
+    pairs = list(pairs)
+    if len(_proposal_ids(proposal_id)) > 1:
+        # The same legacy participant links to one Person across proposals.
+        # Prefer the most recent proposal snapshot deterministically.
+        pairs.sort(key=lambda pair: getattr(pair[1], "proposal_id", 0) or 0)
+        pairs = list({participant.participant_id: (participant, snapshot)
+                      for participant, snapshot in pairs}.values())
+    return [_participant_snapshot_view(participant, snapshot) for participant, snapshot in pairs]
+
+
+def _report_group_aliases(groups, mapping_rows, id_field, proposal_id):
+    aliases = {getattr(group, id_field): getattr(group, id_field) for group in groups}
+    if len(_proposal_ids(proposal_id)) <= 1:
+        return groups, aliases
+    groups = sorted(groups, key=lambda group: (
+        getattr(group, "proposal_id", 0), getattr(group, "sort_order", 0) or 0,
+        group.name, getattr(group, id_field),
+    ))
+    by_name = {}
+    by_activity = {}
+    def root(key):
+        while aliases[key] != key:
+            key = aliases[key]
+        return key
+    for group in groups:
+        group_id = getattr(group, id_field)
+        key = _normalize_text(group.name).casefold()
+        aliases[group_id] = root(by_name.setdefault(key, group_id))
+    for _, activity, group in mapping_rows:
+        group_id = getattr(group, id_field)
+        canonical = by_activity.setdefault(activity.activity_code_id, root(group_id))
+        aliases[root(group_id)] = root(canonical)
+    aliases = {key: root(key) for key in aliases}
+    selected = []
+    seen = set()
+    for group in groups:
+        key = aliases[getattr(group, id_field)]
+        if key not in seen:
+            selected.append(next(item for item in groups if getattr(item, id_field) == key))
+            seen.add(key)
+    return selected, aliases
+
+
 def _apply_session_period_filter(stmt, period: dict):
     if period["is_custom"]:
         return stmt.where(
@@ -152,7 +203,7 @@ def _apply_session_period_filter(stmt, period: dict):
 def _build_bonafide_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -173,7 +224,7 @@ def _build_bonafide_context(
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]
     employee_id = scope["employee_id"]
-    report_template_config = _resolve_report_template_config(db, proposal_id, "bonafide")
+    report_template_config = _resolve_report_template_config(db, _primary_proposal_id(proposal_id), "bonafide")
 
     rows = []
     municipality = None
@@ -201,17 +252,14 @@ def _build_bonafide_context(
             )
             .where(
                 Attendance.attended == True,  # noqa: E712
-                ActivitySession.proposal_id == proposal_id,
+                _proposal_filter(ActivitySession.proposal_id, proposal_id),
             )
         )
         stmt = _apply_session_period_filter(stmt, period).distinct()
         if not is_global:
             stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
         participant_rows = db.execute(stmt).all()
-        participants = [
-            _participant_snapshot_view(participant, proposal_participant)
-            for participant, proposal_participant in participant_rows
-        ]
+        participants = _report_participant_views(participant_rows, proposal_id)
         participants.sort(
             key=lambda participant: _participant_sort_key(
                 participant,
@@ -254,7 +302,8 @@ def _build_bonafide_context(
         "month_options": MONTH_OPTIONS,
         "month_lookup": month_lookup,
         "year_options": year_options,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -371,6 +420,7 @@ def reports_home(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _base_reports_context(db, current_user, MONTH_OPTIONS)
     dashboard_context = _build_current_month_dashboard_cards(db, current_user)
     today = date.today()
@@ -387,7 +437,8 @@ def reports_home(
             "period_type_options": PERIOD_TYPE_OPTIONS,
             "productivity_only_screen": productivity_only_screen,
             "selected_report_key": report_key,
-            "selected_proposal_id": proposal_id,
+            "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
             "selected_month": month,
             "selected_year": year,
             "selected_employee_id": employee_id,
@@ -418,7 +469,10 @@ def reports_run(
     start_date: str | None = None,
     end_date: str | None = None,
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
+    proposal_query = "&".join(f"proposal_id={value}" for value in _proposal_ids(proposal_id)) or "proposal_id="
     month_value = int(month) if (month or "").strip() else None
     year_value = int(year) if (year or "").strip() else None
     authorized_name = report_authorized_name(current_user, authorized_name)
@@ -426,195 +480,195 @@ def reports_run(
 
     if report_key == "productividad":
         return RedirectResponse(
-            f"/ui/reports/productividad?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
+            f"/ui/reports/productividad?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
         )
 
     if report_key == "bonafide":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/bonafide/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/bonafide/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/bonafide/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/bonafide/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/bonafide?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/bonafide?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "no-duplicado":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/no-duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/no-duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/no-duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/no-duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "duplicados":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/duplicado/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/duplicado/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/duplicado?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "vca":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/vca/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/vca/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/vca/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/vca/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/vca?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/vca?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "adm":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/adm/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/adm/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/adm/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/adm/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/adm?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/adm?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     if report_key == "todos":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/todos/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/todos/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/todos/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/todos/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         employee_id_param = "" if employee_id is None else employee_id
         return RedirectResponse(
-            f"/ui/reports/?report_key=todos&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+            f"/ui/reports/?report_key=todos&{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
         )
 
     if report_key == "por-programa":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/por-programa/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/por-programa/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/por-programa/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/por-programa/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/por-programa?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/por-programa?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "hoja-cotejo":
         return RedirectResponse(
-            f"/ui/reports/hoja-cotejo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/hoja-cotejo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "desercion-escolar":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/desercion-escolar/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/desercion-escolar/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/desercion-escolar/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/desercion-escolar/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/desercion-escolar?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/desercion-escolar?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "embarazo":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/embarazo/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/embarazo/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/embarazo/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/embarazo/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/embarazo?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/embarazo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "notas":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/notas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/notas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/notas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/notas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/notas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/notas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
             status_code=303,
         )
 
     if report_key == "visitas":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/visitas/excel?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/visitas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/visitas/pdf?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/visitas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/visitas?proposal_id={proposal_id}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/visitas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     return RedirectResponse(
-        f"/ui/reports/?report_key={report_key}&proposal_id={proposal_id or ''}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+        f"/ui/reports/?report_key={report_key}&{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
     )
 
@@ -622,7 +676,7 @@ def reports_run(
 def _build_productivity_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -658,7 +712,7 @@ def _build_productivity_context(
     selected_residential_dashboard = None
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]):
-        proposal = db.get(Proposal, proposal_id)
+        proposal = db.get(Proposal, _primary_proposal_id(proposal_id))
         if proposal:
             goal_rows = db.execute(
                 select(
@@ -671,7 +725,7 @@ def _build_productivity_context(
                 .join(Proposal, Proposal.proposal_id == ActivityProductivityGoal.proposal_id)
                 .join(ActivityCode, ActivityCode.activity_code_id == ActivityProductivityGoal.activity_code_id)
                 .where(
-                    ActivityProductivityGoal.proposal_id == proposal_id,
+                    _proposal_filter(ActivityProductivityGoal.proposal_id, proposal_id),
                     ActivityProductivityGoal.is_active == True,  # noqa: E712
                 )
                 .order_by(ActivityCode.code)
@@ -687,7 +741,7 @@ def _build_productivity_context(
                 )
                 .select_from(ActivitySession)
                 .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
-                .where(ActivitySession.proposal_id == proposal_id)
+                .where(_proposal_filter(ActivitySession.proposal_id, proposal_id))
                 .group_by(
                     ActivitySession.proposal_id,
                     ActivitySession.activity_code_id,
@@ -710,7 +764,7 @@ def _build_productivity_context(
                     func.count(ActivitySession.session_id).label("executed_count"),
                 )
                 .select_from(ActivitySession)
-                .where(ActivitySession.proposal_id == proposal_id)
+                .where(_proposal_filter(ActivitySession.proposal_id, proposal_id))
                 .group_by(ActivitySession.proposal_id, ActivitySession.activity_code_id)
             )
 
@@ -721,6 +775,10 @@ def _build_productivity_context(
                 period_counts_stmt = period_counts_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             period_count_rows = db.execute(period_counts_stmt).all()
+            if len(_proposal_ids(proposal_id)) > 1:
+                goal_rows, count_rows, period_count_rows = consolidate_productivity_inputs(
+                    goal_rows, count_rows, period_count_rows,
+                )
             period_counts_by_activity = {
                 (row.proposal_id, row.activity_code_id): int(row.executed_count or 0)
                 for row in period_count_rows
@@ -1084,7 +1142,8 @@ def _build_productivity_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": normalized_month,
         "selected_year": normalized_year,
         "selected_employee_id": employee_id,
@@ -1124,6 +1183,7 @@ def productivity_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     normalized_employee_id = _parse_optional_int(employee_id)
     context = _build_productivity_context(
         db,
@@ -1144,7 +1204,7 @@ def productivity_report(
 def _build_vca_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -1166,11 +1226,11 @@ def _build_vca_context(
     total_people = 0
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
-        proposal = db.get(Proposal, proposal_id)
+        proposal = db.get(Proposal, _primary_proposal_id(proposal_id))
         if proposal:
             columns = db.execute(
                 select(VCAColumn)
-                .where(VCAColumn.proposal_id == proposal_id, VCAColumn.is_active == True)  # noqa: E712
+                .where(_proposal_filter(VCAColumn.proposal_id, proposal_id), VCAColumn.is_active == True)  # noqa: E712
                 .order_by(VCAColumn.sort_order, VCAColumn.name)
             ).scalars().all()
 
@@ -1178,9 +1238,14 @@ def _build_vca_context(
                 select(VCAColumnActivityCode, ActivityCode, VCAColumn)
                 .join(ActivityCode, ActivityCode.activity_code_id == VCAColumnActivityCode.activity_code_id)
                 .join(VCAColumn, VCAColumn.vca_column_id == VCAColumnActivityCode.vca_column_id)
-                .where(VCAColumn.proposal_id == proposal_id, VCAColumn.is_active == True)  # noqa: E712
+                .where(_proposal_filter(VCAColumn.proposal_id, proposal_id), VCAColumn.is_active == True)  # noqa: E712
             ).all()
-            activity_to_column = {activity.activity_code_id: column.vca_column_id for _, activity, column in mapping_rows}
+            multi_proposal = len(_proposal_ids(proposal_id)) > 1
+            columns, column_aliases = _report_group_aliases(columns, mapping_rows, "vca_column_id", proposal_id)
+            activity_to_column = {
+                (column.proposal_id, activity.activity_code_id) if multi_proposal else activity.activity_code_id:
+                column_aliases[column.vca_column_id] for _, activity, column in mapping_rows
+            }
 
             effective_vca = case(
                 (
@@ -1204,7 +1269,7 @@ def _build_vca_context(
                 )
                 .where(
                     Attendance.attended == True,  # noqa: E712
-                    ActivitySession.proposal_id == proposal_id,
+                    _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     func.upper(func.ltrim(func.rtrim(effective_vca))) == "SI",
                 )
             )
@@ -1215,10 +1280,7 @@ def _build_vca_context(
                 participant_stmt = participant_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
             participant_pairs = db.execute(participant_stmt.distinct()).all()
-            participant_rows = [
-                _participant_snapshot_view(participant, proposal_participant)
-                for participant, proposal_participant in participant_pairs
-            ]
+            participant_rows = _report_participant_views(participant_pairs, proposal_id)
             participant_rows.sort(
                 key=lambda participant: _participant_sort_key(
                     participant,
@@ -1232,17 +1294,21 @@ def _build_vca_context(
                 .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
                 .where(
                     Attendance.attended == True,  # noqa: E712
-                    ActivitySession.proposal_id == proposal_id,
+                    _proposal_filter(ActivitySession.proposal_id, proposal_id),
                 )
             )
             attendance_stmt = _apply_session_period_filter(attendance_stmt, period)
             if not is_global:
                 attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
+            if multi_proposal:
+                attendance_stmt = attendance_stmt.add_columns(ActivitySession.proposal_id)
             attendance_rows = db.execute(attendance_stmt).all()
 
             counts: dict[int, dict[int, int]] = {}
-            for participant_id, activity_code_id in attendance_rows:
-                column_id = activity_to_column.get(activity_code_id)
+            for attendance_row in attendance_rows:
+                participant_id, activity_code_id = attendance_row[:2]
+                activity_key = (attendance_row[2], activity_code_id) if multi_proposal else activity_code_id
+                column_id = activity_to_column.get(activity_key)
                 if not column_id:
                     continue
                 counts.setdefault(participant_id, {})
@@ -1264,7 +1330,8 @@ def _build_vca_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -1284,7 +1351,7 @@ def _build_vca_context(
 def _build_adm_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -1309,11 +1376,11 @@ def _build_adm_context(
     family_total = 0
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
-        proposal = db.get(Proposal, proposal_id)
+        proposal = db.get(Proposal, _primary_proposal_id(proposal_id))
         if proposal:
             service_types = db.execute(
                 select(ADMServiceType)
-                .where(ADMServiceType.proposal_id == proposal_id, ADMServiceType.is_active == True)  # noqa: E712
+                .where(_proposal_filter(ADMServiceType.proposal_id, proposal_id), ADMServiceType.is_active == True)  # noqa: E712
                 .order_by(ADMServiceType.sort_order, ADMServiceType.name)
             ).scalars().all()
 
@@ -1321,13 +1388,18 @@ def _build_adm_context(
                 select(ADMServiceTypeActivityCode, ActivityCode, ADMServiceType)
                 .join(ActivityCode, ActivityCode.activity_code_id == ADMServiceTypeActivityCode.activity_code_id)
                 .join(ADMServiceType, ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id)
-                .where(ADMServiceType.proposal_id == proposal_id, ADMServiceType.is_active == True)  # noqa: E712
+                .where(_proposal_filter(ADMServiceType.proposal_id, proposal_id), ADMServiceType.is_active == True)  # noqa: E712
             ).all()
-            activity_to_service_type = {activity.activity_code_id: service_type.adm_service_type_id for _, activity, service_type in mapping_rows}
+            multi_proposal = len(_proposal_ids(proposal_id)) > 1
+            service_types, service_aliases = _report_group_aliases(service_types, mapping_rows, "adm_service_type_id", proposal_id)
+            activity_to_service_type = {
+                (service_type.proposal_id, activity.activity_code_id) if multi_proposal else activity.activity_code_id:
+                service_aliases[service_type.adm_service_type_id] for _, activity, service_type in mapping_rows
+            }
 
             session_stmt = (
                 select(ActivitySession.session_id, ActivitySession.activity_code_id)
-                .where(ActivitySession.proposal_id == proposal_id)
+                .where(_proposal_filter(ActivitySession.proposal_id, proposal_id))
             )
             session_stmt = _apply_session_period_filter(session_stmt, period)
             if is_global:
@@ -1335,12 +1407,16 @@ def _build_adm_context(
             else:
                 session_stmt = session_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
+            if multi_proposal:
+                session_stmt = session_stmt.add_columns(ActivitySession.proposal_id)
             session_rows = db.execute(session_stmt).all()
 
             sessions_by_service_type: dict[int, set[int]] = {}
             session_ids = []
-            for session_id, activity_code_id in session_rows:
-                service_type_id = activity_to_service_type.get(activity_code_id)
+            for session_row in session_rows:
+                session_id, activity_code_id = session_row[:2]
+                activity_key = (session_row[2], activity_code_id) if multi_proposal else activity_code_id
+                service_type_id = activity_to_service_type.get(activity_key)
                 if not service_type_id:
                     continue
                 sessions_by_service_type.setdefault(service_type_id, set()).add(session_id)
@@ -1361,11 +1437,13 @@ def _build_adm_context(
                     ADMServiceType.adm_service_type_id == ADMServiceTypeActivityCode.adm_service_type_id,
                 )
                 .where(
-                    ADMServiceType.proposal_id == proposal_id,
+                    _proposal_filter(ADMServiceType.proposal_id, proposal_id),
                     ADMServiceType.is_active == True,  # noqa: E712
                 )
                 .correlate(None)
             )
+            if multi_proposal:
+                eligible_session_ids = eligible_session_ids.where(ADMServiceType.proposal_id == ActivitySession.proposal_id)
             if session_ids:
                 attendance_stmt = (
                     select(Attendance.session_id, Attendance.participant_id, ActivitySession.activity_code_id)
@@ -1377,9 +1455,13 @@ def _build_adm_context(
                 )
                 if not is_global:
                     attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
+                if multi_proposal:
+                    attendance_stmt = attendance_stmt.add_columns(ActivitySession.proposal_id)
                 attendance_rows = db.execute(attendance_stmt).all()
-                for session_id, participant_id, activity_code_id in attendance_rows:
-                    service_type_id = activity_to_service_type.get(activity_code_id)
+                for attendance_row in attendance_rows:
+                    session_id, participant_id, activity_code_id = attendance_row[:3]
+                    activity_key = (attendance_row[3], activity_code_id) if multi_proposal else activity_code_id
+                    service_type_id = activity_to_service_type.get(activity_key)
                     if not service_type_id:
                         continue
                     attendance_by_service_type[service_type_id] = attendance_by_service_type.get(service_type_id, 0) + 1
@@ -1408,14 +1490,11 @@ def _build_adm_context(
                     .where(
                         Attendance.attended == True,  # noqa: E712
                         Attendance.session_id.in_(eligible_session_ids),
-                        ActivitySession.proposal_id == proposal_id,
+                        _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     )
                     .distinct()
                 )
-                participant_rows = [
-                    _participant_snapshot_view(participant, proposal_participant)
-                    for participant, proposal_participant in db.execute(participant_stmt).all()
-                ]
+                participant_rows = _report_participant_views(db.execute(participant_stmt).all(), proposal_id)
 
             sociodemographic_summary = {
                 key: {"label": label, "f": 0, "m": 0, "total": 0, "vca": 0}
@@ -1485,7 +1564,8 @@ def _build_adm_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -1519,6 +1599,7 @@ def adm_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/adm.html", context)
@@ -1538,6 +1619,7 @@ def adm_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/adm_pdf.html", context)
@@ -1557,6 +1639,7 @@ def adm_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     return _render_report_pdf_response(request, "ui/reports/adm_pdf.html", context, _pdf_download_filename("adm", context))
@@ -1565,7 +1648,7 @@ def adm_report_pdf_download(
 def _build_all_reports_bundle_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: str | None,
     year: str | None,
     employee_id: int | None,
@@ -1659,6 +1742,7 @@ def all_reports_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
     shared_context = {
         "current_user": current_user,
@@ -1709,7 +1793,9 @@ def all_reports_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     bundle = _build_all_reports_bundle_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type, start_date, end_date)
 
     employee_records = db.execute(
@@ -1764,7 +1850,9 @@ def adm_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_adm_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"]):
         return RedirectResponse("/ui/reports/adm", status_code=303)
@@ -1785,7 +1873,7 @@ def adm_report_excel(
 def _build_school_dropout_summary_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -1839,7 +1927,7 @@ def _build_school_dropout_summary_context(
                 ),
             )
             .outerjoin(Residential, Residential.residential_id == SchoolDropoutReport.residential_id)
-            .where(SchoolDropoutReport.proposal_id == proposal_id)
+            .where(_proposal_filter(SchoolDropoutReport.proposal_id, proposal_id))
         )
 
         if period["is_custom"]:
@@ -1884,7 +1972,7 @@ def _build_school_dropout_summary_context(
                 },
             )
 
-            key = (residential_key, participant.participant_id)
+            key = (None if len(_proposal_ids(proposal_id)) > 1 else residential_key, participant.participant_id)
             snapshot = participant_snapshots.get(key)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
 
@@ -1974,7 +2062,8 @@ def _build_school_dropout_summary_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -1994,7 +2083,7 @@ def _build_school_dropout_summary_context(
 def _build_pregnancy_summary_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -2046,7 +2135,7 @@ def _build_pregnancy_summary_context(
                 ),
             )
             .outerjoin(Residential, Residential.residential_id == PregnancyReport.residential_id)
-            .where(PregnancyReport.proposal_id == proposal_id)
+            .where(_proposal_filter(PregnancyReport.proposal_id, proposal_id))
         )
 
         if period["is_custom"]:
@@ -2090,7 +2179,7 @@ def _build_pregnancy_summary_context(
                 },
             )
 
-            key = (residential_key, participant.participant_id)
+            key = (None if len(_proposal_ids(proposal_id)) > 1 else residential_key, participant.participant_id)
             snapshot = participant_snapshots.get(key)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
             gender = _normalize_text(participant.genero).upper()
@@ -2163,7 +2252,8 @@ def _build_pregnancy_summary_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -2184,7 +2274,7 @@ def _build_pregnancy_summary_context(
 def _build_notes_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -2239,7 +2329,7 @@ def _build_notes_context(
                 ),
             )
             .outerjoin(Residential, Residential.residential_id == SchoolGradeReport.residential_id)
-            .where(SchoolGradeReport.proposal_id == proposal_id)
+            .where(_proposal_filter(SchoolGradeReport.proposal_id, proposal_id))
         )
 
         if period["is_custom"]:
@@ -2264,7 +2354,7 @@ def _build_notes_context(
             participant = _participant_snapshot_view(participant, proposal_participant)
             residential_key = report.residential_id if report.residential_id is not None else "unassigned"
             residential_label = _normalize_text(residential.name if residential else "") or "Sin residencial"
-            key = (residential_key, participant.participant_id)
+            key = (None if len(_proposal_ids(proposal_id)) > 1 else residential_key, participant.participant_id)
             report_sort = (report.report_year or 0, report.report_month or 0, report.report_id or 0)
             snapshot = participant_snapshots.get(key)
             current_snapshot = {
@@ -2351,14 +2441,14 @@ def _build_notes_context(
         for subject_name, counts in subject_chart.items()
     ]
 
-    proposal_label = next(
-        (f"{proposal.code} - {proposal.name}" for proposal in base_context["proposals"] if proposal.proposal_id == proposal_id),
-        "",
+    proposal_label = "; ".join(
+        (f"{proposal.code} - {proposal.name}" for proposal in base_context["proposals"] if proposal.proposal_id in _proposal_ids(proposal_id)),
     )
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -2384,7 +2474,7 @@ def _build_notes_context(
 def _build_visits_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -2414,9 +2504,9 @@ def _build_visits_context(
         apply_period_filter=_apply_session_period_filter,
     )
 
-    proposal = db.get(Proposal, proposal_id) if proposal_id else None
-    visits_period_locked = False
-    visits_period_lock_message = None
+    proposal = db.get(Proposal, _primary_proposal_id(proposal_id)) if proposal_id else None
+    visits_period_locked = len(_proposal_ids(proposal_id)) > 1
+    visits_period_lock_message = "Selecciona una sola propuesta para editar los referidos." if visits_period_locked else None
     if proposal and period["period_type"] == "monthly" and period["month"] and period["year"]:
         if is_proposal_finalized(proposal):
             visits_period_locked = True
@@ -2432,7 +2522,8 @@ def _build_visits_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -2471,6 +2562,7 @@ def visits_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user, "msg": msg})
     return templates.TemplateResponse("ui/reports/visitas.html", context)
@@ -2627,6 +2719,7 @@ def visits_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/visitas_pdf.html", context)
@@ -2646,6 +2739,7 @@ def visits_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     filename = _pdf_download_filename("visitas", context)
@@ -2685,7 +2779,9 @@ def visits_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/visitas", status_code=303)
@@ -2707,7 +2803,7 @@ def visits_report_excel(
 def _calculate_no_duplicado_metric(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -2742,7 +2838,7 @@ def _calculate_no_duplicado_metric(
                     )
                     .where(
                         Attendance.attended == True,  # noqa: E712
-                        ActivitySession.proposal_id == proposal_id,
+                        _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     )
                 )
             else:
@@ -2793,7 +2889,7 @@ def _calculate_no_duplicado_metric(
                     )
                     .where(
                         Attendance.attended == True,  # noqa: E712
-                        ActivitySession.proposal_id == proposal_id,
+                        _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     )
                 )
             else:
@@ -2812,10 +2908,7 @@ def _calculate_no_duplicado_metric(
 
             if proposal_id is not None:
                 participant_pairs = db.execute(stmt).all()
-                participants = [
-                    _participant_snapshot_view(participant, proposal_participant)
-                    for participant, proposal_participant in participant_pairs
-                ]
+                participants = _report_participant_views(participant_pairs, proposal_id)
             else:
                 participant_rows = db.execute(stmt).scalars().all()
                 participants = list({
@@ -2943,7 +3036,7 @@ def _build_current_month_dashboard_cards(
 def _build_no_duplicado_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -2970,7 +3063,8 @@ def _build_no_duplicado_context(
 
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": metric["period"]["month"],
         "selected_year": metric["period"]["year"],
         "selected_period_type": metric["period"]["period_type"],
@@ -3004,6 +3098,7 @@ def notes_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/notas.html", context)
@@ -3012,7 +3107,7 @@ def notes_report(
 @router.api_route("/notas/pdf", methods=["GET", "POST"], response_class=HTMLResponse)
 def notes_report_pdf(
     request: Request,
-    proposal_id: int | None = Form(default=None),
+    proposal_id: list[int] | None = Form(default=None),
     month: str | None = Form(default=None),
     year: str | None = Form(default=None),
     employee_id: int | None = Form(default=None),
@@ -3034,6 +3129,7 @@ def notes_report_pdf(
         start_date = start_date or request.query_params.get("start_date")
         end_date = end_date or request.query_params.get("end_date")
 
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     subject_chart_image_list = [img for img in (subject_chart_images or "").split("||") if img]
     fallback_chart_images = build_notes_pdf_chart_images(context)
@@ -3082,6 +3178,7 @@ def notes_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({
         "current_user": current_user,
@@ -3123,7 +3220,9 @@ def notes_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_notes_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/notas", status_code=303)
@@ -3154,6 +3253,7 @@ def pregnancy_summary_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/embarazo.html", context)
@@ -3172,6 +3272,7 @@ def pregnancy_summary_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/embarazo_pdf.html", context)
@@ -3190,6 +3291,7 @@ def pregnancy_summary_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     filename = _pdf_download_filename("embarazo", context)
@@ -3228,7 +3330,9 @@ def pregnancy_summary_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_pregnancy_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/embarazo", status_code=303)
@@ -3259,6 +3363,7 @@ def school_dropout_summary_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/desercion_escolar.html", context)
@@ -3277,6 +3382,7 @@ def school_dropout_summary_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/desercion_escolar_pdf.html", context)
@@ -3295,6 +3401,7 @@ def school_dropout_summary_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     filename = _pdf_download_filename("desercion_escolar", context)
@@ -3333,7 +3440,9 @@ def school_dropout_summary_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_school_dropout_summary_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
         return RedirectResponse("/ui/reports/desercion-escolar", status_code=303)
@@ -3365,6 +3474,7 @@ def duplicado_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/duplicado.html", context)
@@ -3384,6 +3494,7 @@ def duplicado_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/duplicado_pdf.html", context)
@@ -3403,6 +3514,7 @@ def duplicado_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     return _render_report_pdf_response(
@@ -3426,7 +3538,9 @@ def duplicado_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, duplicated=True, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
@@ -3459,6 +3573,7 @@ def no_duplicado_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado.html", context)
@@ -3477,6 +3592,7 @@ def hoja_cotejo_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/hoja_cotejo.html", context)
@@ -3495,6 +3611,7 @@ def hoja_cotejo_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/hoja_cotejo_pdf.html", context)
@@ -3513,6 +3630,7 @@ def hoja_cotejo_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     filename = _pdf_download_filename("hoja_cotejo", context)
@@ -3557,7 +3675,9 @@ def hoja_cotejo_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_hoja_cotejo_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and context["period_label"] and (context["selected_user"] or context["is_global"])):
@@ -3590,6 +3710,7 @@ def por_programa_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/por_programa.html", context)
@@ -3609,6 +3730,7 @@ def por_programa_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/por_programa_pdf.html", context)
@@ -3628,6 +3750,7 @@ def por_programa_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     return _render_report_pdf_response(
@@ -3651,7 +3774,9 @@ def por_programa_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_por_programa_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
@@ -3684,6 +3809,7 @@ def no_duplicado_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/no_duplicado_pdf.html", context)
@@ -3703,6 +3829,7 @@ def no_duplicado_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     return _render_report_pdf_response(
@@ -3726,7 +3853,9 @@ def no_duplicado_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_no_duplicado_context(db, current_user, proposal_id, month, year, employee_id, authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
@@ -3749,7 +3878,7 @@ def no_duplicado_report_excel(
 def _build_hoja_cotejo_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -3774,7 +3903,7 @@ def _build_hoja_cotejo_context(
     municipality = location["municipality"]
     rq_code = location["rq_code"]
 
-    report_template_config = _resolve_report_template_config(db, proposal_id, "hoja_cotejo")
+    report_template_config = _resolve_report_template_config(db, _primary_proposal_id(proposal_id), "hoja_cotejo")
     report_template_columns = _report_template_columns(report_template_config)
 
     program_blocks = []
@@ -3801,7 +3930,7 @@ def _build_hoja_cotejo_context(
                     func.coalesce(func.sum(ActivitySession.hours), 0).label("contact_hours"),
                 )
                 .where(
-                    ActivitySession.proposal_id == proposal_id,
+                    _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     ActivitySession.activity_code_id.in_(activity_code_ids),
                 )
                 .group_by(ActivitySession.activity_code_id)
@@ -3823,7 +3952,7 @@ def _build_hoja_cotejo_context(
                 )
                 .join(Attendance, Attendance.session_id == ActivitySession.session_id)
                 .where(
-                    ActivitySession.proposal_id == proposal_id,
+                    _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     ActivitySession.activity_code_id.in_(activity_code_ids),
                     Attendance.attended == True,  # noqa: E712
                 )
@@ -3883,7 +4012,8 @@ def _build_hoja_cotejo_context(
         "month_options": MONTH_OPTIONS,
         "month_lookup": month_lookup,
         "year_options": year_options,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -3906,7 +4036,7 @@ def _build_hoja_cotejo_context(
 def _build_por_programa_context(
     db: Session,
     current_user: User,
-    proposal_id: int | None,
+    proposal_id: int | list[int] | None,
     month: int | str | None,
     year: int | str | None,
     employee_id: int | None,
@@ -3933,7 +4063,7 @@ def _build_por_programa_context(
         programs = db.execute(
             select(ProposalReportProgram)
             .where(
-                ProposalReportProgram.proposal_id == proposal_id,
+                _proposal_filter(ProposalReportProgram.proposal_id, proposal_id),
                 ProposalReportProgram.is_active == True,  # noqa: E712
             )
             .order_by(ProposalReportProgram.sort_order, ProposalReportProgram.code)
@@ -3942,6 +4072,21 @@ def _build_por_programa_context(
         program_activity_code_ids: dict[int, set[int]] = {}
         for program in programs:
             program_activity_code_ids[program.program_id] = _resolve_effective_program_activity_code_ids(db, program.program_id)
+
+        program_scopes = {}
+        all_participants = {}
+        if len(_proposal_ids(proposal_id)) > 1:
+            merged_programs = {}
+            for program in programs:
+                canonical = merged_programs.setdefault(program.code, program)
+                activity_ids = program_activity_code_ids[program.program_id]
+                program_scopes.setdefault(canonical.program_id, []).append(and_(
+                    ActivitySession.proposal_id == program.proposal_id,
+                    ActivitySession.activity_code_id.in_(activity_ids),
+                ))
+                if canonical.program_id != program.program_id:
+                    program_activity_code_ids[canonical.program_id] |= activity_ids
+            programs = list(merged_programs.values())
 
         for program in programs:
             activity_code_ids = program_activity_code_ids.get(program.program_id, set())
@@ -3972,20 +4117,20 @@ def _build_por_programa_context(
                 )
                 .where(
                     Attendance.attended == True,  # noqa: E712
-                    ActivitySession.proposal_id == proposal_id,
+                    _proposal_filter(ActivitySession.proposal_id, proposal_id),
                     ActivitySession.activity_code_id.in_(activity_code_ids),
                 )
             )
+            if program.program_id in program_scopes:
+                stmt = stmt.where(or_(*program_scopes[program.program_id]))
             stmt = _apply_session_period_filter(stmt, period)
             stmt = stmt.distinct()
             if not is_global:
                 stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
 
             participant_pairs = db.execute(stmt).all()
-            participants = [
-                _participant_snapshot_view(participant, proposal_participant)
-                for participant, proposal_participant in participant_pairs
-            ]
+            participants = _report_participant_views(participant_pairs, proposal_id)
+            all_participants.update({participant.participant_id: participant for participant in participants})
             participant_summary = _summarize_participants_by_age_and_gender(participants)
             overall_total_f += participant_summary["total_f"]
             overall_total_m += participant_summary["total_m"]
@@ -4001,9 +4146,14 @@ def _build_por_programa_context(
                 "assigned_activity_count": len(activity_code_ids),
             })
 
+        if len(_proposal_ids(proposal_id)) > 1:
+            overall = _summarize_participants_by_age_and_gender(list(all_participants.values()))
+            overall_total_f, overall_total_m, overall_total_all = overall["total_f"], overall["total_m"], overall["total_all"]
+
     return {
         **base_context,
-        "selected_proposal_id": proposal_id,
+        "selected_proposal_id": _primary_proposal_id(proposal_id),
+        "selected_proposal_ids": _proposal_ids(proposal_id),
         "selected_month": period["month"],
         "selected_year": period["year"],
         "selected_period_type": period["period_type"],
@@ -4037,6 +4187,7 @@ def vca_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/vca.html", context)
@@ -4055,6 +4206,7 @@ def vca_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/vca_pdf.html", context)
@@ -4073,6 +4225,7 @@ def vca_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     filename = _pdf_download_filename("vca", context)
@@ -4111,7 +4264,9 @@ def vca_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_vca_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     if not (proposal_id and context["period_label"] and context["columns"]):
         return RedirectResponse("/ui/reports/vca", status_code=303)
@@ -4141,6 +4296,7 @@ def bonafide_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/bonafide.html", context)
@@ -4159,6 +4315,7 @@ def bonafide_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"request": request, "current_user": current_user})
     return templates.TemplateResponse("ui/reports/bonafide_pdf.html", context)
@@ -4177,6 +4334,7 @@ def bonafide_report_pdf_download(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
     context.update({"current_user": current_user})
     return _render_report_pdf_response(request, "ui/reports/bonafide_pdf.html", context, _pdf_download_filename("bonafide", context))
@@ -4193,7 +4351,9 @@ def bonafide_report_excel(
     end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
+    proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
 
     if not (proposal_id and (context["period_label"]) and (context["selected_user"] or context["is_global"])):
