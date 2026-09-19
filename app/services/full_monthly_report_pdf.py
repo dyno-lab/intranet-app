@@ -137,6 +137,10 @@ def _original(template, context, authorized_name):
     landscape_templates = {"embarazo", "desercion_escolar", "admin/hoja_cotejo"}
     path = "ui/" + (template if template.startswith("admin/") else "reports/" + template) + "_pdf.html"
     pagination = {
+        # The standalone wkhtmltopdf sheet reserves 80px above its page number.
+        # On the book's Letter pages that sends only the number to another page.
+        # Keep the participant table and both signature rows at their original size.
+        "bonafide": ".page-number { margin-top: 12px !important; }",
         "admin/hoja_cotejo": ".page, table.data { page-break-inside: auto !important; break-inside: auto !important; } table.data thead { display: table-header-group; break-inside: avoid; page-break-inside: avoid; } table.data th { overflow-wrap: anywhere; font-size: 7px; padding: 2px; } table.data tr { page-break-inside: avoid; } .header { min-height: .55in; } .logo img { width: 2in; max-height: .50in; } .title-block { padding-top: .02in; } table.data .repeat-header-cell { padding-bottom: 2px !important; } .meta { font-size: 8.5px; }",
         "hoja_cotejo": ".cotejo-main-table th, .cotejo-main-table td { line-height: 1.15 !important; padding-top: 2px; padding-bottom: 2px; } .cotejo-activity-cell, .cotejo-activity-single-line, .cotejo-program-label { white-space: normal !important; overflow: visible !important; }",
         "visitas": ".page { display: block; min-height: 0; } .section { page-break-inside: auto; break-inside: auto; } thead { display: table-header-group; } tfoot { display: table-row-group; } tr { page-break-inside: avoid; } .page-footer { margin-top: 14px; }",
