@@ -1,0 +1,3 @@
+{# Capture an existing, escaped sheet and apply pagination only to the new book. #}
+{% set original_sheet %}{% include source_template %}{% endset %}
+{{ original_sheet | replace('</head>', ('<style>' ~ sheet_css ~ '</style></head>') | safe) | safe }}

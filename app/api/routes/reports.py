@@ -9,7 +9,7 @@ from sqlalchemy import and_, or_, case, distinct, extract, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_admin
 from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.residential_scope import has_global_residential_access
@@ -435,7 +435,7 @@ def reports_home(
         {
             "request": request,
             "current_user": current_user,
-            "report_options": REPORT_OPTIONS,
+            "report_options": REPORT_OPTIONS + ([{"value": "completo", "label": "Informe mensual completo"}] if current_user.role == "admin" else []),
             "period_type_options": PERIOD_TYPE_OPTIONS,
             "productivity_only_screen": productivity_only_screen,
             "selected_report_key": report_key,
@@ -479,6 +479,16 @@ def reports_run(
     year_value = int(year) if (year or "").strip() else None
     authorized_name = report_authorized_name(current_user, authorized_name)
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
+
+    if report_key == "completo":
+        from urllib.parse import urlencode
+
+        require_admin(current_user)
+        if period_type != "monthly" or output not in {"screen", "pdf"}:
+            raise HTTPException(status_code=400, detail="El informe completo utiliza un período mensual y salida en PDF.")
+        params = [("proposal_id", value) for value in _proposal_ids(proposal_id)]
+        params.extend([("month", month_value or ""), ("year", year_value or ""), ("authorized_name", authorized_name or "")])
+        return RedirectResponse("/ui/reports/completo?" + urlencode(params), status_code=303)
 
     if report_key == "productividad":
         return RedirectResponse(

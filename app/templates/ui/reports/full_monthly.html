@@ -1,0 +1,152 @@
+{% extends "ui/_base.html" %}
+{% block title %}Informe mensual completo{% endblock %}
+{% block content %}
+<link href="/static/css/full-monthly-report.css" rel="stylesheet">
+<div class="full-monthly-page">
+  <header class="full-monthly-header">
+    <div>
+      <span class="badge text-bg-warning mb-2">Solo administradores</span>
+      <h1>Informe mensual completo</h1>
+      <p class="text-muted mb-0">Revisa el período y agrega los complementos del informe antes de generar el PDF.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="/ui/reports/?report_key=completo{% for proposal_id in selected_proposal_ids %}&amp;proposal_id={{ proposal_id }}{% endfor %}&amp;month={{ selected_month }}&amp;year={{ selected_year }}&amp;employee_id=0&amp;period_type=monthly">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a Reportes
+    </a>
+  </header>
+
+  <section class="full-monthly-panel full-monthly-scope" aria-labelledby="full-monthly-scope-title">
+    <h2 id="full-monthly-scope-title">Período y alcance</h2>
+    <dl class="mb-0">
+      <div><dt>Período</dt><dd>{% for month_value, month_label in month_options %}{% if month_value == selected_month %}{{ month_label }}{% endif %}{% endfor %} {{ selected_year }}</dd></div>
+      <div><dt>Alcance</dt><dd>Global</dd></div>
+      <div><dt>Propuestas</dt><dd>{% for proposal in proposals if proposal.proposal_id in selected_proposal_ids %}{{ proposal.code }} - {{ proposal.name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd></div>
+    </dl>
+  </section>
+
+  <form id="full-monthly-form" method="post" enctype="multipart/form-data" target="_blank" action="/ui/reports/completo/pdf">
+    <input type="hidden" name="token" value="{{ full_report_token }}">
+    {% for proposal_id in selected_proposal_ids %}<input type="hidden" name="proposal_id" value="{{ proposal_id }}">{% endfor %}
+    <input type="hidden" name="month" value="{{ selected_month }}">
+    <input type="hidden" name="year" value="{{ selected_year }}">
+
+    <section class="full-monthly-panel" aria-labelledby="full-monthly-text-title">
+      <h2 id="full-monthly-text-title">Carta y datos complementarios</h2>
+      <p class="text-muted">Los datos estadísticos se obtienen del programa para el período y las propuestas seleccionadas. Estos campos son opcionales y se utilizan únicamente en esta generación.</p>
+      <div class="mb-3">
+        <label class="form-label" for="full-monthly-authorized">Funcionario autorizado</label>
+        <input class="form-control" type="text" id="full-monthly-authorized" name="authorized_name" maxlength="200" value="{{ authorized_name or '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="full-monthly-letter-date">Fecha de la carta</label>
+        <input class="form-control" type="date" id="full-monthly-letter-date" name="letter_date" value="{{ letter_date }}">
+      </div>
+      <div class="full-monthly-upload-grid mb-3">
+        <div>
+          <label class="form-label" for="full-monthly-letter-signer">Nombre de quien firma la carta</label>
+          <input class="form-control" id="full-monthly-letter-signer" name="letter_signer_name" maxlength="200" value="Celia I. Gandía Pabón, CSJ">
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-letter-title">Cargo</label>
+          <input class="form-control" id="full-monthly-letter-title" name="letter_signer_title" maxlength="200" value="Directora">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="full-monthly-letter-copy">Copia de la carta</label>
+        <input class="form-control" id="full-monthly-letter-copy" name="letter_copy" maxlength="500" value="c: Lcda. Stella Maris Molina, CEO-CSIF">
+        <div class="form-text">Revisa estos datos del modelo para el período que vas a presentar.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="full-monthly-narrative">Carta, logros y observaciones</label>
+        <textarea class="form-control" id="full-monthly-narrative" name="narrative" rows="7" maxlength="20000" aria-describedby="full-monthly-narrative-help"></textarea>
+        <div class="form-text" id="full-monthly-narrative-help">La carta institucional se prepara con los datos del mes. Agrega aquí las observaciones adicionales; los saltos de línea se conservan.</div>
+      </div>
+      <div>
+        <label class="form-label" for="full-monthly-centers-notes">Información de centros y oficinas</label>
+        <textarea class="form-control" id="full-monthly-centers-notes" name="centers_notes" rows="4" maxlength="10000" aria-describedby="full-monthly-centers-help"></textarea>
+        <div class="form-text" id="full-monthly-centers-help">Completa manualmente las direcciones, teléfonos u observaciones. Los datos históricos de los Word no se precargan.</div>
+      </div>
+    </section>
+
+    <section class="full-monthly-panel" aria-labelledby="full-monthly-targets-title">
+      <h2 id="full-monthly-targets-title">Metas de participantes por residencial</h2>
+      <p class="text-muted" id="full-monthly-targets-help">Opcional. Estas metas del período de la propuesta se comparan con los participantes atendidos del mes y los únicos acumulados desde la primera asistencia. Deja una casilla vacía cuando no tengas una meta; una casilla vacía no se interpreta como cero.</p>
+      <div class="table-responsive full-monthly-targets">
+        <table class="table table-sm align-middle mb-0">
+          <caption class="visually-hidden">Metas manuales de participantes para cada residencial</caption>
+          <thead><tr><th scope="col">Residencial</th><th scope="col">Municipio</th><th scope="col">Meta de participantes</th></tr></thead>
+          <tbody>
+            {% for residential in residentials %}
+            <tr>
+              <th scope="row"><label for="full-monthly-target-{{ residential.residential_id }}">{{ residential.name }}</label></th>
+              <td>{{ residential.municipality or '—' }}</td>
+              <td><input class="form-control form-control-sm" type="number" inputmode="numeric" id="full-monthly-target-{{ residential.residential_id }}" name="target_{{ residential.residential_id }}" min="0" max="1000000" step="1" aria-label="Meta de participantes: {{ residential.name }}" aria-describedby="full-monthly-targets-help"></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted">No hay residenciales disponibles para este alcance.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="full-monthly-panel" aria-labelledby="full-monthly-attachments-title">
+      <h2 id="full-monthly-attachments-title">Secciones manuales y anexos</h2>
+      <p class="text-muted" id="full-monthly-files-help">Adjunta las hojas finales que deseas incluir en el informe. Máximo 15 MB por archivo y 60 MB entre todos los adjuntos. Las secciones manuales sin contenido aparecerán como «Pendiente de completar».</p>
+      <div class="full-monthly-upload-grid">
+        <div>
+          <label class="form-label" for="full-monthly-staffing">Plazas y personal · PDF</label>
+          <input class="form-control" type="file" id="full-monthly-staffing" name="staffing_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+          <div class="form-text">Incorpora las hojas de plazas que mantienes manualmente.</div>
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-centers">Centros, oficinas y mapa · PDF</label>
+          <input class="form-control" type="file" id="full-monthly-centers" name="centers_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-targets-pdf">Metas por programa y población · PDF</label>
+          <input class="form-control" type="file" id="full-monthly-targets-pdf" name="targets_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+          <div class="form-text">Complemento de las metas por residencial ingresadas arriba.</div>
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-visit-roles">Visitas por puesto · PDF</label>
+          <input class="form-control" type="file" id="full-monthly-visit-roles" name="visit_roles_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-signed">Certificaciones bonafide firmadas · PDF</label>
+          <input class="form-control" type="file" id="full-monthly-signed" name="signed_bonafide_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+          <div class="form-text">Anexo de las certificaciones correspondientes al período seleccionado.</div>
+        </div>
+        <div>
+          <label class="form-label" for="full-monthly-photos">Fotografías · PDF, JPG o PNG</label>
+          <input class="form-control" type="file" id="full-monthly-photos" name="photos" multiple accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" aria-describedby="full-monthly-files-help full-monthly-photos-help">
+          <div class="form-text" id="full-monthly-photos-help">Hasta 20 archivos. Se incorporan en el orden de selección.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="full-monthly-panel" aria-labelledby="full-monthly-draft-title">
+      <h2 id="full-monthly-draft-title">Reutilizar los complementos</h2>
+      <p class="text-muted">Puedes guardar los textos y las metas en un archivo de borrador para utilizarlos después. Los documentos y fotografías se deben adjuntar nuevamente.</p>
+      <div class="full-monthly-actions">
+        <button class="btn btn-outline-secondary" type="button" id="full-monthly-export"><i class="bi bi-download" aria-hidden="true"></i> Guardar borrador</button>
+        <button class="btn btn-outline-secondary" type="button" id="full-monthly-import"><i class="bi bi-upload" aria-hidden="true"></i> Cargar borrador</button>
+        <input type="file" id="full-monthly-draft-file" accept="application/json,.json" hidden>
+      </div>
+      <p class="form-text mb-0" id="full-monthly-draft-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <div class="full-monthly-panel full-monthly-generate">
+      <div>
+        <strong>Generar un único PDF</strong>
+        <p class="text-muted mb-0" id="full-monthly-generation-help">La preparación puede tomar unos minutos. El resultado se abrirá en otra pestaña y este formulario conservará los complementos.</p>
+      </div>
+      <div class="full-monthly-actions">
+        <button class="btn btn-outline-primary" type="submit" name="disposition" value="inline" aria-describedby="full-monthly-generation-help"><i class="bi bi-eye" aria-hidden="true"></i> Vista previa</button>
+        <button class="btn btn-primary" type="submit" name="disposition" value="attachment" aria-describedby="full-monthly-generation-help"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Descargar PDF</button>
+      </div>
+    </div>
+    <p class="text-danger" id="full-monthly-upload-error" role="alert" hidden></p>
+  </form>
+</div>
+<script src="/static/js/full-monthly-report.js" defer></script>
+{% endblock %}

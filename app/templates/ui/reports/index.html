@@ -88,6 +88,8 @@
           Informe según columnas VCA configuradas.
           {% elif option.value == 'adm' %}
           Informe ADM según servicios configurados.
+          {% elif option.value == 'completo' %}
+          Informe mensual completo con secciones, gráficas y complementos manuales. Solo administradores.
           {% else %}
           Paquete consolidado de reportes disponibles.
           {% endif %}
@@ -104,7 +106,7 @@
           {% else %}
           Consolidado
           {% endif %}
-          · Pantalla{% if option.value not in ['productividad', 'hoja-cotejo'] %} · Excel · {% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}{% endif %}
+          · Pantalla{% if option.value == 'completo' %} · PDF{% elif option.value not in ['productividad', 'hoja-cotejo'] %} · Excel · {% if option.value == 'todos' %}PDF ZIP{% else %}PDF{% endif %}{% endif %}
         </span>
         {% endfor %}
       </div>
@@ -195,6 +197,7 @@
           </button>
         </div>
       </form>
+      <p class="form-text mt-3 mb-0" id="full-monthly-scope-note" hidden>El informe completo utiliza un mes y alcance global. Al continuar podrás agregar plazas y otros complementos antes de generar un único PDF.</p>
     </div>
 
     <div class="reports-catalog-card">
@@ -303,6 +306,8 @@
               Informe según columnas VCA configuradas.
               {% elif option.value == 'adm' %}
               Informe ADM según servicios configurados.
+              {% elif option.value == 'completo' %}
+              Informe mensual completo con secciones, gráficas y complementos manuales. Solo administradores.
               {% else %}
               Paquete consolidado de reportes disponibles.
               {% endif %}
@@ -316,6 +321,7 @@
                 aria-pressed="{{ 'true' if selected_report_key == option.value and selected_output == 'screen' else 'false' }}"
               >Pantalla</button>
               {% if option.value not in ['productividad', 'hoja-cotejo'] %}
+              {% if option.value != 'completo' %}
               <button
                 class="reports-format reports-format--excel"
                 type="button"
@@ -323,6 +329,7 @@
                 data-output-format="excel"
                 aria-pressed="{{ 'true' if selected_report_key == option.value and selected_output == 'excel' else 'false' }}"
               >Excel</button>
+              {% endif %}
               <button
                 class="reports-format reports-format--pdf"
                 type="button"
@@ -365,6 +372,9 @@
   const monthSelect = document.querySelector('select[name="month"]');
   const yearSelect = document.querySelector('select[name="year"]');
   const proposalSelect = document.querySelector('select[name="proposal_id"]');
+  const scopeSelect = document.querySelector('select[name="employee_id"]');
+  const completeScopeNote = document.getElementById('full-monthly-scope-note');
+  let previousScope = null;
   const outputLabels = {
     screen: 'Pantalla',
     excel: 'Excel',
@@ -380,6 +390,28 @@
     } else if (value === 'custom') {
       document.querySelectorAll('.period-custom').forEach(el => el.classList.remove('d-none'));
     }
+  }
+
+  function refreshCompleteReportScope() {
+    const isComplete = reportKey.value === 'completo';
+    Array.from(periodType.options).forEach(option => {
+      option.disabled = isComplete && option.value !== 'monthly';
+    });
+    if (isComplete) periodType.value = 'monthly';
+    if (scopeSelect) {
+      if (isComplete && previousScope === null) previousScope = scopeSelect.value;
+      Array.from(scopeSelect.options).forEach(option => {
+        option.disabled = isComplete && option.value !== '0';
+      });
+      if (isComplete) {
+        scopeSelect.value = '0';
+      } else if (previousScope !== null) {
+        scopeSelect.value = previousScope;
+        previousScope = null;
+      }
+    }
+    if (completeScopeNote) completeScopeNote.hidden = !isComplete;
+    refreshPeriodUI();
   }
 
   const refreshReportCards = () => {
@@ -522,13 +554,14 @@
   periodType.addEventListener('change', refreshPeriodUI);
   reportKey.addEventListener('change', () => {
     applyReportDefaults();
+    refreshCompleteReportScope();
     refreshOutputUI();
   });
   outputType.addEventListener('change', refreshOutputUI);
   if (categoryFilter) {
     categoryFilter.addEventListener('change', refreshCategoryFilter);
   }
-  refreshPeriodUI();
+  refreshCompleteReportScope();
   refreshOutputUI();
   refreshCategoryFilter();
 })();

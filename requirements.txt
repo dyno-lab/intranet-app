@@ -12,3 +12,5 @@ python-multipart
 openpyxl
 Authlib==1.7.2
 httpx==0.28.1
+pypdf>=6.0,<7
+reportlab>=4.4,<5

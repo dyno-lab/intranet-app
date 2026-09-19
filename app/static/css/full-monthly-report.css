@@ -1,0 +1,25 @@
+.full-monthly-page { max-width: 1280px; margin: 0 auto; }
+.full-monthly-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; margin-bottom: 1.5rem; }
+.full-monthly-header h1 { font-size: 1.75rem; font-weight: 750; }
+.full-monthly-header > .btn { flex-shrink: 0; }
+.full-monthly-panel { padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid #e2e8f0; border-radius: 1rem; background: #fff; }
+.full-monthly-panel h2 { font-size: 1.1rem; font-weight: 750; margin-bottom: .8rem; }
+.full-monthly-scope { border-color: #cbdcfe; background: #f5f8ff; }
+.full-monthly-scope dl { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1rem; }
+.full-monthly-scope dt { font-size: .8rem; color: #475569; margin-bottom: .25rem; }
+.full-monthly-scope dd { margin-bottom: 0; font-weight: 600; }
+.full-monthly-upload-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.full-monthly-upload-grid > div { min-width: 0; }
+.full-monthly-targets th, .full-monthly-targets td { padding: .65rem; }
+.full-monthly-targets th:last-child { width: 220px; }
+.full-monthly-targets input { min-width: 100px; max-width: 200px; }
+.full-monthly-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.full-monthly-generate { display: flex; gap: 1.25rem; align-items: center; justify-content: space-between; }
+.full-monthly-generate > div:first-child { max-width: 640px; }
+.full-monthly-generate .full-monthly-actions { flex-shrink: 0; }
+@media (max-width: 767px) {
+  .full-monthly-header, .full-monthly-generate { flex-direction: column; align-items: stretch; }
+  .full-monthly-panel { padding: 1.1rem; }
+  .full-monthly-scope dl, .full-monthly-upload-grid { grid-template-columns: 1fr; }
+  .full-monthly-header > .btn { align-self: flex-start; }
+}
