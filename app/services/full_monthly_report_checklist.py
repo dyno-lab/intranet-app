@@ -157,7 +157,8 @@ def checklist_pdf(context, populations, residential_names, authorized_name="", *
         proposal = context.get("proposal")
         if proposal:
             canvas.setFont(FONTS["normal"], 5.3)
-            canvas.drawRightString(771, 547, f"PROPUESTA: {proposal.code} - {proposal.name}")
+            label = context.get("proposal_label") or f"{proposal.code} - {proposal.name}"
+            canvas.drawRightString(771, 547, "PROPUESTA: " + label)
         certificate = _paragraph("Yo, " + (authorized_name or "____________________________") + " persona autorizada del Programa de Prevención, certifico que la información presentada en este informe es correcta.")
         _, h = certificate.wrap(740, 30)
         certificate.drawOn(canvas, 18, 35 - h)

@@ -15,7 +15,8 @@ tablas de horas y referidos, con la presentación del Word facilitado.
 Los cálculos proceden de los constructores actuales de No Duplicado, Duplicado,
 Por Programa, Hoja de Cotejo, ADM, Visitas, Embarazo y Deserción. Las hojas
 individuales conservan sus plantillas. Las metas y acumulados de la hoja
-administrativa conservan su propuesta de origen. El total global de personas
+administrativa conservan su propuesta de origen, salvo la extensión 005/006
+seleccionada conjuntamente, que comparte un solo cotejo. El total global de personas
 no se obtiene sumando los residenciales ni los programas.
 
 Las gráficas usan los valores de las tablas. Los servicios por programa suman
@@ -38,6 +39,22 @@ acumulados y cumplimiento del período. Las cifras proceden del contexto
 administrativo actual por propuesta. Los conteos de actividades y participantes
 se conservan en la descripción de cada actividad. Las descargas individuales
 de Hoja de Cotejo y ADM siguen disponibles con sus formatos actuales.
+
+**Extensión 005/006:** solo al seleccionar ambas se integran en todo el informe
+completo. Carta, tablas, gráficas, Bonafide, visitas, horas, embarazo y deserción
+usan los datos del mes de las propuestas seleccionadas con los criterios
+actuales de deduplicación. El cotejo es único para esa extensión: agrupa por ID
+de actividad y acumula las sesiones con asistencia confirmada desde la primera
+asistencia de ambas hasta el cierre del mes. Las metas mensuales se multiplican
+una sola vez por los meses transcurridos; las metas explícitas del período se
+aplican una sola vez. Reclutamiento une los residenciales distintos de ambas.
+El encabezado del cotejo identifica las dos propuestas sin cambiar sus columnas.
+
+Seleccionar solo 005 o solo 006 **no incorpora** datos de la otra. Si además
+se seleccionan otras propuestas, mantienen sus cotejos individuales y no se
+incluyen en el cotejo de la extensión. Una actividad con metas configuradas
+diferentes entre 005 y 006 devuelve un mensaje para revisar la configuración;
+el informe no elige una meta arbitrariamente ni las suma.
 
 El período acumulado comienza en la primera asistencia confirmada de cada
 propuesta y termina al cierre del mes seleccionado. Las metas mensuales se
@@ -75,6 +92,21 @@ Por decisión del administrador, los códigos AMP y los datos de centros de los
 Word no se cargan como valores iniciales. Centros, direcciones y contactos se
 completan mediante las observaciones y los anexos manuales existentes.
 
+Las propuestas **005 - 2025-000094-B** y **006 - 2025-000094-C** comparten
+las 18 metas de participantes aprobadas el 22 de septiembre de 2026, por un
+total de **1,782**. Se configuran
+en `app/services/full_monthly_report_targets.py` por código/nombre de propuesta
+y RQ del residencial, sin depender de los IDs locales de la base de datos.
+Se cargan automáticamente, permanecen fijas al cambiar de mes y no son
+modificables desde el formulario o un borrador. Pueblo y RQ se leen del catálogo
+actual. La columna AMP utiliza los 18 códigos suministrados explícitamente
+para ambas propuestas, relacionados por RQ; por ejemplo, RQ1014 corresponde a
+RQ005009017P y RQ4001 a RQ005008007P. No se reutilizan códigos de otras propuestas.
+Esta configuración no modifica metas de actividades ni escribe datos en SQL.
+Al seleccionar 005, 006 o ambas, cada meta se usa una sola vez: el total es
+1,782, nunca 3,564. Las selecciones que incluyan otras propuestas o planes
+conservan las metas manuales hasta configurar sus valores y regla de consolidación.
+
 El administrador puede incorporar:
 
 - Fecha, firmante, cargo y copia de la carta; observaciones adicionales e
@@ -94,12 +126,19 @@ desde el PDF histórico. Para anexos con formularios, sellos o firmas como
 anotaciones, se solicita una copia aplanada/impresa a PDF, evitando que esas
 apariencias desaparezcan al ensamblar el documento.
 
+Al cargar plazas, el PDF sustituye la hoja provisional de posiciones. Al cargar
+centros/oficinas/mapa, el PDF sustituye las hojas automáticas de centros; debe
+incluir todas las hojas finales de esa sección. Las portadas se conservan y
+el índice y la numeración se actualizan. Sin un archivo se conserva el contenido
+predeterminado. Los demás anexos mantienen su comportamiento actual.
+
 Cada archivo admite hasta 15 MB, el conjunto hasta 60 MB y se pueden adjuntar
 hasta 20 archivos de fotografías. Cada PDF admite hasta 250 páginas, sin cifrar;
 las imágenes admiten hasta 25 megapíxeles. No se importan acciones, scripts ni
 archivos incrustados en el PDF resultante.
 
-El borrador JSON guarda textos y metas en un archivo descargado por el usuario.
+El borrador JSON guarda textos y metas editables en un archivo descargado por el usuario.
+Las metas fijas no se exportan y se conservan al cargar borradores anteriores.
 No incluye adjuntos, firmas, fotografías ni el token de sesión. Los archivos se
 deben adjuntar nuevamente al cargar un borrador. La generación no crea registros
 ni modifica datos en SQL Server; el PDF y los anexos no se archivan en la app.
@@ -149,6 +188,22 @@ base de datos.
 8. Verificar que los AMP, direcciones y teléfonos históricos del Word no están
    precargados. Completar los centros mediante textos/anexos manuales; una meta
    de reclutamiento ausente debe seguir pendiente, con porcentaje no aplicable.
+9. Seleccionar 005, 006 y ambas juntas y comprobar las metas de julio, agosto y
+   septiembre: Arístides Chavier 192, Columbus Landing 108 y total 1,782 para
+   los 18 residenciales. Cargar un borrador anterior y comprobar que las metas
+   fijas se conservan. En agosto, si los atendidos siguen siendo 1,125 del mes
+   y 1,298 acumulados, la primera hoja de metas debe mostrar 63% y 73%.
+   Verificar también los 18 AMP, completos y sin cortes, en sus residenciales.
+10. Cargar los PDF finales de posiciones y centros/mapa. Comprobar una portada
+    por sección, todos los documentos cargados una sola vez y ausencia de la
+    hoja provisional y de centros pendientes. Revisar índice y numeración,
+    tanto en Vista previa como en Descargar PDF.
+11. Seleccionar 005 y 006 juntas: comprobar un único cotejo de programas para
+    la extensión y acumulados desde su primera asistencia. Comparar carta,
+    tablas y gráficas con los reportes actuales usando ambas propuestas.
+    Con meta mensual de 12, un acumulado de 18 actividades entre julio y agosto
+    debe mostrar 18/24 = 75%, sin duplicar el denominador. Después seleccionar
+    solo 006 y confirmar que conserva únicamente los datos de esa propuesta.
 
 La generación reúne varias decenas de hojas; puede tardar unos minutos según
 el volumen del mes, la conexión a SQL Server y el motor PDF instalado.

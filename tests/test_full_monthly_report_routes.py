@@ -185,6 +185,52 @@ class FullMonthlyReportRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(self.render.call_args.args[5]["targets"], {1: 0})
 
+    def configure_fixed_proposal(self, code="006", name="2025-000094-C", proposal_id=1):
+        with self.engine.begin() as connection:
+            connection.execute(routes.Proposal.__table__.update().where(routes.Proposal.proposal_id == proposal_id)
+                               .values(code=code, name=name, updated_at=None))
+            connection.execute(routes.Residential.__table__.update().where(routes.Residential.residential_id == 1)
+                               .values(rq_code="RQ1014", municipality="Pueblo del sistema"))
+
+    def test_configured_goal_is_prefilled_readonly_and_keeps_existing_location_data(self):
+        for code, name in (("005", "2025-000094-B"), ("006", "2025-000094-C")):
+            self.configure_fixed_proposal(code, name)
+            for month in (7, 8, 9):
+                with self.subTest(proposal=code, month=month):
+                    response = self.prepare(proposal_id=1, month=month)
+                    self.assertEqual(response.status_code, 200)
+                    field = re.search(r'<input[^>]+name="target_1"[^>]*>', response.text).group()
+                    self.assertIn('value="192"', field)
+                    self.assertIn("readonly", field)
+                    self.assertIn("RQ1014", response.text)
+                    self.assertIn("Pueblo del sistema", response.text)
+
+    def test_pdf_uses_fixed_goal_without_form_entry_and_rejects_a_different_goal(self):
+        for code, name in (("005", "2025-000094-B"), ("006", "2025-000094-C")):
+            with self.subTest(proposal=code):
+                self.configure_fixed_proposal(code, name)
+                form = self.form(proposal_id=1)
+                self.assertEqual(self.post(form).status_code, 200)
+                self.assertEqual(self.render.call_args.args[5]["targets"], {1: 192})
+                self.render.reset_mock()
+                response = self.post({**form, "target_1": "999"})
+                self.assertEqual(response.status_code, 400)
+                self.render.assert_not_called()
+
+    def test_combined_005_and_006_use_the_shared_goal_once(self):
+        self.configure_fixed_proposal("005", "2025-000094-B", proposal_id=1)
+        self.configure_fixed_proposal("006", "2025-000094-C", proposal_id=2)
+        response = self.prepare()
+        field = re.search(r'<input[^>]+name="target_1"[^>]*>', response.text).group()
+        self.assertIn('value="192"', field)
+        self.assertIn("readonly", field)
+        form = self.form()
+        self.assertEqual(self.post(form).status_code, 200)
+        self.assertEqual(self.render.call_args.args[5]["targets"], {1: 192})
+        self.render.reset_mock()
+        self.assertEqual(self.post({**form, "target_1": "384"}).status_code, 400)
+        self.render.assert_not_called()
+
     def test_invalid_targets_text_length_and_disposition_do_not_render(self):
         form = self.form()
         for invalid in ({"target_1": "-1"}, {"target_1": "1.5"}, {"target_2": "4"},

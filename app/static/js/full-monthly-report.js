@@ -13,7 +13,7 @@
   document.getElementById('full-monthly-export').addEventListener('click', () => {
     const draft = { version: 1, type: 'informe-mensual-completo', texts: {}, targets: {} };
     Object.keys(textLimits).forEach(name => { draft.texts[name] = form.elements.namedItem(name).value; });
-    targets.forEach(input => { draft.targets[input.name] = input.value; });
+    targets.filter(input => !input.readOnly).forEach(input => { draft.targets[input.name] = input.value; });
     const url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
@@ -42,7 +42,7 @@
         if (typeof value !== 'string' || value.length > limit) throw new Error('El borrador contiene un texto inválido o demasiado largo.');
         return [name, value];
       });
-      const targetValues = targets.map(input => {
+      const targetValues = targets.filter(input => !input.readOnly).map(input => {
         const value = draft.targets[input.name] ?? '';
         if (typeof value !== 'string' || (value !== '' && (!/^\d+$/.test(value) || Number(value) > 1000000))) {
           throw new Error('El borrador contiene una meta inválida.');
@@ -51,7 +51,7 @@
       });
       textValues.forEach(([name, value]) => { form.elements.namedItem(name).value = value; });
       targetValues.forEach(([input, value]) => { input.value = value; });
-      status.textContent = 'Borrador cargado. Revisa los textos y las metas para este período y adjunta los documentos que correspondan.';
+      status.textContent = 'Borrador cargado. Las metas fijas de la propuesta se conservan. Revisa los textos, las metas editables y adjunta los documentos que correspondan.';
     } catch (error) {
       status.textContent = error instanceof SyntaxError ? 'El archivo no contiene un borrador válido.' : error.message;
     } finally {

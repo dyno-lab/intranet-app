@@ -22,6 +22,7 @@ from app.core.roles import report_authorized_name
 from app.models.proposal import Proposal
 from app.models.residential import Residential
 from app.models.user import User
+from app.services.full_monthly_report_targets import configured_targets
 
 templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger(__name__)
@@ -89,6 +90,7 @@ def full_monthly_prepare(request: Request, db: Session = Depends(get_db), curren
         "selected_proposal_ids": ids, "selected_month": month, "selected_year": year,
         "month_options": MONTH_OPTIONS, "year_options": range(2000, max(date.today().year, year) + 2),
         "residentials": residentials, "full_report_token": token,
+        "fixed_targets": configured_targets(proposals, residentials)["targets"],
         "letter_date": date.today().isoformat(),
         "authorized_name": report_authorized_name(current_user, request.query_params.get("authorized_name")),
     }, headers={"Cache-Control": "no-store"})
@@ -118,7 +120,7 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
         expected = request.session.get("full_report_token", "")
         if not expected or not hmac.compare_digest(token.encode("utf-8"), expected.encode("utf-8")):
             raise HTTPException(403, "Vuelve a abrir la preparación del informe e intenta nuevamente.")
-        ids, month, year, _ = _selection(form, db)
+        ids, month, year, proposals = _selection(form, db)
         disposition = str(form.get("disposition", "inline"))
         if disposition not in {"inline", "attachment"}:
             raise HTTPException(400, "Formato de salida inválido.")
@@ -135,7 +137,10 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
             except ValueError as exc:
                 raise HTTPException(400, "La fecha de la carta no es válida.") from exc
         supplements["authorized_name"] = report_authorized_name(current_user, supplements["authorized_name"])
-        valid_residential_ids = set(db.scalars(select(Residential.residential_id).where(Residential.is_active == True)).all())  # noqa: E712
+        residentials = db.scalars(select(Residential).where(Residential.is_active == True)).all()  # noqa: E712
+        valid_residential_ids = {row.residential_id for row in residentials}
+        fixed_targets = configured_targets(proposals, residentials)["targets"]
+        supplements["targets"].update(fixed_targets)
         for key, value in form.multi_items():
             if not key.startswith("target_") or value == "":
                 continue
@@ -145,6 +150,8 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
                 raise HTTPException(400, "Las metas deben ser números enteros.") from exc
             if residential_id not in valid_residential_ids or not 0 <= target <= 1000000:
                 raise HTTPException(400, "Meta o residencial inválido.")
+            if residential_id in fixed_targets and target != fixed_targets[residential_id]:
+                raise HTTPException(400, "La meta está fijada para la propuesta. Vuelve a abrir la preparación del informe.")
             supplements["targets"][residential_id] = target
         total_bytes = 0
         for key in (*PDF_FIELDS, "photos"):

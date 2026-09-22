@@ -69,20 +69,22 @@
 
     <section class="full-monthly-panel" aria-labelledby="full-monthly-targets-title">
       <h2 id="full-monthly-targets-title">Metas de participantes por residencial</h2>
-      <p class="text-muted" id="full-monthly-targets-help">Opcional. Estas metas del período de la propuesta se comparan con los participantes atendidos del mes y los únicos acumulados desde la primera asistencia. Deja una casilla vacía cuando no tengas una meta; una casilla vacía no se interpreta como cero.</p>
+      <p class="text-muted" id="full-monthly-targets-help">Las metas configuradas para la propuesta se cargan automáticamente y se mantienen durante todo su período. Se comparan con los participantes del mes y los únicos acumulados desde la primera asistencia. En las casillas editables puedes completar una meta pendiente; una casilla vacía no se interpreta como cero.</p>
+      {% if fixed_targets %}<p class="form-text">Las propuestas 005 y 006 comparten las mismas metas y códigos AMP. Al seleccionar ambas, el informe integra la extensión, utiliza cada meta una sola vez y presenta un solo cotejo acumulado. Al seleccionar una sola, se utilizan únicamente sus datos.</p>{% endif %}
       <div class="table-responsive full-monthly-targets">
         <table class="table table-sm align-middle mb-0">
-          <caption class="visually-hidden">Metas manuales de participantes para cada residencial</caption>
-          <thead><tr><th scope="col">Residencial</th><th scope="col">Municipio</th><th scope="col">Meta de participantes</th></tr></thead>
+          <caption class="visually-hidden">Metas de participantes del período de la propuesta para cada residencial</caption>
+          <thead><tr><th scope="col">Residencial</th><th scope="col">Pueblo</th><th scope="col">RQ</th><th scope="col">Meta de participantes</th></tr></thead>
           <tbody>
             {% for residential in residentials %}
             <tr>
               <th scope="row"><label for="full-monthly-target-{{ residential.residential_id }}">{{ residential.name }}</label></th>
               <td>{{ residential.municipality or '—' }}</td>
-              <td><input class="form-control form-control-sm" type="number" inputmode="numeric" id="full-monthly-target-{{ residential.residential_id }}" name="target_{{ residential.residential_id }}" min="0" max="1000000" step="1" aria-label="Meta de participantes: {{ residential.name }}" aria-describedby="full-monthly-targets-help"></td>
+              <td>{{ residential.rq_code or '—' }}</td>
+              <td><input class="form-control form-control-sm" type="number" inputmode="numeric" id="full-monthly-target-{{ residential.residential_id }}" name="target_{{ residential.residential_id }}" value="{{ fixed_targets.get(residential.residential_id, '') }}" {% if residential.residential_id in fixed_targets %}readonly aria-readonly="true"{% endif %} min="0" max="1000000" step="1" aria-label="Meta de participantes: {{ residential.name }}" aria-describedby="full-monthly-targets-help"></td>
             </tr>
             {% else %}
-            <tr><td colspan="3" class="text-muted">No hay residenciales disponibles para este alcance.</td></tr>
+            <tr><td colspan="4" class="text-muted">No hay residenciales disponibles para este alcance.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -96,11 +98,12 @@
         <div>
           <label class="form-label" for="full-monthly-staffing">Plazas y personal · PDF</label>
           <input class="form-control" type="file" id="full-monthly-staffing" name="staffing_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
-          <div class="form-text">Incorpora las hojas de plazas que mantienes manualmente.</div>
+          <div class="form-text">Sustituye la hoja provisional de posiciones. La portada se conserva.</div>
         </div>
         <div>
           <label class="form-label" for="full-monthly-centers">Centros, oficinas y mapa · PDF</label>
           <input class="form-control" type="file" id="full-monthly-centers" name="centers_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
+          <div class="form-text">Sustituye las hojas automáticas de centros. Incluye en este PDF los centros y el mapa; la portada se conserva.</div>
         </div>
         <div>
           <label class="form-label" for="full-monthly-targets-pdf">Metas por programa y población · PDF</label>

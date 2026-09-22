@@ -147,6 +147,28 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
             self.assertNotIn("/AA", page)
             self.assertNotIn("/Annots", page)
 
+    def test_uploaded_staffing_and_centers_replace_provisional_sheets(self):
+        files = {key: renderer.validate_supplement_file(_one_page(label)) for key, label in (
+            ("staffing_pdf", "POSICIONES FINALES"), ("centers_pdf", "CENTROS Y MAPA FINALES"),
+        )}
+        reader = self.build(files=files)
+        for section, label in (("I.", "POSICIONES FINALES"), ("II.", "CENTROS Y MAPA FINALES")):
+            body = self.section_text(reader, section)
+            self.assertEqual(body.count(label), 1)
+            self.assertNotIn("Pendiente de completar", body)
+            self.assertNotIn("Plazas autorizadas, ocupadas y vacantes", body)
+            self.assertNotIn("Office Service", body)
+        # Each section retains its existing cover followed by the supplied PDF.
+        starts = [reader.get_destination_page_number(item) for item in reader.outline]
+        self.assertEqual(starts[1] - starts[0], 2)
+        self.assertEqual(starts[2] - starts[1], 2)
+
+    def test_missing_manual_files_keep_the_original_fallback_sheets(self):
+        reader = self.build()
+        self.assertIn("Pendiente de completar", self.section_text(reader, "I."))
+        self.assertIn("Service Centers", self.section_text(reader, "II."))
+        self.assertIn("Residencial 1", self.section_text(reader, "II."))
+
     def test_visible_signature_and_form_annotations_require_a_flattened_copy(self):
         for subtype in ("/Stamp", "/Widget"):
             with self.subTest(subtype=subtype):

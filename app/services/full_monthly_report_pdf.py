@@ -237,15 +237,15 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
         section_details[index] = [(title, offsets[part_index]) for title, part_index in details]
         sections.append((SECTIONS[index], _merge([section_cover_pdf(index, data), *parts])))
     def manual(index, key, explanation):
-        parts = [_pages(SECTIONS[index], [_text(explanation if key in files else "Pendiente de completar. " + explanation)], data)]
         if key in files:
-            parts.append(files[key]["content"])
-        return parts
+            return [files[key]["content"]]
+        return [_pages(SECTIONS[index], [_text("Pendiente de completar. " + explanation)], data)]
 
     section(0, manual(0, "staffing_pdf", "Plazas autorizadas, ocupadas y vacantes. Información incorporada manualmente por el administrador."))
-    center_parts = [centers_pdf(data, supplements)]
     if "centers_pdf" in files:
-        center_parts.append(files["centers_pdf"]["content"])
+        center_parts = [files["centers_pdf"]["content"]]
+    else:
+        center_parts = [centers_pdf(data, supplements)]
     section(1, center_parts)
     unique = data["no_duplicado"]
     section(2, [_original("no_duplicado", unique, authorized),
@@ -274,7 +274,7 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
             [(row["residential_name"], index) for index, row in enumerate(residentials)])
     parts = []
     for context in data.get("hoja_cotejo_admin", []):
-        recruitment = data.get("recruitment", {}).get("by_proposal", {}).get(context["selected_proposal_id"], {})
+        recruitment = context.get("recruitment") or data.get("recruitment", {}).get("by_proposal", {}).get(context["selected_proposal_id"], {})
         parts.append(checklist_pdf(context, recruitment.get("program_blocks", data["hoja_cotejo"]["program_blocks"]),
             ", ".join(row["residential_name"] for row in residentials), authorized,
             recruitment=recruitment.get("groups")))

@@ -324,8 +324,9 @@ def _cumulative_targets_pdf(data, supplements):
             model = row["residential"]
             target, actual = targets.get(row["residential_id"]), row["no_duplicado"]["total_all"]
             accumulated = by_residential.get(row["residential_id"])
+            amp = supplements.get("amps", {}).get(row["residential_id"]) or getattr(model, "amp_code", None) or PENDING
             rows.append([row["residential_name"], model.municipality or PENDING, model.rq_code or PENDING,
-                         getattr(model, "amp_code", None) or PENDING, _number(target), _number(actual), _number(accumulated),
+                         amp, _number(target), _number(actual), _number(accumulated),
                          _percentage(actual, target), _percentage(accumulated, target)])
         if last:
             target = _targets_total(residentials, targets)
@@ -469,8 +470,14 @@ def participant_targets_pdf(data, supplements):
     ``children``, ``youth``, ``adults``, ``older`` dictionaries with f/m/total.
     Their age intervals are <=12, 13-18, 19-59, >=60 respectively. Missing
     inputs stay pending; the renderer never splits another report's age bins.
-    ``supplements.targets`` maps int residential IDs to manually entered goals.
+    ``supplements.targets`` maps int residential IDs to manually entered goals;
+    configured proposal goals take precedence and remain fixed across months.
     """
+    from app.services.full_monthly_report_targets import configured_targets
+
+    fixed = configured_targets(data.get("proposals", []), [row["residential"] for row in data["residentials"]])
+    supplements = {**supplements, "targets": {**supplements.get("targets", {}), **fixed["targets"]},
+                   "amps": fixed["amps"]}
     writer = PdfWriter()
     for payload in (_cumulative_targets_pdf(data, supplements), _group_targets_pdf(data, supplements),
                     _group_targets_pdf(data, supplements, population=True)):

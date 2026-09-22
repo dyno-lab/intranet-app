@@ -28,6 +28,7 @@ from app.services.hoja_cotejo_admin_service import build_hoja_cotejo_admin_conte
 from app.services.consolidado_mensual_service import _official_residential_sort_key
 from app.services.full_monthly_report_supplemental_data import build_supplemental_data
 from app.services.full_monthly_report_recruitment import build_recruitment_data
+from app.services.full_monthly_report_extension import consolidate_extension_checklists
 
 
 class _GlobalReportUser:
@@ -102,9 +103,9 @@ def build_full_monthly_report_data(
       existing no_duplicado, duplicado, bonafide, por_programa and hoja_cotejo
       contexts for that residential. Global totals must never be reconstructed
       by adding these rows, because a person may attend in multiple locations.
-    * ``hoja_cotejo_admin`` is a list of unchanged admin checklist contexts,
-      one per proposal. Their targets and cumulative percentages are never
-      combined into a new metric.
+    * ``hoja_cotejo_admin`` keeps one existing context per proposal, except
+      explicitly selecting both 005 and 006 produces one extension checklist
+      with shared goals and continuous cumulative attendance.
     * ``program_hours`` and ``total_contact_hours`` expose the current Hoja de
       Cotejo values; ``provenance`` identifies their source. ``coverage`` flags
       inactive or unassigned locations present in the global source data.
@@ -186,6 +187,9 @@ def build_full_monthly_report_data(
             db, report_user, selected_ids, month, year, residentials,
         )
         recruitment = build_recruitment_data(db, report_user, selected_ids, month, year)
+        admin_contexts = consolidate_extension_checklists(
+            db, report_user, proposals, admin_contexts, recruitment, contexts["hoja_cotejo"], month, year,
+        )
 
     hoja = contexts["hoja_cotejo"]
     return {
@@ -214,6 +218,8 @@ def build_full_monthly_report_data(
             "global_duplicates": "duplicado.total_all",
             "program_hours": "hoja_cotejo.program_blocks.program_contact_hours",
             "total_contact_hours": "hoja_cotejo.total_contact_hours",
-            "admin_goals": "hoja_cotejo_admin_by_proposal",
+            "admin_goals": ("hoja_cotejo_admin_with_shared_extension"
+                            if any(context.get("selected_proposal_ids") for context in admin_contexts)
+                            else "hoja_cotejo_admin_by_proposal"),
         },
     }
