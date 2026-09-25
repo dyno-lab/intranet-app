@@ -3,7 +3,8 @@ import unittest
 from datetime import date
 from urllib.parse import parse_qs, urlparse
 
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
+from sqlalchemy.dialects import mssql
 from sqlalchemy.orm import Session
 
 import test_community_routes as route_fixture
@@ -15,7 +16,23 @@ from app.services.community_fiscal import is_enrolled_on, snapshot_for_participa
 
 
 class CommunityJourneyTests(unittest.TestCase):
-    setUp = route_fixture.CommunityRouteTests.setUp
+    def setUp(self):
+        route_fixture.CommunityRouteTests.setUp(self)
+        self.mssql_selects = []
+
+        def validate_mssql_predicates(state):
+            if not state.is_select or state.session.get_bind() is not self.engine:
+                return
+            # SQLite accepts IS 1, but SQL Server BIT predicates require = 1.
+            # Compile the actual SELECTs emitted by this journey, without
+            # connecting to SQL Server or changing the isolated storage fixture.
+            sql = str(state.statement.compile(dialect=mssql.dialect()))
+            self.assertNotRegex(sql, r"\bIS\s+(?:NOT\s+)?(?:[01]\b|TRUE\b|FALSE\b)")
+            self.mssql_selects.append(sql)
+
+        event.listen(Session, "do_orm_execute", validate_mssql_predicates)
+        self.addCleanup(event.remove, Session, "do_orm_execute", validate_mssql_predicates)
+
     tearDown = route_fixture.CommunityRouteTests.tearDown
     token = route_fixture.CommunityRouteTests.token
     login = route_fixture.CommunityRouteTests.login
@@ -37,6 +54,10 @@ class CommunityJourneyTests(unittest.TestCase):
             participant = db.scalar(select(CPParticipant))
             pid, original_number = participant.participant_id, participant.expediente_num
         self.post("/community/fiscal-participants/sync", fiscal_year_id=fiscal_id, participant_ids=[pid])
+        fiscal_page = self.client.get("/community/fiscal-participants", params={"fiscal_year_id": fiscal_id})
+        self.assertEqual(fiscal_page.status_code, 200, fiscal_page.text)
+        membership_page = self.client.get(f"{record_path}/memberships", params={"fiscal_year_id": fiscal_id})
+        self.assertEqual(membership_page.status_code, 200, membership_page.text)
         for program_id in (self.voca_id, self.tanf_id):
             selection = {"fiscal_year_id": fiscal_id, "program_id": program_id}
             self.post(f"{record_path}/memberships", **selection, action="enroll", effective_date="2024-01-01", reason="Inscripción")
@@ -47,6 +68,8 @@ class CommunityJourneyTests(unittest.TestCase):
                 type_id = db.scalar(select(CPADMServiceType.adm_service_type_id).where(CPADMServiceType.program_id == program_id))
             self.post(f"/community/adm/service-types/{type_id}/activities", **selection, activity_id=activity_id)
             attendance = self.post("/community/attendance", **selection, activity_id=activity_id, session_date="2024-02-10")
+            attendance_page = self.client.get("/community/attendance", params=selection)
+            self.assertEqual(attendance_page.status_code, 200, attendance_page.text)
             self.post(attendance.headers["location"].split("?")[0], present_participant_ids=[pid])
         report = self.post("/community/school-grades", fiscal_year_id=fiscal_id, program_id=self.voca_id, report_year=2024, report_month=2)
         self.post(report.headers["location"].split("?")[0] + "/participants", participant_id=pid, grade_level="8", spanish_grade="90", english_grade="80")
@@ -81,3 +104,4 @@ class CommunityJourneyTests(unittest.TestCase):
             self.assertEqual(db.scalar(select(func.count()).select_from(CPParticipant)), 1)
             self.assertEqual(snapshot_for_participant(db, pid, next_id)["nombre"], "Nombre actual")
             self.assertEqual(snapshot_for_participant(db, pid, fiscal_id)["nombre"], "Ana")
+        self.assertTrue(self.mssql_selects, "The journey must compile its real SELECT statements for SQL Server.")

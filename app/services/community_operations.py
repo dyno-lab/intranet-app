@@ -215,7 +215,7 @@ def has_participation_on_or_after(db: Session, participant_id: int, program_id: 
     attendance = db.scalar(select(CPAttendance.participant_id).join(
         CPActivitySession, CPActivitySession.session_id == CPAttendance.session_id
     ).where(
-        CPAttendance.participant_id == participant_id, CPAttendance.is_present.is_(True),
+        CPAttendance.participant_id == participant_id, CPAttendance.is_present == True,  # noqa: E712
         CPActivitySession.program_id == program_id, CPActivitySession.fiscal_year_id == fiscal_year_id,
         CPActivitySession.session_date >= on_date,
     ).limit(1))

@@ -42,7 +42,7 @@ def _redirect(path, fiscal_year_id, *, message=None, error=None):
 
 
 def _years(db, fiscal_year_id):
-    years = db.scalars(select(CPFiscalYear).where(CPFiscalYear.is_active.is_(True))
+    years = db.scalars(select(CPFiscalYear).where(CPFiscalYear.is_active == True)  # noqa: E712
                       .order_by(CPFiscalYear.start_date.desc())).all()
     selected = next((year for year in years if year.fiscal_year_id == fiscal_year_id), None)
     if fiscal_year_id is not None and selected is None:

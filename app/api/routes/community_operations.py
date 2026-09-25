@@ -101,7 +101,8 @@ def attendance_index(request: Request, fiscal_year_id: int | None = None, progra
     if fiscal_year_id is not None and program_id is not None:
         activities = db.scalars(select(CPActivity).join(CPFiscalActivity, CPFiscalActivity.activity_id == CPActivity.activity_id).where(
             CPFiscalActivity.fiscal_year_id == fiscal_year_id, CPFiscalActivity.program_id == program_id,
-            CPFiscalActivity.is_active.is_(True), CPActivity.is_active.is_(True), CPActivity.program_id == program_id,
+            CPFiscalActivity.is_active == True, CPActivity.is_active == True,  # noqa: E712
+            CPActivity.program_id == program_id,
         ).order_by(CPActivity.code)).all()
     rows = db.execute(query.order_by(CPActivitySession.session_date.desc(), CPActivitySession.session_id.desc()).offset((page - 1) * 50).limit(51)).all()
     return _render(request, "attendance", cp, years=years, selected_year=fiscal_year_id,

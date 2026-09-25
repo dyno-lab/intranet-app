@@ -61,7 +61,9 @@ def _active_programs(db: Session, program_ids: Iterable[int]) -> list[CPProgram]
     if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in submitted):
         raise ValueError("Selecciona programas válidos.")
     ids = set(submitted)
-    programs = db.scalars(select(CPProgram).where(CPProgram.program_id.in_(ids), CPProgram.is_active.is_(True)).order_by(CPProgram.program_id)).all() if ids else []
+    programs = db.scalars(select(CPProgram).where(
+        CPProgram.program_id.in_(ids), CPProgram.is_active == True,  # noqa: E712
+    ).order_by(CPProgram.program_id)).all() if ids else []
     if len(programs) != len(ids):
         raise ValueError("Uno o más programas no existen o están inactivos.")
     return programs

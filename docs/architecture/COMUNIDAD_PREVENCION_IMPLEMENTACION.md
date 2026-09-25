@@ -182,6 +182,19 @@ concurrencia efectiva en SQL Server. La vista previa web local fue bloqueada por
 navegador integrado (`net::ERR_BLOCKED_BY_CLIENT`); el proceso se detuvo. La revisión
 visual de la aplicación web permanece pendiente.
 
+### Corrección de filtros booleanos en SQL Server
+
+La validación en la PC de pruebas detectó un error 500 al crear participantes:
+el filtro de programas activos generaba `IS 1`, inválido en SQL Server. Se cambió
+a igualdad (`= 1`) ese filtro y los equivalentes de años fiscales, actividades y
+asistencias utilizadas para validar bajas. No requiere cambios en las tablas.
+
+La prueba del recorrido integrado ahora compila sus consultas reales con el
+dialecto MSSQL y rechaza esos predicados incompatibles. Falló en la consulta de
+programas antes de la corrección y pasó después; las **115 pruebas de Comunidad**
+pasaron con salida 0 (47.332 segundos). La ejecución en SQL Server de la PC de
+pruebas queda pendiente de repetir el registro tras actualizar y reiniciar.
+
 ## Entrega y validación en la PC de pruebas
 
 Flujo acordado por el usuario: preparar los cambios, hacer commit y push a
