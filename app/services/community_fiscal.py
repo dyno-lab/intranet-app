@@ -99,7 +99,7 @@ def set_fiscal_lock(db: Session, fiscal_year_id: int, *, locked_through: date | 
     return state
 
 
-def build_participant_snapshot(db: Session, participant: CPParticipant) -> dict:
+def build_participant_snapshot(db: Session, participant: CPParticipant, *, profile_rows=None) -> dict:
     from app.models.community_catalog import CPProfileField, CPProfileValue
 
     values = {}
@@ -107,7 +107,8 @@ def build_participant_snapshot(db: Session, participant: CPParticipant) -> dict:
         value = getattr(participant, field)
         values[field] = value.isoformat() if isinstance(value, (date, datetime)) else value
     # Include inactive definitions too: disabling a field never erases history.
-    profile = db.execute(select(CPProfileField, CPProfileValue).join(
+    # The registration dashboard supplies a batch to avoid a query per record.
+    profile = profile_rows if profile_rows is not None else db.execute(select(CPProfileField, CPProfileValue).join(
         CPProfileValue, CPProfileValue.field_id == CPProfileField.field_id
     ).where(CPProfileValue.participant_id == participant.participant_id)).all()
     values["profile_fields"] = {field.field_key: {"label": field.label, "value": value.value}

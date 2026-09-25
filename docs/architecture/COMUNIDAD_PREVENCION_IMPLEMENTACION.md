@@ -197,6 +197,31 @@ pruebas queda pendiente de repetir el registro tras actualizar y reiniciar.
 
 ## Entrega y validación en la PC de pruebas
 
+### Pantalla de registro con el formato de Faro
+
+`/community/participants` y `/community/participants/new` reúnen resumen, desglose
+por programa, formulario y listado. Se reutilizan las clases de `/ui/new-list`
+para tipografía, columnas, tarjetas y tabla; los acentos son verdes. Dirección
+física y pueblo sustituyen edificio/apartamento; el número CP sigue siendo
+automático. Teléfono y email aparecen bajo Campos de perfil. Editar conserva la
+misma distribución y requiere Supervisor o Administrador.
+
+El resumen cuenta expedientes únicos del contexto visible, independientemente
+de los filtros del listado. Cada programa muestra sus asociaciones permanentes.
+Asignados cuenta personas sincronizadas a uno o más años fiscales abiertos;
+Pendientes compara datos personales y campos de perfil contra esas copias, sin
+marcar para actualización las que están congeladas. No son cifras de asistencia.
+El listado y CSV comparten filtros de edad, expediente, nombre y programa; la
+exportación incluye todas las coincidencias autorizadas, sin duplicar personas.
+Las acciones por fila conservan acceso al expediente, edición autorizada y gestión
+de altas/bajas por programa.
+
+Verificación de esta adaptación: **122 pruebas de Comunidad aprobadas**, salida 0
+(53.256 segundos), incluyendo alcance de programas, exportación, cumpleaños,
+congelación, errores de registro y compilación MSSQL del recorrido integrado.
+La vista previa local fue bloqueada por el navegador integrado y se detuvo;
+la revisión visual queda para la PC de pruebas.
+
 Flujo acordado por el usuario: preparar los cambios, hacer commit y push a
 `ui/modernization-v1` y validar el sistema en la **PC de pruebas**. El usuario revisa
 allí el comportamiento y solicita los ajustes de la siguiente entrega. Las pruebas

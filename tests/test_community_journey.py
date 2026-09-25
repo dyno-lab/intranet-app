@@ -54,6 +54,9 @@ class CommunityJourneyTests(unittest.TestCase):
             participant = db.scalar(select(CPParticipant))
             pid, original_number = participant.participant_id, participant.expediente_num
         self.post("/community/fiscal-participants/sync", fiscal_year_id=fiscal_id, participant_ids=[pid])
+        for path in ("/community/participants", "/community/participants/new", "/community/participants/export.csv"):
+            roster = self.client.get(path, params={"program_id": self.voca_id, "age_min": 0, "age_max": 21})
+            self.assertEqual(roster.status_code, 200, roster.text[:200])
         fiscal_page = self.client.get("/community/fiscal-participants", params={"fiscal_year_id": fiscal_id})
         self.assertEqual(fiscal_page.status_code, 200, fiscal_page.text)
         membership_page = self.client.get(f"{record_path}/memberships", params={"fiscal_year_id": fiscal_id})

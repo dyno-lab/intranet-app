@@ -1,7 +1,75 @@
 {% extends "community/_base.html" %}
+{% block title %}Participantes · Comunidad{% endblock %}
 {% block content %}
-<section class="community-hero"><span class="community-eyebrow">{{ cp.label }}</span><h1>Expedientes</h1><p>Un expediente por participante, con asociaciones a sus programas.</p>{% if cp.role != 'viewer' %}<a class="btn btn-primary" href="/community/participants/new"><i class="bi bi-person-plus" aria-hidden="true"></i> Registrar participante</a>{% endif %}</section>
-{% if cp.role != 'viewer' %}<p><a class="btn btn-outline-primary" href="/community/participants/lookup">Buscar participante de Comunidad y asociar a mis programas</a></p>{% endif %}
-<section class="card"><div class="card-body"><form class="d-flex gap-2 mb-3" method="get" action="/community/participants"><label class="visually-hidden" for="participant-search">Buscar por nombre, apellido o expediente</label><input class="form-control" id="participant-search" name="q" value="{{ q }}" placeholder="Nombre, apellido o expediente" maxlength="150"><button class="btn btn-outline-primary">Buscar</button></form><p class="text-muted">{{ total }} expedientes encontrados</p>
-<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Expediente</th><th>Participante</th><th>Pueblo</th><th>Acción</th></tr></thead><tbody>{% for p in participants %}<tr><td class="community-record">{{ p.expediente_num }}</td><td>{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td><td>{{ p.pueblo or '—' }}</td><td><a class="btn btn-outline-primary btn-sm" href="/community/participants/{{ p.participant_id }}">Ver expediente</a></td></tr>{% else %}<tr><td colspan="4">No se encontraron expedientes para esta selección.</td></tr>{% endfor %}</tbody></table></div>{% if page * 50 < total %}<a href="/community/participants?{{ next_query }}">Siguiente página</a>{% endif %}</div></section>
+<div class="participants-page">
+  <section class="participants-hero">
+    <div class="participants-hero__content">
+      <span class="participants-hero__eyebrow">Módulo operativo</span>
+      <h1 class="participants-hero__title">Registro de Participantes</h1>
+      <div class="participants-hero__actions">
+        {% if cp.role != 'viewer' %}<a class="btn btn-primary participants-hero__cta" href="#participant-register-card"><i class="bi bi-person-plus" aria-hidden="true"></i><span>Registrar participante</span></a>{% endif %}
+        <a class="btn btn-outline-secondary" href="#participants-table-card"><i class="bi bi-table" aria-hidden="true"></i><span>Ver participantes</span></a>
+      </div>
+    </div>
+  </section>
+  <section class="participants-section participants-section--compact" aria-labelledby="registration-summary-title">
+    <div class="participants-section__header"><h2 class="participants-section__title" id="registration-summary-title">Resumen existente</h2></div>
+    <div class="participants-summary-grid">
+      <article class="participants-summary-card"><span class="participants-summary-card__label">Registrados</span><strong class="participants-summary-card__value">{{ dashboard.totals.registered_count }}</strong></article>
+      <article class="participants-summary-card"><span class="participants-summary-card__label">Asignados a año fiscal</span><strong class="participants-summary-card__value">{{ dashboard.totals.assigned_count }}</strong></article>
+      <article class="participants-summary-card"><span class="participants-summary-card__label">Pendientes de sincronización</span><strong class="participants-summary-card__value {{ 'text-warning' if dashboard.totals.pending_sync_count else '' }}">{{ dashboard.totals.pending_sync_count }}</strong></article>
+    </div>
+    <div class="card shadow-sm border-0 participants-breakdown-card"><div class="card-body">
+      <div class="participants-card__header"><h3 class="participants-card__title">Desglose por programa</h3></div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0 participants-breakdown-table">
+        <thead><tr><th>Programa</th><th class="text-end">Registrados</th><th class="text-end">Asignados</th><th class="text-end">Pendientes sync</th></tr></thead>
+        <tbody>{% for row in dashboard.program_rows %}<tr><td>{{ row.label }}</td><td class="text-end">{{ row.registered_count }}</td><td class="text-end">{{ row.assigned_count }}</td><td class="text-end {{ 'text-warning fw-semibold' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">No hay programas disponibles.</td></tr>{% endfor %}</tbody>
+      </table></div>
+      <p class="form-text mb-0 mt-2">El total cuenta expedientes únicos. Una persona puede aparecer en varios programas. Asignados y pendientes consideran los años fiscales abiertos; los datos congelados se conservan.</p>
+    </div></div>
+  </section>
+  {% if cp.role != 'viewer' %}{% include "community/_participant_form.html" %}{% else %}<div class="alert alert-info" role="status">Modo de consulta: puede revisar los participantes, pero no crear ni modificar expedientes.</div>{% endif %}
+  <section class="participants-section" aria-labelledby="participant-list-title">
+    <div class="participants-toolbar">
+      <div><h2 class="participants-section__title mb-1" id="participant-list-title">Participantes registrados</h2><p class="participants-section__text mb-0">Consulte los expedientes con filtros, paginación y exportación.</p></div>
+      <div class="participants-toolbar__actions"><a class="btn btn-outline-success" href="/community/participants/export.csv?{{ query_string }}"><i class="bi bi-filetype-csv" aria-hidden="true"></i><span>Exportar CSV</span></a><span class="participants-toolbar__meta">Viendo como: {{ current_user.username }}</span></div>
+    </div>
+    <div class="card shadow-sm border-0 participants-filter-card"><div class="card-body">
+      <form method="get" action="/community/participants#participants-table-card" class="row g-3 align-items-end">
+        <input type="hidden" name="per_page" value="{{ filters.per_page }}">
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="participant-age-range">Rango de edad</label><select class="form-select" name="age_range" id="participant-age-range"><option value="">Todos los rangos</option>{% for option in age_ranges %}<option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}" {{ 'selected' if filters.age_range == option.value }}>{{ option.label }}</option>{% endfor %}</select></div>
+        <div class="col-lg-2 col-md-3"><label class="form-label" for="participant-age-min">Edad desde</label><input class="form-control" type="number" name="age_min" id="participant-age-min" min="0" max="130" value="{{ filters.age_min if filters.age_min is not none else '' }}" placeholder="Desde"></div>
+        <div class="col-lg-2 col-md-3"><label class="form-label" for="participant-age-max">Edad hasta</label><input class="form-control" type="number" name="age_max" id="participant-age-max" min="0" max="130" value="{{ filters.age_max if filters.age_max is not none else '' }}" placeholder="Hasta"></div>
+        <div class="col-lg-5 col-md-12"><label class="form-label" for="participant-search">Nombre o apellido</label><input class="form-control" id="participant-search" name="q" value="{{ filters.q }}" maxlength="150" placeholder="Buscar participante"></div>
+        <div class="col-lg-5 col-md-6"><label class="form-label" for="participant-record-filter">Número de expediente</label><input class="form-control" id="participant-record-filter" name="expediente_num" value="{{ filters.expediente_num }}" maxlength="50" placeholder="Ej. CP-2026-0001" autocomplete="off" spellcheck="false"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="participant-program-filter">Programa</label><select class="form-select" id="participant-program-filter" name="program_id"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if filters.program_id == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+        <div class="col-lg-2 col-md-3"><button class="btn btn-primary w-100" type="submit">Filtrar</button></div>
+        <div class="col-lg-2 col-md-3"><a class="btn btn-outline-secondary w-100" href="/community/participants#participants-table-card">Limpiar</a></div>
+      </form>
+    </div></div>
+    <div class="participants-list-meta"><div>Mostrando {{ participants|length }} de {{ total }} participantes</div><div>Página {{ page }} de {{ total_pages }}</div></div>
+    <div class="card shadow-sm border-0 participants-table-card" id="participants-table-card"><div class="card-body"><div class="table-responsive">
+      <table class="table table-hover align-middle participants-table mb-0">
+        <thead><tr><th>Número de expediente</th><th>Nombre</th><th>Inicial</th><th>Apellido</th><th>Edad</th><th>Género</th><th>Estatus</th><th>Jefe familia</th><th>Tel.</th><th>Email</th><th>Dirección física</th><th>Pueblo</th><th>Programas</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>{% for p in participants %}
+          <tr class="participants-row {{ 'participants-row--first-time' if (p.primera_vez or '')|lower in ['si', 'sí'] }}">
+            <td class="participants-table__expediente">{{ p.expediente_num }}</td><td>{{ p.nombre }}</td><td>{{ p.inicial or '' }}</td><td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td><td>{{ p.edad if p.edad is not none else '—' }}</td><td>{{ p.genero }}</td><td>{{ p.estatus or '—' }}</td>
+            <td>{% if p.is_head_of_household %}<span class="badge text-bg-primary participants-badge"><i class="bi bi-house-check" aria-hidden="true"></i><span>Jefe</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
+            <td>{% if p.telefono %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene teléfono</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
+            <td>{% if p.email %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene email</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
+            <td class="community-address-cell">{{ p.direccion_fisica or '—' }}</td><td>{{ p.pueblo or '—' }}</td>
+            <td>{% for program in participant_programs[p.participant_id] %}<span class="badge community-program-badge" title="{{ program.record_number }}">{{ program.code }}</span>{% endfor %}</td>
+            <td class="text-end"><div class="participants-actions"><a class="btn btn-sm btn-outline-secondary" href="/community/participants/{{ p.participant_id }}">Expediente</a>{% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-primary" href="/community/participants/{{ p.participant_id }}/edit">Editar</a>{% endif %}<a class="btn btn-sm btn-outline-primary" href="/community/participants/{{ p.participant_id }}/memberships">Programas</a></div></td>
+          </tr>
+        {% else %}<tr><td colspan="14" class="text-muted text-center py-4">No hay participantes que coincidan con los filtros seleccionados.</td></tr>{% endfor %}</tbody>
+      </table>
+    </div></div></div>
+    {% if total_pages > 1 %}<nav aria-label="Paginación de participantes" class="mt-3"><ul class="pagination pagination-sm justify-content-center flex-wrap participants-pagination">
+      {% for key, label, disabled in [('first', 'Primera', page == 1), ('prev', 'Anterior', page == 1)] %}<li class="page-item {{ 'disabled' if disabled }}"><a class="page-link" href="{{ page_links[key] }}" {% if disabled %}tabindex="-1" aria-disabled="true"{% endif %}>{{ label }}</a></li>{% endfor %}
+      <li class="page-item disabled"><span class="page-link">Página {{ page }} / {{ total_pages }}</span></li>
+      {% for key, label, disabled in [('next', 'Siguiente', page == total_pages), ('last', 'Última', page == total_pages)] %}<li class="page-item {{ 'disabled' if disabled }}"><a class="page-link" href="{{ page_links[key] }}" {% if disabled %}tabindex="-1" aria-disabled="true"{% endif %}>{{ label }}</a></li>{% endfor %}
+    </ul></nav>{% endif %}
+  </section>
+</div>
 {% endblock %}
+{% block scripts %}{% include "community/_participant_scripts.html" %}{% endblock %}

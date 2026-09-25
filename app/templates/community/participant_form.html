@@ -1,34 +1,16 @@
 {% extends "community/_base.html" %}
+{% block title %}Editar participante · Comunidad{% endblock %}
 {% block content %}
-<section class="community-hero"><span class="community-eyebrow">Expedientes</span><h1>{{ 'Editar datos personales' if participant is defined else 'Registrar participante' }}</h1><p class="mb-0">{{ participant.expediente_num if participant is defined else 'El número CP-AÑO-0000 se asignará automáticamente al guardar.' }}</p></section>
-{% if participant is not defined %}<p><a class="btn btn-outline-primary" href="/community/participants/lookup">Buscar un expediente existente antes de registrar</a></p>{% endif %}
-{% if form_error %}<div class="alert alert-danger" role="alert">{{ form_error }}</div>{% endif %}
-{% macro input(key, label, type='text', required=false, limit=150) %}
-<div class="col-md-6 col-xl-4"><label class="form-label" for="{{ key }}">{{ label }}{% if required %} *{% endif %}</label>{% if key in catalog_options %}<select class="form-select" id="{{ key }}" name="{{ key }}" {% if required %}required{% endif %}><option value="">Seleccione</option>{% if values.get(key) and values[key] not in catalog_options[key] %}<option selected value="{{ values[key] }}">{{ values[key] }} (valor guardado)</option>{% endif %}{% for choice in catalog_options[key] %}<option value="{{ choice }}" {{ 'selected' if values.get(key) == choice }}>{{ choice }}</option>{% endfor %}</select>{% else %}<input class="form-control" id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ values.get(key, '') or '' }}" maxlength="{{ limit }}" {% if required %}required{% endif %}{% if key == 'fecha_nacimiento' %} max="{{ today.isoformat() }}"{% endif %}>{% endif %}</div>
-{% endmacro %}
-<form method="post" action="{{ '/community/participants/' ~ participant.participant_id ~ '/edit' if participant is defined else '/community/participants' }}"><input type="hidden" name="token" value="{{ csrf_token }}">
-{% if participant is not defined %}
-<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Datos del expediente</h2></div><div class="card-body row g-3"><div class="col-md-4"><label class="form-label" for="exp_year">Año de expediente *</label><select class="form-select" name="exp_year" id="exp_year" required>{% for year in range(today.year - 2, today.year + 3) %}<option value="{{ year }}" {{ 'selected' if (values.get('exp_year', today.year)|int) == year }}>{{ year }}</option>{% endfor %}</select></div><div class="col-md-8"><label class="form-label" for="record-preview">Número de expediente</label><input class="form-control" id="record-preview" value="Asignación automática al guardar" readonly><small class="text-muted">Se conservará cuando el participante continúe en otros años fiscales.</small></div></div></section>
-{% endif %}
-<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Datos personales</h2></div><div class="card-body row g-3">
-  {{ input('nombre', 'Nombre', required=true) }}{{ input('inicial', 'Inicial', limit=12) }}{{ input('apellido_paterno', 'Apellido paterno', required=true) }}{{ input('apellido_materno', 'Apellido materno') }}
-  <div class="col-md-6 col-xl-4"><label class="form-label" for="genero">Género *</label><select class="form-select" id="genero" name="genero" required><option value="">Seleccione</option><option value="F" {{ 'selected' if values.get('genero') == 'F' }}>Femenino</option><option value="M" {{ 'selected' if values.get('genero') == 'M' }}>Masculino</option></select></div>
-  {{ input('fecha_nacimiento', 'Fecha de nacimiento', 'date') }}
-  <div class="col-md-6 col-xl-4"><label class="form-label" for="calculated-age">Edad</label><input class="form-control" id="calculated-age" readonly value="Se calcula con la fecha de nacimiento"></div>
-  {% for key, label in [('primera_vez','Participa por primera vez'),('vca','VCA')] %}<div class="col-md-6 col-xl-4"><label class="form-label" for="{{ key }}">{{ label }}</label><select class="form-select" id="{{ key }}" name="{{ key }}"><option value="">Seleccione</option><option value="SI" {{ 'selected' if values.get(key) == 'SI' }}>Sí</option><option value="NO" {{ 'selected' if values.get(key) == 'NO' }}>No</option></select></div>{% endfor %}
-  {{ input('escolaridad_participante','Escolaridad') }}{{ input('composicion_familiar','Composición familiar',limit=100) }}{{ input('grupo_familiar','Grupo familiar',limit=20) }}{{ input('fuente_ingreso_principal','Fuente de ingreso principal',limit=100) }}{{ input('rango_ingreso','Rango de ingreso',limit=30) }}{{ input('relacion_familiar','Relación familiar',limit=100) }}{{ input('estatus','Estatus',limit=50) }}
-  <div class="col-12"><label class="form-check"><input class="form-check-input" type="checkbox" name="is_head_of_household" {{ 'checked' if values.get('is_head_of_household') == 'on' }}><span class="form-check-label">Jefe o jefa de familia</span></label></div>
-</div></section>
-<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Dirección y contacto</h2></div><div class="card-body row g-3">
-  <div class="col-12"><label class="form-label" for="direccion_fisica">Dirección física</label><textarea class="form-control" id="direccion_fisica" name="direccion_fisica" maxlength="500" rows="2">{{ values.get('direccion_fisica', '') or '' }}</textarea></div>
-  {{ input('pueblo','Pueblo',limit=100) }}{{ input('telefono','Teléfono (787)-555-0100','tel',limit=30) }}{{ input('email','Correo electrónico','email',limit=255) }}
-</div></section>
-{% if participant is not defined %}<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Programas del participante</h2></div><div class="card-body"><p>Marque todos los programas en los que participa.</p><div class="row g-3">{% for program in cp.visible_programs %}<div class="col-md-6 col-xl-4"><label class="community-program-choice"><input class="form-check-input" type="checkbox" name="program_ids" value="{{ program.program_id }}" {{ 'checked' if program.program_id in values.get('program_ids', []) }}><span><strong>{{ program.code }}</strong><br>{{ program.name }}</span></label></div>{% else %}<p>No hay programas disponibles. Un administrador debe configurarlos antes del registro.</p>{% endfor %}</div></div></section>{% endif %}
-{% if profile_fields %}<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Campos de perfil</h2></div><div class="card-body row g-3">{% for field in profile_fields %}<div class="col-md-6"><label class="form-label" for="profile_{{ field.field_id }}">{{ field.label }}{{ ' *' if field.is_required }}</label><input class="form-control" id="profile_{{ field.field_id }}" name="profile_{{ field.field_id }}" type="{{ 'tel' if field.field_type == 'phone' else field.field_type }}" value="{{ profile_values.get(field.field_id, '') }}" maxlength="2000" {{ 'required' if field.is_required }}></div>{% endfor %}</div></section>{% endif %}
-<div class="d-flex gap-2"><button class="btn btn-primary" type="submit" {% if not cp.visible_programs %}disabled{% endif %}>{{ 'Guardar cambios' if participant is defined else 'Guardar expediente' }}</button><a class="btn btn-outline-secondary" href="/community/participants">Cancelar</a></div>
-</form>
+<div class="participants-page">
+  <section class="participants-hero">
+    <div class="participants-hero__content">
+      <span class="participants-hero__eyebrow">Expedientes de Comunidad</span>
+      <h1 class="participants-hero__title">Editar datos personales</h1>
+      <p class="participants-hero__lead">{{ participant.expediente_num }}</p>
+      <div class="participants-hero__actions"><a class="btn btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a></div>
+    </div>
+  </section>
+  {% include "community/_participant_form.html" %}
+</div>
 {% endblock %}
-{% block scripts %}<script>
-(() => { const birth = document.getElementById('fecha_nacimiento'); const output = document.getElementById('calculated-age');
-const update = () => { if (!birth.value) { output.value = 'Se calcula con la fecha de nacimiento'; return; } const [year, month, day] = birth.value.split('-').map(Number); const today = new Date(); let age = today.getFullYear() - year; if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--; output.value = age < 0 ? 'Revise la fecha' : age + ' años'; }; birth.addEventListener('change', update); update(); })();
-</script>{% endblock %}
+{% block scripts %}{% include "community/_participant_scripts.html" %}{% endblock %}

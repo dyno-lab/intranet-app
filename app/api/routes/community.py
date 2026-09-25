@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import csv
+import io
 from datetime import date
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +24,9 @@ from app.services.community import associate_participant_programs, create_fiscal
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
+from app.services.community_participants import (
+    filtered_query, participant_query, program_links, registration_dashboard, roster_filters, roster_page,
+)
 
 router = APIRouter(prefix="/community", tags=["community"])
 templates = Jinja2Templates(directory="app/templates")
@@ -54,16 +59,14 @@ def _participant_form_response(request, context, db, **values):
         key = f"profile_{field.field_id}"
         if key in values.get("values", {}):
             catalogs["profile_values"][field.field_id] = values["values"][key]
-    return _render(request, "participant_form", context, **catalogs, **values)
+    if participant is not None:
+        return _render(request, "participant_form", context, **catalogs, **values)
+    return _render(request, "participants", context, **catalogs, **values,
+                   **roster_page(db, context, request.query_params), dashboard=registration_dashboard(db, context))
 
 
 def _participant_query(context: CommunityContext):
-    return select(CPParticipant).where(
-        select(CPParticipantProgram.participant_id).where(
-            CPParticipantProgram.participant_id == CPParticipant.participant_id,
-            CPParticipantProgram.program_id.in_(context.visible_program_ids),
-        ).exists()
-    )
+    return participant_query(context)
 
 
 @router.get("/login")
@@ -146,22 +149,37 @@ def add_fiscal_year(request: Request, code: str = Form(...), name: str = Form(..
 
 
 @router.get("/participants")
-def participants(request: Request, q: str = "", page: int = 1, db: Session = Depends(get_db),
+def participants(request: Request, db: Session = Depends(get_db),
                  context: CommunityContext = Depends(require_community_context)):
-    page = max(1, page)
-    query = _participant_query(context)
-    if q.strip():
-        term = q.strip()[:150]
-        query = query.where(or_(*[
-            field.contains(term, autoescape=True) for field in (
-                CPParticipant.expediente_num, CPParticipant.nombre,
-                CPParticipant.apellido_paterno, CPParticipant.apellido_materno,
-            )
-        ]))
-    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = db.scalars(query.order_by(CPParticipant.participant_id.desc()).offset((page - 1) * 50).limit(50)).all()
-    return _render(request, "participants", context, participants=rows, q=q, page=page,
-                   total=total, next_query=urlencode({"q": q, "page": page + 1}))
+    return _participant_form_response(request, context, db, values={}, form_error=None)
+
+
+@router.get("/participants/export.csv")
+def export_participants(request: Request, db: Session = Depends(get_db),
+                        context: CommunityContext = Depends(require_community_context)):
+    filters = roster_filters(request.query_params, context)
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Número de expediente", "Nombre", "Inicial", "Apellido paterno", "Apellido materno",
+                     "Edad", "Género", "Estatus", "Jefe de familia", "Teléfono", "Email",
+                     "Dirección física", "Pueblo", "Programas"])
+
+    def safe_cell(value):
+        text = str(value) if value is not None else ""
+        # Preserve user text as text when CSV is opened in a spreadsheet.
+        return "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) or text.startswith(("\t", "\r", "\n")) else text
+
+    records = db.scalars(filtered_query(context, filters).order_by(CPParticipant.participant_id.desc())).all()
+    for offset in range(0, len(records), 500):
+        batch = records[offset:offset + 500]
+        links = program_links(db, context, [p.participant_id for p in batch])
+        for p in batch:
+            writer.writerow([safe_cell(value) for value in (
+                p.expediente_num, p.nombre, p.inicial, p.apellido_paterno, p.apellido_materno, p.edad,
+                p.genero, p.estatus, "Sí" if p.is_head_of_household else "No", p.telefono, p.email,
+                p.direccion_fisica, p.pueblo, ", ".join(link["code"] for link in links[p.participant_id]))])
+    return Response(content=output.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="participantes_comunidad.csv"'})
 
 
 @router.get("/participants/new")

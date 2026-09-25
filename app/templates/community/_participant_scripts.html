@@ -1,0 +1,33 @@
+<script>
+(() => {
+  const birth = document.getElementById('fecha_nacimiento');
+  const age = document.getElementById('calculated-age');
+  const updateAge = () => {
+    if (!birth.value) { age.value = ''; return; }
+    const [year, month, day] = birth.value.split('-').map(Number);
+    const today = new Date();
+    let value = today.getFullYear() - year;
+    if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) value--;
+    age.value = Number.isFinite(value) && value >= 0 ? String(value) : '';
+  };
+  if (birth && age) { birth.addEventListener('change', updateAge); updateAge(); }
+  const year = document.getElementById('exp_year');
+  const preview = document.getElementById('record-preview');
+  if (year && preview) year.addEventListener('change', () => { preview.value = `CP-${year.value || 'AÑO'}-0000`; });
+  document.querySelectorAll('[data-phone-format]').forEach(input => {
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/\D/g, '').slice(0, 10);
+      input.value = digits.length <= 3 ? digits : digits.length <= 6
+        ? `(${digits.slice(0, 3)})-${digits.slice(3)}`
+        : `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    });
+  });
+  const range = document.getElementById('participant-age-range');
+  if (range) range.addEventListener('change', () => {
+    if (!range.value) return;
+    const option = range.selectedOptions[0];
+    document.getElementById('participant-age-min').value = option.dataset.min || '';
+    document.getElementById('participant-age-max').value = option.dataset.max || '';
+  });
+})();
+</script>

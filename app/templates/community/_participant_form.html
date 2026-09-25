@@ -1,0 +1,83 @@
+{% macro field(key, label, columns, type='text', required=false, limit=150, placeholder='') %}
+<div class="{{ columns }}">
+  <label class="form-label" for="{{ key }}">{{ label }}{% if required %} *{% endif %}</label>
+  {% if key in catalog_options %}
+  <select class="form-select" id="{{ key }}" name="{{ key }}" {% if required %}required{% endif %}>
+    <option value="">Selecciona</option>
+    {% if values.get(key) and values[key] not in catalog_options[key] %}<option selected value="{{ values[key] }}">{{ values[key] }} (valor guardado)</option>{% endif %}
+    {% for choice in catalog_options[key] %}<option value="{{ choice }}" {{ 'selected' if values.get(key) == choice }}>{{ choice }}</option>{% endfor %}
+  </select>
+  {% else %}
+  <input class="form-control" id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ values.get(key, '') or '' }}" maxlength="{{ limit }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %}{% if key == 'fecha_nacimiento' %} max="{{ today.isoformat() }}"{% endif %}{% if type == 'tel' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}"{% endif %}>
+  {% endif %}
+  {% if type == 'tel' %}<div class="form-text">Formato requerido: (XXX)-XXX-XXXX</div>{% endif %}
+  {% if type == 'email' %}<div class="form-text">Ingrese un correo electrónico válido.</div>{% endif %}
+</div>
+{% endmacro %}
+{% macro yes_no(key, label) %}
+<div class="col-xl-2 col-lg-3 col-md-4">
+  <label class="form-label" for="{{ key }}">{{ label }}</label>
+  <select class="form-select" id="{{ key }}" name="{{ key }}"><option value="">Selecciona</option><option value="SI" {{ 'selected' if values.get(key) == 'SI' }}>SI</option><option value="NO" {{ 'selected' if values.get(key) == 'NO' }}>NO</option></select>
+</div>
+{% endmacro %}
+<section class="participants-section" aria-labelledby="participant-form-title">
+  <div class="participants-section__header"><h2 class="participants-section__title" id="participant-form-title">{{ 'Datos del participante' if participant is defined else 'Registrar participante' }}</h2></div>
+  <div class="card shadow-sm border-0 participants-form-card" id="participant-register-card">
+    <div class="card-body">
+      {% if form_error %}<div class="alert alert-danger" role="alert">{{ form_error }}</div>{% endif %}
+      {% if participant is not defined %}<p><a class="btn btn-outline-primary btn-sm" href="/community/participants/lookup"><i class="bi bi-search" aria-hidden="true"></i> Buscar un expediente existente y asociarlo a mis programas</a></p>{% endif %}
+      <form method="post" action="{{ '/community/participants/' ~ participant.participant_id ~ '/edit' if participant is defined else '/community/participants' }}" class="row g-2 align-items-start">
+        <input type="hidden" name="token" value="{{ csrf_token }}">
+        {% if participant is not defined %}
+        <div class="col-12"><div class="participants-form-section">
+          <div class="participants-form-section__header"><h3 class="participants-form-section__title">Datos de expediente</h3><p class="participants-form-section__text">El número se asigna automáticamente al guardar.</p></div>
+          <div class="row g-2">
+            <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label" for="exp_year">Año de expediente *</label><select class="form-select" name="exp_year" id="exp_year" required>{% for year in range(today.year - 2, today.year + 3) %}<option value="{{ year }}" {{ 'selected' if (values.get('exp_year', today.year)|int) == year }}>{{ year }}</option>{% endfor %}</select></div>
+            <div class="col-xl-2 col-lg-3 col-md-6"><label class="form-label" for="record-sequence">Secuencia</label><input class="form-control" id="record-sequence" value="Automática" readonly><div class="form-text">No necesita indicar el próximo número.</div></div>
+            <div class="col-xl-3 col-lg-4 col-md-8"><label class="form-label" for="record-preview">Vista previa del formato</label><input class="form-control" id="record-preview" value="CP-{{ values.get('exp_year', today.year) }}-0000" readonly><div class="form-text">Conserva su número en los siguientes años fiscales.</div></div>
+          </div>
+        </div></div>
+        {% endif %}
+        <div class="col-12"><div class="participants-form-section">
+          <div class="participants-form-section__header"><h3 class="participants-form-section__title">Datos personales</h3><p class="participants-form-section__text">Información principal del participante.</p></div>
+          <div class="row g-2">
+            {{ field('nombre', 'Nombre', 'col-xl-3 col-lg-4 col-md-6', required=true) }}
+            {{ field('inicial', 'Inicial', 'col-xl-1 col-lg-2 col-md-2', limit=12) }}
+            {{ field('apellido_paterno', 'Apellido Paterno', 'col-xl-3 col-lg-4 col-md-6', required=true) }}
+            {{ field('apellido_materno', 'Apellido Materno', 'col-xl-3 col-lg-4 col-md-6') }}
+            <div class="col-xl-2 col-lg-3 col-md-3"><label class="form-label" for="genero">Género *</label><select class="form-select" id="genero" name="genero" required><option value="">Selecciona</option><option value="F" {{ 'selected' if values.get('genero') == 'F' }}>F</option><option value="M" {{ 'selected' if values.get('genero') == 'M' }}>M</option></select></div>
+            {{ field('fecha_nacimiento', 'Fecha de nacimiento', 'col-xl-2 col-lg-3 col-md-4', 'date') }}
+            <div class="col-xl-1 col-lg-2 col-md-2"><label class="form-label" for="calculated-age">Edad</label><input class="form-control" id="calculated-age" readonly placeholder="Auto"></div>
+            {{ yes_no('vca', 'VCA') }}
+            {{ yes_no('primera_vez', 'Participa por primera vez') }}
+            {{ field('escolaridad_participante', 'Escolaridad del participante', 'col-xl-3 col-lg-4 col-md-6') }}
+            {{ field('composicion_familiar', 'Composición familiar', 'col-xl-3 col-lg-4 col-md-6', limit=100) }}
+            {{ field('grupo_familiar', 'Grupo familiar', 'col-xl-2 col-lg-3 col-md-3', limit=20) }}
+            {{ field('fuente_ingreso_principal', 'Fuente de ingreso principal', 'col-xl-3 col-lg-4 col-md-6', limit=100) }}
+            {{ field('rango_ingreso', 'Rango de ingreso', 'col-xl-2 col-lg-3 col-md-4', limit=30) }}
+            {{ field('relacion_familiar', 'Relación familiar', 'col-xl-2 col-lg-3 col-md-4', limit=100) }}
+            {{ field('direccion_fisica', 'Dirección física', 'col-xl-4 col-lg-6 col-md-6', limit=500) }}
+            {{ field('pueblo', 'Pueblo', 'col-xl-2 col-lg-3 col-md-6', limit=100) }}
+            {{ field('estatus', 'Estatus', 'col-xl-2 col-lg-3 col-md-4', limit=50) }}
+            <div class="col-xl-4 col-lg-6 col-md-8"><label class="form-label" for="is_head_of_household">Jefe de familia</label><div class="form-check"><input class="form-check-input" id="is_head_of_household" type="checkbox" name="is_head_of_household" {{ 'checked' if values.get('is_head_of_household') == 'on' }}><label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label></div></div>
+          </div>
+        </div></div>
+        {% if participant is not defined %}
+        <div class="col-12"><div class="participants-form-section">
+          <div class="participants-form-section__header"><h3 class="participants-form-section__title">Programas del participante</h3><p class="participants-form-section__text">Puede seleccionar más de un programa.</p></div>
+          <div class="row g-2">{% for program in cp.visible_programs %}<div class="col-xl-3 col-lg-4 col-md-6"><label class="community-program-choice"><input class="form-check-input" type="checkbox" name="program_ids" value="{{ program.program_id }}" {{ 'checked' if program.program_id in values.get('program_ids', []) }}><span><strong>{{ program.code }}</strong><br>{{ program.name }}</span></label></div>{% else %}<p class="mb-0">No hay programas disponibles. Un administrador debe configurarlos antes del registro.</p>{% endfor %}</div>
+        </div></div>
+        {% endif %}
+        <div class="col-12"><div class="participants-form-section">
+          <div class="participants-form-section__header"><h3 class="participants-form-section__title">Campos de perfil</h3></div>
+          <div class="row g-2">
+            {{ field('telefono', 'Teléfono', 'col-xl-3 col-lg-4 col-md-6', 'tel', limit=30, placeholder='(XXX)-XXX-XXXX') }}
+            {{ field('email', 'Email', 'col-xl-3 col-lg-4 col-md-6', 'email', limit=255, placeholder='email@email.com') }}
+            {% for field in profile_fields %}<div class="col-xl-3 col-lg-4 col-md-6"><label class="form-label" for="profile_{{ field.field_id }}">{{ field.label }}{{ ' *' if field.is_required }}</label><input class="form-control" id="profile_{{ field.field_id }}" name="profile_{{ field.field_id }}" type="{{ 'tel' if field.field_type == 'phone' else field.field_type }}" value="{{ profile_values.get(field.field_id, '') }}" maxlength="2000" {{ 'required' if field.is_required }}{% if field.field_type == 'phone' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}" placeholder="(XXX)-XXX-XXXX"{% endif %}></div>{% endfor %}
+          </div>
+        </div></div>
+        <div class="col-12"><button class="btn btn-success w-100 participants-submit-btn" type="submit" {% if participant is not defined and not cp.visible_programs %}disabled{% endif %}><i class="bi bi-save" aria-hidden="true"></i><span>{{ 'Guardar cambios' if participant is defined else 'Guardar Participante' }}</span></button></div>
+      </form>
+    </div>
+  </div>
+</section>
