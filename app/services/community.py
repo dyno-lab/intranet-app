@@ -10,7 +10,7 @@ import re
 from datetime import date, datetime
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
@@ -259,6 +259,44 @@ def _participant_for_update(db: Session, participant_id: int) -> CPParticipant:
     if participant is None:
         raise ValueError("El expediente de Comunidad no existe.")
     return participant
+
+
+def delete_participant(db: Session, *, participant_id: int, allowed_program_ids: set[int]) -> str:
+    """Remove an unused record only; preserve every kind of operational history.
+
+    The caller checks the CP Admin/Supervisor role and owns commit/rollback.
+    Related-row cleanup and record removal are one transaction. Foreign keys
+    remain the final guard if a new reference is added concurrently.
+    """
+    from app.models.community_catalog import CPProfileValue
+    from app.models.community_fiscal import CPFiscalParticipant, CPFiscalEnrollment
+    from app.models.community_identity import CPIdentityReview
+    from app.models.community_operations import CPAttendance, CPGradeItem
+
+    participant = _participant_for_update(db, participant_id)
+    programs = set(db.scalars(select(CPParticipantProgram.program_id).where(
+        CPParticipantProgram.participant_id == participant_id)))
+    if not programs or not programs.issubset(allowed_program_ids):
+        raise ValueError("El expediente pertenece a otros programas. Cambie a Administración general para eliminar el expediente completo.")
+    checks = (
+        ("años fiscales sincronizados", CPFiscalParticipant.participant_id),
+        ("altas en programas por año fiscal", CPFiscalEnrollment.participant_id),
+        ("asistencias", CPAttendance.participant_id),
+        ("notas escolares", CPGradeItem.participant_id),
+        ("revisiones de vínculo con Faro", CPIdentityReview.cp_participant_id),
+    )
+    blockers = [label for label, column in checks if db.scalar(
+        select(column).where(column == participant_id).limit(1)) is not None]
+    if blockers:
+        raise ValueError("No se puede eliminar: el expediente conserva historial en " + ", ".join(blockers) +
+                         ". Para finalizar su participación, gestione la baja desde Programas.")
+    number = participant.expediente_num
+    db.execute(delete(CPProfileValue).where(CPProfileValue.participant_id == participant_id))
+    db.execute(delete(CPParticipantProgram).where(CPParticipantProgram.participant_id == participant_id))
+    db.delete(participant)
+    db.flush()
+    # CPSequence is intentionally unchanged: deleted numbers are never reused.
+    return number
 
 
 def update_participant(

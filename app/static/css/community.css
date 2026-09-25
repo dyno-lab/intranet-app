@@ -55,6 +55,9 @@
 .community-body .participants-pagination { --bs-pagination-color: #126443; --bs-pagination-hover-color: #0b4d32; }
 .community-program-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .35rem; width: 9rem; max-width: 100%; }
 .community-program-badge { color: #126443; background: #e4f2e8; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.community-participant-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; width: 14.5rem; margin-left: auto; }
+.community-participant-actions form { margin: 0; }
+.community-participant-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; width: 100%; min-height: 2.2rem; padding: .35rem .45rem; white-space: nowrap; font-size: .85rem; font-weight: 600; }
 .community-record-programs { flex-wrap: wrap; gap: .35rem; }
 .community-body .participants-expediente-chart__total { border-color: rgba(18, 100, 67, .16); background: #f1f7f3; }
 .community-body .participants-expediente-pagination { --bs-pagination-active-bg: #126443; --bs-pagination-active-border-color: #126443; }

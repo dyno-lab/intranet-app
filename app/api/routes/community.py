@@ -22,7 +22,7 @@ from app.core.community_access import (
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.services.community import associate_participant_programs, create_fiscal_year, create_participant, create_program, update_participant
-from app.services.community import delete_program, program_usage, update_program
+from app.services.community import delete_participant, delete_program, program_usage, update_program
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
@@ -314,6 +314,25 @@ async def edit_participant(request: Request, participant_id: int, db: Session = 
         return _participant_form_response(request, context, db, participant=participant,
                        values={**dict(form), "exp_year": participant.exp_year}, form_error=str(exc))
     return _redirect(f"/community/participants/{participant_id}", message="Datos personales actualizados.")
+
+
+@router.post("/participants/{participant_id}/delete")
+def remove_participant(request: Request, participant_id: int, token: str = Form(...),
+                       db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_supervisor)):
+    validate_csrf(request, token)
+    participant = db.scalar(_participant_query(context).where(CPParticipant.participant_id == participant_id))
+    if participant is None:
+        raise HTTPException(404, "Expediente no disponible.")
+    try:
+        number = delete_participant(db, participant_id=participant_id, allowed_program_ids=context.visible_program_ids)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return _redirect("/community/participants", error=str(exc))
+    except IntegrityError:
+        db.rollback()
+        return _redirect("/community/participants", error="El expediente conserva datos relacionados y no pudo eliminarse.")
+    return _redirect("/community/participants", message=f"Expediente {number} eliminado correctamente.")
 
 
 @router.post("/participants/{participant_id}/programs")

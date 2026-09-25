@@ -339,6 +339,32 @@ los expedientes aparezcan modificados solo por este retiro.
 Verificación: 138 pruebas de Comunidad aprobadas (salida 0), incluyendo ADM,
 descargas PDF/Excel y compatibilidad con copias fiscales que todavía contienen VCA.
 
+## Acciones del listado y eliminación de expedientes
+
+El listado muestra botones con iconos y tamaños uniformes en dos columnas:
+Expediente / Editar y Programas / Eliminar. Editar y Eliminar aparecen únicamente
+para Administrador y Supervisor de Comunidad, independientemente del rol de Faro.
+
+Eliminar solicita confirmación del número de expediente y verifica en el servidor
+el rol, CSRF y acceso al registro. Solo admite expedientes sin copias en años
+fiscales, altas fiscales, asistencias (incluso ausencias), notas ni revisiones de
+identidad con Faro (confirmadas o rechazadas). Si existe historial, conserva todos
+los datos e indica gestionar la baja desde Programas.
+
+La eliminación del expediente sin historial incluye sus asociaciones permanentes
+a programas y valores de perfil, en una sola transacción; no borra programas ni
+reutiliza la numeración. Una referencia concurrente o desconocida revierte toda
+la operación. Para eliminar un expediente compartido entre varios programas se
+debe usar Administración general, evitando afectar otros programas desde un
+contexto restringido. User y Viewer no disponen de Eliminar ni pueden usar su
+endpoint; sus demás acciones conservan los permisos existentes.
+
+Verificación: 145 pruebas de Comunidad aprobadas (salida 0). Siete casos nuevos
+comprueban roles independientes de Faro, CSRF, alcance por programa, protección
+de copias fiscales/asistencias/notas/revisiones de identidad, reversión ante una
+referencia adicional y conservación de la secuencia. La revisión visual y la
+validación en SQL Server corresponden a la PC de pruebas.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

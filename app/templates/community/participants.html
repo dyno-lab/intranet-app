@@ -58,7 +58,17 @@
             <td>{% if p.telefono %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene teléfono</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
             <td>{% if p.email %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene email</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
             <td><div class="community-program-list">{% for program in participant_programs[p.participant_id] %}<span class="badge community-program-badge" title="{{ program.record_number }}">{{ program.code }}</span>{% endfor %}</div></td>
-            <td class="text-end"><div class="participants-actions"><a class="btn btn-sm btn-outline-secondary" href="/community/participants/{{ p.participant_id }}">Expediente</a>{% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-primary" href="/community/participants/{{ p.participant_id }}/edit">Editar</a>{% endif %}<a class="btn btn-sm btn-outline-primary" href="/community/participants/{{ p.participant_id }}/memberships">Programas</a></div></td>
+            <td><div class="community-participant-actions" role="group" aria-label="Acciones del expediente {{ p.expediente_num }}">
+              <a class="btn btn-sm btn-primary" href="/community/participants/{{ p.participant_id }}"><i class="bi bi-folder2-open" aria-hidden="true"></i><span>Expediente</span></a>
+              {% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-outline-primary" href="/community/participants/{{ p.participant_id }}/edit"><i class="bi bi-pencil-square" aria-hidden="true"></i><span>Editar</span></a>{% endif %}
+              <a class="btn btn-sm btn-outline-secondary" href="/community/participants/{{ p.participant_id }}/memberships"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Programas</span></a>
+              {% if cp.role in ['admin', 'supervisor'] %}
+              <form method="post" action="/community/participants/{{ p.participant_id }}/delete" data-record-number="{{ p.expediente_num }}" onsubmit="return confirm('¿Eliminar el expediente ' + this.dataset.recordNumber + ' de Comunidad y sus asociaciones a programas? Esta acción no se puede deshacer. Si tiene historial, el sistema impedirá eliminarlo.');">
+                <input type="hidden" name="token" value="{{ csrf_token }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i><span>Eliminar</span></button>
+              </form>
+              {% endif %}
+            </div></td>
           </tr>
         {% else %}<tr><td colspan="12" class="text-muted text-center py-4">No hay participantes que coincidan con los filtros seleccionados.</td></tr>{% endfor %}</tbody>
       </table>
