@@ -81,6 +81,12 @@ class CommunityJourneyTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200, result.text)
         self.assertIn("<strong>1</strong> participantes no duplicados", result.text)
         self.assertIn("<strong>2</strong> participaciones", result.text)
+        record = self.client.get(record_path, params={"fiscal_year_id": fiscal_id, "program_id": self.voca_id,
+                                                      "from_date": "2024-02-01", "to_date": "2024-02-29"})
+        self.assertEqual(record.status_code, 200, record.text[:200])
+        self.assertEqual(record.context["record"]["participation_total"], 2)
+        self.assertEqual(record.context["record"]["history_total"], 1)
+        self.assertEqual(record.context["record"]["chart_total"], 1)
         self.post(f"{record_path}/memberships", fiscal_year_id=fiscal_id, program_id=self.tanf_id, action="discharge", effective_date="2024-03-01", reason="Baja solo TANF")
         with Session(self.engine) as db:
             self.assertTrue(is_enrolled_on(db, pid, self.voca_id, fiscal_id, date(2024, 3, 2)))

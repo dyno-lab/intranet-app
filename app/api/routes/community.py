@@ -27,6 +27,7 @@ from app.services.community_identity import has_identity_link, identity_review_u
 from app.services.community_participants import (
     filtered_query, participant_query, program_links, registration_dashboard, roster_filters, roster_page,
 )
+from app.services.community_record import participant_record
 
 router = APIRouter(prefix="/community", tags=["community"])
 templates = Jinja2Templates(directory="app/templates")
@@ -307,5 +308,8 @@ def participant_detail(request: Request, participant_id: int, db: Session = Depe
     ).where(CPProfileValue.participant_id == participant_id).order_by(CPProfileField.sort_order)).all()
     return _render(request, "participant_detail", context, participant=participant,
                    associations=associations, profile=profile,
+                   available_programs=[p for p in context.visible_programs if p.program_id not in
+                                       {association.program_id for association, _ in associations}],
+                   record=participant_record(db, context, participant_id, request.query_params),
                    identity_linked=has_identity_link(db, "community", participant_id),
                    identity_pending=context.role != "viewer" and pending_identity_review(db, "community", participant_id))

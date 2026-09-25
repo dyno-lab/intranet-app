@@ -7,7 +7,7 @@
       <span class="participants-hero__eyebrow">Expedientes de Comunidad</span>
       <h1 class="participants-hero__title">Editar datos personales</h1>
       <p class="participants-hero__lead">{{ participant.expediente_num }}</p>
-      <div class="participants-hero__actions"><a class="btn btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a></div>
+      <div class="participants-hero__actions"><a class="btn btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a><a class="btn btn-outline-primary" href="/community/participants/{{ participant.participant_id }}#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a></div>
     </div>
   </section>
   {% include "community/_participant_form.html" %}

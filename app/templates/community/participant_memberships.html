@@ -1,6 +1,8 @@
 {% extends "community/_base.html" %}
 {% block content %}
+{% set record_url = '/community/participants/' ~ participant.participant_id %}
 <section class="community-hero"><span class="community-eyebrow">{{ participant.expediente_num }}</span><h1>Programas del participante</h1><p>{{ participant.nombre }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</p><a class="btn btn-outline-primary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a></section>
+{% if cp.role != 'viewer' %}<section class="card card-body mb-4">{% include "community/_participant_add_programs.html" %}</section>{% endif %}
 <form method="get" class="card card-body mb-4"><div class="row g-3 align-items-end"><div class="col-md-8"><label class="form-label" for="membership-year">Año fiscal</label><select class="form-select" name="fiscal_year_id" id="membership-year" required>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year and selected_year.fiscal_year_id == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div><div class="col-md-4"><button class="btn btn-primary">Consultar</button></div></div></form>
 {% if selected_year %}
 <p>Las altas, bajas y reactivaciones afectan únicamente al programa y año fiscal seleccionados. La fecha de baja es el primer día en que ya no podrá registrar participación.</p>

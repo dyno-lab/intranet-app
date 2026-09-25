@@ -227,6 +227,38 @@ Flujo acordado por el usuario: preparar los cambios, hacer commit y push a
 allí el comportamiento y solicita los ajustes de la siguiente entrega. Las pruebas
 automatizadas locales complementan esa validación; no la sustituyen.
 
+### Expediente individual y asociación de programas
+
+El botón Expediente del listado abre una vista con los componentes visuales del
+expediente de Faro: cabecera y datos clave, navegación por secciones, datos
+generales, familia/dirección, contacto, programas, años fiscales e historial.
+Los acentos y la gráfica son verdes. La dirección permanece en el expediente y
+en el formulario; no se muestra como columna del listado inferior.
+
+Para añadir un programa: **Expediente → Añadir programa → seleccionar programas
+adicionales → Asociar programas seleccionados**. También hay acceso desde Editar
+y desde Programas por año fiscal. La operación reutiliza la asociación existente:
+conserva el expediente, crea únicamente los números de los programas nuevos y
+no altera asistencias ni matrículas anteriores. Solo muestra programas autorizados
+en el contexto actual. En un contexto de un solo programa, la pantalla indica cómo
+cambiar a todos los programas autorizados. Viewer conserva consulta solamente.
+
+La asociación permanente no equivale al alta fiscal: después se gestiona el alta
+en el programa/año, previa sincronización del expediente con ese año. Los datos
+personales siguen reservados a Supervisor/Administrador para edición.
+
+El historial cuenta asistencias confirmadas, conserva registros de programas con
+baja y años cerrados, y respeta el alcance del usuario en tabla, métricas y gráfica.
+Incluye filtros de fecha, programa, año y actividad; paginación de 25; acceso a la
+sesión y tendencia de hasta 12 meses. El resumen superior considera todo el historial
+autorizado; los filtros afectan la tabla y la gráfica.
+
+Verificación: **128 pruebas de Comunidad aprobadas**, salida 0 (58.545 segundos),
+incluyendo asociación sin duplicar expediente, alcance por programa, Viewer,
+asistencias confirmadas, bajas/cierres, filtros, gráfica, paginación y compilación
+MSSQL del recorrido integrado. La revisión visual y ejecución en SQL Server se
+validan en la PC de pruebas.
+
 En la copia del repositorio de la PC de pruebas:
 
 ```powershell

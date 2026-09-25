@@ -1,0 +1,17 @@
+{% if cp.role != 'viewer' %}
+<div class="participants-expediente-anchor mt-3" id="anadir-programa">
+  <h3 class="participants-card__title mb-2">Añadir programa</h3>
+  {% if available_programs %}
+  <p class="participants-expediente-card__text mb-3">Seleccione los programas adicionales. Se conserva el expediente y se crea su número asociado a cada programa.</p>
+  <form method="post" action="{{ record_url }}/programs">
+    <input type="hidden" name="token" value="{{ csrf_token }}">
+    <fieldset><legend class="visually-hidden">Programas disponibles para asociar</legend><div class="row g-2">
+      {% for program in available_programs %}<div class="col-xl-3 col-md-6"><label class="community-program-choice"><input class="form-check-input" type="checkbox" name="program_ids" value="{{ program.program_id }}"><span><strong>{{ program.code }}</strong><br>{{ program.name }}</span></label></div>{% endfor %}
+    </div></fieldset>
+    <button class="btn btn-primary mt-3" type="submit"><i class="bi bi-plus-circle" aria-hidden="true"></i> Asociar programas seleccionados</button>
+  </form>
+  {% else %}<p class="participants-expediente-card__text">El expediente ya está asociado a todos los programas disponibles en este contexto.</p>{% endif %}
+  {% if cp.selected_program_id is not none %}<p class="participants-expediente-card__text mt-2">Para asociar otros programas autorizados, <a href="/community/login">cambie al contexto de todos sus programas</a>.</p>{% endif %}
+  <p class="participants-expediente-card__text mt-3">Después de asociar el programa, <a href="{{ record_url }}/memberships">gestione el alta por año fiscal</a>. El expediente debe estar sincronizado con ese año.</p>
+</div>
+{% endif %}

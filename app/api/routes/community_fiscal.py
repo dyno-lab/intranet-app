@@ -132,6 +132,8 @@ def participant_memberships(request: Request, participant_id: int, fiscal_year_i
                      "periods": periods, "is_active": any(period.end_date is None for period in periods)})
     return _render(request, "participant_memberships", context, participant=participant, years=years,
                    selected_year=selected, rows=rows,
+                   available_programs=[p for p in context.visible_programs if p.program_id not in
+                                       {association.program_id for association, _ in associations}],
                    state=db.get(CPFiscalState, selected.fiscal_year_id) if selected else None,
                    synchronized=bool(selected and db.get(CPFiscalParticipant, (participant_id, selected.fiscal_year_id))))
 

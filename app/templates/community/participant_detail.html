@@ -1,11 +1,83 @@
 {% extends "community/_base.html" %}
+{% block title %}Expediente {{ participant.expediente_num }} · Comunidad{% endblock %}
 {% block content %}
-{% if identity_linked %}<div class="alert alert-success"><i class="bi bi-link-45deg" aria-hidden="true"></i> También participa en Faro. Vínculo confirmado; los expedientes se conservan separados.</div>{% elif identity_pending %}<div class="alert alert-info">Se encontraron posibles coincidencias en Faro. <a href="/community/participants/{{ participant.participant_id }}/identity">Revisar si es la misma persona</a></div>{% endif %}
-<section class="community-hero"><span class="community-eyebrow">Expediente de Comunidad</span><h1>{{ participant.nombre }} {{ participant.inicial or '' }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</h1><p class="h4 community-record">{{ participant.expediente_num }}</p><a class="btn btn-outline-primary mt-2" href="/community/participants">Volver a expedientes</a></section>
-{% if cp.role in ['admin', 'supervisor'] %}<p><a class="btn btn-primary" href="/community/participants/{{ participant.participant_id }}/edit">Editar datos personales</a></p>{% endif %}
-<p><a class="btn btn-outline-primary" href="/community/participants/{{ participant.participant_id }}/memberships">Programas por año fiscal · Altas, bajas e historial</a></p>
-{% if profile %}<section class="card mb-4"><div class="card-body"><h2 class="h5">Campos de perfil</h2><dl class="community-definition">{% for label, value in profile %}<dt>{{ label }}</dt><dd>{{ value or '—' }}</dd>{% endfor %}</dl></div></section>{% endif %}
-<div class="row g-4"><div class="col-xl-7"><section class="card"><div class="card-header"><h2 class="h5 mb-0">Datos del participante</h2></div><div class="card-body"><dl class="community-definition">
-{% for key, label in [('genero','Género'),('fecha_nacimiento','Fecha de nacimiento'),('edad','Edad'),('primera_vez','Primera participación'),('vca','VCA'),('escolaridad_participante','Escolaridad'),('composicion_familiar','Composición familiar'),('grupo_familiar','Grupo familiar'),('fuente_ingreso_principal','Fuente de ingreso'),('rango_ingreso','Rango de ingreso'),('relacion_familiar','Relación familiar'),('estatus','Estatus'),('direccion_fisica','Dirección física'),('pueblo','Pueblo'),('telefono','Teléfono'),('email','Correo electrónico')] %}<dt>{{ label }}</dt><dd>{{ participant|attr(key) if participant|attr(key) is not none else '—' }}</dd>{% endfor %}<dt>Jefatura de familia</dt><dd>{{ 'Sí' if participant.is_head_of_household else 'No' }}</dd>
-</dl></div></section></div><div class="col-xl-5"><section class="card"><div class="card-header"><h2 class="h5 mb-0">Programas del participante</h2></div><div class="card-body">{% for association, program in associations %}<article class="mb-3"><strong>{{ program.code }} · {{ program.name }}</strong><div class="community-record mt-1">{{ association.record_number }}</div></article>{% endfor %}<p class="text-muted mb-0">Estos registros pertenecen al mismo expediente y conservan su número entre años fiscales.</p></div></section></div></div>
+{% set p = participant %}
+{% set record_url = '/community/participants/' ~ p.participant_id %}
+{% macro value(item) %}{{ item if item is not none and item != '' else 'No informado' }}{% endmacro %}
+{% macro day(item) %}{% if item %}<time datetime="{{ item.isoformat() }}">{{ item.strftime('%d/%m/%Y') }}</time>{% else %}No informado{% endif %}{% endmacro %}
+{% macro detail(label, item) %}<div class="participants-expediente-field"><dt class="participants-expediente-field__label">{{ label }}</dt><dd class="participants-expediente-field__value">{{ value(item) }}</dd></div>{% endmacro %}
+<div class="participants-page participants-expediente-page">
+  <section class="participants-hero participants-hero--expediente" aria-labelledby="expediente-title">
+    <div class="participants-hero__content participants-hero__content--expediente">
+      <div>
+        <span class="participants-hero__eyebrow">Expediente del participante</span>
+        <h1 class="participants-hero__title participants-expediente__name" id="expediente-title">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</h1>
+        <p class="participants-expediente__subtitle">Vista integral del expediente y su participación en Comunidad y Prevención.</p>
+        {% if identity_linked %}<p class="mb-0"><span class="badge text-bg-success"><i class="bi bi-link-45deg" aria-hidden="true"></i> También participa en Faro</span></p>{% elif identity_pending %}<p class="mb-0"><a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/identity">Revisar similitud con Faro</a></p>{% endif %}
+      </div>
+      <dl class="participants-expediente__meta">
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Número de expediente</dt><dd class="participants-expediente__meta-value">{{ p.expediente_num }}</dd></div>
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Programas</dt><dd class="participants-expediente__meta-value community-record-programs">{% for association, program in associations %}<span class="badge community-program-badge">{{ program.code }}</span>{% endfor %}</dd></div>
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Estatus</dt><dd class="participants-expediente__meta-value">{{ value(p.estatus) }}</dd></div>
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Jefe de familia</dt><dd class="participants-expediente__meta-value"><span class="badge {{ 'text-bg-primary' if p.is_head_of_household else 'text-bg-light participants-expediente-badge-neutral' }}">{{ 'Sí' if p.is_head_of_household else 'No' }}</span></dd></div>
+      </dl>
+      <div class="participants-hero__actions participants-expediente__actions">
+        <a class="btn btn-outline-secondary" href="/community/participants#participants-table-card"><i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a Listado</a>
+        {% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-primary" href="{{ record_url }}/edit"><i class="bi bi-pencil-square" aria-hidden="true"></i> Editar participante</a>{% endif %}
+        {% if cp.role != 'viewer' %}<a class="btn btn-outline-primary" href="#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a>{% else %}<span class="badge text-bg-info participants-badge participants-expediente__readonly-badge"><i class="bi bi-lock" aria-hidden="true"></i> Solo lectura</span>{% endif %}
+      </div>
+    </div>
+    <aside class="participants-expediente-summary" aria-label="Resumen del expediente">
+      <div class="participants-expediente-summary__header"><span class="participants-expediente-summary__eyebrow">Resumen</span><strong class="participants-expediente-summary__title">Datos clave</strong></div>
+      <dl class="participants-expediente-summary__grid">
+        {% for label, item in [('Edad', p.edad), ('Género', p.genero), ('Programas', associations|length), ('Años fiscales', record.fiscal_years|length)] %}<div class="participants-expediente-summary__item"><dt>{{ label }}</dt><dd>{{ value(item) }}</dd></div>{% endfor %}
+        <div class="participants-expediente-summary__item"><dt>Participaciones</dt><dd>{{ record.participation_total }}</dd></div>
+        <div class="participants-expediente-summary__item"><dt>Última participación</dt><dd>{{ day(record.last_participation_date) }}</dd></div>
+      </dl>
+    </aside>
+  </section>
+  <nav class="participants-expediente-nav" aria-label="Secciones del expediente"><div class="participants-expediente-nav__links">
+    {% for anchor, icon, label in [('resumen','person-vcard','Resumen'),('contacto','telephone','Contacto'),('programas','people','Programas'),('anos-fiscales','calendar3','Años fiscales'),('historial','clock-history','Historial')] %}<a class="participants-expediente-nav__link" href="#{{ anchor }}"><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>{% endfor %}
+  </div></nav>
+  <section class="participants-section participants-expediente-anchor" id="resumen" aria-labelledby="resumen-title">
+    <h2 class="visually-hidden" id="resumen-title">Resumen del participante</h2>
+    <div class="participants-expediente-grid">
+      <article class="participants-expediente-card"><div class="participants-expediente-card__header"><h3 class="participants-card__title">Datos generales</h3></div><div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
+        <div class="participants-expediente-field"><dt class="participants-expediente-field__label">Fecha de nacimiento</dt><dd class="participants-expediente-field__value">{{ day(p.fecha_nacimiento) }}</dd></div>
+        {% for key, label in [('edad','Edad'),('genero','Género'),('vca','VCA'),('primera_vez','Participa por primera vez'),('estatus','Estatus'),('escolaridad_participante','Escolaridad'),('relacion_familiar','Relación familiar')] %}{{ detail(label, p|attr(key)) }}{% endfor %}
+      </dl></div></article>
+      <article class="participants-expediente-card"><div class="participants-expediente-card__header"><h3 class="participants-card__title">Información familiar y dirección</h3></div><div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
+        {% for key, label in [('direccion_fisica','Dirección física'),('pueblo','Pueblo'),('grupo_familiar','Grupo familiar'),('composicion_familiar','Composición familiar'),('fuente_ingreso_principal','Fuente de ingreso principal'),('rango_ingreso','Rango de ingreso')] %}{{ detail(label, p|attr(key)) }}{% endfor %}
+      </dl></div></article>
+    </div>
+  </section>
+  <section class="participants-section participants-expediente-anchor" id="contacto" aria-labelledby="contacto-title">
+    <article class="participants-expediente-card">
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="contacto-title">Información de contacto</h2><p class="participants-expediente-card__text">Datos actuales del expediente.</p></div>{% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/edit#telefono"><i class="bi bi-pencil" aria-hidden="true"></i> Editar contacto</a>{% endif %}</div>
+      <div class="participants-expediente-card__body"><dl class="participants-expediente-fields participants-expediente-fields--full">{{ detail('Teléfono', p.telefono) }}{{ detail('Email', p.email) }}{% for label, item in profile %}{{ detail(label, item) }}{% endfor %}</dl></div>
+    </article>
+  </section>
+  <section class="participants-section participants-expediente-anchor" id="programas" aria-labelledby="programas-title">
+    <article class="participants-expediente-card">
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="programas-title">Programas del participante</h2><p class="participants-expediente-card__text">Cada número asociado se conserva entre años fiscales.</p></div><span class="badge text-bg-secondary">{{ associations|length }}</span></div>
+      <div class="participants-expediente-card__body">
+        <div class="table-responsive participants-expediente-table-wrap"><table class="table table-hover align-middle participants-table participants-expediente-table mb-0"><thead><tr><th>Código</th><th>Programa</th><th>Expediente asociado</th><th class="text-end">Gestión</th></tr></thead><tbody>
+          {% for association, program in associations %}<tr><th scope="row">{{ program.code }}</th><td>{{ program.name }}</td><td>{{ association.record_number }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/memberships">Altas, bajas e historial</a></td></tr>{% endfor %}
+        </tbody></table></div>
+        {% include "community/_participant_add_programs.html" %}
+      </div>
+    </article>
+  </section>
+  <section class="participants-section participants-expediente-anchor" id="anos-fiscales" aria-labelledby="fiscal-title">
+    <article class="participants-expediente-card">
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="fiscal-title">Años fiscales relacionados</h2><p class="participants-expediente-card__text">Sincronización del expediente y estado por programa.</p></div><span class="badge text-bg-secondary">{{ record.fiscal_years|length }}</span></div>
+      <div class="participants-expediente-card__body">
+        {% if record.fiscal_rows %}<div class="table-responsive participants-expediente-table-wrap"><table class="table table-hover align-middle participants-table participants-expediente-table mb-0"><thead><tr><th>Año fiscal</th><th>Programa</th><th>Estado en el programa</th><th>Estado del año</th><th class="text-end">Acciones</th></tr></thead><tbody>
+          {% for row in record.fiscal_rows %}<tr><th scope="row"><span class="participants-expediente-table__primary">{{ row.year.code }}</span><span class="participants-expediente-table__secondary">{{ row.year.name }}</span></th><td>{{ row.program.code if row.program else 'Sin alta en sus programas' }}</td><td><span class="badge {{ 'text-bg-success' if row.status == 'Activo en este año' else ('text-bg-danger' if row.status == 'Baja' else 'text-bg-secondary') }}">{{ row.status }}</span></td><td>{{ 'Abierto' if row.year.status == 'active' else 'Cerrado' }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/memberships?fiscal_year_id={{ row.year.fiscal_year_id }}">Ver programas del año</a></td></tr>{% endfor %}
+        </tbody></table></div>{% else %}<div class="participants-expediente-empty" role="status"><span class="participants-expediente-empty__icon"><i class="bi bi-calendar3" aria-hidden="true"></i></span><div><strong>Sin años fiscales asociados</strong><p>Un Supervisor o Administrador debe sincronizar el expediente antes del alta en el programa y año fiscal.</p>{% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-outline-primary" href="/community/fiscal-participants?q={{ p.expediente_num }}">Ir a sincronización</a>{% endif %}</div></div>{% endif %}
+      </div>
+    </article>
+  </section>
+  {% include "community/_participant_history.html" %}
+</div>
 {% endblock %}

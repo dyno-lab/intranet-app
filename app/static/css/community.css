@@ -55,4 +55,10 @@
 .community-body .participants-pagination { --bs-pagination-color: #126443; --bs-pagination-hover-color: #0b4d32; }
 .community-program-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .35rem; width: 9rem; max-width: 100%; }
 .community-program-badge { color: #126443; background: #e4f2e8; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.community-record-programs { flex-wrap: wrap; gap: .35rem; }
+.community-body .participants-expediente-chart__total { border-color: rgba(18, 100, 67, .16); background: #f1f7f3; }
+.community-body .participants-expediente-pagination { --bs-pagination-active-bg: #126443; --bs-pagination-active-border-color: #126443; }
+@media (min-width: 1200px) {
+  .community-body .participants-expediente-filters__field--wide { grid-column: span 2; }
+}
 @media (max-width: 767px) { .community-body .ui-topbar { flex-wrap: wrap; height: auto; padding: .75rem; gap: .5rem; } .community-body .ui-topbar__right { flex-wrap: wrap; } .community-definition { grid-template-columns: 1fr; gap: .3rem; } .community-definition dd { margin-bottom: .7rem; } }
