@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.puerto_rico import MUNICIPALITIES
 from app.core.community_access import (
     CONTEXT_KEY, CommunityContext, csrf_token, require_community_access,
     require_community_admin, require_community_context, require_community_writer, require_community_supervisor,
@@ -21,6 +22,7 @@ from app.core.community_access import (
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.services.community import associate_participant_programs, create_fiscal_year, create_participant, create_program, update_participant
+from app.services.community import delete_program, program_usage, update_program
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
@@ -100,17 +102,20 @@ def home(request: Request, db: Session = Depends(get_db),
 
 
 @router.get("/programs")
-def programs(request: Request, context: CommunityContext = Depends(require_community_admin)):
-    return _render(request, "programs", context)
+def programs(request: Request, db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
+    locked, used = program_usage(db, context.visible_program_ids)
+    return _render(request, "programs", context, municipalities=MUNICIPALITIES,
+                   locked_program_ids=locked, used_program_ids=used)
 
 
 @router.post("/programs")
 def add_program(request: Request, code: str = Form(...), name: str = Form(...),
+                municipality: str = Form(""),
                 token: str = Form(...), db: Session = Depends(get_db),
                 context: CommunityContext = Depends(require_community_admin)):
     validate_csrf(request, token)
     try:
-        create_program(db, code, name)
+        create_program(db, code, name, municipality)
         db.commit()
     except ValueError as exc:
         db.rollback()
@@ -119,6 +124,43 @@ def add_program(request: Request, code: str = Form(...), name: str = Form(...),
         db.rollback()
         return _redirect("/community/programs", error="Ya existe un programa con ese código.")
     return _redirect("/community/programs", message="Programa creado correctamente.")
+
+
+@router.post("/programs/{program_id}/edit")
+def edit_program(request: Request, program_id: int, code: str = Form(...), name: str = Form(...),
+                 municipality: str = Form(""), token: str = Form(...), db: Session = Depends(get_db),
+                 context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    try:
+        update_program(db, program_id, code, name, municipality)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return _redirect("/community/programs", error=str(exc))
+    except IntegrityError:
+        db.rollback()
+        return _redirect("/community/programs", error="Ya existe un programa con ese código.")
+    return _redirect("/community/programs", message="Programa actualizado correctamente.")
+
+
+@router.post("/programs/{program_id}/delete")
+def remove_program(request: Request, program_id: int, token: str = Form(...), db: Session = Depends(get_db),
+                   context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    try:
+        delete_program(db, program_id)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return _redirect("/community/programs", error=str(exc))
+    except IntegrityError:
+        db.rollback()
+        return _redirect("/community/programs", error="No se puede eliminar: el programa tiene datos asociados.")
+    if request.session.get(CONTEXT_KEY) == program_id:
+        request.session[CONTEXT_KEY] = "all"
+    return _redirect("/community/programs", message="Programa eliminado correctamente.")
 
 
 @router.get("/fiscal-years")

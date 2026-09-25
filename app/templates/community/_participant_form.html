@@ -5,7 +5,7 @@
   <select class="form-select" id="{{ key }}" name="{{ key }}" {% if required %}required{% endif %}>
     <option value="">Selecciona</option>
     {% if values.get(key) and values[key] not in catalog_options[key] %}<option selected value="{{ values[key] }}">{{ values[key] }} (valor guardado)</option>{% endif %}
-    {% for choice in catalog_options[key] %}<option value="{{ choice }}" {{ 'selected' if values.get(key) == choice }}>{{ choice }}</option>{% endfor %}
+    {% for choice in catalog_options[key] %}<option value="{{ choice }}" {{ 'selected' if values.get(key) == choice }}>{{ catalog_labels.get(key, {}).get(choice, choice) }}</option>{% endfor %}
   </select>
   {% else %}
   <input class="form-control" id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ values.get(key, '') or '' }}" maxlength="{{ limit }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %}{% if key == 'fecha_nacimiento' %} max="{{ today.isoformat() }}"{% endif %}{% if type == 'tel' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}"{% endif %}>

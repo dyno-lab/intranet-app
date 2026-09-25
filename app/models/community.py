@@ -21,6 +21,7 @@ class CPProgram(Base):
     # Keeps case as entered for display, while rejecting ICCa / ICCA duplicates.
     code_key: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(Unicode(150), nullable=False)
+    municipality: Mapped[str | None] = mapped_column(Unicode(100))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
 

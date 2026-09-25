@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
@@ -22,7 +22,7 @@ def redirect(message=None, error=None):
 @router.get("")
 def catalogs(request: Request, db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
     options = db.execute(select(CPCatalogType, CPCatalogOption).join(CPCatalogOption).order_by(
-        CPCatalogType.label, CPCatalogOption.value)).all()
+        CPCatalogType.label, CPCatalogOption.sort_order, func.coalesce(CPCatalogOption.label, CPCatalogOption.value))).all()
     return templates.TemplateResponse(request=request, name="community/catalogs.html", context={
         "request": request, "cp": context, "current_user": context.user, "csrf_token": csrf_token(request),
         "message": request.query_params.get("msg"), "error": request.query_params.get("error"),

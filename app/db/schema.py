@@ -2640,6 +2640,10 @@ def ensure_schema_updates() -> None:
             conn.exec_driver_sql(COMMUNITY_OPERATIONS_SCHEMA_SQL)
             from app.db.community_identity_schema import COMMUNITY_IDENTITY_SCHEMA_SQL
             conn.exec_driver_sql(COMMUNITY_IDENTITY_SCHEMA_SQL)
+            from sqlalchemy.orm import Session
+            from app.services.community_catalog import seed_community_catalogs
+            with Session(bind=conn) as community_db:
+                seed_community_catalogs(community_db)
         # PHASE8 temporalmente fuera del startup para no bloquear arranque por estados legacy de SQL Server.
         # La corrección de activity_productivity_goals debe ejecutarse de forma controlada sobre la BD real.
 

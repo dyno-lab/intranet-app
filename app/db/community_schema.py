@@ -20,10 +20,14 @@ BEGIN
         code VARCHAR(20) NOT NULL,
         code_key VARCHAR(20) NOT NULL CONSTRAINT UQ_cp_program_code_key UNIQUE,
         name NVARCHAR(150) NOT NULL,
+        municipality NVARCHAR(100) NULL,
         is_active BIT NOT NULL CONSTRAINT DF_cp_program_active DEFAULT 1,
         created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_cp_program_created DEFAULT SYSUTCDATETIME()
     );
 END;
+
+IF COL_LENGTH(N'dbo.cp_programs', N'municipality') IS NULL
+    ALTER TABLE dbo.cp_programs ADD municipality NVARCHAR(100) NULL;
 
 IF OBJECT_ID(N'dbo.cp_fiscal_years', N'U') IS NULL
 BEGIN

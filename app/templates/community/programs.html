@@ -1,6 +1,52 @@
 {% extends "community/_base.html" %}
+{% macro town_select(id, value='') %}
+<label class="form-label" for="{{ id }}">Pueblo</label>
+<select class="form-select" id="{{ id }}" name="municipality">
+  <option value="">Selecciona</option>
+  {% for town in municipalities %}<option value="{{ town }}" {{ 'selected' if town == value }}>{{ town }}</option>{% endfor %}
+</select>
+{% endmacro %}
 {% block content %}
 <section class="community-hero"><span class="community-eyebrow">Comunidad y Prevención</span><h1>Programas</h1><p class="mb-0">Cada participante puede estar asociado a uno o varios programas.</p></section>
-{% if cp.role == 'admin' %}<section class="card mb-4"><div class="card-body"><h2 class="h5">Crear programa</h2><form method="post" action="/community/programs" class="row g-3"><input type="hidden" name="token" value="{{ csrf_token }}"><div class="col-md-3"><label class="form-label" for="program-code">Código</label><input class="form-control" id="program-code" name="code" maxlength="20" placeholder="TANF-M" required></div><div class="col-md-6"><label class="form-label" for="program-name">Nombre</label><input class="form-control" id="program-name" name="name" maxlength="150" required></div><div class="col-md-3 align-self-end"><button class="btn btn-primary" type="submit">Crear programa</button></div></form></div></section>{% endif %}
-<section class="card"><div class="card-body"><h2 class="h5">Programas disponibles</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Código</th><th>Nombre</th></tr></thead><tbody>{% for program in cp.visible_programs %}<tr><td><strong>{{ program.code }}</strong></td><td>{{ program.name }}</td></tr>{% else %}<tr><td colspan="2">Todavía no hay programas disponibles.</td></tr>{% endfor %}</tbody></table></div></div></section>
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Crear programa</h2>
+  <form method="post" action="/community/programs" class="row g-3">
+    <input type="hidden" name="token" value="{{ csrf_token }}">
+    <div class="col-md-2"><label class="form-label" for="program-code">Código</label><input class="form-control" id="program-code" name="code" maxlength="20" placeholder="TANF-M" required></div>
+    <div class="col-md-4"><label class="form-label" for="program-name">Nombre</label><input class="form-control" id="program-name" name="name" maxlength="150" required></div>
+    <div class="col-md-3">{{ town_select('program-town') }}</div>
+    <div class="col-md-3 align-self-end"><button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i> Crear programa</button></div>
+  </form>
+</div></section>
+<section class="card"><div class="card-body">
+  <h2 class="h5">Programas disponibles</h2>
+  <p class="text-muted">Puede editar el nombre y pueblo. El código queda fijo cuando existen expedientes. Solo puede eliminar programas sin datos asociados.</p>
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Pueblo</th><th class="text-end">Acciones</th></tr></thead>
+    <tbody>{% for program in cp.visible_programs %}
+      <tr>
+        <td><strong>{{ program.code }}</strong></td><td>{{ program.name }}</td><td>{{ program.municipality or '—' }}</td>
+        <td class="text-end">
+          <div class="d-flex gap-2 justify-content-end flex-wrap">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}" aria-expanded="false" aria-controls="edit-program-{{ program.program_id }}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Editar</button>
+            <form method="post" action="/community/programs/{{ program.program_id }}/delete" onsubmit="return confirm('¿Eliminar este programa sin datos asociados?');">
+              <input type="hidden" name="token" value="{{ csrf_token }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit" {% if program.program_id in used_program_ids %}disabled aria-describedby="program-used-{{ program.program_id }}"{% endif %}><i class="bi bi-trash" aria-hidden="true"></i> Eliminar</button>
+            </form>
+          </div>
+          {% if program.program_id in used_program_ids %}<div class="small text-muted mt-1" id="program-used-{{ program.program_id }}">Tiene datos asociados</div>{% endif %}
+        </td>
+      </tr>
+      <tr class="collapse" id="edit-program-{{ program.program_id }}"><td colspan="4">
+        <form method="post" action="/community/programs/{{ program.program_id }}/edit" class="row g-3 py-2">
+          <input type="hidden" name="token" value="{{ csrf_token }}">
+          <div class="col-md-2"><label class="form-label" for="code-{{ program.program_id }}">Código</label><input class="form-control" id="code-{{ program.program_id }}" name="code" value="{{ program.code }}" maxlength="20" required {% if program.program_id in locked_program_ids %}readonly aria-describedby="code-help-{{ program.program_id }}"{% endif %}>{% if program.program_id in locked_program_ids %}<div class="form-text" id="code-help-{{ program.program_id }}">Tiene expedientes asociados.</div>{% endif %}</div>
+          <div class="col-md-4"><label class="form-label" for="name-{{ program.program_id }}">Nombre</label><input class="form-control" id="name-{{ program.program_id }}" name="name" value="{{ program.name }}" maxlength="150" required></div>
+          <div class="col-md-3">{{ town_select('town-' ~ program.program_id, program.municipality) }}</div>
+          <div class="col-md-3 align-self-end d-flex gap-2 flex-wrap"><button class="btn btn-primary" type="submit">Guardar cambios</button><button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-program-{{ program.program_id }}">Cancelar</button></div>
+        </form>
+      </td></tr>
+    {% else %}<tr><td colspan="4">Todavía no hay programas disponibles.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div></section>
 {% endblock %}

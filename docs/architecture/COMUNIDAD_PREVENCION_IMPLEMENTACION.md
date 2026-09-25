@@ -287,6 +287,45 @@ multiprograma y comprobar un solo participante consolidado. Darla de baja solo e
 TANF-M y verificar que conserva VOCA y las asistencias anteriores. Probar también
 notas, descargas, cierres/reaperturas y acceso según cada rol.
 
+## Catálogos de expediente y administración de programas
+
+Al reiniciar con Comunidad habilitada, se copian una sola vez las opciones activas
+de los siete catálogos de expediente de Faro, incluyendo sus etiquetas y orden.
+`estatus_participante` de Faro corresponde a `estatus` de Comunidad. Las opciones
+quedan en `cp_catalog_types` / `cp_catalog_options`, se administran por separado y
+los reinicios conservan las opciones propias y las desactivadas. Los valores que
+ya estaban guardados en expedientes no se reescriben.
+
+Pueblo se inicia con los 78 municipios del
+[directorio oficial de Puerto Rico](https://www.pr.gov/gobierno-2/directorio-municipios).
+La lista local también alimenta el selector de pueblo de los programas.
+
+En **Comunidad → Programas**, el administrador puede crear, editar el nombre
+y pueblo, y eliminar programas sin datos asociados. El pueblo es opcional para
+conservar compatibilidad con los programas existentes. El código se puede editar
+hasta que tenga expedientes; después permanece fijo, incluso tras una baja fiscal.
+Las asociaciones de participantes, asignaciones de empleados, actividades, ADM,
+altas fiscales, sesiones y notas bloquean la eliminación. No hay borrado en cascada.
+La interfaz muestra estas restricciones y el servidor las vuelve a comprobar.
+
+Migración aditiva: `cp_programs.municipality`, `cp_catalog_types.defaults_loaded`,
+`cp_catalog_options.label` y `cp_catalog_options.sort_order`. La copia de opciones
+forma parte de la transacción de arranque, después de crear/actualizar el esquema;
+si falla, el arranque no deja una copia incompleta. No requiere una base nueva.
+
+Validación en la PC de pruebas: actualizar la rama y reiniciar la aplicación;
+revisar los dropdowns al crear y editar expedientes; crear un programa de prueba
+con pueblo, editarlo y eliminarlo antes de asociar datos. En un programa con
+expedientes, comprobar que permite cambiar nombre/pueblo, conserva el código y
+no permite eliminarlo. SQL Server y la revisión visual se verifican en esa PC.
+
+Verificación local de esta entrega: suite completa de 493 pruebas, 492 aprobadas
+y 1 omitida (salida 0). Incluye nueve casos nuevos de catálogos, municipios,
+permisos/CSRF, edición y eliminación de programas, estabilidad de numeración y
+confirmación/reversión de la transacción de carga inicial. Las consultas de estos
+casos también se compilan con el dialecto MSSQL; no sustituye ejecutar el DDL en
+la PC de pruebas.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

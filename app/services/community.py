@@ -14,6 +14,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+from app.core.puerto_rico import MUNICIPALITIES
 from app.models.community import CPProgram, CPFiscalYear, CPSequence, CPParticipant, CPParticipantProgram
 
 
@@ -63,23 +64,81 @@ def _active_programs(db: Session, program_ids: Iterable[int]) -> list[CPProgram]
     ids = set(submitted)
     programs = db.scalars(select(CPProgram).where(
         CPProgram.program_id.in_(ids), CPProgram.is_active == True,  # noqa: E712
-    ).order_by(CPProgram.program_id)).all() if ids else []
+    ).order_by(CPProgram.program_id).with_hint(
+        CPProgram, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql").execution_options(populate_existing=True)).all() if ids else []
     if len(programs) != len(ids):
         raise ValueError("Uno o más programas no existen o están inactivos.")
     return programs
 
 
-def create_program(db: Session, code: str, name: str) -> CPProgram:
+def _program_fields(code: str, name: str, municipality: str | None) -> dict:
     code = _text(code, "Código de programa", 20, required=True)
     name = _text(name, "Nombre de programa", 150, required=True)
     if not _PROGRAM_CODE.fullmatch(code):
         raise ValueError("El código del programa debe comenzar con una letra y contener letras, números o guiones.")
-    if db.scalar(select(CPProgram.program_id).where(CPProgram.code_key == code.upper())) is not None:
+    municipality = _text(municipality, "Pueblo", 100)
+    if municipality and municipality not in MUNICIPALITIES:
+        raise ValueError("Seleccione uno de los 78 pueblos de Puerto Rico.")
+    return {"code": code, "code_key": code.upper(), "name": name, "municipality": municipality}
+
+
+def create_program(db: Session, code: str, name: str, municipality: str | None = None) -> CPProgram:
+    fields = _program_fields(code, name, municipality)
+    if db.scalar(select(CPProgram.program_id).where(CPProgram.code_key == fields["code_key"])) is not None:
         raise ValueError("Ya existe un programa con ese código.")
-    program = CPProgram(code=code, code_key=code.upper(), name=name)
+    program = CPProgram(**fields)
     db.add(program)
     db.flush()
     return program
+
+
+def program_usage(db: Session, program_ids: Iterable[int]) -> tuple[set[int], set[int]]:
+    """Return codes locked by records and programs protected from deletion."""
+    from app.models.community import CPUserProgram
+    from app.models.community_activity import CPActivity, CPADMServiceType
+    from app.models.community_fiscal import CPFiscalEnrollment
+    from app.models.community_operations import CPActivitySession, CPGradeReport
+
+    ids = tuple(program_ids)
+    if not ids:
+        return set(), set()
+    locked = set(db.scalars(select(CPParticipantProgram.program_id).where(CPParticipantProgram.program_id.in_(ids))))
+    queries = [select(model.program_id).where(model.program_id.in_(ids)) for model in (
+        CPUserProgram, CPActivity, CPADMServiceType, CPFiscalEnrollment, CPActivitySession, CPGradeReport)]
+    used = locked | set(db.scalars(queries[0].union(*queries[1:])))
+    return locked, used
+
+
+def _locked_program(db: Session, program_id: int) -> CPProgram:
+    program = db.scalar(select(CPProgram).where(CPProgram.program_id == program_id).with_hint(
+        CPProgram, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
+    if program is None:
+        raise ValueError("Programa no encontrado.")
+    return program
+
+
+def update_program(db: Session, program_id: int, code: str, name: str, municipality: str | None = None) -> CPProgram:
+    fields = _program_fields(code, name, municipality)
+    program = _locked_program(db, program_id)
+    if fields["code"] != program.code and db.scalar(select(CPParticipantProgram.participant_id).where(
+        CPParticipantProgram.program_id == program_id).limit(1)) is not None:
+        raise ValueError("El código no se puede cambiar porque el programa ya tiene expedientes asociados.")
+    if db.scalar(select(CPProgram.program_id).where(
+        CPProgram.code_key == fields["code_key"], CPProgram.program_id != program_id)) is not None:
+        raise ValueError("Ya existe un programa con ese código.")
+    for key, value in fields.items():
+        setattr(program, key, value)
+    db.flush()
+    return program
+
+
+def delete_program(db: Session, program_id: int) -> None:
+    program = _locked_program(db, program_id)
+    _, used = program_usage(db, [program_id])
+    if program_id in used:
+        raise ValueError("No se puede eliminar: el programa tiene participantes, empleados, actividades u otros datos asociados.")
+    db.delete(program)
+    db.flush()
 
 
 def create_fiscal_year(db: Session, code: str, name: str, start_date: date, end_date: date) -> CPFiscalYear:

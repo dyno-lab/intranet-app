@@ -8,6 +8,7 @@ class CPCatalogType(Base):
     catalog_type_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     field_key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(Unicode(150), nullable=False)
+    defaults_loaded: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
 
 
 class CPCatalogOption(Base):
@@ -16,6 +17,8 @@ class CPCatalogOption(Base):
     option_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     catalog_type_id: Mapped[int] = mapped_column(ForeignKey("cp_catalog_types.catalog_type_id"), nullable=False)
     value: Mapped[str] = mapped_column(Unicode(150), nullable=False)
+    label: Mapped[str | None] = mapped_column(Unicode(150))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
 
 
