@@ -59,6 +59,14 @@
             </a>
             {% endif %}
 
+            {% if can_access_community %}
+            <a class="program-card program-card--active" href="/community/login" aria-label="Ingresar a Comunidad y Prevención" style="border-top: 4px solid #19805b">
+              <span class="program-card__icon" aria-hidden="true" style="color:#126443;background:#e2f3e9"><i class="bi bi-people"></i></span>
+              <div class="program-card__content"><h3 class="program-card__title">Comunidad y Prevención</h3><p class="program-card__description">Expedientes y participación en programas por año fiscal.</p></div>
+              <div class="program-card__footer"><span class="program-card__action" style="color:#126443">Ingresar</span><i class="bi bi-arrow-right" aria-hidden="true"></i></div>
+            </a>
+            {% endif %}
+
             {% if can_access_institutional_reports %}
             <a class="program-card program-card--active" href="/reporteinstitucionales" aria-label="Consultar reportes institucionales">
               <span class="program-card__icon" aria-hidden="true">
@@ -106,7 +114,7 @@
             </article>
             {% endif %}
 
-            {% if not can_access_faro and not can_access_institutional_reports and not can_access_automation and not can_access_new_programs %}
+            {% if not can_access_faro and not can_access_community and not can_access_institutional_reports and not can_access_automation and not can_access_new_programs %}
             <div class="alert alert-info mb-0" role="status">
               No tiene aplicaciones asignadas. Comuníquese con la administración de la plataforma.
             </div>

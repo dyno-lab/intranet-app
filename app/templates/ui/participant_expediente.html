@@ -32,6 +32,11 @@
           {{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}
         </h1>
         <p class="participants-expediente__subtitle">Vista integral del expediente y su participación en el programa.</p>
+        {% if community_identity_linked %}
+        <p class="mb-0"><span class="badge text-bg-success"><i class="bi bi-link-45deg" aria-hidden="true"></i> También participa en Comunidad y Prevención</span></p>
+        {% elif community_identity_pending %}
+        <p class="mb-0"><a class="btn btn-sm btn-outline-primary" href="/ui/new-list/{{ p.participant_id }}/community-identity">Revisar similitud con Comunidad y Prevención</a></p>
+        {% endif %}
       </div>
 
       <dl class="participants-expediente__meta">

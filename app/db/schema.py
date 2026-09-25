@@ -2627,6 +2627,19 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
         conn.exec_driver_sql(PHASE10_PROPOSAL_ACTIVITY_CODES_SQL)
         conn.exec_driver_sql(PHASE9_REPORT_TEMPLATES_SQL)
+        if settings.COMMUNITY_ENABLED:
+            from app.db.community_schema import COMMUNITY_SCHEMA_SQL
+            conn.exec_driver_sql(COMMUNITY_SCHEMA_SQL)
+            from app.db.community_catalog_schema import COMMUNITY_CATALOG_SCHEMA_SQL
+            conn.exec_driver_sql(COMMUNITY_CATALOG_SCHEMA_SQL)
+            from app.db.community_activity_schema import COMMUNITY_ACTIVITY_SCHEMA_SQL
+            from app.db.community_fiscal_schema import COMMUNITY_FISCAL_SCHEMA_SQL
+            from app.db.community_operations_schema import COMMUNITY_OPERATIONS_SCHEMA_SQL
+            conn.exec_driver_sql(COMMUNITY_ACTIVITY_SCHEMA_SQL)
+            conn.exec_driver_sql(COMMUNITY_FISCAL_SCHEMA_SQL)
+            conn.exec_driver_sql(COMMUNITY_OPERATIONS_SCHEMA_SQL)
+            from app.db.community_identity_schema import COMMUNITY_IDENTITY_SCHEMA_SQL
+            conn.exec_driver_sql(COMMUNITY_IDENTITY_SCHEMA_SQL)
         # PHASE8 temporalmente fuera del startup para no bloquear arranque por estados legacy de SQL Server.
         # La corrección de activity_productivity_goals debe ejecutarse de forma controlada sobre la BD real.
 

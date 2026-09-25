@@ -1,0 +1,53 @@
+{% extends "community/_base.html" %}
+{% block title %}Configuración ADM · Comunidad y Prevención{% endblock %}
+{% macro context_fields() %}<input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}">{% endmacro %}
+{% block content %}
+<section class="community-hero"><span class="community-eyebrow">Administración</span><h1>Configuración ADM</h1><p class="mb-0">Tipos de servicio y actividades por programa y año fiscal.</p></section>
+<section class="card mb-4"><div class="card-body">
+  <form method="get" action="/community/adm" class="row g-3">
+    <div class="col-md-5"><label class="form-label" for="adm-program">Programa</label><select class="form-select" id="adm-program" name="program_id" required><option value="">Seleccione un programa</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if program.program_id == program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-5"><label class="form-label" for="adm-year">Año fiscal</label><select class="form-select" id="adm-year" name="fiscal_year_id" required><option value="">Seleccione un año fiscal</option>{% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if year and fiscal.fiscal_year_id == year.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}{{ ' (cerrado)' if fiscal.status != 'active' }}</option>{% endfor %}</select></div>
+    <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit">Consultar</button></div>
+  </form>
+</div></section>
+{% if program_id and year %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h2 class="h5 mb-0">Tipos de servicio · {{ year.code }}</h2><a class="btn btn-outline-primary btn-sm" href="/community/activities?program_id={{ program_id }}&amp;fiscal_year_id={{ year.fiscal_year_id }}">Gestionar actividades</a></div>
+{% if not editable %}<div class="alert alert-info">Este año fiscal está cerrado o inactivo. Puede consultar su configuración; para modificarla debe reabrirlo.</div>{% endif %}
+{% if editable %}
+<section class="card mb-4"><div class="card-body"><h2 class="h5">Crear tipo de servicio</h2>
+  <form method="post" action="/community/adm/service-types" class="row g-3">{{ context_fields() }}
+    <div class="col-md-7"><label class="form-label" for="service-name">Nombre</label><input class="form-control" id="service-name" name="name" maxlength="150" required></div>
+    <div class="col-md-2"><label class="form-label" for="service-order">Orden</label><input class="form-control" id="service-order" name="sort_order" type="number" min="0" max="9999" value="0" required></div>
+    <div class="col-md-3 align-self-end"><button class="btn btn-primary" type="submit">Crear tipo de servicio</button></div>
+  </form>
+</div></section>
+{% endif %}
+{% for service in services %}
+<section class="card mb-4"><div class="card-body">
+  <h3 class="h5">{{ service.name }} <span class="badge {{ 'text-bg-success' if service.is_active else 'text-bg-secondary' }}">{{ 'Activo' if service.is_active else 'Inactivo' }}</span></h3>
+  {% if editable %}
+  <details class="mb-3"><summary>Editar tipo de servicio</summary>
+    <form method="post" action="/community/adm/service-types/{{ service.adm_service_type_id }}/edit" class="row g-3 mt-1">{{ context_fields() }}
+      <div class="col-md-6"><label class="form-label" for="service-name-{{ service.adm_service_type_id }}">Nombre</label><input class="form-control" id="service-name-{{ service.adm_service_type_id }}" name="name" value="{{ service.name }}" maxlength="150" required></div>
+      <div class="col-md-2"><label class="form-label" for="service-order-{{ service.adm_service_type_id }}">Orden</label><input class="form-control" id="service-order-{{ service.adm_service_type_id }}" name="sort_order" type="number" min="0" max="9999" value="{{ service.sort_order }}" required></div>
+      <div class="col-md-2 align-self-end"><div class="form-check"><input class="form-check-input" id="service-active-{{ service.adm_service_type_id }}" name="active" type="checkbox" value="true" {{ 'checked' if service.is_active }}><label class="form-check-label" for="service-active-{{ service.adm_service_type_id }}">Activo</label></div></div>
+      <div class="col-md-2 align-self-end"><button class="btn btn-outline-primary" type="submit">Guardar</button></div>
+    </form>
+  </details>
+  {% endif %}
+  <div class="table-responsive"><table class="table align-middle"><caption>Actividades asociadas a {{ service.name }}</caption><thead><tr><th>Código</th><th>Descripción</th>{% if editable %}<th>Acciones</th>{% endif %}</tr></thead><tbody>
+    {% for activity in mappings.get(service.adm_service_type_id, []) %}
+    <tr><td>{{ activity.code }}</td><td>{{ activity.description or '—' }}</td>{% if editable %}<td><form method="post" action="/community/adm/service-types/{{ service.adm_service_type_id }}/activities/{{ activity.activity_id }}/remove">{{ context_fields() }}<button class="btn btn-sm btn-outline-secondary" type="submit">Quitar asociación</button></form></td>{% endif %}</tr>
+    {% else %}<tr><td colspan="{{ 3 if editable else 2 }}">No hay actividades asociadas a este tipo de servicio.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if editable and service.is_active %}
+    {% if activities %}<form method="post" action="/community/adm/service-types/{{ service.adm_service_type_id }}/activities" class="row g-3">{{ context_fields() }}
+      <div class="col-md-9"><label class="form-label" for="adm-activity-{{ service.adm_service_type_id }}">Actividad disponible</label><select class="form-select" id="adm-activity-{{ service.adm_service_type_id }}" name="activity_id" required><option value="">Seleccione una actividad</option>{% for activity in activities %}<option value="{{ activity.activity_id }}">{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
+      <div class="col-md-3 align-self-end"><button class="btn btn-outline-primary" type="submit">Asociar actividad</button></div>
+    </form>{% else %}<p class="text-muted small mb-0">No hay actividades disponibles sin asignación ADM. Puede crearlas o asociarlas al año fiscal desde Actividades.</p>{% endif %}
+  {% endif %}
+</div></section>
+{% else %}<div class="alert alert-info">No hay tipos de servicio configurados para este programa y año fiscal.</div>{% endfor %}
+<p class="text-muted small">Una actividad puede pertenecer a un solo tipo de servicio ADM en cada año fiscal. Configure su clasificación antes de registrar sesiones: después se conserva para proteger los reportes históricos. Desactivar el tipo conserva sus asociaciones.</p>
+{% else %}<div class="alert alert-info">Seleccione un programa y un año fiscal para configurar ADM.</div>{% endif %}
+{% endblock %}

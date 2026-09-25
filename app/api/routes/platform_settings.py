@@ -11,7 +11,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.core.platform_permissions import (
+    ACCESS_COMMUNITY,
     ACCESS_FARO,
     MANAGE_PLATFORM_SETTINGS,
     require_platform_permission,
@@ -406,6 +408,7 @@ def platform_user_settings(
             "request": request,
             "current_user": current_user,
             "target_user": target_user,
+            "community_enabled": settings.COMMUNITY_ENABLED,
             "section": selected_section,
             "permissions": permissions,
             "assigned_permission_keys": assigned_permission_keys,
@@ -719,6 +722,13 @@ def grant_platform_permission(
     if target_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     permission = _active_permission(db, permission_key)
+    if permission.key == ACCESS_COMMUNITY:
+        # Community access, role and programs must be changed together by its
+        # dedicated admin-protected editor. Generic actions never mutate them.
+        return RedirectResponse(
+            f"/platform/settings/users/{user_id}/community",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
         return _user_settings_redirect(
             user_id,
@@ -794,6 +804,11 @@ def revoke_platform_permission(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
     permission = _active_permission(db, permission_key)
 
+    if permission.key == ACCESS_COMMUNITY:
+        return RedirectResponse(
+            f"/platform/settings/users/{user_id}/community",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     if permission.key == MANAGE_PLATFORM_SETTINGS and current_user.role != "admin":
         return _user_settings_redirect(
             user_id,

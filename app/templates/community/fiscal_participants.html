@@ -1,0 +1,31 @@
+{% extends "community/_base.html" %}
+{% block content %}
+<section class="community-hero"><span class="community-eyebrow">Historia por año fiscal</span><h1>Sincronización de participantes</h1><p class="mb-0">Conserve los datos de cada año fiscal sin duplicar expedientes. La sincronización no crea matrículas ni registra asistencias.</p></section>
+<form method="get" class="card card-body mb-4"><div class="row g-3 align-items-end">
+  <div class="col-md-5"><label class="form-label" for="fiscal-year">Año fiscal</label><select class="form-select" id="fiscal-year" name="fiscal_year_id" required>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year and year.fiscal_year_id == selected_year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-5"><label class="form-label" for="search">Nombre, apellido o expediente</label><input class="form-control" id="search" name="q" value="{{ q }}" maxlength="150"></div>
+  <div class="col-md-2"><button class="btn btn-primary" type="submit">Consultar</button></div>
+</div></form>
+{% if selected_year %}
+<div class="alert alert-info"><strong>{{ selected_year.code }}</strong> · {{ selected_year.start_date.strftime('%d/%m/%Y') }}–{{ selected_year.end_date.strftime('%d/%m/%Y') }} · {{ 'Abierto' if selected_year.status == 'active' else 'Cerrado' }} · Datos {{ 'congelados' if state and state.snapshots_frozen else 'habilitados para sincronizar' }}.{% if state and state.locked_through %} Períodos cerrados hasta {{ state.locked_through.strftime('%d/%m/%Y') }}.{% endif %}</div>
+{% if cp.role == 'admin' %}
+<details class="card mb-4"><summary class="card-header">Administrar año fiscal, períodos y congelación</summary><div class="card-body">
+  <p>Estos cambios aplican a todos los programas del año fiscal. Cerrar congela los datos; reabrir conserva la congelación y los cierres mensuales.</p>
+  <div class="d-flex flex-wrap gap-3 mb-3">
+    <form method="post" action="/community/fiscal-years/{{ selected_year.fiscal_year_id }}/status"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="action" value="{{ 'close' if selected_year.status == 'active' else 'reopen' }}"><button class="btn btn-outline-primary">{{ 'Cerrar año fiscal y congelar' if selected_year.status == 'active' else 'Reabrir año fiscal' }}</button></form>
+    {% if selected_year.status == 'active' %}<form method="post" action="/community/fiscal-years/{{ selected_year.fiscal_year_id }}/freeze"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="action" value="{{ 'unfreeze' if state and state.snapshots_frozen else 'freeze' }}"><button class="btn btn-outline-primary">{{ 'Descongelar datos para sincronizar' if state and state.snapshots_frozen else 'Congelar datos de participantes' }}</button></form>{% endif %}
+  </div>
+  {% if selected_year.status == 'active' %}<form method="post" action="/community/fiscal-years/{{ selected_year.fiscal_year_id }}/periods" class="row g-3 align-items-end"><input type="hidden" name="token" value="{{ csrf_token }}"><div class="col-md-5"><label class="form-label" for="locked-through">Períodos cerrados hasta</label><input class="form-control" type="date" id="locked-through" name="locked_through" min="{{ selected_year.start_date }}" max="{{ [today, selected_year.end_date]|min }}" value="{{ state.locked_through if state and state.locked_through else '' }}" aria-describedby="period-help"><div id="period-help" class="form-text">Use el último día del mes o del año fiscal. Una fecha anterior reabre los meses posteriores; vacío reabre todos.</div></div><div class="col-md-4"><button class="btn btn-outline-primary">Guardar cierre mensual</button></div></form>{% endif %}
+</div></details>
+{% endif %}
+<section class="card"><div class="card-body"><h2 class="h5">Expedientes disponibles en su contexto</h2>
+<form method="post" action="/community/fiscal-participants/sync"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="fiscal_year_id" value="{{ selected_year.fiscal_year_id }}">
+<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Seleccionar</th><th>Expediente</th><th>Participante</th><th>Datos del año fiscal</th><th>Programas</th></tr></thead><tbody>
+{% for participant, status in rows %}<tr><td><input class="form-check-input" type="checkbox" name="participant_ids" value="{{ participant.participant_id }}" aria-label="Seleccionar {{ participant.expediente_num }}" {% if selected_year.status != 'active' or (state and state.snapshots_frozen) %}disabled{% endif %}></td><td>{{ participant.expediente_num }}</td><td>{{ participant.nombre }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</td><td>{{ status }}</td><td><a href="/community/participants/{{ participant.participant_id }}/memberships?fiscal_year_id={{ selected_year.fiscal_year_id }}">Gestionar matrículas</a></td></tr>
+{% else %}<tr><td colspan="5">No hay expedientes para esta búsqueda.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if selected_year.status == 'active' and not (state and state.snapshots_frozen) %}<button class="btn btn-primary" {% if not rows %}disabled{% endif %}>Sincronizar seleccionados</button>{% else %}<p class="mb-0">La sincronización está bloqueada hasta que administración abra el año y descongele sus datos.</p>{% endif %}
+</form></div></section>
+<nav class="d-flex justify-content-between mt-3" aria-label="Páginas de expedientes">{% if page > 1 %}<a class="btn btn-outline-secondary" href="?{{ urlencode(dict(query_base, page=page-1)) }}">Anterior</a>{% else %}<span></span>{% endif %}<span>Página {{ page }}</span>{% if has_next %}<a class="btn btn-outline-secondary" href="?{{ urlencode(dict(query_base, page=page+1)) }}">Siguiente</a>{% else %}<span></span>{% endif %}</nav>
+{% else %}<div class="alert alert-info">Primero cree un año fiscal en Administración.</div>{% endif %}
+{% endblock %}

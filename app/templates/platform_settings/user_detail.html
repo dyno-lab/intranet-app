@@ -25,6 +25,7 @@
         <a class="{{ 'is-active' if section == 'general' }}" href="/platform/settings/users/{{ target_user.user_id }}?section=general"><i class="bi bi-person"></i> General</a>
         <a class="{{ 'is-active' if section == 'permissions' }}" href="/platform/settings/users/{{ target_user.user_id }}?section=permissions"><i class="bi bi-shield-check"></i> Permisos</a>
         <a class="{{ 'is-active' if section == 'residentials' }}" href="/platform/settings/users/{{ target_user.user_id }}?section=residentials"><i class="bi bi-buildings"></i> Residenciales</a>
+        {% if community_enabled %}<a href="/platform/settings/users/{{ target_user.user_id }}/community"><i class="bi bi-people"></i> Comunidad y Prevención</a>{% endif %}
       </nav>
       <div class="platform-user-editor__sidebar-account">
         <span class="platform-user-avatar">{{ (target_user.username or 'US')[:2]|upper }}</span>
@@ -78,7 +79,11 @@
           <article class="platform-permission-card {{ 'is-enabled' if is_assigned }}">
             <span class="platform-permission-card__icon"><i class="bi {{ 'bi-check-circle-fill' if is_assigned else 'bi-circle' }}"></i></span>
             <div><strong>{{ permission.name }}</strong><p>{{ permission.description or 'Sin descripción disponible.' }}</p><code>{{ permission.key }}</code></div>
-            {% if is_assigned %}{% if target_user.user_id == current_user.user_id and permission.key == manage_platform_settings_key %}<span class="platform-settings-self-protected">Acceso propio protegido</span>{% elif permission.is_active %}<form method="post" action="/platform/settings/users/{{ target_user.user_id }}/permissions/{{ permission.key }}/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="platform-toggle-button platform-toggle-button--on" type="submit"><span>Asignado</span><i class="bi bi-toggle-on"></i></button></form>{% endif %}{% elif permission.is_active %}<form method="post" action="/platform/settings/users/{{ target_user.user_id }}/permissions/{{ permission.key }}/grant"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="platform-toggle-button" type="submit"><span>Sin asignar</span><i class="bi bi-toggle-off"></i></button></form>{% endif %}
+            {% if permission.key == 'access_community' %}
+              {% if community_enabled and permission.is_active %}
+              <a class="platform-button platform-button--secondary" href="/platform/settings/users/{{ target_user.user_id }}/community">{{ 'Configurar' if current_user.role == 'admin' else 'Consultar' }} Comunidad</a>
+              {% else %}<span class="platform-settings-self-protected">Módulo no disponible</span>{% endif %}
+            {% elif is_assigned %}{% if target_user.user_id == current_user.user_id and permission.key == manage_platform_settings_key %}<span class="platform-settings-self-protected">Acceso propio protegido</span>{% elif permission.is_active %}<form method="post" action="/platform/settings/users/{{ target_user.user_id }}/permissions/{{ permission.key }}/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="platform-toggle-button platform-toggle-button--on" type="submit"><span>Asignado</span><i class="bi bi-toggle-on"></i></button></form>{% endif %}{% elif permission.is_active %}<form method="post" action="/platform/settings/users/{{ target_user.user_id }}/permissions/{{ permission.key }}/grant"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="platform-toggle-button" type="submit"><span>Sin asignar</span><i class="bi bi-toggle-off"></i></button></form>{% endif %}
           </article>
           {% endfor %}
         </div>

@@ -11,6 +11,14 @@ from app.api.routes.institutional_reports import router as institutional_reports
 from app.api.routes.portal import router as portal_router
 from app.api.routes.platform_settings import router as platform_settings_router
 from app.api.routes.residential_context import router as residential_context_router
+from app.api.routes.community import router as community_router
+from app.api.routes.community_settings import router as community_settings_router
+from app.api.routes.community_catalogs import router as community_catalogs_router
+from app.api.routes.community_activities import router as community_activities_router
+from app.api.routes.community_fiscal import router as community_fiscal_router
+from app.api.routes.community_operations import router as community_operations_router
+from app.api.routes.community_reports import router as community_reports_router
+from app.api.routes.community_identity import router as community_identity_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.catalogs import router as catalogs_router
@@ -76,6 +84,14 @@ institutional_report_dependencies = [
 
 app.include_router(portal_router)             # /home
 app.include_router(platform_settings_router)  # /platform/settings
+app.include_router(community_settings_router)
+app.include_router(community_router)
+app.include_router(community_catalogs_router)
+app.include_router(community_activities_router)
+app.include_router(community_fiscal_router)
+app.include_router(community_operations_router)
+app.include_router(community_reports_router)
+app.include_router(community_identity_router)
 app.include_router(
     institutional_reports_router,
     dependencies=institutional_report_dependencies,

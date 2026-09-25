@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Stage 2 only: require a validated residential context for Faro requests.
     RESIDENTIAL_SCOPE_ENFORCEMENT_ENABLED: bool = False
 
+    # Enable only after reviewing the additive Community migration in a test database.
+    COMMUNITY_ENABLED: bool = False
+
     DB_SERVER: str
     DB_NAME: str
     DB_USER: str

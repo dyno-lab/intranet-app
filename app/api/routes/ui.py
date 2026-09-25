@@ -65,6 +65,9 @@ from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 from app.services.proposal_participant_sync import get_different_proposal_participant_fields
+from app.services.community_identity import (
+    has_identity_link, has_identity_review, identity_review_url, pending_identity_review,
+)
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -1246,6 +1249,9 @@ async def create_participant(
     save_profile_field_values(db, p, profile_fields, profile_field_values)
     db.commit()
 
+    if settings.COMMUNITY_ENABLED and pending_identity_review(db, "faro", p.participant_id):
+        return _redirect_with_msg(identity_review_url("faro", p.participant_id),
+                                  "Participante creado. Revise la posible coincidencia con Comunidad y Prevención.")
     return _redirect_with_msg("/ui/new-list", "Participante creado exitosamente.")
 
 
@@ -1289,6 +1295,8 @@ def _participant_delete_blockers(db: Session, participant_id: int) -> list[str]:
         reference_id = db.execute(statement.limit(1)).scalar_one_or_none()
         if reference_id is not None:
             blockers.append(label)
+    if settings.COMMUNITY_ENABLED and has_identity_review(db, "faro", participant_id):
+        blockers.append("revisiones de identidad con Comunidad y Prevención")
     return blockers
 
 
@@ -1484,6 +1492,11 @@ def participant_expediente(
         "back_to_list_url": _build_new_list_url(normalized_return_query),
         "msg": msg,
     }
+    if settings.COMMUNITY_ENABLED:
+        context["community_identity_linked"] = has_identity_link(db, "faro", participant_id)
+        context["community_identity_pending"] = (
+            current_user.role != "viewer" and pending_identity_review(db, "faro", participant_id)
+        )
     context.update(
         _load_participant_expediente_context(
             db,

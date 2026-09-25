@@ -1,0 +1,8 @@
+{% extends "community/_base.html" %}
+{% block content %}
+<section class="community-hero"><span class="community-eyebrow">{{ cp.label }}</span><h1>Comunidad y Prevención</h1><p class="mb-0">Gestione los expedientes y la participación en sus programas.</p></section>
+<div class="row g-3">
+  <div class="col-md-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Expedientes registrados</h2><p class="display-6">{{ participant_count }}</p><p class="text-muted">Expedientes disponibles en el contexto seleccionado.</p><a class="btn btn-primary" href="/community/participants">Ver expedientes</a></div></div></div>
+  <div class="col-md-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Programas disponibles</h2><p class="display-6">{{ cp.visible_programs|length }}</p>{% if cp.role == 'admin' %}<a class="btn btn-outline-primary" href="/community/programs">Ver programas</a>{% else %}<a class="btn btn-outline-primary" href="/community/login">Seleccionar programa</a>{% endif %}</div></div></div>
+</div>
+{% endblock %}

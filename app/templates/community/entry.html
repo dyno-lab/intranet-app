@@ -1,0 +1,13 @@
+{% extends "community/_base.html" %}
+{% block title %}Acceso | Comunidad y Prevención{% endblock %}
+{% block content %}
+<section class="community-entry">
+  <div class="community-hero"><span class="community-eyebrow">Portal de programas</span><h1>Comunidad y Prevención</h1><p class="mb-0">Seleccione cómo desea trabajar. Su rol en Comunidad es <strong>{{ cp.role }}</strong>.</p></div>
+  <form method="post" action="/community/context"><input type="hidden" name="token" value="{{ csrf_token }}">
+    <fieldset><legend class="h5 mb-3">Contexto de acceso</legend><div class="row g-3">
+      <div class="col-12"><label class="community-program-choice"><input class="form-check-input" type="radio" name="program" value="all" required checked><span><strong>{{ 'Todos mis programas' if cp.role == 'user' else 'Administración general' }}</strong><br><small>{{ 'Trabajar con los programas que tiene asignados.' if cp.role == 'user' else 'Consultar todos los programas y las funciones permitidas por su rol.' }}</small></span></label></div>
+      {% for program in cp.programs %}<div class="col-md-6"><label class="community-program-choice"><input class="form-check-input" type="radio" name="program" value="{{ program.program_id }}"><span><strong>{{ program.code }}</strong><br>{{ program.name }}</span></label></div>{% endfor %}
+    </div></fieldset><div class="d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">Entrar a Comunidad <i class="bi bi-arrow-right" aria-hidden="true"></i></button><a class="btn btn-outline-secondary" href="/home">Volver al portal</a></div>
+  </form>
+</section>
+{% endblock %}

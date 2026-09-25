@@ -1,0 +1,35 @@
+{% extends base_template %}
+{% block title %}Revisar coincidencias · {{ source_label }}{% endblock %}
+{% block content %}
+<section class="card mb-4"><div class="card-body">
+  <p class="text-muted mb-1">{{ source_label }} · {{ source.expediente_num }}</p>
+  <h1 class="h3">Revisar coincidencias con {{ other_label }}</h1>
+  <p class="mb-0">Compare los datos y confirme si se trata de la misma persona. Los expedientes conservarán sus datos y números independientes.</p>
+</div></section>
+{% if source_label == 'Faro' %}
+{% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% endif %}
+{% if linked %}
+<div class="alert alert-success">La identidad ya está vinculada: este participante también participa en {{ other_label }}.</div>
+{% elif candidates %}
+{% for candidate in candidates %}
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Encontré una similitud con este participante. ¿Es el mismo participante?</h2>
+  <div class="table-responsive"><table class="table"><thead><tr><th>Dato</th><th>{{ source_label }}</th><th>{{ other_label }}</th></tr></thead><tbody>
+    <tr><th>Expediente</th><td>{{ source.expediente_num }}</td><td>{{ candidate.expediente_num }}</td></tr>
+    <tr><th>Nombre</th><td>{{ source.nombre }}</td><td>{{ candidate.nombre }}</td></tr>
+    <tr><th>Apellido paterno</th><td>{{ source.apellido_paterno }}</td><td>{{ candidate.apellido_paterno }}</td></tr>
+    <tr><th>Apellido materno</th><td>{{ source.apellido_materno or 'Sin registrar' }}</td><td>{{ candidate.apellido_materno or 'Sin registrar' }}</td></tr>
+    <tr><th>Fecha de nacimiento</th><td>{{ source.fecha_nacimiento.strftime('%d/%m/%Y') if source.fecha_nacimiento else 'Sin registrar' }}</td><td>{{ candidate.fecha_nacimiento.strftime('%d/%m/%Y') if candidate.fecha_nacimiento else 'Sin registrar' }}</td></tr>
+  </tbody></table></div>
+  <form method="post" action="{{ post_url }}" class="d-flex flex-wrap gap-2">
+    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="candidate_id" value="{{ candidate.participant_id }}">
+    <button class="btn btn-primary" type="submit" name="decision" value="yes">Sí, es la misma persona</button>
+    <button class="btn btn-outline-secondary" type="submit" name="decision" value="no">No, son personas distintas</button>
+  </form>
+</div></section>
+{% endfor %}
+{% else %}<div class="alert alert-info">No hay coincidencias pendientes de revisión con los datos actuales.</div>{% endif %}
+<a class="btn btn-outline-secondary" href="{{ back_url }}">Volver al expediente</a>
+{% endblock %}

@@ -8,10 +8,12 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.core.google_oauth import google_oauth_is_available
 from app.core.platform_permissions import (
     ACCESS_AUTOMATION,
     ACCESS_FARO,
+    ACCESS_COMMUNITY,
     ACCESS_INSTITUTIONAL_REPORTS,
     ACCESS_NEW_PROGRAMS,
     ACCESS_PORTAL_HOME,
@@ -78,6 +80,7 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
             "google_oauth_available": google_oauth_is_available(),
             "can_manage_platform_settings": can_manage_platform_settings,
             "can_access_faro": ACCESS_FARO in permission_keys,
+            "can_access_community": settings.COMMUNITY_ENABLED and ACCESS_COMMUNITY in permission_keys,
             "can_access_institutional_reports": ACCESS_INSTITUTIONAL_REPORTS in permission_keys,
             "can_access_automation": ACCESS_AUTOMATION in permission_keys,
             "can_access_new_programs": ACCESS_NEW_PROGRAMS in permission_keys,

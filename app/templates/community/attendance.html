@@ -1,0 +1,33 @@
+{% extends "community/_base.html" %}
+{% block title %}Asistencia | Comunidad y Prevención{% endblock %}
+{% block content %}
+<section class="community-hero"><span class="community-eyebrow">Operación por programa</span><h1>Actividades y asistencia</h1><p>Registre la participación en cada actividad del año fiscal.</p></section>
+{% if not session %}
+<form method="get" class="card card-body mb-4"><div class="row g-3 align-items-end">
+  <div class="col-md-5"><label class="form-label" for="attendance-year">Año fiscal</label><select class="form-select" name="fiscal_year_id" id="attendance-year"><option value="">Todos</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-5"><label class="form-label" for="attendance-program">Programa</label><select class="form-select" name="program_id" id="attendance-program"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if selected_program == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Consultar</button></div>
+</div></form>
+{% if cp.role != 'viewer' %}
+{% if selected_year and selected_program %}
+<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Crear actividad con fecha</h2></div><div class="card-body">
+{% if activities %}<form method="post" action="/community/attendance"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="fiscal_year_id" value="{{ selected_year }}"><input type="hidden" name="program_id" value="{{ selected_program }}"><div class="row g-3">
+  <div class="col-md-7"><label for="activity-id" class="form-label">Actividad del programa</label><select class="form-select" id="activity-id" name="activity_id" required>{% for activity in activities %}<option value="{{ activity.activity_id }}">{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
+  <div class="col-md-5"><label for="session-date" class="form-label">Fecha</label><input type="date" class="form-control" id="session-date" name="session_date" max="{{ today }}" required></div>
+  <div class="col-12"><label for="session-notes" class="form-label">Observaciones</label><textarea class="form-control" id="session-notes" name="notes" maxlength="500" rows="2"></textarea></div>
+  <div class="col-12"><button class="btn btn-primary">Crear y registrar asistencia</button></div>
+</div></form>{% else %}<p class="mb-0">No hay actividades activas asociadas a este programa y año fiscal. Solicite su configuración a Administración.</p>{% endif %}
+</div></section>
+{% else %}<p class="alert alert-light border">Seleccione un año fiscal y un programa para crear una actividad con fecha.</p>{% endif %}
+{% endif %}
+<section class="card"><div class="card-header"><h2 class="h5 mb-0">Sesiones registradas</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Año fiscal</th><th>Programa</th><th>Actividad</th><th></th></tr></thead><tbody>{% for row, program, activity, year in sessions %}<tr><td>{{ row.session_date.strftime('%d/%m/%Y') }}</td><td>{{ year.code }}</td><td>{{ program.code }}</td><td>{{ activity.code }} · {{ activity.description or '' }}</td><td><a href="/community/attendance/{{ row.session_id }}">Ver asistencia</a></td></tr>{% else %}<tr><td colspan="5" class="text-muted p-4">No hay sesiones para esta selección.</td></tr>{% endfor %}</tbody></table></div><nav class="card-footer d-flex justify-content-between align-items-center" aria-label="Páginas de asistencia">{% if previous_url %}<a href="{{ previous_url }}">Anterior</a>{% else %}<span></span>{% endif %}<span>Página {{ page }}</span>{% if next_url %}<a href="{{ next_url }}">Siguiente</a>{% else %}<span></span>{% endif %}</nav></section>
+{% else %}
+<p><a class="btn btn-outline-primary" href="/community/attendance?fiscal_year_id={{ session.fiscal_year_id }}&amp;program_id={{ session.program_id }}">Volver a actividades</a></p>
+<section class="card mb-4"><div class="card-body"><h2 class="h5">{{ activity.code }} · {{ activity.description or '' }}</h2><p>{{ program.name }} · {{ fiscal_year.code }} · {{ session.session_date.strftime('%d/%m/%Y') }}</p>{% if session.notes %}<p class="mb-0">{{ session.notes }}</p>{% endif %}</div></section>
+{% if lock_message %}<p class="alert alert-warning">{{ lock_message }} La asistencia registrada permanece disponible para consulta.</p>{% endif %}
+<form method="post" action="/community/attendance/{{ session.session_id }}"><input type="hidden" name="token" value="{{ csrf_token }}"><section class="card"><div class="card-header"><h2 class="h5 mb-0">Asistencia del día</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Presente</th><th>Expediente</th><th>Participante</th></tr></thead><tbody>
+{% for participant in participants %}<tr><td><input class="form-check-input" type="checkbox" name="present_participant_ids" value="{{ participant.participant_id }}" aria-label="Presente: {{ participant.nombre }} {{ participant.apellido_paterno }}" {{ 'checked' if attendance.get(participant.participant_id, false) }} {{ 'disabled' if cp.role == 'viewer' or lock_message or participant.participant_id not in eligible_ids }}></td><td>{{ participant.expediente_num }}</td><td>{{ participant.nombre }} {{ participant.inicial or '' }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}{% if participant.participant_id not in eligible_ids %}<span class="text-muted"> · Registro histórico</span>{% endif %}</td></tr>{% else %}<tr><td colspan="3" class="text-muted p-4">No hay participantes matriculados en este programa para la fecha seleccionada. Revise la sincronización y las fechas de alta.</td></tr>{% endfor %}
+</tbody></table></div>{% if cp.role != 'viewer' and not lock_message %}<div class="card-footer"><button class="btn btn-primary">Guardar asistencia</button><span class="ms-2 text-muted">Solo las personas marcadas como presentes cuentan como participación.</span></div>{% endif %}</section></form>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script>document.querySelectorAll('form[method="get"]').forEach(form => form.addEventListener('submit', () => form.querySelectorAll('select').forEach(select => { if (!select.value) select.disabled = true; })));</script>{% endblock %}

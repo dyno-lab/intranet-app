@@ -1,0 +1,65 @@
+{% extends "community/_base.html" %}
+{% block title %}Actividades · Comunidad y Prevención{% endblock %}
+{% block content %}
+<section class="community-hero">
+  <span class="community-eyebrow">Administración</span><h1>Actividades por programa</h1>
+  <p class="mb-0">Configure las actividades de cada programa y su disponibilidad por año fiscal.</p>
+</section>
+<section class="card mb-4"><div class="card-body">
+  <form method="get" action="/community/activities" class="row g-3">
+    <div class="col-md-5"><label class="form-label" for="activity-program">Programa</label>
+      <select class="form-select" id="activity-program" name="program_id" required>
+        <option value="">Seleccione un programa</option>
+        {% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if program.program_id == program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5"><label class="form-label" for="activity-year">Año fiscal</label>
+      <select class="form-select" id="activity-year" name="fiscal_year_id" required>
+        <option value="">Seleccione un año fiscal</option>
+        {% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if year and fiscal.fiscal_year_id == year.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}{{ ' (cerrado)' if fiscal.status != 'active' }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit">Consultar</button></div>
+  </form>
+</div></section>
+{% if program_id and year %}
+{% if not editable %}<div class="alert alert-info">Este año fiscal está cerrado o inactivo. Puede consultar su configuración; para modificarla debe reabrirlo.</div>{% endif %}
+{% if editable %}
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Crear actividad</h2>
+  <form method="post" action="/community/activities" class="row g-3">
+    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}">
+    <div class="col-md-3"><label class="form-label" for="new-activity-code">Código</label><input class="form-control" id="new-activity-code" name="code" maxlength="50" required></div>
+    <div class="col-md-9"><label class="form-label" for="new-activity-description">Descripción</label><input class="form-control" id="new-activity-description" name="description" maxlength="255"></div>
+    <fieldset class="col-12"><legend class="fs-6">Asociar a años fiscales</legend>
+      {% for fiscal in years if fiscal.is_active and fiscal.status == 'active' %}
+      <div class="form-check form-check-inline"><input class="form-check-input" id="new-year-{{ fiscal.fiscal_year_id }}" type="checkbox" name="fiscal_year_ids" value="{{ fiscal.fiscal_year_id }}" {{ 'checked' if fiscal.fiscal_year_id == year.fiscal_year_id }}><label class="form-check-label" for="new-year-{{ fiscal.fiscal_year_id }}">{{ fiscal.code }}</label></div>
+      {% endfor %}
+    </fieldset>
+    <div class="col-12"><button class="btn btn-primary" type="submit">Crear actividad</button></div>
+  </form>
+</div></section>
+{% if available %}
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Asociar una actividad existente a {{ year.code }}</h2>
+  <form method="post" action="/community/activities/associate" class="row g-3">
+    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}">
+    <div class="col-md-9"><label class="form-label" for="existing-activity">Actividad del programa</label><select class="form-select" id="existing-activity" name="activity_id" required><option value="">Seleccione una actividad</option>{% for activity in available %}<option value="{{ activity.activity_id }}">{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
+    <div class="col-md-3 align-self-end"><button class="btn btn-outline-primary" type="submit">Asociar al año fiscal</button></div>
+  </form>
+</div></section>
+{% endif %}
+{% endif %}
+<section class="card"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h2 class="h5 mb-0">Actividades de {{ year.code }}</h2><a class="btn btn-outline-primary btn-sm" href="/community/adm?program_id={{ program_id }}&amp;fiscal_year_id={{ year.fiscal_year_id }}">Configurar ADM</a></div>
+  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Código</th><th>Descripción</th><th>Estado en este año</th><th>Acciones</th></tr></thead><tbody>
+    {% for activity, association in rows %}
+    <tr><td><strong>{{ activity.code }}</strong></td><td>{{ activity.description or '—' }}</td><td><span class="badge {{ 'text-bg-success' if association.is_active and activity.is_active else 'text-bg-secondary' }}">{{ 'Activa' if association.is_active and activity.is_active else 'Inactiva' }}</span></td>
+      <td>{% if editable and activity.is_active %}<form method="post" action="/community/activities/{{ activity.activity_id }}/state"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}"><input type="hidden" name="active" value="{{ 'false' if association.is_active else 'true' }}"><button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Desactivar en este año' if association.is_active else 'Reactivar en este año' }}</button></form>{% else %}<span class="text-muted">Solo consulta</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="4">No hay actividades asociadas a este programa y año fiscal.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="text-muted small mb-0">Desactivar una actividad conserva su configuración ADM y los registros históricos.</p>
+</div></section>
+{% else %}<div class="alert alert-info">Seleccione un programa y un año fiscal para gestionar sus actividades.</div>{% endif %}
+{% endblock %}
