@@ -1,6 +1,6 @@
 """Activity/ADM services validate and flush; callers authorize and own the transaction.
 
-No service commits, deletes configuration, or changes an activity's permanent identity.
+No service commits. Removal is limited to unused configuration in open years.
 Fiscal deactivation affects only that year's availability, preserving report joins.
 """
 from __future__ import annotations
@@ -12,6 +12,52 @@ from sqlalchemy.orm import Session
 
 from app.models.community import CPFiscalYear, CPProgram
 from app.models.community_activity import CPActivity, CPFiscalActivity, CPADMServiceActivity, CPADMServiceType
+
+
+GOAL_TYPE_OPTIONS = (
+    ("none", "Sin meta productiva"),
+    ("as_needed", "Según necesidad"),
+    ("monthly_fixed", "Cantidad fija por programa por mes"),
+    ("period_fixed", "Acumulada por período"),
+)
+
+
+def _positive_goal(value: str | int | None, label: str, *, required: bool = False) -> int | None:
+    if value is None or value == "":
+        if required:
+            raise ValueError(f"{label} es requerida.")
+        return None
+    if isinstance(value, bool) or not str(value).isascii() or not str(value).isdigit():
+        raise ValueError(f"{label} debe ser un número entero positivo.")
+    if len(str(value)) > 10 or not 1 <= int(value) <= 2147483647:
+        raise ValueError(f"{label} debe estar entre 1 y 2147483647.")
+    return int(value)
+
+
+def _goal_values(goal_type: str, goal_value: str | int | None,
+                 period_goal_value: str | int | None, goal_is_active: bool) -> dict:
+    if goal_type not in dict(GOAL_TYPE_OPTIONS):
+        raise ValueError("Seleccione un tipo de meta válido.")
+    # Each activity belongs to one program; a period goal is its total for the fiscal year.
+    value = _positive_goal(goal_value, "Meta mensual", required=True) if goal_type == "monthly_fixed" else None
+    period = (_positive_goal(period_goal_value, "Meta del período", required=goal_type == "period_fixed")
+              if goal_type != "none" else None)
+    return dict(goal_type=goal_type, goal_value=value, period_goal_value=period, goal_is_active=bool(goal_is_active))
+
+
+def format_goal(association: CPFiscalActivity) -> str:
+    kind = association.goal_type
+    if kind == "none":
+        return "Sin meta productiva"
+    if kind == "monthly_fixed":
+        label = f"{association.goal_value} / programa / mes"
+    elif kind == "period_fixed":
+        return f"{association.period_goal_value} / programa / período"
+    else:
+        label = "Según necesidad"
+    if association.period_goal_value is not None:
+        label += f" · {association.period_goal_value} total / período"
+    return label
 
 
 def _text(value: str | None, label: str, limit: int, *, required: bool = True) -> str | None:
@@ -50,14 +96,18 @@ def _program(db: Session, program_id: int) -> CPProgram:
 
 
 def _activity(db: Session, activity_id: int, program_id: int) -> CPActivity:
-    activity = db.get(CPActivity, activity_id)
+    activity = db.scalar(select(CPActivity).where(CPActivity.activity_id == activity_id)
+                         .with_hint(CPActivity, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql")
+                         .execution_options(populate_existing=True))
     if activity is None or activity.program_id != program_id:
         raise ValueError("La actividad no pertenece al programa seleccionado.")
     return activity
 
 
 def create_activity(db: Session, *, program_id: int, code: str, description: str | None,
-                    fiscal_year_ids: Iterable[int]) -> CPActivity:
+                    fiscal_year_ids: Iterable[int], goal_type: str = "none", goal_value: str | int | None = None,
+                    period_goal_value: str | int | None = None, goal_is_active: bool = True) -> CPActivity:
+    goals = _goal_values(goal_type, goal_value, period_goal_value, goal_is_active)
     _program(db, program_id)
     years = sorted(set(fiscal_year_ids))
     if not years:
@@ -75,7 +125,7 @@ def create_activity(db: Session, *, program_id: int, code: str, description: str
     db.add(activity)
     db.flush()
     db.add_all([CPFiscalActivity(activity_id=activity.activity_id, fiscal_year_id=year_id,
-                                program_id=program_id) for year_id in years])
+                                program_id=program_id, **goals) for year_id in years])
     db.flush()
     return activity
 
@@ -97,6 +147,84 @@ def associate_activity(db: Session, *, activity_id: int, program_id: int,
     return association
 
 
+def _lock_activity_years(db: Session, activity_id: int, program_id: int) -> CPActivity:
+    """Keep year-before-activity lock order, also used by associations and ADM writes."""
+    statement = select(CPFiscalActivity.fiscal_year_id).where(CPFiscalActivity.activity_id == activity_id)
+    year_ids = set(db.scalars(statement))
+    for year_id in sorted(year_ids):
+        require_open_fiscal_year(db, year_id)
+    activity = _activity(db, activity_id, program_id)
+    if set(db.scalars(statement)) != year_ids:
+        raise ValueError("La asociación a años fiscales cambió. Recargue y vuelva a intentarlo.")
+    return activity
+
+
+def update_activity(db: Session, *, activity_id: int, program_id: int,
+                    code: str, description: str | None, active: bool) -> CPActivity:
+    _program(db, program_id)
+    activity = _lock_activity_years(db, activity_id, program_id)
+    code = _text(code, "Código de actividad", 50)
+    key = code.upper()
+    if len(key) > 50:
+        raise ValueError("El código normalizado de actividad permite hasta 50 caracteres.")
+    description = _text(description, "Descripción", 255, required=False)
+    if db.scalar(select(CPActivity.activity_id).where(
+        CPActivity.program_id == program_id, CPActivity.code_key == key,
+        CPActivity.activity_id != activity_id,
+    )) is not None:
+        raise ValueError("Ya existe una actividad con ese código en el programa.")
+    activity.code, activity.code_key, activity.description = code, key, description
+    activity.is_active = bool(active)
+    db.flush()
+    return activity
+
+
+def update_activity_year(db: Session, *, activity_id: int, program_id: int, fiscal_year_id: int,
+                         active: bool, goal_type: str = "none", goal_value: str | int | None = None,
+                         period_goal_value: str | int | None = None, goal_is_active: bool = True) -> CPFiscalActivity:
+    goals = _goal_values(goal_type, goal_value, period_goal_value, goal_is_active)
+    association = set_activity_active(db, activity_id=activity_id, program_id=program_id,
+                                      fiscal_year_id=fiscal_year_id, active=active)
+    for key, value in goals.items():
+        setattr(association, key, value)
+    db.flush()
+    return association
+
+
+def _require_unused_activity(db: Session, activity_id: int, fiscal_year_id: int | None = None) -> None:
+    from app.models.community_operations import CPActivitySession
+
+    for model, label in ((CPActivitySession, "sesiones"), (CPADMServiceActivity, "asociaciones ADM")):
+        query = select(model.activity_id).where(model.activity_id == activity_id)
+        if fiscal_year_id is not None:
+            query = query.where(model.fiscal_year_id == fiscal_year_id)
+        if db.scalar(query.limit(1)) is not None:
+            raise ValueError(f"La actividad tiene {label}. No puede eliminarse ni retirarse de ese año; puede desactivarla.")
+
+
+def unassociate_activity(db: Session, *, activity_id: int, program_id: int, fiscal_year_id: int) -> None:
+    require_open_fiscal_year(db, fiscal_year_id)
+    _program(db, program_id)
+    _activity(db, activity_id, program_id)
+    association = db.get(CPFiscalActivity, (activity_id, fiscal_year_id))
+    if association is None:
+        raise ValueError("La actividad no está asociada al año fiscal.")
+    _require_unused_activity(db, activity_id, fiscal_year_id)
+    db.delete(association)
+    db.flush()
+
+
+def delete_activity(db: Session, *, activity_id: int, program_id: int) -> None:
+    _program(db, program_id)
+    activity = _lock_activity_years(db, activity_id, program_id)
+    _require_unused_activity(db, activity_id)
+    for association in db.scalars(select(CPFiscalActivity).where(CPFiscalActivity.activity_id == activity_id)):
+        db.delete(association)
+    db.flush()
+    db.delete(activity)
+    db.flush()
+
+
 def set_activity_active(db: Session, *, activity_id: int, program_id: int,
                         fiscal_year_id: int, active: bool) -> CPFiscalActivity:
     require_open_fiscal_year(db, fiscal_year_id)
@@ -105,7 +233,7 @@ def set_activity_active(db: Session, *, activity_id: int, program_id: int,
     association = db.get(CPFiscalActivity, (activity_id, fiscal_year_id))
     if association is None:
         raise ValueError("La actividad no está asociada al año fiscal.")
-    if active and not activity.is_active:
+    if active and not activity.is_active and not association.is_active:
         raise ValueError("La actividad no está disponible.")
     association.is_active = bool(active)
     db.flush()
@@ -259,7 +387,10 @@ def copy_fiscal_configuration(db: Session, source_fiscal_year_id: int, target_fi
     services = db.scalars(select(CPADMServiceType).where(CPADMServiceType.fiscal_year_id == source_fiscal_year_id)).all()
     mappings = db.scalars(select(CPADMServiceActivity).where(CPADMServiceActivity.fiscal_year_id == source_fiscal_year_id)).all()
     db.add_all([CPFiscalActivity(activity_id=row.activity_id, fiscal_year_id=target_fiscal_year_id,
-                                program_id=row.program_id, is_active=row.is_active) for row in activities])
+                                program_id=row.program_id, is_active=row.is_active,
+                                goal_type=row.goal_type, goal_value=row.goal_value,
+                                period_goal_value=row.period_goal_value, goal_is_active=row.goal_is_active)
+                for row in activities])
     db.flush()
     service_ids: dict[int, int] = {}
     for row in services:

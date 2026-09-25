@@ -1,9 +1,35 @@
 {% extends "community/_base.html" %}
 {% block title %}Actividades · Comunidad y Prevención{% endblock %}
+{% macro context_fields(fiscal_id=0) %}
+<input type="hidden" name="token" value="{{ csrf_token }}">
+<input type="hidden" name="program_id" value="{{ program_id }}">
+<input type="hidden" name="fiscal_year_id" value="{{ fiscal_id }}">
+{% endmacro %}
+{% macro goal_fields(prefix, association=none) %}
+<div class="row g-3 community-goal-fields">
+  <div class="col-md-4"><label class="form-label" for="{{ prefix }}-type">Tipo de meta</label>
+    <select class="form-select" id="{{ prefix }}-type" name="goal_type" data-goal-type>
+      {% for value, label in goal_options %}<option value="{{ value }}" {{ 'selected' if association and association.goal_type == value }}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3" data-monthly-field><label class="form-label" for="{{ prefix }}-value">Meta mensual del programa</label>
+    <input class="form-control" type="number" min="1" max="2147483647" step="1" id="{{ prefix }}-value" name="goal_value" value="{{ association.goal_value if association and association.goal_value is not none else '' }}">
+  </div>
+  <div class="col-md-3" data-period-field><label class="form-label" for="{{ prefix }}-period">Meta total del período</label>
+    <input class="form-control" type="number" min="1" max="2147483647" step="1" id="{{ prefix }}-period" name="period_goal_value" value="{{ association.period_goal_value if association and association.period_goal_value is not none else '' }}">
+    <div class="form-text" data-period-help>Opcional para esta modalidad.</div>
+  </div>
+  <div class="col-md-2 align-self-center" data-goal-active><div class="form-check">
+    <input class="form-check-input" id="{{ prefix }}-active" type="checkbox" name="goal_is_active" value="true" {{ 'checked' if not association or association.goal_is_active }}>
+    <label class="form-check-label" for="{{ prefix }}-active">Meta activa</label>
+  </div></div>
+  <p class="text-muted small mb-0">El período corresponde a las fechas del año fiscal. La modalidad acumulada requiere una meta total del período; no exige meta mensual.</p>
+</div>
+{% endmacro %}
 {% block content %}
 <section class="community-hero">
-  <span class="community-eyebrow">Administración</span><h1>Actividades por programa</h1>
-  <p class="mb-0">Configure las actividades de cada programa y su disponibilidad por año fiscal.</p>
+  <span class="community-eyebrow">Administración</span><h1>Gestión de códigos de actividad</h1>
+  <p class="mb-0">Configure las actividades de cada programa, sus años fiscales y sus metas productivas.</p>
 </section>
 <section class="card mb-4"><div class="card-body">
   <form method="get" action="/community/activities" class="row g-3">
@@ -14,52 +40,118 @@
       </select>
     </div>
     <div class="col-md-5"><label class="form-label" for="activity-year">Año fiscal</label>
-      <select class="form-select" id="activity-year" name="fiscal_year_id" required>
-        <option value="">Seleccione un año fiscal</option>
-        {% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if year and fiscal.fiscal_year_id == year.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}{{ ' (cerrado)' if fiscal.status != 'active' }}</option>{% endfor %}
+      <select class="form-select" id="activity-year" name="fiscal_year_id">
+        <option value="0">Todos los años fiscales</option>
+        {% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if year and fiscal.fiscal_year_id == year.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}{{ ' (cerrado)' if fiscal.status != 'active' }}{{ ' (inactivo)' if not fiscal.is_active }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit">Consultar</button></div>
+    <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Cargar</button></div>
   </form>
 </div></section>
-{% if program_id and year %}
-{% if not editable %}<div class="alert alert-info">Este año fiscal está cerrado o inactivo. Puede consultar su configuración; para modificarla debe reabrirlo.</div>{% endif %}
-{% if editable %}
-<section class="card mb-4"><div class="card-body">
-  <h2 class="h5">Crear actividad</h2>
+{% if program_id %}
+{% if year and not editable %}<div class="alert alert-info">Este año fiscal está cerrado o inactivo. Puede consultar su configuración; para modificarla debe reabrirlo.</div>{% endif %}
+{% if editable and open_years %}
+<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Crear actividad</h2></div><div class="card-body">
   <form method="post" action="/community/activities" class="row g-3">
-    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}">
+    {{ context_fields(year.fiscal_year_id if year else 0) }}
     <div class="col-md-3"><label class="form-label" for="new-activity-code">Código</label><input class="form-control" id="new-activity-code" name="code" maxlength="50" required></div>
     <div class="col-md-9"><label class="form-label" for="new-activity-description">Descripción</label><input class="form-control" id="new-activity-description" name="description" maxlength="255"></div>
     <fieldset class="col-12"><legend class="fs-6">Asociar a años fiscales</legend>
-      {% for fiscal in years if fiscal.is_active and fiscal.status == 'active' %}
-      <div class="form-check form-check-inline"><input class="form-check-input" id="new-year-{{ fiscal.fiscal_year_id }}" type="checkbox" name="fiscal_year_ids" value="{{ fiscal.fiscal_year_id }}" {{ 'checked' if fiscal.fiscal_year_id == year.fiscal_year_id }}><label class="form-check-label" for="new-year-{{ fiscal.fiscal_year_id }}">{{ fiscal.code }}</label></div>
+      {% for fiscal in open_years %}
+      <div class="form-check form-check-inline"><input class="form-check-input" id="new-year-{{ fiscal.fiscal_year_id }}" type="checkbox" name="fiscal_year_ids" value="{{ fiscal.fiscal_year_id }}" {{ 'checked' if year and fiscal.fiscal_year_id == year.fiscal_year_id }}><label class="form-check-label" for="new-year-{{ fiscal.fiscal_year_id }}">{{ fiscal.code }} · {{ fiscal.name }}</label></div>
       {% endfor %}
+      <div class="form-text">Seleccione al menos un año. La meta inicial se aplicará a los años marcados y podrá editarse por separado.</div>
     </fieldset>
-    <div class="col-12"><button class="btn btn-primary" type="submit">Crear actividad</button></div>
+    <div class="col-12">{{ goal_fields('new-goal') }}</div>
+    <div class="col-12"><button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i> Crear</button></div>
   </form>
 </div></section>
-{% if available %}
+{% elif not open_years %}<div class="alert alert-info">Cree o abra un año fiscal para añadir actividades.</div>{% endif %}
+{% if editable and year and available %}
 <section class="card mb-4"><div class="card-body">
   <h2 class="h5">Asociar una actividad existente a {{ year.code }}</h2>
   <form method="post" action="/community/activities/associate" class="row g-3">
-    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}">
+    {{ context_fields(year.fiscal_year_id) }}
     <div class="col-md-9"><label class="form-label" for="existing-activity">Actividad del programa</label><select class="form-select" id="existing-activity" name="activity_id" required><option value="">Seleccione una actividad</option>{% for activity in available %}<option value="{{ activity.activity_id }}">{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
     <div class="col-md-3 align-self-end"><button class="btn btn-outline-primary" type="submit">Asociar al año fiscal</button></div>
   </form>
 </div></section>
 {% endif %}
-{% endif %}
-<section class="card"><div class="card-body">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h2 class="h5 mb-0">Actividades de {{ year.code }}</h2><a class="btn btn-outline-primary btn-sm" href="/community/adm?program_id={{ program_id }}&amp;fiscal_year_id={{ year.fiscal_year_id }}">Configurar ADM</a></div>
-  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Código</th><th>Descripción</th><th>Estado en este año</th><th>Acciones</th></tr></thead><tbody>
-    {% for activity, association in rows %}
-    <tr><td><strong>{{ activity.code }}</strong></td><td>{{ activity.description or '—' }}</td><td><span class="badge {{ 'text-bg-success' if association.is_active and activity.is_active else 'text-bg-secondary' }}">{{ 'Activa' if association.is_active and activity.is_active else 'Inactiva' }}</span></td>
-      <td>{% if editable and activity.is_active %}<form method="post" action="/community/activities/{{ activity.activity_id }}/state"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="fiscal_year_id" value="{{ year.fiscal_year_id }}"><input type="hidden" name="active" value="{{ 'false' if association.is_active else 'true' }}"><button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Desactivar en este año' if association.is_active else 'Reactivar en este año' }}</button></form>{% else %}<span class="text-muted">Solo consulta</span>{% endif %}</td>
-    </tr>
-    {% else %}<tr><td colspan="4">No hay actividades asociadas a este programa y año fiscal.</td></tr>{% endfor %}
-  </tbody></table></div>
-  <p class="text-muted small mb-0">Desactivar una actividad conserva su configuración ADM y los registros históricos.</p>
-</div></section>
-{% else %}<div class="alert alert-info">Seleccione un programa y un año fiscal para gestionar sus actividades.</div>{% endif %}
+<section class="card">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h2 class="h5 mb-0">Códigos de actividad <span class="badge text-bg-secondary ms-2">{{ rows|length }}</span></h2>
+    {% if year %}<a class="btn btn-outline-primary btn-sm" href="/community/adm?program_id={{ program_id }}&amp;fiscal_year_id={{ year.fiscal_year_id }}">Configurar ADM</a>{% endif %}
+  </div>
+  <div class="card-body">
+    <div class="table-responsive"><table class="table align-middle"><thead><tr><th>ID</th><th>Código</th><th>Descripción</th><th>Años fiscales</th><th>Meta productiva</th><th>Estado{{ ' en este año' if year else ' general' }}</th><th>Acciones</th></tr></thead><tbody>
+      {% for row in rows %}
+      {% set activity = row.activity %}
+      {% set active = activity.is_active and (not year or row.association.is_active) %}
+      <tr>
+        <td>{{ activity.activity_id }}</td>
+        <td class="{{ 'text-decoration-line-through text-muted' if not active }}"><strong>{{ activity.code }}</strong></td>
+        <td class="{{ 'text-decoration-line-through text-muted' if not active }}">{{ activity.description or '—' }}</td>
+        <td>{% for link in row.links %}<div class="mb-1"><span class="badge {{ 'text-bg-success' if link.association.is_active and activity.is_active else 'text-bg-secondary' }}">{{ link.year.code }}</span><span class="small text-muted"> {{ link.year.name }}{{ ' · cerrado' if link.year.status != 'active' }}{{ ' · inactiva' if not link.association.is_active }}</span></div>{% else %}<span class="text-muted">Sin años asociados</span>{% endfor %}</td>
+        <td>{% for link in row.links if not year or link.year.fiscal_year_id == year.fiscal_year_id %}<div class="small mb-2">{% if not year %}<strong>{{ link.year.code }}:</strong> {% endif %}{{ format_goal(link.association) }}{% if not link.association.goal_is_active and link.association.goal_type != 'none' %} <span class="badge text-bg-secondary">Meta inactiva</span>{% endif %}</div>{% else %}<span class="small text-muted">Sin meta productiva</span>{% endfor %}</td>
+        <td><span class="badge {{ 'text-bg-success' if active else 'text-bg-danger' }}">{{ 'Activo' if active else 'Inactivo' }}</span></td>
+        <td><div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-activity-{{ activity.activity_id }}" aria-expanded="false" aria-controls="edit-activity-{{ activity.activity_id }}"><i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Editar' if editable else 'Ver configuración' }}</button>
+          <form method="post" action="/community/activities/{{ activity.activity_id }}/delete" data-confirm="¿Eliminar esta actividad y sus asociaciones a años fiscales? Solo se permite si no tiene historial.">
+            {{ context_fields(year.fiscal_year_id if year else 0) }}
+            <button class="btn btn-sm btn-outline-danger" type="submit" {{ 'disabled' if not row.can_delete }} title="{{ 'Eliminar actividad sin historial' if row.can_delete else 'No se puede eliminar: tiene sesiones, asociaciones ADM o un año cerrado/inactivo.' }}"><i class="bi bi-trash" aria-hidden="true"></i> Eliminar</button>
+          </form>
+        </div></td>
+      </tr>
+      <tr class="collapse" id="edit-activity-{{ activity.activity_id }}"><td colspan="7" class="bg-body-tertiary p-3">
+        <h3 class="h6">Datos generales · {{ activity.code }}</h3>
+        {% if row.shared_editable %}
+        <form method="post" action="/community/activities/{{ activity.activity_id }}/edit" class="row g-3 mb-4">
+          {{ context_fields(year.fiscal_year_id if year else 0) }}
+          <div class="col-md-3"><label class="form-label" for="edit-code-{{ activity.activity_id }}">Código</label><input class="form-control" id="edit-code-{{ activity.activity_id }}" name="code" value="{{ activity.code }}" maxlength="50" required></div>
+          <div class="col-md-6"><label class="form-label" for="edit-description-{{ activity.activity_id }}">Descripción</label><input class="form-control" id="edit-description-{{ activity.activity_id }}" name="description" value="{{ activity.description or '' }}" maxlength="255"></div>
+          <div class="col-md-3 align-self-center"><div class="form-check"><input class="form-check-input" id="edit-active-{{ activity.activity_id }}" type="checkbox" name="active" value="true" {{ 'checked' if activity.is_active }}><label class="form-check-label" for="edit-active-{{ activity.activity_id }}">Actividad activa</label></div></div>
+          <div class="col-12"><div class="form-text mb-2">Estos datos son comunes a todos los años asociados. Para desactivar solo un año, utilice su configuración debajo.</div><button class="btn btn-primary btn-sm" type="submit">Guardar datos generales</button></div>
+        </form>
+        {% else %}<p class="text-muted">El código, la descripción y el estado general están protegidos porque la actividad está asociada a un año cerrado o inactivo.</p>{% endif %}
+        <h3 class="h6">Años fiscales asociados y metas</h3>
+        {% for link in row.links %}
+        {% set fiscal = link.year %}{% set association = link.association %}
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div><strong>{{ fiscal.code }} · {{ fiscal.name }}</strong><div class="small text-muted">Período: {{ fiscal.start_date.strftime('%d/%m/%Y') }} – {{ fiscal.end_date.strftime('%d/%m/%Y') }}</div></div>
+            <form method="post" action="/community/activities/{{ activity.activity_id }}/unassociate" data-confirm="¿Quitar esta actividad del año fiscal seleccionado? Los demás años conservarán su configuración.">
+              {{ context_fields(fiscal.fiscal_year_id) }}
+              <button class="btn btn-outline-danger btn-sm" type="submit" {{ 'disabled' if not link.editable or link.used }} title="{{ 'Conservado por historial o cierre del año' if not link.editable or link.used else 'Retirar del año fiscal' }}"><i class="bi bi-x-circle" aria-hidden="true"></i> Quitar del año</button>
+            </form>
+          </div>
+          {% if link.editable %}
+          <form method="post" action="/community/activities/{{ activity.activity_id }}/year">
+            {{ context_fields(fiscal.fiscal_year_id) }}
+            {{ goal_fields('goal-' ~ activity.activity_id ~ '-' ~ fiscal.fiscal_year_id, association) }}
+            {% if not activity.is_active %}<input type="hidden" name="active" value="{{ 'true' if association.is_active else 'false' }}">{% endif %}
+            <div class="form-check my-3"><input class="form-check-input" id="year-active-{{ activity.activity_id }}-{{ fiscal.fiscal_year_id }}" type="checkbox" name="active" value="true" {{ 'checked' if association.is_active }} {{ 'disabled' if not activity.is_active }}><label class="form-check-label" for="year-active-{{ activity.activity_id }}-{{ fiscal.fiscal_year_id }}">Actividad activa en este año fiscal</label></div>
+            {% if not activity.is_active %}<p class="small text-muted">Para habilitarla en el año, primero active la actividad en sus datos generales.</p>{% endif %}
+            <button class="btn btn-primary btn-sm" type="submit">Guardar configuración del año</button>
+          </form>
+          {% else %}<p class="mb-0">{{ format_goal(association) }} · {{ 'Meta activa' if association.goal_is_active else 'Meta inactiva' }} · {{ 'Actividad activa' if association.is_active else 'Actividad inactiva' }}. Año cerrado o inactivo: solo consulta.</p>{% endif %}
+        </div>
+        {% endfor %}
+        {% if activity.is_active and row.unassigned_years %}
+        <form method="post" action="/community/activities/associate" class="row g-2 align-items-end mb-3">
+          <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="program_id" value="{{ program_id }}"><input type="hidden" name="activity_id" value="{{ activity.activity_id }}">
+          <div class="col-md-7"><label class="form-label" for="add-year-{{ activity.activity_id }}">Añadir a otro año fiscal</label><select class="form-select" id="add-year-{{ activity.activity_id }}" name="fiscal_year_id" required><option value="">Seleccione un año abierto</option>{% for fiscal in row.unassigned_years %}<option value="{{ fiscal.fiscal_year_id }}">{{ fiscal.code }} · {{ fiscal.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-5"><button class="btn btn-outline-primary" type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i> Asociar año fiscal</button></div>
+        </form>
+        {% endif %}
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#edit-activity-{{ activity.activity_id }}" aria-controls="edit-activity-{{ activity.activity_id }}">Cancelar / Cerrar</button>
+      </td></tr>
+      {% else %}<tr><td colspan="7">No hay actividades para los filtros seleccionados.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p class="text-muted small mb-0">Las actividades con sesiones o asociaciones ADM se conservan. Puede desactivarlas en un año abierto sin perder su historial.</p>
+  </div>
+</section>
+{% else %}<div class="alert alert-info">Seleccione un programa para gestionar sus actividades.</div>{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/community-activities.js"></script>
 {% endblock %}

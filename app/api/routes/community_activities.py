@@ -15,9 +15,11 @@ from app.api.deps import get_db
 from app.core.community_access import CommunityContext, csrf_token, require_community_admin, require_programs, validate_csrf
 from app.models.community import CPFiscalYear
 from app.models.community_activity import CPActivity, CPFiscalActivity, CPADMServiceActivity, CPADMServiceType
+from app.models.community_operations import CPActivitySession
 from app.services.community_activity import (
     assign_adm_activity, associate_activity, create_activity, create_adm_service_type,
     set_activity_active, unassign_adm_activity, update_adm_service_type,
+    GOAL_TYPE_OPTIONS, format_goal, update_activity, update_activity_year, unassociate_activity, delete_activity,
 )
 
 router = APIRouter(prefix="/community", tags=["community-configuration"])
@@ -67,20 +69,40 @@ def _save(db: Session, action, *, page: str, program_id: int, fiscal_year_id: in
 @router.get("/activities")
 def activities(request: Request, program_id: int | None = None, fiscal_year_id: int | None = None,
                db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
-    years, program_id, year = _selection(db, context, program_id, fiscal_year_id)
+    years, program_id, year = _selection(db, context, program_id, fiscal_year_id or None)
     rows, available = [], []
-    if program_id is not None and year is not None:
-        rows = db.execute(select(CPActivity, CPFiscalActivity).join(
-            CPFiscalActivity, CPFiscalActivity.activity_id == CPActivity.activity_id,
-        ).where(CPActivity.program_id == program_id, CPFiscalActivity.fiscal_year_id == year.fiscal_year_id)
-            .order_by(CPActivity.code)).all()
-        associated_ids = [activity.activity_id for activity, _ in rows]
-        available = db.scalars(select(CPActivity).where(
-            CPActivity.program_id == program_id, CPActivity.is_active == True,  # noqa: E712
-            CPActivity.activity_id.not_in(associated_ids),
-        ).order_by(CPActivity.code)).all()
+    if program_id is not None:
+        program_activities = db.scalars(select(CPActivity).where(CPActivity.program_id == program_id)
+                                        .order_by(CPActivity.code)).all()
+        associations = db.scalars(select(CPFiscalActivity).where(CPFiscalActivity.program_id == program_id)).all()
+        by_activity = {}
+        for association in associations:
+            by_activity.setdefault(association.activity_id, {})[association.fiscal_year_id] = association
+        used = set()
+        for model in (CPActivitySession, CPADMServiceActivity):
+            used.update(tuple(row) for row in db.execute(select(model.activity_id, model.fiscal_year_id)
+                                                         .where(model.program_id == program_id).distinct()))
+        for activity in program_activities:
+            linked = by_activity.get(activity.activity_id, {})
+            selected = linked.get(year.fiscal_year_id) if year else None
+            if year and selected is None:
+                if activity.is_active:
+                    available.append(activity)
+                continue
+            links = [{"year": fiscal, "association": linked[fiscal.fiscal_year_id],
+                      "editable": fiscal.is_active and fiscal.status == "active",
+                      "used": (activity.activity_id, fiscal.fiscal_year_id) in used}
+                     for fiscal in years if fiscal.fiscal_year_id in linked]
+            shared_editable = all(link["editable"] for link in links)
+            rows.append({"activity": activity, "association": selected, "links": links,
+                         "shared_editable": shared_editable,
+                         "can_delete": shared_editable and not any(link["used"] for link in links),
+                         "unassigned_years": [fiscal for fiscal in years if fiscal.fiscal_year_id not in linked
+                                              and fiscal.is_active and fiscal.status == "active"]})
     return _render(request, "activities", context, years=years, program_id=program_id, year=year,
-                   rows=rows, available=available, editable=bool(year and year.is_active and year.status == "active"))
+                   rows=rows, available=available, goal_options=GOAL_TYPE_OPTIONS, format_goal=format_goal,
+                   editable=not year or bool(year.is_active and year.status == "active"),
+                   open_years=[fiscal for fiscal in years if fiscal.is_active and fiscal.status == "active"])
 
 
 @router.post("/activities")
@@ -91,14 +113,18 @@ async def add_activity(request: Request, db: Session = Depends(get_db),
     try:
         program_id = int(str(form.get("program_id", "")))
         year_ids = [int(str(value)) for value in form.getlist("fiscal_year_ids")]
-        fiscal_year_id = int(str(form.get("fiscal_year_id", "")))
+        fiscal_year_id = int(str(form.get("fiscal_year_id", "0")))
     except (TypeError, ValueError):
         raise HTTPException(422, "Seleccione un programa y años fiscales válidos.") from None
     require_programs(context, [program_id])
-    if fiscal_year_id not in year_ids:
+    if fiscal_year_id and fiscal_year_id not in year_ids:
         return _redirect("activities", program_id, fiscal_year_id, error="Incluya el año fiscal seleccionado entre los años de la actividad.")
     return _save(db, lambda: create_activity(db, program_id=program_id, code=str(form.get("code", "")),
-                                             description=str(form.get("description", "")), fiscal_year_ids=year_ids),
+                                             description=str(form.get("description", "")), fiscal_year_ids=year_ids,
+                                             goal_type=str(form.get("goal_type", "none")),
+                                             goal_value=str(form.get("goal_value", "")),
+                                             period_goal_value=str(form.get("period_goal_value", "")),
+                                             goal_is_active=form.get("goal_is_active") in ("on", "true", "1")),
                  page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
                  message="Actividad creada y asociada a los años fiscales seleccionados.")
 
@@ -124,6 +150,57 @@ def change_activity_state(request: Request, activity_id: int, token: str = Form(
                                                 fiscal_year_id=fiscal_year_id, active=active),
                  page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
                  message="Disponibilidad de la actividad actualizada para este año fiscal.")
+
+
+@router.post("/activities/{activity_id}/edit")
+def edit_activity(request: Request, activity_id: int, token: str = Form(...), program_id: int = Form(...),
+                  fiscal_year_id: int = Form(0), code: str = Form(...), description: str = Form(""),
+                  active: bool = Form(False), db: Session = Depends(get_db),
+                  context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    return _save(db, lambda: update_activity(db, activity_id=activity_id, program_id=program_id,
+                                           code=code, description=description, active=active),
+                 page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
+                 message="Datos generales de la actividad actualizados.")
+
+
+@router.post("/activities/{activity_id}/year")
+def edit_activity_year(request: Request, activity_id: int, token: str = Form(...), program_id: int = Form(...),
+                       fiscal_year_id: int = Form(...), active: bool = Form(False), goal_type: str = Form("none"),
+                       goal_value: str = Form(""), period_goal_value: str = Form(""), goal_is_active: bool = Form(False),
+                       db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    return _save(db, lambda: update_activity_year(db, activity_id=activity_id, program_id=program_id,
+                                                fiscal_year_id=fiscal_year_id, active=active, goal_type=goal_type,
+                                                goal_value=goal_value, period_goal_value=period_goal_value,
+                                                goal_is_active=goal_is_active),
+                 page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
+                 message="Estado y meta productiva actualizados para este año fiscal.")
+
+
+@router.post("/activities/{activity_id}/unassociate")
+def remove_activity_year(request: Request, activity_id: int, token: str = Form(...), program_id: int = Form(...),
+                         fiscal_year_id: int = Form(...), db: Session = Depends(get_db),
+                         context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    return _save(db, lambda: unassociate_activity(db, activity_id=activity_id, program_id=program_id,
+                                                 fiscal_year_id=fiscal_year_id),
+                 page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
+                 message="Actividad retirada del año fiscal. Se conservan las demás asociaciones.")
+
+
+@router.post("/activities/{activity_id}/delete")
+def remove_activity(request: Request, activity_id: int, token: str = Form(...), program_id: int = Form(...),
+                    fiscal_year_id: int = Form(0), db: Session = Depends(get_db),
+                    context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    require_programs(context, [program_id])
+    return _save(db, lambda: delete_activity(db, activity_id=activity_id, program_id=program_id),
+                 page="activities", program_id=program_id, fiscal_year_id=fiscal_year_id,
+                 message="Actividad sin historial eliminada.")
 
 
 @router.get("/adm")

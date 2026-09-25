@@ -365,6 +365,55 @@ de copias fiscales/asistencias/notas/revisiones de identidad, reversión ante un
 referencia adicional y conservación de la secuencia. La revisión visual y la
 validación en SQL Server corresponden a la PC de pruebas.
 
+## Gestión de actividades y metas por año fiscal
+
+`/community/activities` ofrece el flujo de configuración de Faro adaptado a
+programas y años fiscales: Cargar, Crear, Editar, Guardar, Cancelar/Cerrar,
+Eliminar, asociar a otro año y quitar una asociación. El listado incluye ID,
+código, descripción, años asociados, meta y estado, con contador y filtro de
+todos los años. Las actividades de Faro no se importan ni se modifican.
+
+La identidad de la actividad pertenece a un programa. Su código, descripción y
+estado general se editan aparte del estado y meta de cada año. Los datos
+generales y la eliminación quedan bloqueados si algún año asociado está cerrado
+o inactivo; las metas de otros años abiertos siguen siendo editables. Eliminar
+una actividad o retirarla de un año requiere que no haya sesiones ni asociaciones
+ADM, incluso inactivas, en el alcance afectado. Desactivar conserva el historial.
+Todos los endpoints mantienen Administrador de Comunidad, alcance por programa
+y CSRF; una referencia concurrente revierte la transacción completa.
+
+Las metas admiten Sin meta, Según necesidad, Cantidad fija mensual y Acumulada
+por período. Cada actividad tiene un solo programa, por lo que la meta total del
+período corresponde a ese programa y año fiscal. La modalidad mensual exige una
+cantidad mensual; la acumulada exige un total del período y no exige cantidad
+mensual. Según necesidad y mensual permiten añadir un total opcional del período.
+El período utiliza las fechas configuradas del año fiscal. El control Meta activa
+se conserva por separado de la disponibilidad de la actividad.
+
+La creación puede inicializar la misma meta en varios años seleccionados y luego
+editarla por año. Asociar una actividad existente a otro año comienza sin meta;
+Copiar año fiscal sí copia sus metas, cantidades y estado junto con la
+configuración existente, sin copiar operaciones ni participantes. Esta entrega
+configura las metas; no añade informes de cumplimiento productivo.
+
+El arranque agrega de forma idempotente cuatro columnas a
+`dbo.cp_fiscal_activities`: `goal_type`, `goal_value`, `period_goal_value` y
+`goal_is_active`. Las asociaciones anteriores comienzan sin meta. No se borran
+datos ni se cambian tablas de Faro.
+
+Verificación local: 158 pruebas de Comunidad aprobadas (salida 0), incluidas 13
+nuevas de metas, edición, retirada/eliminación, permisos, años cerrados y
+reversión ante referencias adicionales. Las consultas del flujo de creación y
+retirada se compilan también con el dialecto MSSQL. JavaScript verificado con
+`node --check app/static/js/community-activities.js` y diff sin errores de espacios.
+
+Validación en la PC de pruebas: actualizar la rama, reiniciar para aplicar el
+DDL y recargar la pantalla. Crear una actividad con meta en dos años, editar una
+meta sin cambiar la otra, asociar/quitar un año vacío y comprobar el bloqueo de
+Eliminar al tener sesiones o ADM. Revisar también un año cerrado y la copia de
+configuración con sus metas. El DDL y la concurrencia en SQL Server, así como la
+revisión visual en navegador, quedan para esa PC.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

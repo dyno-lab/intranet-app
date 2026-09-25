@@ -50,6 +50,17 @@ BEGIN
     );
 END;
 
+IF COL_LENGTH(N'dbo.cp_fiscal_activities', N'goal_type') IS NULL
+    ALTER TABLE dbo.cp_fiscal_activities ADD goal_type VARCHAR(30) NOT NULL
+        CONSTRAINT DF_cp_fiscal_activity_goal_type DEFAULT 'none' WITH VALUES;
+IF COL_LENGTH(N'dbo.cp_fiscal_activities', N'goal_value') IS NULL
+    ALTER TABLE dbo.cp_fiscal_activities ADD goal_value INT NULL;
+IF COL_LENGTH(N'dbo.cp_fiscal_activities', N'period_goal_value') IS NULL
+    ALTER TABLE dbo.cp_fiscal_activities ADD period_goal_value INT NULL;
+IF COL_LENGTH(N'dbo.cp_fiscal_activities', N'goal_is_active') IS NULL
+    ALTER TABLE dbo.cp_fiscal_activities ADD goal_is_active BIT NOT NULL
+        CONSTRAINT DF_cp_fiscal_activity_goal_active DEFAULT 1 WITH VALUES;
+
 IF OBJECT_ID(N'dbo.cp_adm_service_activities', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.cp_adm_service_activities (

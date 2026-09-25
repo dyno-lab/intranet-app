@@ -40,6 +40,10 @@ class CPFiscalActivity(Base):
     fiscal_year_id: Mapped[int] = mapped_column(ForeignKey("cp_fiscal_years.fiscal_year_id"), primary_key=True)
     program_id: Mapped[int] = mapped_column(Integer, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
+    goal_type: Mapped[str] = mapped_column(String(30), default="none", server_default="none", nullable=False)
+    goal_value: Mapped[int | None] = mapped_column(Integer)
+    period_goal_value: Mapped[int | None] = mapped_column(Integer)
+    goal_is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
 
