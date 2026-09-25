@@ -1,6 +1,7 @@
 """Registration dashboard, filtered list and export share Community access rules."""
 import csv
 import io
+import json
 import unittest
 from datetime import date
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 
 import test_community_routes as fixture
 from app.models.community_catalog import CPProfileField, CPProfileValue
+from app.models.community_fiscal import CPFiscalParticipant
 from app.services.community import create_fiscal_year, create_participant, update_participant
 from app.services.community_fiscal import set_fiscal_status, sync_participants
 from app.services.community_participants import filtered_query, roster_filters
@@ -85,6 +87,22 @@ class CommunityParticipantListTests(unittest.TestCase):
             sync_participants(db, self.year_id, [self.first_id], actor_user_id=self.admin_id)
             db.commit()
         self.assertEqual(self.client.get('/community/participants').context['dashboard']['totals']['pending_sync_count'], 0)
+
+    def test_retired_vca_in_legacy_snapshot_does_not_require_sync(self):
+        self.seed()
+        self.login()
+        with Session(self.engine) as db:
+            sync_participants(db, self.year_id, [self.first_id], actor_user_id=self.admin_id)
+            snapshot = db.get(CPFiscalParticipant, (self.first_id, self.year_id))
+            values = json.loads(snapshot.snapshot_json)
+            self.assertNotIn('vca', values)
+            values['vca'] = 'SI'
+            legacy_snapshot = json.dumps(values)
+            snapshot.snapshot_json = legacy_snapshot
+            db.commit()
+        self.assertEqual(self.client.get('/community/participants').context['dashboard']['totals']['pending_sync_count'], 0)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(CPFiscalParticipant, (self.first_id, self.year_id)).snapshot_json, legacy_snapshot)
 
     def test_filters_pagination_and_export_preserve_scope_and_do_not_duplicate(self):
         self.seed()

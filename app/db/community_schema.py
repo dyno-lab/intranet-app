@@ -91,7 +91,6 @@ BEGIN
         fecha_nacimiento DATE NULL,
         direccion_fisica NVARCHAR(500) NULL,
         pueblo NVARCHAR(100) NULL,
-        vca VARCHAR(5) NULL,
         primera_vez VARCHAR(5) NULL,
         escolaridad_participante NVARCHAR(150) NULL,
         composicion_familiar NVARCHAR(100) NULL,

@@ -35,7 +35,7 @@ router = APIRouter(prefix="/community", tags=["community"])
 templates = Jinja2Templates(directory="app/templates")
 PERSONAL_FIELDS = (
     "nombre", "inicial", "apellido_paterno", "apellido_materno", "genero",
-    "fecha_nacimiento", "primera_vez", "vca", "escolaridad_participante",
+    "fecha_nacimiento", "primera_vez", "escolaridad_participante",
     "composicion_familiar", "grupo_familiar", "fuente_ingreso_principal",
     "rango_ingreso", "relacion_familiar", "estatus", "direccion_fisica",
     "pueblo", "telefono", "email",

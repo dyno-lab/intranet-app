@@ -163,9 +163,14 @@ class CommunityReportDataTests(_ReportFixture):
         self.assertEqual(row[3:5], [14, "Ponce"])
 
     def test_adm_preserves_service_categories_per_program(self):
-        rows = self.report("adm")["rows"]
+        report = self.report("adm")
+        rows = report["rows"]
         self.assertEqual({row[0]: row[1:] for row in rows},
                          {"VOCA": ["Orientación", 2, 2, 1], "TANF-M": ["Orientación", 1, 1, 1]})
+        demographics = report["sections"][0]
+        self.assertEqual(demographics["headers"], ["Edad", "Femenino", "Masculino", "Total", "%"])
+        self.assertTrue(all(len(row) == 5 for row in demographics["rows"]))
+        self.assertEqual(sum(row[3] for row in demographics["rows"]), 1)
 
     def test_adm_unclassified_attendance_is_visible_but_excluded_from_service_totals(self):
         activity = create_activity(self.db, program_id=self.voca.program_id, code="SIN-ADM", description="Sin clasificación",
@@ -213,6 +218,7 @@ class CommunityReportDataTests(_ReportFixture):
                 self.assertGreaterEqual(len(pdf.pages), 1)
                 text = " ".join(page.extract_text() for page in pdf.pages)
                 self.assertIn("Comunidad y Prevención", text)
+                self.assertNotIn("VCA", text)
                 self.assertIn("Participantes no duplicados: 1", text)
                 expected_attendances = 2 if report_type == "notas" else 3
                 self.assertIn(f"Participaciones: {expected_attendances}", text)
@@ -221,6 +227,7 @@ class CommunityReportDataTests(_ReportFixture):
                 self.assertEqual(workbook.active["D3"].value, expected_attendances)
                 self.assertEqual(workbook.active["A5"].value, report["rows"][0][0])
                 self.assertEqual(len(workbook.worksheets), 1 + len(report["sections"]))
+                self.assertNotIn("VCA", [cell.value for sheet in workbook for row in sheet for cell in row])
                 workbook.close()
 
     def test_excel_treats_formula_like_demographics_as_literal_text(self):

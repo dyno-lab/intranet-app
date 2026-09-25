@@ -44,7 +44,7 @@
     <div class="participants-expediente-grid">
       <article class="participants-expediente-card"><div class="participants-expediente-card__header"><h3 class="participants-card__title">Datos generales</h3></div><div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
         <div class="participants-expediente-field"><dt class="participants-expediente-field__label">Fecha de nacimiento</dt><dd class="participants-expediente-field__value">{{ day(p.fecha_nacimiento) }}</dd></div>
-        {% for key, label in [('edad','Edad'),('genero','Género'),('vca','VCA'),('primera_vez','Participa por primera vez'),('estatus','Estatus'),('escolaridad_participante','Escolaridad'),('relacion_familiar','Relación familiar')] %}{{ detail(label, p|attr(key)) }}{% endfor %}
+        {% for key, label in [('edad','Edad'),('genero','Género'),('primera_vez','Participa por primera vez'),('estatus','Estatus'),('escolaridad_participante','Escolaridad'),('relacion_familiar','Relación familiar')] %}{{ detail(label, p|attr(key)) }}{% endfor %}
       </dl></div></article>
       <article class="participants-expediente-card"><div class="participants-expediente-card__header"><h3 class="participants-card__title">Información familiar y dirección</h3></div><div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
         {% for key, label in [('direccion_fisica','Dirección física'),('pueblo','Pueblo'),('grupo_familiar','Grupo familiar'),('composicion_familiar','Composición familiar'),('fuente_ingreso_principal','Fuente de ingreso principal'),('rango_ingreso','Rango de ingreso')] %}{{ detail(label, p|attr(key)) }}{% endfor %}

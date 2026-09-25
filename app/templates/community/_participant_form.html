@@ -48,7 +48,6 @@
             <div class="col-xl-2 col-lg-3 col-md-3"><label class="form-label" for="genero">Género *</label><select class="form-select" id="genero" name="genero" required><option value="">Selecciona</option><option value="F" {{ 'selected' if values.get('genero') == 'F' }}>F</option><option value="M" {{ 'selected' if values.get('genero') == 'M' }}>M</option></select></div>
             {{ field('fecha_nacimiento', 'Fecha de nacimiento', 'col-xl-2 col-lg-3 col-md-4', 'date') }}
             <div class="col-xl-1 col-lg-2 col-md-2"><label class="form-label" for="calculated-age">Edad</label><input class="form-control" id="calculated-age" readonly placeholder="Auto"></div>
-            {{ yes_no('vca', 'VCA') }}
             {{ yes_no('primera_vez', 'Participa por primera vez') }}
             {{ field('escolaridad_participante', 'Escolaridad del participante', 'col-xl-3 col-lg-4 col-md-6') }}
             {{ field('composicion_familiar', 'Composición familiar', 'col-xl-3 col-lg-4 col-md-6', limit=100) }}

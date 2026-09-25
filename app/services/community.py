@@ -23,7 +23,7 @@ _PHONE = re.compile(r"\(\d{3}\)-\d{3}-\d{4}")
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 _TEXT_LIMITS = {
     "nombre": 150, "inicial": 12, "apellido_paterno": 150, "apellido_materno": 150,
-    "genero": 10, "direccion_fisica": 500, "pueblo": 100, "vca": 5,
+    "genero": 10, "direccion_fisica": 500, "pueblo": 100,
     "primera_vez": 5, "escolaridad_participante": 150, "composicion_familiar": 100,
     "relacion_familiar": 100, "estatus": 50, "grupo_familiar": 20,
     "fuente_ingreso_principal": 100, "rango_ingreso": 30, "telefono": 30, "email": 255,
@@ -209,11 +209,10 @@ def _normalized_participant_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(head, bool):
         raise ValueError("Jefatura de familia: valor inválido.")
     values["is_head_of_household"] = head
-    for key in ("vca", "primera_vez"):
-        if values[key]:
-            values[key] = values[key].upper()
-            if values[key] not in {"SI", "NO"}:
-                raise ValueError(f"{key}: selecciona Sí o No.")
+    if values["primera_vez"]:
+        values["primera_vez"] = values["primera_vez"].upper()
+        if values["primera_vez"] not in {"SI", "NO"}:
+            raise ValueError("primera_vez: selecciona Sí o No.")
     if values["telefono"] and not _PHONE.fullmatch(values["telefono"]):
         raise ValueError("El teléfono debe usar el formato (XXX)-XXX-XXXX, como en Faro.")
     if values["email"] and not _EMAIL.fullmatch(values["email"]):

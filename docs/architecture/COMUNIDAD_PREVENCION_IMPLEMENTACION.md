@@ -326,6 +326,19 @@ confirmación/reversión de la transacción de carga inicial. Las consultas de e
 casos también se compilan con el dialecto MSSQL; no sustituye ejecutar el DDL en
 la PC de pruebas.
 
+## Retiro de VCA en Comunidad
+
+VCA no aplica a Comunidad. Se retira del alta, edición, consulta de expediente,
+modelo de participante y nuevas copias fiscales; el informe ADM y sus descargas
+PDF/Excel tampoco incluyen esa columna. Faro conserva su campo y comportamiento.
+En bases ya creadas, la antigua columna nullable puede permanecer sin uso; no se
+ejecuta un borrado de datos ni se reescriben copias fiscales congeladas. La clave
+antigua se ignora al calcular pendientes de sincronización para evitar que todos
+los expedientes aparezcan modificados solo por este retiro.
+
+Verificación: 138 pruebas de Comunidad aprobadas (salida 0), incluyendo ADM,
+descargas PDF/Excel y compatibilidad con copias fiscales que todavía contienen VCA.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

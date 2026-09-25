@@ -216,9 +216,9 @@ class CommunityDomainTests(unittest.TestCase):
         self.db.commit()
         update_participant(self.db, participant_id=participant_id, fields={
             "inicial": " R ", "genero": " f ", "primera_vez": " no ",
-            "vca": " si ", "fecha_nacimiento": "1999-03-04", "is_head_of_household": False,
+            "fecha_nacimiento": "1999-03-04", "is_head_of_household": False,
         })
-        self.assertEqual((participant.inicial, participant.genero, participant.primera_vez, participant.vca), ("R", "F", "NO", "SI"))
+        self.assertEqual((participant.inicial, participant.genero, participant.primera_vez), ("R", "F", "NO"))
         self.assertEqual(participant.fecha_nacimiento, date(1999, 3, 4))
         self.assertFalse(participant.is_head_of_household)
         self.db.rollback()

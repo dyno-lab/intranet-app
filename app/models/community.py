@@ -92,7 +92,6 @@ class CPParticipant(Base):
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date)
     direccion_fisica: Mapped[str | None] = mapped_column(Unicode(500))
     pueblo: Mapped[str | None] = mapped_column(Unicode(100))
-    vca: Mapped[str | None] = mapped_column(String(5))
     primera_vez: Mapped[str | None] = mapped_column(String(5))
     escolaridad_participante: Mapped[str | None] = mapped_column(Unicode(150))
     composicion_familiar: Mapped[str | None] = mapped_column(Unicode(100))

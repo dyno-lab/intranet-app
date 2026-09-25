@@ -51,8 +51,8 @@ def _demographics(snapshots, reference):
 
 def _adm_demographics(snapshots, reference):
     limits = ((0, 5), (6, 11), (12, 17), (18, 21), (22, 25), (26, 45), (46, 59), (60, 74), (75, 9999))
-    rows = [[f"{low}–{high}" if high < 9999 else "75+", 0, 0, 0, 0, 0] for low, high in limits]
-    rows.append(["Sin edad válida", 0, 0, 0, 0, 0])
+    rows = [[f"{low}–{high}" if high < 9999 else "75+", 0, 0, 0, 0] for low, high in limits]
+    rows.append(["Sin edad válida", 0, 0, 0, 0])
     people = list(snapshots)
     for snapshot in people:
         age = age_at(snapshot.get("fecha_nacimiento"), reference)
@@ -61,7 +61,6 @@ def _adm_demographics(snapshots, reference):
         row[1] += int(snapshot.get("genero") == "F")
         row[2] += int(snapshot.get("genero") == "M")
         row[3] += 1
-        row[5] += int(str(snapshot.get("vca") or "").upper() in {"SI", "SÍ"})
     for row in rows:
         row[4] = round(row[3] * 100 / len(people), 2) if people else 0
     return rows
@@ -146,7 +145,7 @@ def build_report(db: Session, *, report_type: str, fiscal_year_id: int,
             service_sessions = {s.session_id for s in all_sessions if mapping.get((s.program_id, s.activity_id)) == service.adm_service_type_id}
             attended = [(s, a) for s, a, _, _ in records if s.session_id in service_sessions]
             result["rows"].append([programs[service.program_id].code, service.name, len(service_sessions), len(attended), len({a.participant_id for _, a in attended})])
-        result["sections"].append({"title": "Participantes por edad y género", "headers": ["Edad", "Femenino", "Masculino", "Total", "%", "VCA"], "rows": _adm_demographics(adm_snapshots.values(), end_date)})
+        result["sections"].append({"title": "Participantes por edad y género", "headers": ["Edad", "Femenino", "Masculino", "Total", "%"], "rows": _adm_demographics(adm_snapshots.values(), end_date)})
         for key, title in (("composicion_familiar", "Composición familiar"), ("fuente_ingreso_principal", "Fuente de ingreso"), ("rango_ingreso", "Rango de ingreso")):
             counts = defaultdict(int)
             for snapshot in adm_snapshots.values():

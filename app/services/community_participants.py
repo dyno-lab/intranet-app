@@ -123,7 +123,11 @@ def registration_dashboard(db, context):
             continue
         if pid not in current:
             current[pid] = build_participant_snapshot(db, people[pid], profile_rows=profiles[pid])
-        if json.loads(snapshot.snapshot_json) != current[pid]:
+        historical = json.loads(snapshot.snapshot_json)
+        # VCA was retired from Community; old snapshots must not appear changed
+        # solely because they retain this legacy key. Never rewrite history here.
+        historical.pop("vca", None)
+        if historical != current[pid]:
             pending.add(pid)
     program_people = defaultdict(set)
     for pid, program_id in db.execute(select(CPParticipantProgram.participant_id, CPParticipantProgram.program_id).where(
