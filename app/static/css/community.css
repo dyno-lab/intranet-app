@@ -19,6 +19,18 @@
   --bs-btn-active-bg: #0b4d32; --bs-btn-active-border-color: #0b4d32;
 }
 .community-body .form-check-input:checked { background-color: #126443; border-color: #126443; }
+/* Faro attendance layout with Community accents. */
+.community-body .attendance-detail-page { --ui-accent: #126443; }
+.community-body .attendance-detail-hero__control-card {
+  background: linear-gradient(135deg, #e2f3e8, #d1eddd);
+  border-color: #b8d8c7;
+  box-shadow: 0 20px 35px -28px #12644366;
+}
+.community-body .attendance-detail-hero__control-label,
+.community-body .attendance-detail-hero__control { color: #174a37; }
+.community-body .attendance-session-item__icon { background: #12644316; }
+.community-body .attendance-participants-checkbox { accent-color: #126443; }
+.community-body .attendance-pagination .page-link { color: #126443; }
 .community-body .form-control:focus, .community-body .form-select:focus { border-color: #388e66; box-shadow: 0 0 0 .2rem #19805b26; }
 .community-body .ui-brand-mark { background: #ffffff16; color: #d4f4e1; }
 .community-body .ui-topbar form { margin: 0; }

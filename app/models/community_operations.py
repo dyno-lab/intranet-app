@@ -31,9 +31,14 @@ class CPActivitySession(Base):
     program_id: Mapped[int] = mapped_column(ForeignKey("cp_programs.program_id"), nullable=False)
     activity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     session_date: Mapped[date] = mapped_column(Date, nullable=False)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Unicode(500))
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    @property
+    def control_number(self) -> str:
+        return f"CP-{self.session_id}"
 
 
 class CPAttendance(Base):

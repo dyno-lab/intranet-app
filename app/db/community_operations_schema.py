@@ -22,6 +22,9 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cp_session_period_program' AND object_id = OBJECT_ID(N'dbo.cp_activity_sessions'))
     CREATE INDEX IX_cp_session_period_program ON dbo.cp_activity_sessions(fiscal_year_id, program_id, session_date);
 
+IF COL_LENGTH(N'dbo.cp_activity_sessions', N'duration_minutes') IS NULL
+    ALTER TABLE dbo.cp_activity_sessions ADD duration_minutes INT NULL;
+
 IF OBJECT_ID(N'dbo.cp_attendance', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.cp_attendance (

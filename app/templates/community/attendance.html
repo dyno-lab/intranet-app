@@ -1,33 +1,144 @@
 {% extends "community/_base.html" %}
-{% block title %}Asistencia | Comunidad y Prevención{% endblock %}
+{% block title %}Asistencias · Comunidad y Prevención{% endblock %}
+{% macro session_fields(form, prefix, fixed_context=false) %}
+<div class="col-lg-2 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-date">Fecha *</label><input class="form-control" id="{{ prefix }}-date" type="date" name="session_date" value="{{ form.get('session_date') or '' }}" max="{{ today }}" required><div class="form-text">Dentro del año fiscal y sus períodos abiertos. No se permiten fechas futuras.</div></div>
+<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-year">Año fiscal *</label><select class="form-select" id="{{ prefix }}-year" name="fiscal_year_id" required {{ 'disabled' if fixed_context }}>
+  <option value="">Seleccione un año fiscal</option>{% for year in years %}{% set bounds = fiscal_options[year.fiscal_year_id] %}<option value="{{ year.fiscal_year_id }}" data-min="{{ bounds.min }}" data-max="{{ bounds.max }}" data-closed="{{ 'true' if bounds.closed else 'false' }}" {{ 'selected' if form.get('fiscal_year_id') == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}{{ ' (sin período abierto)' if bounds.closed }}</option>{% endfor %}
+</select>{% if fixed_context %}<input type="hidden" name="fiscal_year_id" value="{{ form.fiscal_year_id }}">{% endif %}</div>
+<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-program">Programa *</label><select class="form-select" id="{{ prefix }}-program" name="program_id" required {{ 'disabled' if fixed_context }}>
+  <option value="">Seleccione un programa</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if form.get('program_id') == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}
+</select>{% if fixed_context %}<input type="hidden" name="program_id" value="{{ form.program_id }}">{% endif %}</div>
+<div class="col-lg-4 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-activity">Código de actividad *</label><select class="form-select" id="{{ prefix }}-activity" name="activity_id" required><option value="">Seleccione una actividad</option>{% for activity in activities %}<option value="{{ activity.activity_id }}" {{ 'selected' if form.get('activity_id') == activity.activity_id }}>{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
+<div class="col-lg-2 col-md-4 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-minutes">Minutos</label><input class="form-control" id="{{ prefix }}-minutes" type="number" name="duration_minutes" step="5" min="5" max="2147483647" value="{{ form.get('duration_minutes') if form.get('duration_minutes') is not none else '' }}" data-minutes-input="{{ prefix }}-equivalent"></div>
+<div class="col-lg-2 col-md-4 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-equivalent">Equivale a</label><input class="form-control bg-light" id="{{ prefix }}-equivalent" readonly tabindex="-1" placeholder="0 minutos"></div>
+<div class="col-lg-8 col-md-12 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-notes">Observaciones</label><input class="form-control" id="{{ prefix }}-notes" name="notes" maxlength="500" value="{{ form.get('notes') or '' }}"></div>
+<div class="col-12"><p class="form-text mb-0" data-context-message role="status">Seleccione un programa y año fiscal para cargar sus actividades.</p>{% if fixed_context %}<p class="form-text mb-0">Esta sesión tiene asistencias guardadas; su programa y año fiscal se conservan.</p>{% endif %}</div>
+{% endmacro %}
 {% block content %}
-<section class="community-hero"><span class="community-eyebrow">Operación por programa</span><h1>Actividades y asistencia</h1><p>Registre la participación en cada actividad del año fiscal.</p></section>
+{% if form_error %}<div class="alert alert-danger" role="alert">{{ form_error }}</div>{% endif %}
 {% if not session %}
-<form method="get" class="card card-body mb-4"><div class="row g-3 align-items-end">
-  <div class="col-md-5"><label class="form-label" for="attendance-year">Año fiscal</label><select class="form-select" name="fiscal_year_id" id="attendance-year"><option value="">Todos</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
-  <div class="col-md-5"><label class="form-label" for="attendance-program">Programa</label><select class="form-select" name="program_id" id="attendance-program"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if selected_program == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
-  <div class="col-md-2"><button class="btn btn-primary w-100">Consultar</button></div>
-</div></form>
-{% if cp.role != 'viewer' %}
-{% if selected_year and selected_program %}
-<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Crear actividad con fecha</h2></div><div class="card-body">
-{% if activities %}<form method="post" action="/community/attendance"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="fiscal_year_id" value="{{ selected_year }}"><input type="hidden" name="program_id" value="{{ selected_program }}"><div class="row g-3">
-  <div class="col-md-7"><label for="activity-id" class="form-label">Actividad del programa</label><select class="form-select" id="activity-id" name="activity_id" required>{% for activity in activities %}<option value="{{ activity.activity_id }}">{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
-  <div class="col-md-5"><label for="session-date" class="form-label">Fecha</label><input type="date" class="form-control" id="session-date" name="session_date" max="{{ today }}" required></div>
-  <div class="col-12"><label for="session-notes" class="form-label">Observaciones</label><textarea class="form-control" id="session-notes" name="notes" maxlength="500" rows="2"></textarea></div>
-  <div class="col-12"><button class="btn btn-primary">Crear y registrar asistencia</button></div>
-</div></form>{% else %}<p class="mb-0">No hay actividades activas asociadas a este programa y año fiscal. Solicite su configuración a Administración.</p>{% endif %}
-</div></section>
-{% else %}<p class="alert alert-light border">Seleccione un año fiscal y un programa para crear una actividad con fecha.</p>{% endif %}
-{% endif %}
-<section class="card"><div class="card-header"><h2 class="h5 mb-0">Sesiones registradas</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Año fiscal</th><th>Programa</th><th>Actividad</th><th></th></tr></thead><tbody>{% for row, program, activity, year in sessions %}<tr><td>{{ row.session_date.strftime('%d/%m/%Y') }}</td><td>{{ year.code }}</td><td>{{ program.code }}</td><td>{{ activity.code }} · {{ activity.description or '' }}</td><td><a href="/community/attendance/{{ row.session_id }}">Ver asistencia</a></td></tr>{% else %}<tr><td colspan="5" class="text-muted p-4">No hay sesiones para esta selección.</td></tr>{% endfor %}</tbody></table></div><nav class="card-footer d-flex justify-content-between align-items-center" aria-label="Páginas de asistencia">{% if previous_url %}<a href="{{ previous_url }}">Anterior</a>{% else %}<span></span>{% endif %}<span>Página {{ page }}</span>{% if next_url %}<a href="{{ next_url }}">Siguiente</a>{% else %}<span></span>{% endif %}</nav></section>
+<div class="attendance-page">
+  <section class="attendance-hero">
+    <div class="attendance-hero__top">
+      <div class="attendance-hero__content"><span class="attendance-hero__eyebrow">Módulo operativo</span><h1 class="attendance-hero__title">Asistencias</h1><p class="attendance-hero__lead">Cree sesiones por programa y año fiscal, registre asistencias y consulte su historial.</p></div>
+      <div class="attendance-hero__actions">
+        {% if filters.fiscal_year_id and cp.role in ['admin', 'supervisor'] %}<a class="btn btn-outline-secondary" href="/community/fiscal-participants?fiscal_year_id={{ filters.fiscal_year_id }}">Sincronización del año fiscal</a>{% endif %}
+        <a class="btn btn-outline-success" href="/community/attendance/export.csv?{{ export_query }}">Exportar sesiones CSV</a>
+        <a class="btn btn-outline-success" href="/community/attendance/export-attendance.csv?{{ export_query }}">Exportar asistencias CSV</a>
+      </div>
+    </div>
+    <div class="attendance-hero__summary">
+      {% for key, label, explanation in [('total_activities', 'Total actividades', 'Según los filtros aplicados'), ('unique_participants', 'Participantes únicos', 'Con asistencia confirmada'), ('total_participations', 'Participaciones registradas', 'Asistencias confirmadas')] %}
+      <article class="attendance-hero-card"><span class="attendance-hero-card__label">{{ label }}</span><strong class="attendance-hero-card__value">{{ metrics[key] }}</strong><p class="attendance-hero-card__text">{{ explanation }}</p></article>{% endfor %}
+    </div>
+  </section>
+  <section class="attendance-section">
+    <div class="attendance-section__header attendance-section__header--compact"><h2 class="attendance-section__title">Filtros de búsqueda</h2><div class="attendance-list-meta"><span>Mostrando {{ sessions|length }} de {{ metrics.total_activities }} sesiones</span><span>Página {{ page }} de {{ total_pages }}</span></div></div>
+    <div class="card shadow-sm border-0 attendance-filter-card"><div class="card-body">
+      <form method="get" action="/community/attendance" class="row g-2 align-items-end attendance-filter-form">
+        <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-control">Número de control</label><input class="form-control" id="filter-control" name="control_number" value="{{ filters.control_number }}" placeholder="Ej. CP-123" maxlength="64"></div>
+        <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-program">Programa</label><select class="form-select" id="filter-program" name="program_id"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if filters.program_id == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+        <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-fiscal">Año fiscal</label><select class="form-select" id="filter-fiscal" name="fiscal_year_id"><option value="">Todos</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if filters.fiscal_year_id == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}{{ ' (cerrado)' if year.status != 'active' }}</option>{% endfor %}</select></div>
+        <div class="col-xl-1 col-md-3"><label class="form-label" for="filter-month">Mes</label><select class="form-select" id="filter-month" name="month"><option value="">Todos</option>{% for value, label in month_options %}<option value="{{ value }}" {{ 'selected' if filters.month == value }}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-xl-2 col-md-3"><label class="form-label" for="filter-year">Año calendario</label><select class="form-select" id="filter-year" name="year"><option value="">Todos</option>{% for year in filter_years %}<option value="{{ year }}" {{ 'selected' if filters.year == year }}>{{ year }}</option>{% endfor %}</select></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-from">Desde</label><input class="form-control" id="filter-from" type="date" name="from_date" value="{{ filters.from_date or '' }}"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-to">Hasta</label><input class="form-control" id="filter-to" type="date" name="to_date" value="{{ filters.to_date or '' }}"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label" for="filter-page-size">Por página</label><select class="form-select" id="filter-page-size" name="per_page">{% for size in [25, 50, 100] %}<option value="{{ size }}" {{ 'selected' if per_page == size }}>{{ size }}</option>{% endfor %}</select></div>
+        <div class="col-lg-2 col-md-4 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div><div class="col-lg-2 col-md-4 d-grid"><a class="btn btn-outline-secondary" href="/community/attendance">Limpiar</a></div>
+      </form>
+    </div></div>
+  </section>
+  {% if cp.role != 'viewer' %}
+  <section class="attendance-section">
+    <div class="attendance-section__header attendance-section__header--compact"><h2 class="attendance-section__title">Creación de sesión</h2></div>
+    <div class="card shadow-sm border-0 attendance-form-card"><div class="card-body">
+      <form method="post" action="/community/attendance?{{ query_string }}" class="row g-2 align-items-start attendance-create-form" data-session-form data-today="{{ today }}">
+        <input type="hidden" name="token" value="{{ csrf_token }}">{{ session_fields(create_form, 'create') }}
+        <div class="col-lg-4 d-grid attendance-create-form__submit"><button class="btn btn-success attendance-submit-btn" type="submit" data-session-submit>Crear y Abrir Sesión</button></div>
+      </form>
+    </div></div>
+  </section>
+  {% else %}<div class="alert alert-info">Modo de consulta: puede revisar sesiones y asistencias, pero no modificarlas.</div>{% endif %}
+  <section class="attendance-section">
+    <div class="attendance-section__header"><h2 class="attendance-section__title">Sesiones registradas</h2></div>
+    <div class="card shadow-sm border-0 attendance-table-card"><div class="card-body"><div class="table-responsive">
+      <table class="table table-hover align-middle attendance-table mb-0"><thead><tr><th>Fecha</th><th>Número de control</th><th>Año fiscal</th><th>Código</th><th>Descripción</th><th>Participación</th><th>Programa</th>{% if cp.role in ['admin', 'supervisor'] %}<th>Creado por</th>{% endif %}<th>Minutos</th><th>Acciones</th></tr></thead><tbody>
+      {% for row, program, activity, year, creator, count in sessions %}
+      <tr><td class="text-nowrap">{{ row.session_date.strftime('%d/%m/%Y') }}</td><td><span class="attendance-table__control">{{ row.control_number }}</span></td><td><span class="badge community-program-badge">{{ year.code }}</span><div class="small text-muted">{{ year.name }}</div>{% if year.status != 'active' %}<span class="badge text-bg-secondary">Cerrado</span>{% endif %}</td><td>{{ activity.code }}</td><td>{{ activity.description or '—' }}</td><td>{{ count }}</td><td>{{ program.code }}</td>{% if cp.role in ['admin', 'supervisor'] %}<td>{{ creator }}</td>{% endif %}<td>{{ row.duration_minutes if row.duration_minutes is not none else '—' }}</td>
+        <td><div class="attendance-actions"><a class="btn btn-sm btn-primary" href="{{ detail_url(row.session_id) }}">Abrir</a>
+        {% if cp.role in ['admin', 'supervisor'] and not fiscal_options[year.fiscal_year_id].closed and row.session_date >= fiscal_options[year.fiscal_year_id].min and row.session_date <= fiscal_options[year.fiscal_year_id].max %}
+        <form method="post" action="/community/attendance/{{ row.session_id }}/delete?return_query={{ query_string|urlencode }}" class="attendance-actions__delete" data-confirm="¿Eliminar esta sesión y todas sus asistencias?"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-sm btn-danger" type="submit">Eliminar</button></form>{% endif %}
+        </div></td>
+      </tr>{% else %}<tr><td colspan="10" class="text-muted text-center py-4">No hay sesiones para los filtros seleccionados.</td></tr>{% endfor %}
+      </tbody></table>
+    </div></div></div>
+    <nav class="attendance-pagination-wrap" aria-label="Paginación de sesiones"><ul class="pagination pagination-sm justify-content-center flex-wrap attendance-pagination">
+      {% for label, number, disabled in [('Primera', 1, page == 1), ('Anterior', page - 1, page == 1), ('Siguiente', page + 1, page == total_pages), ('Última', total_pages, page == total_pages)] %}<li class="page-item {{ 'disabled' if disabled }}"><a class="page-link" href="{{ page_url(number) }}" {{ 'tabindex=-1 aria-disabled=true' if disabled }}>{{ label }}</a></li>{% if label == 'Anterior' %}<li class="page-item disabled"><span class="page-link">Página {{ page }} de {{ total_pages }}</span></li>{% endif %}{% endfor %}
+    </ul></nav>
+  </section>
+</div>
 {% else %}
-<p><a class="btn btn-outline-primary" href="/community/attendance?fiscal_year_id={{ session.fiscal_year_id }}&amp;program_id={{ session.program_id }}">Volver a actividades</a></p>
-<section class="card mb-4"><div class="card-body"><h2 class="h5">{{ activity.code }} · {{ activity.description or '' }}</h2><p>{{ program.name }} · {{ fiscal_year.code }} · {{ session.session_date.strftime('%d/%m/%Y') }}</p>{% if session.notes %}<p class="mb-0">{{ session.notes }}</p>{% endif %}</div></section>
-{% if lock_message %}<p class="alert alert-warning">{{ lock_message }} La asistencia registrada permanece disponible para consulta.</p>{% endif %}
-<form method="post" action="/community/attendance/{{ session.session_id }}"><input type="hidden" name="token" value="{{ csrf_token }}"><section class="card"><div class="card-header"><h2 class="h5 mb-0">Asistencia del día</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Presente</th><th>Expediente</th><th>Participante</th></tr></thead><tbody>
-{% for participant in participants %}<tr><td><input class="form-check-input" type="checkbox" name="present_participant_ids" value="{{ participant.participant_id }}" aria-label="Presente: {{ participant.nombre }} {{ participant.apellido_paterno }}" {{ 'checked' if attendance.get(participant.participant_id, false) }} {{ 'disabled' if cp.role == 'viewer' or lock_message or participant.participant_id not in eligible_ids }}></td><td>{{ participant.expediente_num }}</td><td>{{ participant.nombre }} {{ participant.inicial or '' }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}{% if participant.participant_id not in eligible_ids %}<span class="text-muted"> · Registro histórico</span>{% endif %}</td></tr>{% else %}<tr><td colspan="3" class="text-muted p-4">No hay participantes matriculados en este programa para la fecha seleccionada. Revise la sincronización y las fechas de alta.</td></tr>{% endfor %}
-</tbody></table></div>{% if cp.role != 'viewer' and not lock_message %}<div class="card-footer"><button class="btn btn-primary">Guardar asistencia</button><span class="ms-2 text-muted">Solo las personas marcadas como presentes cuentan como participación.</span></div>{% endif %}</section></form>
+{% set read_only = cp.role == 'viewer' or lock_message %}
+<div class="attendance-detail-page">
+  {% if read_only %}<div class="alert alert-info" role="status">{{ lock_message or 'Modo de consulta: puede ver las asistencias, pero no modificarlas.' }}</div>{% endif %}
+  <section class="card shadow-sm border-0 attendance-detail-hero"><div class="card-body">
+    <div class="attendance-detail-hero__top">
+      <div class="attendance-detail-hero__copy"><span class="attendance-detail-hero__eyebrow">Operación de asistencia</span><h1 class="attendance-detail-hero__title">Marcar asistencia</h1><div class="attendance-detail-hero__control-card"><span class="attendance-detail-hero__control-label">Número de control</span><strong class="attendance-detail-hero__control">{{ session.control_number }}</strong></div></div>
+      <div class="attendance-detail-hero__metric"><span class="attendance-detail-hero__metric-label">Asistencias marcadas</span><strong class="attendance-detail-hero__metric-value" id="attendance-counter-value">{{ attendance.values()|select|list|length }}</strong><span class="attendance-detail-hero__metric-text">Selecciones activas en la sesión</span></div>
+    </div>
+    <div class="attendance-session-grid">
+      {% for icon, label, value in [('calendar-event', 'Fecha', session.session_date.strftime('%d/%m/%Y')), ('diagram-3', 'Año fiscal', fiscal_year.code ~ ' · ' ~ fiscal_year.name), ('journal-text', 'Actividad', activity.code ~ ' · ' ~ (activity.description or '')), ('people', 'Programa', program.code ~ ' · ' ~ program.name), ('clock-history', 'Duración', (session.duration_minutes|string ~ ' min') if session.duration_minutes is not none else '—')] %}
+      <div class="attendance-session-item"><span class="attendance-session-item__icon"><i class="bi bi-{{ icon }}" aria-hidden="true"></i></span><span class="attendance-session-item__label">{{ label }}</span><div class="attendance-session-item__value">{{ value }}</div></div>{% endfor %}
+    </div>
+    {% if session.notes %}<p class="text-muted">{{ session.notes }}</p>{% endif %}
+    <div class="attendance-detail-actions"><div class="attendance-detail-actions__main">
+      <div class="attendance-detail-actions__group attendance-detail-actions__group--primary">
+        {% if not read_only %}<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm" aria-controls="editSessionForm" aria-expanded="{{ 'true' if open_edit else 'false' }}">Editar sesión</button>{% else %}<span class="badge text-bg-secondary">Solo lectura</span>{% endif %}
+        <a class="btn btn-outline-secondary" href="{{ back_url }}">Volver a sesiones</a>
+        {% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-outline-secondary" href="/community/fiscal-participants?fiscal_year_id={{ session.fiscal_year_id }}">Sincronización del año fiscal</a>{% endif %}
+      </div>
+      {% if cp.role in ['admin', 'supervisor'] and not read_only %}<div class="attendance-detail-actions__group attendance-detail-actions__group--danger">
+        {% for suffix, label, style, question in [('clear-attendance', 'Eliminar asistencias', 'warning', '¿Eliminar todas las asistencias guardadas de esta sesión?'), ('delete', 'Eliminar sesión', 'danger', '¿Eliminar esta sesión y todas sus asistencias?')] %}
+        <form method="post" action="/community/attendance/{{ session.session_id }}/{{ suffix }}?return_query={{ return_query|urlencode }}" class="attendance-detail-actions__form" data-confirm="{{ question }}"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-outline-{{ style }}" type="submit">{{ label }}</button></form>{% endfor %}
+      </div>{% endif %}
+    </div></div>
+    <div class="attendance-detail-note"><div class="attendance-detail-note__icon"><i class="bi bi-info-circle-fill" aria-hidden="true"></i></div><p class="mb-0">Marque los participantes de este programa que asistieron y presione <strong>Guardar Asistencia</strong>. La disponibilidad corresponde a la matrícula en la fecha de la sesión.</p></div>
+    {% if not read_only %}<div class="collapse attendance-session-edit {{ 'show' if open_edit }}" id="editSessionForm">
+      <h2 class="attendance-section__title mb-3">Editar sesión</h2>
+      <form method="post" action="/community/attendance/{{ session.session_id }}/edit?return_query={{ return_query|urlencode }}" class="row g-2 attendance-create-form" data-session-form data-today="{{ today }}">
+        <input type="hidden" name="token" value="{{ csrf_token }}">{{ session_fields(edit_form, 'edit', has_attendance) }}
+        <div class="col-12"><button class="btn btn-primary" type="submit" data-session-submit>Guardar Cambios</button> <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">Cancelar</button></div>
+      </form>
+    </div>{% endif %}
+  </div></section>
+  <section class="attendance-section attendance-participants-section"><div class="card shadow-sm border-0 attendance-filter-card attendance-participants-filter-card"><div class="card-body">
+    <div class="attendance-section__header attendance-section__header--compact"><h2 class="attendance-section__title">Filtros de participantes</h2><span class="badge text-bg-secondary">Mostrando: <span id="visible-participants-count">{{ participants|length }}</span></span></div>
+    <p class="attendance-section__text">Las selecciones se conservan aunque cambie o limpie los filtros.</p>
+    <div class="row g-2 align-items-end attendance-participants-filter__form">
+      <div class="col-lg-3 col-md-6"><label class="form-label" for="age-range-filter">Rango de edad</label><select class="form-select" id="age-range-filter"><option value="">Todos los rangos</option>{% for option in age_ranges %}<option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}">{{ option.label }}</option>{% endfor %}</select></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-min-filter">Edad desde</label><input class="form-control" type="number" min="0" id="age-min-filter" placeholder="Desde"></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-max-filter">Edad hasta</label><input class="form-control" type="number" min="0" id="age-max-filter" placeholder="Hasta"></div>
+      <div class="col-lg-2 col-md-6 d-grid"><button class="btn btn-primary" type="button" id="apply-age-filter">Filtrar</button></div>
+      <div class="col-lg-3 col-md-6 d-grid"><button class="btn btn-outline-secondary" type="button" id="clear-age-filter">Limpiar filtros</button></div>
+      <div class="col-md-6"><div class="form-check mt-2"><input class="form-check-input" id="hide-inactive-filter" type="checkbox" checked><label class="form-check-label" for="hide-inactive-filter">Ocultar participantes inactivos</label></div></div>
+      <div class="col-md-6"><div class="form-check mt-2"><input class="form-check-input" id="show-attended-only-filter" type="checkbox"><label class="form-check-label" for="show-attended-only-filter">Mostrar solo participantes con asistencia marcada</label></div></div>
+    </div>
+  </div></div></section>
+  <form method="post" action="{{ detail_path }}"><input type="hidden" name="token" value="{{ csrf_token }}">
+    <section class="card shadow-sm border-0 attendance-participants-card"><div class="card-body">
+      <div class="attendance-section__header"><div><h2 class="attendance-section__title">Participantes de la sesión</h2><p class="attendance-section__text">{{ program.name }} · {{ fiscal_year.name }}</p></div></div>
+      <div class="table-responsive attendance-participants-table-wrap" data-attendance-roster><table class="table table-sm table-hover align-middle attendance-table attendance-participants-table mb-0"><thead><tr><th>Expediente</th><th>Nombre</th><th>Inicial</th><th>Apellidos</th><th>Edad</th><th>Estado</th><th class="text-center">Asistió</th></tr></thead><tbody>
+        {% for participant in participants %}
+        <tr class="attendance-participants-row {{ 'table-danger attendance-participants-row--inactive' if not participant.eligible }}" data-participant-row="1" data-age="{{ participant.age if participant.age is not none else '' }}" data-is-active="{{ '1' if participant.eligible else '0' }}">
+          <td>{{ participant.expediente_num }}</td><td>{{ participant.nombre }}</td><td>{{ participant.inicial or '' }}</td><td>{{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</td><td>{{ participant.age if participant.age is not none else '—' }}</td><td><span class="badge {{ 'bg-success' if participant.eligible else 'bg-danger' }}">{{ 'Activo' if participant.eligible else 'Inactivo en esta fecha' }}</span></td>
+          <td class="text-center"><input class="attendance-participants-checkbox" type="checkbox" name="present_participant_ids" value="{{ participant.participant_id }}" aria-label="Asistió: {{ participant.nombre }} {{ participant.apellido_paterno }}" {{ 'checked' if attendance.get(participant.participant_id, false) }} {{ 'disabled' if read_only or not participant.eligible }}></td>
+        </tr>{% endfor %}
+        <tr id="no-participant-filter-results-row" hidden><td colspan="7" class="text-muted text-center py-4">No hay participantes para esta selección. Revise los filtros, la sincronización y las fechas de alta en el programa.</td></tr>
+      </tbody></table></div>
+      <div class="attendance-participants-savebar"><div class="attendance-participants-savebar__copy"><span class="attendance-participants-savebar__label">Guardar asistencia</span><span class="attendance-participants-savebar__text">Se guardan las selecciones visibles y las ocultas por los filtros.</span></div><div class="attendance-participants-savebar__actions">{% if not read_only %}<button class="btn btn-success" type="submit">Guardar Asistencia</button>{% else %}<button class="btn btn-secondary" type="button" disabled>Sesión en solo lectura</button>{% endif %}</div></div>
+    </div></section>
+  </form>
+</div>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script>document.querySelectorAll('form[method="get"]').forEach(form => form.addEventListener('submit', () => form.querySelectorAll('select').forEach(select => { if (!select.value) select.disabled = true; })));</script>{% endblock %}
+{% block scripts %}<script src="/static/js/community-attendance.js"></script>{% endblock %}

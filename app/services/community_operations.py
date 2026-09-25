@@ -55,25 +55,54 @@ def enrolled_participant_ids(db: Session, fiscal_year_id: int, program_id: int,
     ).distinct().order_by(CPFiscalEnrollment.participant_id)).all())
 
 
+def parse_duration_minutes(value) -> int | None:
+    if value is None or value == "":
+        return None
+    raw = str(value)
+    if isinstance(value, bool) or not raw.isascii() or not raw.isdigit() or len(raw) > 10:
+        raise ValueError("La duración debe expresarse en minutos enteros, en intervalos de 5.")
+    minutes = int(raw)
+    if not 5 <= minutes <= 2147483647 or minutes % 5:
+        raise ValueError("La duración debe ser positiva y un múltiplo de 5 minutos.")
+    return minutes
+
+
 def create_activity_session(db: Session, *, fiscal_year_id: int, program_id: int, activity_id: int,
-                            session_date: date, actor_user_id: int, notes: str | None = None) -> CPActivitySession:
+                            session_date: date, actor_user_id: int, notes: str | None = None,
+                            duration_minutes: int | str | None = None) -> CPActivitySession:
     _validate_actor(actor_user_id)
+    minutes = parse_duration_minutes(duration_minutes)
     session_date = _date(session_date, "Fecha de actividad")
     require_fiscal_writable(db, fiscal_year_id, session_date)
     _activity_context(db, fiscal_year_id, program_id, activity_id)
     row = CPActivitySession(fiscal_year_id=fiscal_year_id, program_id=program_id,
                             activity_id=activity_id, session_date=session_date,
-                            notes=_text(notes, "Observaciones", 500), created_by_user_id=actor_user_id)
+                            notes=_text(notes, "Observaciones", 500), created_by_user_id=actor_user_id,
+                            duration_minutes=minutes)
     db.add(row)
     db.flush()
     return row
 
 
-def set_session_attendance(db: Session, *, session_id: int, present_participant_ids: Iterable[int]) -> CPActivitySession:
+def writable_session(db: Session, session_id: int, *, target_fiscal_year_id: int | None = None) -> CPActivitySession:
     session = db.get(CPActivitySession, session_id)
     if session is None:
         raise ValueError("La sesión de actividad no existe.")
+    original = (session.fiscal_year_id, session.program_id, session.session_date, session.activity_id)
+    # Lock fiscal rows in ID order before locking a session, including moves of empty sessions.
+    for year_id in sorted({session.fiscal_year_id, target_fiscal_year_id or session.fiscal_year_id}):
+        require_fiscal_writable(db, year_id)
+    session = db.scalar(select(CPActivitySession).where(CPActivitySession.session_id == session_id)
+                         .with_hint(CPActivitySession, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql")
+                         .execution_options(populate_existing=True))
+    if session is None or (session.fiscal_year_id, session.program_id, session.session_date, session.activity_id) != original:
+        raise ValueError("La sesión cambió. Recargue la página antes de guardar.")
     require_fiscal_writable(db, session.fiscal_year_id, session.session_date)
+    return session
+
+
+def set_session_attendance(db: Session, *, session_id: int, present_participant_ids: Iterable[int]) -> CPActivitySession:
+    session = writable_session(db, session_id)
     _activity_context(db, session.fiscal_year_id, session.program_id, session.activity_id)
     submitted = tuple(present_participant_ids)
     if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in submitted):
@@ -85,6 +114,8 @@ def set_session_attendance(db: Session, *, session_id: int, present_participant_
     existing = {row.participant_id: row for row in db.scalars(select(CPAttendance).where(CPAttendance.session_id == session_id)).all()}
     for participant_id in eligible | set(existing):
         row = existing.get(participant_id)
+        if participant_id not in eligible:
+            continue  # Disabled historical rows must not be erased by a normal form submission.
         if row is None:
             row = CPAttendance(session_id=session_id, participant_id=participant_id)
             db.add(row)

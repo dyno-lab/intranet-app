@@ -414,6 +414,65 @@ Eliminar al tener sesiones o ADM. Revisar también un año cerrado y la copia de
 configuración con sus metas. El DDL y la concurrencia en SQL Server, así como la
 revisión visual en navegador, quedan para esa PC.
 
+## Asistencias con el flujo de Faro
+
+`/community/attendance` reutiliza la presentación de `/ui/listado`: resumen de
+actividades, participantes únicos y participaciones; búsqueda por control,
+programa, año fiscal, mes/año calendario y fechas; paginación y exportaciones CSV
+de sesiones y asistencias. Todos los conteos y exportaciones aplican los mismos
+filtros y permisos de Comunidad. Los únicos y las participaciones se calculan
+exclusivamente con asistencia confirmada. Las exportaciones de participantes
+usan los datos guardados en su año fiscal y protegen el texto frente a fórmulas CSV.
+
+Decisiones confirmadas: Programa ocupa el lugar de Empleado; no se incorpora
+un catálogo de empleados. El control automático es `CP-{session_id}`, corto,
+único dentro de Comunidad y estable al corregir fecha, actividad o programa.
+También se aplica a las sesiones existentes, sin renumerarlas. La duración se
+registra en minutos, opcional, en intervalos de cinco, con su equivalente visual
+en horas y minutos. La única columna nueva es
+`dbo.cp_activity_sessions.duration_minutes`, nullable y agregada idempotentemente.
+
+Crear y Abrir Sesión exige año fiscal, programa, fecha y actividad. Al cambiar
+programa/año, se cargan solamente sus actividades activas. El servidor repite
+esta validación; no depende del filtro del navegador. La lista de participantes
+se obtiene de la matrícula de ese programa y año; la fecha de la sesión determina
+quién puede marcarse, respetando altas y bajas. Los demás programas nunca se
+incorporan a esa lista. Los datos personales provienen de la copia fiscal.
+
+El detalle incorpora control, contador de marcas, fecha, actividad, programa,
+duración, Editar sesión, Volver a sesiones y acceso a sincronización del año.
+Los filtros por rango/edad, inactivos y asistencia marcada no desmarcan ni
+deshabilitan las selecciones ocultas. Las marcas históricas no elegibles se
+conservan al guardar; las acciones explícitas de eliminación sí pueden retirarlas.
+
+Con asistencias guardadas (incluso filas de ausencia), programa y año fiscal
+quedan fijos. Fecha, actividad, minutos y observaciones pueden corregirse si el
+período original y el destino están abiertos y todos los asistentes siguen
+siendo elegibles. Una sesión sin asistencia guardada puede cambiar de programa
+y año fiscal dentro del acceso del usuario. Las correcciones conservan el control.
+
+Administrador y Supervisor de Comunidad pueden Eliminar asistencias o Eliminar
+sesión con sus asistencias, mediante confirmación y CSRF. User puede crear,
+editar y guardar dentro de sus programas; Viewer consulta y exporta. Los cierres
+mensuales/anuales bloquean las escrituras, incluso por peticiones directas. Las
+operaciones se ejecutan en una transacción, con bloqueos fiscales y de sesión;
+una referencia adicional impide borrar y revierte la operación.
+
+Verificación: suite de 169 pruebas de Comunidad aprobada, más una prueba adicional
+de reversión completa al fallar la eliminación (170 casos comprobados, salida 0).
+Doce casos nuevos cubren el control, duración, edición, acceso por programa,
+matrículas, permisos, CSV, filtros, conservación de marcas y eliminación. También
+se compilan consultas con el dialecto MSSQL y se verifica JavaScript con
+`node --check app/static/js/community-attendance.js`. El diff pasa la revisión de
+espacios. No se conectó a una base real durante estas pruebas.
+
+Validación en la PC de pruebas: reiniciar después de actualizar para aplicar la
+columna de duración; comprobar que al seleccionar VOCA no aparecen actividades
+ni participantes exclusivos de TANF; crear `CP-…`, guardar marcas, cambiar
+filtros visuales y corregir minutos/fecha. Revisar los CSV, probar Supervisor y
+Viewer, y confirmar que los períodos cerrados permanecen en solo consulta. La
+revisión visual, ejecución del DDL y concurrencia en SQL Server quedan para esa PC.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no
