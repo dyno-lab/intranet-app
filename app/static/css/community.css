@@ -53,6 +53,6 @@
 .community-body .participants-page .card { border-radius: var(--bs-card-border-radius); }
 .community-body .participants-page .card-body { padding: 1rem 1.05rem; }
 .community-body .participants-pagination { --bs-pagination-color: #126443; --bs-pagination-hover-color: #0b4d32; }
-.community-program-badge { color: #126443; background: #e4f2e8; margin: .15rem; }
-.community-address-cell { min-width: 10rem; max-width: 18rem; overflow-wrap: anywhere; }
+.community-program-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .35rem; width: 9rem; max-width: 100%; }
+.community-program-badge { color: #126443; background: #e4f2e8; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 @media (max-width: 767px) { .community-body .ui-topbar { flex-wrap: wrap; height: auto; padding: .75rem; gap: .5rem; } .community-body .ui-topbar__right { flex-wrap: wrap; } .community-definition { grid-template-columns: 1fr; gap: .3rem; } .community-definition dd { margin-bottom: .7rem; } }
