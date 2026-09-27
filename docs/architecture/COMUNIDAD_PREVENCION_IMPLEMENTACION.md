@@ -509,6 +509,9 @@ fusionan expedientes; la revisión de identidad con Faro mantiene su flujo separ
 
 La búsqueda del listado, su exportación y la consulta de expedientes existentes
 aceptan número, nombre, apellidos y varias palabras juntas, como «Ana Rivera Soto».
+El listado presenta un único campo «Nombre, apellido o expediente», junto con los
+filtros de edad y programa. Los enlaces anteriores con `expediente_num` siguen
+siendo válidos y muestran ese número en el campo unificado al abrirlos.
 El listado y CSV conservan su alcance por programa; la consulta general sigue
 limitada a datos básicos. No se agregan columnas ni se modifican datos históricos.
 
