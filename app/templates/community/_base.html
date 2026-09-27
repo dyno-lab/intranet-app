@@ -7,8 +7,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community.css') }}" rel="stylesheet">
+  {% block page_styles %}{% endblock %}
 </head>
-<body class="ui-shell-body community-body">
+<body class="ui-shell-body community-body {% block page_class %}{% endblock %}">
 {% macro navigation() %}
   {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/programs', 'Programas', 'people'), ('/community/fiscal-years', 'Años fiscales', 'calendar3')] %}
   {% if href not in ['/community/programs', '/community/fiscal-years'] or cp.role == 'admin' %}

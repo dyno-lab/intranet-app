@@ -473,6 +473,25 @@ filtros visuales y corregir minutos/fecha. Revisar los CSV, probar Supervisor y
 Viewer, y confirmar que los períodos cerrados permanecen en solo consulta. La
 revisión visual, ejecución del DDL y concurrencia en SQL Server quedan para esa PC.
 
+## Registro compacto de participantes (2026-09-27)
+
+`/community/participants` carga una hoja de estilos propia para reducir encabezados,
+espacios, controles, tarjetas y filas. Conserva todas las secciones, campos, acciones
+y permisos. En escritorio, los datos del número de expediente se presentan en una
+franja; la explicación de numeración automática y conservación del número se unifica.
+Faro y las demás pantallas mantienen sus estilos. No cambia el esquema ni los datos.
+
+En una muestra local con tres programas, a 1440 × 800 el formulario bajó de 983 a
+746 píxeles de alto y el inicio de la tabla pasó de 2012 a 1490 píxeles. Estas medidas
+dependen del contenido y de la resolución. En móvil se conservan campos de 44 píxeles
+y texto de 16 píxeles; se utiliza el menú desplegable existente y el desplazamiento
+horizontal queda contenido en la tabla.
+
+Verificación: 26 pruebas existentes de participantes y rutas aprobadas; renderizado
+con datos ficticios en Edge sin interfaz a 320, 390, 820, 1366, 1440 y 1920 píxeles,
+sin desbordamiento horizontal de página. Se comprobaron anclas, menú móvil y Viewer.
+Validación pendiente del usuario: actualizar la PC de pruebas y revisar al 100% de zoom.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

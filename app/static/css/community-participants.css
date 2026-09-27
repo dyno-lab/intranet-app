@@ -1,0 +1,115 @@
+/* Compact registration/list layout, loaded only by Community participants. */
+.community-participants-page { --ui-topbar-height: 64px; }
+.community-participants-page .ui-topbar { padding: .5rem 1rem; }
+.community-participants-page .ui-menu-toggle { width: 2.5rem; height: 2.5rem; }
+.community-participants-page .ui-content-shell { padding: .85rem 1rem; }
+.community-participants-page .ui-page-wrap { max-width: 1680px; }
+.community-participants-page .participants-page { gap: .85rem; }
+.community-participants-page .participants-section { gap: .5rem; }
+.community-participants-page .participants-hero {
+  grid-template-columns: minmax(0, 1fr);
+  padding: .85rem 1rem;
+  border-radius: 16px;
+}
+.community-participants-page .participants-hero__content { gap: .35rem; }
+.community-participants-page .participants-hero__title {
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  line-height: 1.15;
+}
+.community-participants-page .participants-section__title { font-size: 1.15rem; }
+.community-participants-page .participants-summary-grid { gap: .65rem; }
+.community-participants-page .participants-summary-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .65rem .85rem;
+  border-radius: 12px;
+}
+.community-participants-page .participants-summary-card__label { font-size: .75rem; letter-spacing: .03em; }
+.community-participants-page .participants-summary-card__value { font-size: 1.7rem; }
+.community-participants-page .participants-page .card-body { padding: .7rem .85rem; }
+.community-participants-page .participants-form-section {
+  gap: .45rem;
+  padding: .6rem .75rem;
+  border-radius: 12px;
+}
+.community-participants-page .participants-form-section__header {
+  gap: .3rem .75rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.community-participants-page .participants-form-section__title,
+.community-participants-page .participants-card__title { font-size: .95rem; }
+.community-participants-page .participants-form-section__text,
+.community-participants-page .participants-section__text,
+.community-participants-page .participants-toolbar__meta,
+.community-participants-page .participants-list-meta { font-size: .85rem; }
+.community-participants-page .participants-form-card .card-body > p { margin-bottom: .6rem; }
+.community-participants-page .participants-page .form-label { font-size: .875rem; margin-bottom: .15rem; }
+.community-participants-page .participants-page .form-control,
+.community-participants-page .participants-page .form-select {
+  min-height: 2.15rem;
+  padding-top: .25rem;
+  padding-bottom: .25rem;
+  font-size: .9rem;
+}
+.community-participants-page .participants-page .form-text { font-size: .8rem; line-height: 1.3; }
+.community-participants-page .participants-page .form-check-label { font-size: .9rem; }
+.community-participants-page .participants-page .row { --bs-gutter-y: .4rem; }
+.community-participants-page .participants-page .btn { font-size: .875rem; padding-top: .3rem; padding-bottom: .3rem; }
+.community-participants-page .community-program-choice { padding: .45rem .6rem; gap: .5rem; font-size: .875rem; }
+.community-participants-page .community-program-choice span { min-width: 0; overflow-wrap: anywhere; }
+.community-participants-page .participants-breakdown-table,
+.community-participants-page .participants-table { font-size: .875rem; }
+.community-participants-page .participants-breakdown-table > :not(caption) > * > * { padding: .2rem .4rem; }
+.community-participants-page .participants-table thead th { font-size: .75rem; letter-spacing: .02em; }
+.community-participants-page .participants-table tbody td { padding: .4rem; }
+/* Contain the absolute screen-reader labels within the horizontal scroller. */
+.community-participants-page .participants-table-card .table-responsive { position: relative; }
+.community-participants-page .community-participant-actions { width: 13rem; gap: .3rem; }
+.community-participants-page .community-participant-actions .btn { min-height: 2rem; font-size: .8rem; }
+.community-participants-page #participant-register-card { scroll-margin-top: calc(var(--ui-topbar-height) + 3rem); }
+.community-participants-page #participants-table-card { scroll-margin-top: calc(var(--ui-topbar-height) + 1rem); }
+
+@media (min-width: 992px) {
+  .community-participants-page .participants-hero__content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1rem;
+  }
+  .community-participants-page .participants-hero__eyebrow { grid-column: 1; }
+  .community-participants-page .participants-hero__title { grid-column: 1; }
+  .community-participants-page .participants-hero__actions { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+}
+
+@media (min-width: 1200px) {
+  .community-participants-page .participants-form-section--record {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: center;
+    gap: 1rem;
+  }
+  .community-participants-page .participants-form-section--record .participants-form-section__header {
+    flex-direction: column;
+    gap: .2rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  /* The existing offcanvas menu provides navigation at these widths. */
+  .community-participants-page .ui-sidebar { display: none; }
+}
+
+@media (max-width: 767px) {
+  .community-participants-page { --ui-topbar-height: 96px; }
+  .community-participants-page .ui-topbar { flex-wrap: wrap; }
+  .community-participants-page .ui-content-shell { padding: .65rem; }
+  .community-participants-page .participants-summary-grid { grid-template-columns: minmax(0, 1fr); }
+  .community-participants-page .participants-toolbar { flex-wrap: wrap; gap: .5rem; }
+  .community-participants-page .participants-page .form-control,
+  .community-participants-page .participants-page .form-select { min-height: 2.75rem; font-size: 1rem; }
+  .community-participants-page .participants-page .btn { min-height: 2.75rem; }
+  .community-participants-page .community-program-choice { min-height: 2.75rem; }
+  .community-participants-page .participants-page .row { --bs-gutter-y: .6rem; }
+}

@@ -1,5 +1,7 @@
 {% extends "community/_base.html" %}
 {% block title %}Participantes · Comunidad{% endblock %}
+{% block page_class %}community-participants-page{% endblock %}
+{% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
 <div class="participants-page">
   <section class="participants-hero">
