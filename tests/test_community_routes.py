@@ -159,6 +159,34 @@ class CommunityRouteTests(unittest.TestCase):
         for path in ("programs", "fiscal-years"):
             self.assertEqual(self.client.get(f"/community/{path}").status_code, 403)
 
+    def test_missing_program_keeps_form_values_and_can_be_corrected_without_consuming_number(self):
+        token = self.login(self.user_id)
+        data = self.participant_data(token, program_ids=[], inicial="M", apellido_materno="Soto",
+                                     telefono="(787)-555-0123", email="ana@example.com",
+                                     is_head_of_household="on")
+        response = self.client.post("/community/participants", data=data)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("text/html", response.headers["content-type"])
+        self.assertEqual(response.context["form_error"], "Seleccione al menos un programa para registrar al participante.")
+        for key, value in data.items():
+            if key != "token":
+                self.assertEqual(response.context["values"][key], value)
+        self.assertIn('value="ana@example.com"', response.text)
+        self.assertIn('value="(787)-555-0123"', response.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.scalar(select(func.count()).select_from(CPParticipant)), 0)
+            self.assertEqual(db.scalar(select(func.count()).select_from(CPParticipantProgram)), 0)
+            self.assertIsNone(db.get(CPSequence, 2026))
+        data["program_ids"] = [self.tanf_id]
+        data["token"] = self.token(response)
+        saved = self.client.post("/community/participants", data=data)
+        self.assertEqual(saved.status_code, 303, saved.text)
+        with Session(self.engine) as db:
+            participant = db.scalar(select(CPParticipant))
+            self.assertEqual(participant.expediente_num, "CP-2026-0001")
+            self.assertEqual(participant.email, "ana@example.com")
+            self.assertEqual(db.scalar(select(CPParticipantProgram.program_id)), self.tanf_id)
+
     def test_user_cannot_write_admin_configuration_or_select_unassigned_program(self):
         token = self.login(self.user_id)
         self.assertEqual(self.client.post("/community/programs", data={"token": token, "code": "SP", "name": "SP"}).status_code, 403)

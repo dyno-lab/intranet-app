@@ -257,6 +257,9 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
     values["program_ids"] = []
     try:
         program_ids = [int(value) for value in form.getlist("program_ids")]
+        if not program_ids:
+            return _participant_form_response(request, context, db, values=values,
+                form_error="Seleccione al menos un programa para registrar al participante.")
         require_programs(context, program_ids)
         values["program_ids"] = program_ids
         exp_year = int(form.get("exp_year", ""))
