@@ -1,5 +1,15 @@
 <script>
 (() => {
+  const duplicateDialog = document.getElementById('participant-duplicate-dialog');
+  if (duplicateDialog && typeof duplicateDialog.showModal === 'function') {
+    duplicateDialog.close();
+    duplicateDialog.showModal();
+    duplicateDialog.querySelector('[data-duplicate-review]').addEventListener('click', event => {
+      event.preventDefault();
+      duplicateDialog.close();
+      document.getElementById('nombre').focus();
+    });
+  }
   const birth = document.getElementById('fecha_nacimiento');
   const age = document.getElementById('calculated-age');
   const updateAge = () => {

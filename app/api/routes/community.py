@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -26,8 +26,9 @@ from app.services.community import delete_participant, delete_program, program_u
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
+from app.services.community_duplicates import confirmed_duplicate, duplicate_confirmation, duplicate_participants
 from app.services.community_participants import (
-    filtered_query, participant_query, program_links, registration_dashboard, roster_filters, roster_page,
+    filtered_query, participant_query, participant_search, program_links, registration_dashboard, roster_filters, roster_page,
 )
 from app.services.community_record import participant_record
 
@@ -247,8 +248,17 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
     values["program_ids"] = program_ids
     fields = {key: form.get(key) for key in PERSONAL_FIELDS}
     fields["is_head_of_household"] = form.get("is_head_of_household") == "on"
+    if form.get("duplicate_action") == "review":
+        return _participant_form_response(request, context, db, values=values, form_error=None)
     try:
         validate_categories(db, fields)
+        matches = duplicate_participants(db, fields)
+        confirmation_context = {"user_id": context.user.user_id, "csrf": csrf_token(request)}
+        if matches and not confirmed_duplicate(str(form.get("duplicate_confirmation", "")),
+                                               fields, matches, **confirmation_context):
+            return _participant_form_response(request, context, db, values=values, form_error=None,
+                duplicate_matches=matches,
+                duplicate_confirmation=duplicate_confirmation(fields, matches, **confirmation_context))
         participant = create_participant(db, actor_user_id=context.user.user_id,
                                          exp_year=exp_year, program_ids=program_ids, fields=fields)
         save_profile_values(db, participant.participant_id, form)
@@ -274,12 +284,9 @@ def participant_lookup(request: Request, q: str = "", db: Session = Depends(get_
         # Explicitly return only identity fields, never contact data or other programs.
         rows = db.execute(select(CPParticipant.participant_id, CPParticipant.expediente_num,
                                  CPParticipant.nombre, CPParticipant.inicial, CPParticipant.apellido_paterno,
-                                 CPParticipant.apellido_materno, CPParticipant.fecha_nacimiento).where(or_(*[
-            field.contains(term, autoescape=True) for field in (
-                CPParticipant.expediente_num, CPParticipant.nombre,
-                CPParticipant.apellido_paterno, CPParticipant.apellido_materno,
-            )
-        ])).order_by(CPParticipant.apellido_paterno, CPParticipant.nombre).limit(50)).all()
+                                 CPParticipant.apellido_materno, CPParticipant.fecha_nacimiento)
+                          .where(participant_search(term))
+                          .order_by(CPParticipant.apellido_paterno, CPParticipant.nombre).limit(50)).all()
     return _render(request, "participant_lookup", context, matches=rows, q=term)
 
 

@@ -6,7 +6,7 @@ import json
 from urllib.parse import urlencode
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_catalog import CPProfileField, CPProfileValue
@@ -30,6 +30,14 @@ def participant_query(context):
         CPParticipantProgram.participant_id == CPParticipant.participant_id,
         CPParticipantProgram.program_id.in_(context.visible_program_ids),
     ).exists())
+
+
+def participant_search(term):
+    """Match all words across identity fields, escaping percent and underscore."""
+    fields = (CPParticipant.expediente_num, CPParticipant.nombre,
+              CPParticipant.apellido_paterno, CPParticipant.apellido_materno)
+    return and_(*[or_(*[field.icontains(word, autoescape=True) for field in fields])
+                  for word in term.split()])
 
 
 def _integer(params, key, default=None, minimum=0, maximum=130):
@@ -71,8 +79,7 @@ def filtered_query(context, filters, *, today=None):
             CPParticipantProgram.program_id == filters["program_id"],
         ).exists())
     if filters["q"]:
-        query = query.where(or_(*[field.contains(filters["q"], autoescape=True) for field in (
-            CPParticipant.expediente_num, CPParticipant.nombre, CPParticipant.apellido_paterno, CPParticipant.apellido_materno)]))
+        query = query.where(participant_search(filters["q"]))
     if filters["expediente_num"]:
         query = query.where(func.upper(CPParticipant.expediente_num) == filters["expediente_num"])
     today = today or date.today()

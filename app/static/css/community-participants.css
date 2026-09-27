@@ -71,6 +71,23 @@
 .community-participants-page .community-participant-actions .btn { min-height: 2rem; font-size: .8rem; }
 .community-participants-page #participant-register-card { scroll-margin-top: calc(var(--ui-topbar-height) + 3rem); }
 .community-participants-page #participants-table-card { scroll-margin-top: calc(var(--ui-topbar-height) + 1rem); }
+.community-duplicate-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(38rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 1.25rem;
+  border: 1px solid #c8dfd1;
+  border-radius: 1rem;
+  color: var(--ui-text);
+  box-shadow: 0 16px 48px #102e2440;
+  overflow-y: auto;
+  z-index: 1050;
+}
+.community-duplicate-dialog::backdrop { background: #102e2480; }
+.community-duplicate-list { padding-left: 1.25rem; }
+.community-duplicate-list li { margin-bottom: .75rem; overflow-wrap: anywhere; }
 
 @media (min-width: 992px) {
   .community-participants-page .participants-hero__content {

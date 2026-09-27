@@ -492,6 +492,33 @@ con datos ficticios en Edge sin interfaz a 320, 390, 820, 1366, 1440 y 1920 píx
 sin desbordamiento horizontal de página. Se comprobaron anclas, menú móvil y Viewer.
 Validación pendiente del usuario: actualizar la PC de pruebas y revisar al 100% de zoom.
 
+## Alerta de coincidencias y búsqueda de expedientes
+
+Al guardar un participante nuevo, Comunidad busca coincidencias por nombre, primer
+apellido y fecha de nacimiento. La comparación de nombres ignora mayúsculas, tildes
+y espacios adicionales; el segundo apellido no determina la coincidencia. Sin fecha
+de nacimiento no se presume un duplicado. La comprobación abarca Comunidad y muestra
+solo identidad básica, incluso cuando el expediente pertenece a otro programa.
+
+Antes de crear el registro o consumir la secuencia, una alerta muestra los números
+de expediente y permite usar uno existente, revisar el formulario conservando sus
+valores o seleccionar «Sí, crear otro expediente». La confirmación firmada dura
+15 minutos y corresponde al usuario, sesión, datos comparados y coincidencias actuales.
+Un cambio de identidad o una coincidencia nueva requiere volver a confirmar. No se
+fusionan expedientes; la revisión de identidad con Faro mantiene su flujo separado.
+
+La búsqueda del listado, su exportación y la consulta de expedientes existentes
+aceptan número, nombre, apellidos y varias palabras juntas, como «Ana Rivera Soto».
+El listado y CSV conservan su alcance por programa; la consulta general sigue
+limitada a datos básicos. No se agregan columnas ni se modifican datos históricos.
+
+Verificación: 179 pruebas de Comunidad aprobadas, incluidas nueve nuevas para
+coincidencias, confirmación, conservación del formulario, búsqueda y permisos.
+Se comprobó la consulta con el dialecto MSSQL sin conexión y la alerta en Edge,
+en escritorio y móvil, incluyendo Revisar datos, Escape y confirmación explícita.
+Validar en la PC de pruebas: intentar crear los mismos datos demográficos, revisar
+el número mostrado, cancelar o confirmar y buscar por nombre y apellido juntos.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

@@ -28,6 +28,24 @@
       {% if participant is not defined %}<p><a class="btn btn-outline-primary btn-sm" href="/community/participants/lookup"><i class="bi bi-search" aria-hidden="true"></i> Buscar un expediente existente y asociarlo a mis programas</a></p>{% endif %}
       <form method="post" action="{{ '/community/participants/' ~ participant.participant_id ~ '/edit' if participant is defined else '/community/participants' }}" class="row g-2 align-items-start">
         <input type="hidden" name="token" value="{{ csrf_token }}">
+        {% if duplicate_matches %}
+        <dialog open id="participant-duplicate-dialog" class="community-duplicate-dialog" aria-labelledby="duplicate-title" aria-describedby="duplicate-description">
+          <h2 id="duplicate-title" class="h5"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Ya existe un expediente con estos datos</h2>
+          <p id="duplicate-description">Encontramos coincidencias en <strong>nombre, primer apellido y fecha de nacimiento</strong>. Revise los expedientes existentes antes de continuar.</p>
+          <ul class="community-duplicate-list">
+            {% for match in duplicate_matches %}<li>
+              <strong>{{ match.expediente_num }}</strong><br>
+              {{ match.nombre }} {{ match.apellido_paterno }} {{ match.apellido_materno or '' }} · {{ match.fecha_nacimiento.strftime('%d/%m/%Y') }}<br>
+              <a href="/community/participants/lookup?q={{ match.expediente_num|urlencode }}">Usar expediente existente</a>
+            </li>{% endfor %}
+          </ul>
+          <p>¿Desea crear otro expediente de todas formas?</p>
+          <div class="d-flex flex-wrap gap-2 justify-content-end">
+            <button class="btn btn-outline-secondary" type="submit" name="duplicate_action" value="review" formnovalidate data-duplicate-review autofocus>Revisar datos</button>
+            <button class="btn btn-primary" type="submit" name="duplicate_confirmation" value="{{ duplicate_confirmation }}">Sí, crear otro expediente</button>
+          </div>
+        </dialog>
+        {% endif %}
         {% if participant is not defined %}
         <div class="col-12"><div class="participants-form-section participants-form-section--record">
           <div class="participants-form-section__header"><h3 class="participants-form-section__title">Datos de expediente</h3><p class="participants-form-section__text">Número automático al guardar; se conserva en los siguientes años fiscales.</p></div>
