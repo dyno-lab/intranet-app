@@ -21,9 +21,6 @@
     age.value = Number.isFinite(value) && value >= 0 ? String(value) : '';
   };
   if (birth && age) { birth.addEventListener('change', updateAge); updateAge(); }
-  const year = document.getElementById('exp_year');
-  const preview = document.getElementById('record-preview');
-  if (year && preview) year.addEventListener('change', () => { preview.value = `CP-${year.value || 'AÑO'}-0000`; });
   document.querySelectorAll('[data-phone-format]').forEach(input => {
     input.addEventListener('input', () => {
       const digits = input.value.replace(/\D/g, '').slice(0, 10);
@@ -41,3 +38,4 @@
   });
 })();
 </script>
+{% if participant is not defined and cp.role != 'viewer' %}<script src="{{ request.url_for('static', path='js/community-participant-number.js') }}" defer></script>{% endif %}

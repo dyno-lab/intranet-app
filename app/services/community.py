@@ -156,6 +156,14 @@ def create_fiscal_year(db: Session, code: str, name: str, start_date: date, end_
     return fiscal_year
 
 
+def next_participant_number(db: Session, exp_year: int) -> str | None:
+    """Read an estimate without allocating/reserving a number or taking a write lock."""
+    if isinstance(exp_year, bool) or not isinstance(exp_year, int) or not 1000 <= exp_year <= 9999:
+        raise ValueError("Selecciona un año de expediente de cuatro dígitos.")
+    last_value = db.scalar(select(CPSequence.last_value).where(CPSequence.exp_year == exp_year)) or 0
+    return f"CP-{exp_year}-{last_value + 1:04d}" if last_value < 9999 else None
+
+
 def _sequence_lock_statement(exp_year: int):
     # UPDLOCK serializes increments; HOLDLOCK retains the key-range lock when
     # this year's row does not exist yet. Both are held until caller commit.

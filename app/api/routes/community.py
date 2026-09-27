@@ -5,8 +5,8 @@ import io
 from datetime import date
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -22,7 +22,7 @@ from app.core.community_access import (
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.services.community import associate_participant_programs, create_fiscal_year, create_participant, create_program, update_participant
-from app.services.community import delete_participant, delete_program, program_usage, update_program
+from app.services.community import delete_participant, delete_program, next_participant_number, program_usage, update_program
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
@@ -65,7 +65,15 @@ def _participant_form_response(request, context, db, **values):
             catalogs["profile_values"][field.field_id] = values["values"][key]
     if participant is not None:
         return _render(request, "participant_form", context, **catalogs, **values)
+    preview_year, record_preview = None, None
+    if context.role != "viewer":
+        try:
+            preview_year = int(values.get("values", {}).get("exp_year", date.today().year))
+            record_preview = next_participant_number(db, preview_year)
+        except (ValueError, TypeError):
+            preview_year = None
     return _render(request, "participants", context, **catalogs, **values,
+                   record_preview=record_preview, record_preview_year=preview_year,
                    **roster_page(db, context, request.query_params), dashboard=registration_dashboard(db, context))
 
 
@@ -226,6 +234,14 @@ def export_participants(request: Request, db: Session = Depends(get_db),
                     headers={"Content-Disposition": 'attachment; filename="participantes_comunidad.csv"'})
 
 
+@router.get("/participants/next-number")
+def participant_number_preview(exp_year: int = Query(..., ge=1000, le=9999),
+                               db: Session = Depends(get_db),
+                               context: CommunityContext = Depends(require_community_writer)):
+    return JSONResponse({"exp_year": exp_year, "expediente_num": next_participant_number(db, exp_year)},
+                        headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"})
+
+
 @router.get("/participants/new")
 def participant_form(request: Request, db: Session = Depends(get_db),
                      context: CommunityContext = Depends(require_community_writer)):
@@ -238,14 +254,15 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
     form = await request.form()
     validate_csrf(request, str(form.get("token", "")))
     values = dict(form)
+    values["program_ids"] = []
     try:
         program_ids = [int(value) for value in form.getlist("program_ids")]
         require_programs(context, program_ids)
+        values["program_ids"] = program_ids
         exp_year = int(form.get("exp_year", ""))
     except (TypeError, ValueError):
         return _participant_form_response(request, context, db, values=values,
                        form_error="Revise el año de expediente y los programas seleccionados.")
-    values["program_ids"] = program_ids
     fields = {key: form.get(key) for key in PERSONAL_FIELDS}
     fields["is_head_of_household"] = form.get("is_head_of_household") == "on"
     if form.get("duplicate_action") == "review":

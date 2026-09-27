@@ -522,6 +522,34 @@ en escritorio y móvil, incluyendo Revisar datos, Escape y confirmación explíc
 Validar en la PC de pruebas: intentar crear los mismos datos demográficos, revisar
 el número mostrado, cancelar o confirmar y buscar por nombre y apellido juntos.
 
+## Vista previa del próximo expediente
+
+El registro muestra el próximo número estimado del año seleccionado, consultando
+el contador existente sin reservar ni consumir números. La consulta requiere
+permiso de escritura en Comunidad y responde sin caché. Se actualiza cada diez
+segundos, al cambiar de año y al regresar a la pestaña. Las consultas se pausan
+cuando la pestaña está oculta o se envía el formulario; las respuestas atrasadas
+de otro año no sustituyen el valor actual.
+
+Dos empleados pueden ver brevemente la misma estimación. El número definitivo se
+asigna únicamente al guardar, mediante el bloqueo transaccional y las restricciones
+de unicidad existentes. El formulario no envía el número de la vista previa. No se
+reutilizan números de expedientes eliminados y la numeración agotada se informa sin
+desbordar los cuatro dígitos. No requiere cambios de esquema.
+
+Verificación: 186 pruebas de Comunidad aprobadas, incluidas siete nuevas de rutas
+para consulta, acceso, asignación, validación y agotamiento. La numeración conserva
+la prueba de cuatro altas concurrentes en SQLite y la comprobación de bloqueos
+compilados con el dialecto MSSQL. Se comprobó en Edge, con datos ficticios, la
+actualización cada diez segundos, el cambio de año, errores y recuperación, el
+agotamiento y la presentación en escritorio y móvil. La simulación aislada del
+JavaScript también cubre respuestas atrasadas, pestaña oculta, envío del formulario
+y regreso mediante el historial del navegador.
+
+Validar en la PC de pruebas: abrir el registro en dos sesiones de empleados, guardar
+participantes distintos y comprobar números definitivos diferentes y actualización
+de ambas vistas previas. La concurrencia efectiva en SQL Server queda para esa PC.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no
