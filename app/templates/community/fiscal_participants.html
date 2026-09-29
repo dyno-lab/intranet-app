@@ -1,12 +1,37 @@
 {% extends "community/_base.html" %}
+{% block title %}Participantes por año fiscal{% endblock %}
+{% block page_class %}community-fiscal-participants-page{% endblock %}
+{% block page_styles %}
+<style>
+  .community-fiscal-participants-page .fiscal-actions { min-width: 6rem; max-width: 10rem; }
+  .community-fiscal-participants-page .table { min-width: 30rem; }
+  @media (max-width: 991.98px) {
+    .community-fiscal-participants-page .ui-sidebar { display: none; }
+  }
+</style>
+{% endblock %}
+{% macro action_fields() %}
+<input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="fiscal_year_id" value="{{ selected_year.fiscal_year_id }}"><input type="hidden" name="return_query" value="{{ return_query }}">
+{% endmacro %}
+{% macro pagination(key, page, pages, total) %}
+<nav class="d-flex flex-wrap gap-2 align-items-center justify-content-between mt-3" aria-label="Páginas de {{ 'disponibles' if key == 'available' else 'asociados' }}">
+<span class="small text-muted">{{ total }} expedientes · Página {{ page }} de {{ pages }}</span><div class="d-flex gap-2">
+{% if page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ page_links[key].prev }}">Anterior</a>{% endif %}
+{% if page < pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ page_links[key].next }}">Siguiente</a>{% endif %}</div></nav>
+{% endmacro %}
 {% block content %}
-<section class="community-hero"><span class="community-eyebrow">Historia por año fiscal</span><h1>Sincronización de participantes</h1><p class="mb-0">Conserve los datos de cada año fiscal sin duplicar expedientes. La sincronización no crea matrículas ni registra asistencias.</p></section>
+<section class="community-hero"><span class="community-eyebrow">Administración</span><h1>Participantes por año fiscal</h1><p class="mb-0">Añada expedientes, revise cambios y sincronice la información del año seleccionado. Las altas y bajas de programas se gestionan desde el expediente.</p></section>
 <form method="get" class="card card-body mb-4"><div class="row g-3 align-items-end">
-  <div class="col-md-5"><label class="form-label" for="fiscal-year">Año fiscal</label><select class="form-select" id="fiscal-year" name="fiscal_year_id" required>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year and year.fiscal_year_id == selected_year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
-  <div class="col-md-5"><label class="form-label" for="search">Nombre, apellido o expediente</label><input class="form-control" id="search" name="q" value="{{ q }}" maxlength="150"></div>
-  <div class="col-md-2"><button class="btn btn-primary" type="submit">Consultar</button></div>
+  <div class="col-md-6 col-xl-4"><label class="form-label" for="fiscal-year">Año fiscal</label><select class="form-select" id="fiscal-year" name="fiscal_year_id" required onchange="this.form.submit()">{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_year and year.fiscal_year_id == selected_year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-6 col-xl-3"><label class="form-label" for="program-filter">Programa</label><select class="form-select" id="program-filter" name="program_id"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if filters.program_id == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-12 col-xl-5"><label class="form-label" for="search">Nombre, apellido o expediente</label><input class="form-control" id="search" name="q" value="{{ filters.q }}" maxlength="150" placeholder="Ej. Ana Rivera o CP-2026-0001"></div>
+  <div class="col-md-6 col-xl-4"><label class="form-label" for="available-filter">Disponibles para añadir</label><select class="form-select" id="available-filter" name="available_filter"><option value="pending" {{ 'selected' if filters.available_filter == 'pending' }}>Pendientes de añadir a este año fiscal</option><option value="never" {{ 'selected' if filters.available_filter == 'never' }}>Sin ningún año fiscal</option></select></div>
+  <div class="col-md-6 col-xl-4"><label class="form-label" for="sync-filter">Participantes asociados</label><select class="form-select" id="sync-filter" name="sync_filter"><option value="pending" {{ 'selected' if filters.sync_filter == 'pending' }}>Solo pendientes de Sync</option><option value="all" {{ 'selected' if filters.sync_filter == 'all' }}>Todos los asociados</option></select></div>
+  <div class="col-6 col-xl-2 d-grid"><button class="btn btn-primary" type="submit">Filtrar</button></div>
+  <div class="col-6 col-xl-2 d-grid"><a class="btn btn-outline-secondary" href="/community/fiscal-participants{% if selected_year %}?fiscal_year_id={{ selected_year.fiscal_year_id }}{% endif %}">Limpiar</a></div>
 </div></form>
 {% if selected_year %}
+{% set writable = selected_year.status == 'active' and not (state and state.snapshots_frozen) %}
 <div class="alert alert-info"><strong>{{ selected_year.code }}</strong> · {{ selected_year.start_date.strftime('%d/%m/%Y') }}–{{ selected_year.end_date.strftime('%d/%m/%Y') }} · {{ 'Abierto' if selected_year.status == 'active' else 'Cerrado' }} · Datos {{ 'congelados' if state and state.snapshots_frozen else 'habilitados para sincronizar' }}.{% if state and state.locked_through %} Períodos cerrados hasta {{ state.locked_through.strftime('%d/%m/%Y') }}.{% endif %}</div>
 {% if cp.role == 'admin' %}
 <details class="card mb-4"><summary class="card-header">Administrar año fiscal, períodos y congelación</summary><div class="card-body">
@@ -18,14 +43,62 @@
   {% if selected_year.status == 'active' %}<form method="post" action="/community/fiscal-years/{{ selected_year.fiscal_year_id }}/periods" class="row g-3 align-items-end"><input type="hidden" name="token" value="{{ csrf_token }}"><div class="col-md-5"><label class="form-label" for="locked-through">Períodos cerrados hasta</label><input class="form-control" type="date" id="locked-through" name="locked_through" min="{{ selected_year.start_date }}" max="{{ [today, selected_year.end_date]|min }}" value="{{ state.locked_through if state and state.locked_through else '' }}" aria-describedby="period-help"><div id="period-help" class="form-text">Use el último día del mes o del año fiscal. Una fecha anterior reabre los meses posteriores; vacío reabre todos.</div></div><div class="col-md-4"><button class="btn btn-outline-primary">Guardar cierre mensual</button></div></form>{% endif %}
 </div></details>
 {% endif %}
-<section class="card"><div class="card-body"><h2 class="h5">Expedientes disponibles en su contexto</h2>
-<form method="post" action="/community/fiscal-participants/sync"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="fiscal_year_id" value="{{ selected_year.fiscal_year_id }}">
-<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Seleccionar</th><th>Expediente</th><th>Participante</th><th>Datos del año fiscal</th><th>Programas</th></tr></thead><tbody>
-{% for participant, status in rows %}<tr><td><input class="form-check-input" type="checkbox" name="participant_ids" value="{{ participant.participant_id }}" aria-label="Seleccionar {{ participant.expediente_num }}" {% if selected_year.status != 'active' or (state and state.snapshots_frozen) %}disabled{% endif %}></td><td>{{ participant.expediente_num }}</td><td>{{ participant.nombre }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</td><td>{{ status }}</td><td><a href="/community/participants/{{ participant.participant_id }}/memberships?fiscal_year_id={{ selected_year.fiscal_year_id }}">Gestionar matrículas</a></td></tr>
-{% else %}<tr><td colspan="5">No hay expedientes para esta búsqueda.</td></tr>{% endfor %}
+<div class="row g-3 mb-4" aria-label="Resumen de la búsqueda">
+{% for label, number in [('Pendientes de añadir', counts.available), ('Sin ningún año fiscal', counts.never), ('Asociados a este año', counts.assigned), ('Pendientes de Sync', counts.pending)] %}
+<div class="col-6 col-xl-3"><div class="card card-body h-100"><span class="small text-muted">{{ label }}</span><strong class="fs-3">{{ number }}</strong></div></div>
+{% endfor %}
+</div>
+{% if not writable %}<div class="alert alert-warning">Este año está en solo lectura para añadir, sincronizar o quitar participantes. Administración debe abrirlo y descongelar sus datos.</div>{% endif %}
+<div class="row g-4">
+<div class="col-xl-6"><section class="card h-100" id="available-participants">
+<div class="card-header d-flex justify-content-between gap-2"><h2 class="h5 mb-0">Disponibles para añadir</h2><span class="badge bg-secondary">{{ available_total }}</span></div>
+<div class="card-body"><p class="small text-muted">Expedientes que aún no están asociados a {{ selected_year.code }}. Añadirlos conserva su número original y no crea altas en programas.</p>
+{% if available_rows %}
+<form method="post" action="/community/fiscal-participants/sync" id="fiscal-add-form">{{ action_fields() }}<input type="hidden" name="mode" value="add">
+{% if writable %}<div class="d-flex flex-wrap gap-2 mb-3"><button class="btn btn-sm btn-outline-secondary" type="button" data-select-available="all">Marcar todos los visibles</button><button class="btn btn-sm btn-outline-secondary" type="button" data-select-available="none">Desmarcar todos</button></div>{% endif %}
+<div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr>{% if writable %}<th><input class="form-check-input" type="checkbox" id="check-all-available" aria-label="Seleccionar todos los disponibles de esta página"></th>{% endif %}<th>Expediente / participante</th><th>Programas</th><th>Años fiscales</th></tr></thead><tbody>
+{% for row in available_rows %}{% set participant = row.participant %}<tr>
+{% if writable %}<td><input class="form-check-input" type="checkbox" name="participant_ids" value="{{ participant.participant_id }}" aria-label="Seleccionar {{ participant.expediente_num }}"></td>{% endif %}
+<td><strong>{{ participant.expediente_num }}</strong><div>{{ participant.nombre }} {{ participant.inicial or '' }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</div><span class="small text-muted">Sin sincronizar con este año</span></td>
+<td>{% for code in row.programs %}<span class="badge text-bg-light border mb-1">{{ code }}</span> {% endfor %}</td>
+<td class="small">{% if row.years %}{{ row.years|join(', ') }}{% else %}<span class="badge bg-warning text-dark">Sin ningún año fiscal</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-{% if selected_year.status == 'active' and not (state and state.snapshots_frozen) %}<button class="btn btn-primary" {% if not rows %}disabled{% endif %}>Sincronizar seleccionados</button>{% else %}<p class="mb-0">La sincronización está bloqueada hasta que administración abra el año y descongele sus datos.</p>{% endif %}
-</form></div></section>
-<nav class="d-flex justify-content-between mt-3" aria-label="Páginas de expedientes">{% if page > 1 %}<a class="btn btn-outline-secondary" href="?{{ urlencode(dict(query_base, page=page-1)) }}">Anterior</a>{% else %}<span></span>{% endif %}<span>Página {{ page }}</span>{% if has_next %}<a class="btn btn-outline-secondary" href="?{{ urlencode(dict(query_base, page=page+1)) }}">Siguiente</a>{% else %}<span></span>{% endif %}</nav>
+{% if writable %}<button class="btn btn-success mt-2" type="submit">Añadir seleccionados al año fiscal</button>{% endif %}
+</form>
+{% else %}<p class="text-muted">No hay expedientes disponibles con estos filtros.</p>{% endif %}
+{{ pagination('available', available_page, available_pages, available_total) }}
+</div></section></div>
+<div class="col-xl-6"><section class="card h-100" id="assigned-participants">
+<div class="card-header d-flex justify-content-between gap-2"><h2 class="h5 mb-0">Asociados a {{ selected_year.code }}</h2><span class="badge bg-secondary">{{ assigned_total }}</span></div>
+<div class="card-body"><p class="small text-muted">Sync actualiza la copia de información de este año fiscal. Revise el detalle de cambios antes de sincronizar.</p>
+{% set pending_visible = assigned_rows|selectattr('changes')|list %}
+{% if writable and pending_visible %}<form method="post" action="/community/fiscal-participants/sync" class="mb-3" onsubmit="return confirm('¿Sincronizar los cambios de los expedientes pendientes de esta página, únicamente en este año fiscal?');">{{ action_fields() }}<input type="hidden" name="mode" value="pending">{% for row in pending_visible %}<input type="hidden" name="participant_ids" value="{{ row.participant.participant_id }}">{% endfor %}<button class="btn btn-sm btn-outline-primary">Sync pendientes visibles ({{ pending_visible|length }})</button></form>{% endif %}
+{% if assigned_rows %}<div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr><th>Expediente / participante</th><th>Sync</th><th>Acciones</th></tr></thead><tbody>
+{% for row in assigned_rows %}{% set participant = row.participant %}<tr class="{{ 'table-warning' if row.changes }}">
+<td><strong>{{ participant.expediente_num }}</strong><div>{{ participant.nombre }} {{ participant.inicial or '' }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }}</div><div class="mt-1">{% for code in row.programs %}<span class="badge text-bg-light border mb-1">{{ code }}</span> {% endfor %}</div></td>
+<td>{% if row.changes %}<span class="badge bg-warning text-dark">Pendiente Sync</span><details class="mt-2"><summary class="small">Ver cambios ({{ row.changes|length }})</summary><p class="small text-muted mt-2 mb-1">Guardado en el año → Dato actual</p><ul class="small ps-3 mb-0">{% for change in row.changes %}<li class="mb-2"><strong>{{ change.label }}</strong><br><span>{{ change.before }}</span> → <span>{{ change.after }}</span></li>{% endfor %}</ul></details>{% else %}<span class="badge bg-success">Al día</span>{% endif %}<div class="small text-muted mt-2">{{ row.snapshot.updated_at.strftime('%d/%m/%Y %H:%M') }}</div></td>
+<td><div class="fiscal-actions d-flex flex-column gap-2">
+{% if writable %}<form method="post" action="/community/fiscal-participants/sync" onsubmit="return confirm('¿Actualizar la información de este participante solo en este año fiscal?');">{{ action_fields() }}<input type="hidden" name="participant_ids" value="{{ participant.participant_id }}"><button class="btn btn-sm btn-outline-primary w-100">Sync</button></form>
+{% if row.remove_reason %}<button class="btn btn-sm btn-outline-danger" disabled title="{{ row.remove_reason }}">Quitar</button><small class="text-muted">{{ row.remove_reason }}</small>
+{% else %}<form method="post" action="/community/fiscal-participants/{{ participant.participant_id }}/remove" onsubmit="return confirm('¿Quitar este expediente de este año fiscal? Se conservarán el expediente, sus programas y los demás años fiscales.');">{{ action_fields() }}<button class="btn btn-sm btn-outline-danger w-100">Quitar</button></form>{% endif %}
+{% endif %}
+<a class="btn btn-sm btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}/memberships?fiscal_year_id={{ selected_year.fiscal_year_id }}">Programas</a>
+</div></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="text-muted">{{ 'No hay participantes pendientes de sincronizar con estos filtros.' if filters.sync_filter == 'pending' else 'No hay participantes asociados con estos filtros.' }}</p>{% endif %}
+{{ pagination('assigned', assigned_page, assigned_pages, assigned_total) }}
+</div></section></div></div>
+<script>
+(() => {
+  const form = document.getElementById('fiscal-add-form');
+  const master = document.getElementById('check-all-available');
+  if (!form || !master) return;
+  const boxes = [...form.querySelectorAll('input[name="participant_ids"]')];
+  const update = () => { const count = boxes.filter(box => box.checked).length; master.checked = count === boxes.length; master.indeterminate = count > 0 && count < boxes.length; };
+  const select = value => { boxes.forEach(box => { box.checked = value; }); update(); };
+  master.addEventListener('change', () => select(master.checked));
+  form.querySelectorAll('[data-select-available]').forEach(button => button.addEventListener('click', () => select(button.dataset.selectAvailable === 'all')));
+  boxes.forEach(box => box.addEventListener('change', update));
+})();
+</script>
 {% else %}<div class="alert alert-info">Primero cree un año fiscal en Administración.</div>{% endif %}
 {% endblock %}

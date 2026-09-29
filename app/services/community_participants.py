@@ -2,7 +2,6 @@
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date
-import json
 from urllib.parse import urlencode
 
 from fastapi import HTTPException
@@ -11,7 +10,7 @@ from sqlalchemy import and_, func, or_, select
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.models.community_fiscal import CPFiscalParticipant, CPFiscalState
-from app.services.community_fiscal import build_participant_snapshot
+from app.services.community_fiscal import build_participant_snapshot, comparable_snapshot
 
 
 AGE_RANGES = (
@@ -111,6 +110,9 @@ def registration_dashboard(db, context):
     scoped = participant_query(context)
     visible_ids = scoped.with_only_columns(CPParticipant.participant_id)
     people = {p.participant_id: p for p in db.scalars(scoped)}
+    associations = defaultdict(list)
+    for link in db.scalars(select(CPParticipantProgram).where(CPParticipantProgram.participant_id.in_(visible_ids))):
+        associations[link.participant_id].append(link)
     profiles = defaultdict(list)
     for field, value in db.execute(select(CPProfileField, CPProfileValue).join(
         CPProfileValue, CPProfileValue.field_id == CPProfileField.field_id
@@ -129,11 +131,9 @@ def registration_dashboard(db, context):
         if frozen:
             continue
         if pid not in current:
-            current[pid] = build_participant_snapshot(db, people[pid], profile_rows=profiles[pid])
-        historical = json.loads(snapshot.snapshot_json)
-        # VCA was retired from Community; old snapshots must not appear changed
-        # solely because they retain this legacy key. Never rewrite history here.
-        historical.pop("vca", None)
+            current[pid] = build_participant_snapshot(db, people[pid], profile_rows=profiles[pid],
+                                                     program_rows=associations[pid])
+        historical = comparable_snapshot(snapshot, associations[pid])
         if historical != current[pid]:
             pending.add(pid)
     program_people = defaultdict(set)

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import date
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,8 +15,9 @@ from app.core.community_access import (CommunityContext, csrf_token, require_com
     require_community_context, require_community_writer, require_programs, validate_csrf)
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram
 from app.models.community_fiscal import CPFiscalEnrollment, CPFiscalParticipant, CPFiscalState, CPEnrollmentPeriod
-from app.services.community_fiscal import (build_participant_snapshot, discharge_participant, enroll_participant,
-    reactivate_participant, set_fiscal_lock, set_fiscal_status, set_snapshot_freeze, snapshot_for_participant, sync_participants)
+from app.services.community_fiscal import (discharge_participant, enroll_participant, remove_fiscal_participant,
+    reactivate_participant, set_fiscal_lock, set_fiscal_status, set_snapshot_freeze, sync_participants)
+from app.services.community_fiscal_participants import fiscal_participant_lists
 
 router = APIRouter(prefix="/community", tags=["community-fiscal"])
 templates = Jinja2Templates(directory="app/templates")
@@ -65,33 +66,25 @@ def _visible_participant(db, context, participant_id):
 
 
 @router.get("/fiscal-participants")
-def fiscal_participants(request: Request, fiscal_year_id: int | None = None, q: str = "", page: int = 1,
+def fiscal_participants(request: Request, fiscal_year_id: int | None = None,
                         db: Session = Depends(get_db), context: CommunityContext = Depends(_supervisor)):
     years, selected = _years(db, fiscal_year_id)
-    page = max(1, page)
-    query = _participant_query(context)
-    term = q.strip()[:150]
-    if term:
-        query = query.where(or_(*[field.contains(term, autoescape=True) for field in (
-            CPParticipant.expediente_num, CPParticipant.nombre, CPParticipant.apellido_paterno,
-            CPParticipant.apellido_materno)]))
-    participants = db.scalars(query.order_by(CPParticipant.participant_id).offset((page - 1) * 50).limit(51)).all()
-    rows = []
-    for participant in participants[:50] if selected else []:
-        snapshot = snapshot_for_participant(db, participant.participant_id, selected.fiscal_year_id)
-        status = "Sin sincronizar" if snapshot is None else (
-            "Cambios pendientes" if snapshot != build_participant_snapshot(db, participant) else "Sincronizado")
-        rows.append((participant, status))
     state = db.get(CPFiscalState, selected.fiscal_year_id) if selected else None
     return _render(request, "fiscal_participants", context, years=years, selected_year=selected,
-                   state=state, rows=rows, q=term, page=page, has_next=len(participants) > 50,
-                   query_base={"fiscal_year_id": selected.fiscal_year_id if selected else "", "q": term},
-                   urlencode=urlencode)
+                   state=state, **fiscal_participant_lists(db, context,
+                       selected.fiscal_year_id if selected else None, request.query_params))
+
+
+def _participants_redirect(fiscal_year_id, return_query, *, message=None, error=None):
+    allowed = {'q', 'program_id', 'available_filter', 'sync_filter', 'available_page', 'assigned_page'}
+    filters = {key: value for key, value in parse_qsl(return_query[:2000]) if key in allowed}
+    return RedirectResponse('/community/fiscal-participants?' + urlencode({**filters,
+        'fiscal_year_id': fiscal_year_id, **({'error': error} if error else {'msg': message})}), status_code=303)
 
 
 @router.post("/fiscal-participants/sync")
 def synchronize(request: Request, fiscal_year_id: int = Form(...), participant_ids: list[int] = Form(default=[]),
-                token: str = Form(...), db: Session = Depends(get_db),
+                token: str = Form(...), mode: str = Form('sync'), return_query: str = Form(''), db: Session = Depends(get_db),
                 context: CommunityContext = Depends(_supervisor)):
     validate_csrf(request, token)
     if len(set(participant_ids)) > 100:
@@ -101,13 +94,32 @@ def synchronize(request: Request, fiscal_year_id: int = Form(...), participant_i
     if set(participant_ids) != allowed:
         raise HTTPException(403, "Uno o más expedientes no están disponibles en su contexto.")
     try:
-        count = sync_participants(db, fiscal_year_id, participant_ids, actor_user_id=context.user.user_id)
+        count = sync_participants(db, fiscal_year_id, participant_ids, actor_user_id=context.user.user_id, mode=mode)
         db.commit()
     except (ValueError, IntegrityError) as exc:
         db.rollback()
-        return _redirect("/community/fiscal-participants", fiscal_year_id,
+        return _participants_redirect(fiscal_year_id, return_query,
                          error=str(exc) if isinstance(exc, ValueError) else "No se pudo sincronizar. Recargue e intente nuevamente.")
-    return _redirect("/community/fiscal-participants", fiscal_year_id, message=f"Se sincronizaron {count} expedientes.")
+    message = f'Se añadieron {count} expedientes al año fiscal.' if mode == 'add' else f'Se sincronizaron {count} expedientes.'
+    return _participants_redirect(fiscal_year_id, return_query, message=message)
+
+
+@router.post('/fiscal-participants/{participant_id}/remove')
+def remove_participant_from_year(request: Request, participant_id: int, fiscal_year_id: int = Form(...),
+                                 token: str = Form(...), return_query: str = Form(''), db: Session = Depends(get_db),
+                                 context: CommunityContext = Depends(_supervisor)):
+    validate_csrf(request, token)
+    _visible_participant(db, context, participant_id)
+    try:
+        remove_fiscal_participant(db, participant_id=participant_id, fiscal_year_id=fiscal_year_id,
+            allowed_program_ids=context.visible_program_ids, actor_user_id=context.user.user_id)
+        db.commit()
+    except (ValueError, IntegrityError) as exc:
+        db.rollback()
+        return _participants_redirect(fiscal_year_id, return_query,
+            error=str(exc) if isinstance(exc, ValueError) else 'No se pudo quitar: el expediente tiene datos asociados.')
+    return _participants_redirect(fiscal_year_id, return_query,
+        message='Expediente retirado de este año fiscal. Se conservan el expediente y sus programas.')
 
 
 @router.get("/participants/{participant_id}/memberships")

@@ -550,6 +550,46 @@ Validar en la PC de pruebas: abrir el registro en dos sesiones de empleados, gua
 participantes distintos y comprobar números definitivos diferentes y actualización
 de ambas vistas previas. La concurrencia efectiva en SQL Server queda para esa PC.
 
+## Sincronización de participantes por año fiscal (2026-09-29)
+
+`/community/fiscal-participants` presenta dos listas, siguiendo el flujo de Faro:
+expedientes disponibles para añadir y expedientes asociados al año seleccionado.
+Incluye búsqueda por nombre, apellidos o expediente, filtro de programa, pendientes
+de añadir, «Sin ningún año fiscal» y asociados pendientes de Sync o todos. Cada
+lista tiene paginación independiente de 50 expedientes y conserva los filtros
+después de las operaciones. Los contadores corresponden a la búsqueda y al programa.
+
+Se pueden marcar los disponibles de la página y añadirlos juntos. Esta acción no
+sobrescribe participantes ya asociados. Los asociados muestran «Ver cambios», con
+el dato guardado y el actual: datos personales, contacto, campos de perfil y programas
+añadidos desde la última sincronización. Hay Sync individual y Sync de pendientes
+visibles; este último no modifica otras páginas ni incorpora expedientes nuevos.
+Las altas y bajas de programas siguen gestionándose por separado desde el expediente.
+
+Administrador y Supervisor pueden quitar la asociación al año fiscal únicamente
+si no existen altas/bajas, asistencias ni notas en ese año, incluso registros de
+ausencia o notas sin calificaciones. Se conserva el expediente, sus números, programas
+y otros años. Para un expediente compartido, quitar requiere un contexto que incluya
+todos sus programas. Los años cerrados o congelados bloquean añadir, Sync y quitar
+tanto en la interfaz como en el servidor; se mantienen los permisos y la protección CSRF.
+
+La copia JSON del año fiscal guarda también los identificadores de programas para
+detectar nuevas asociaciones. Las copias anteriores se comparan en memoria usando
+las fechas de asociación y última sincronización; no se reescriben históricos al
+consultarlos. La tarjeta de pendientes del registro utiliza el mismo criterio.
+No requiere columnas, tablas ni migraciones nuevas. Las consultas del listado cargan
+los datos relacionados por lotes y utilizan subconsultas para evitar listas de miles
+de parámetros en SQL Server. Las mutaciones conservan el bloqueo del año fiscal
+durante la comprobación y escritura.
+
+Verificación: 202 pruebas de Comunidad aprobadas en bases temporales, incluyendo
+disponibles, cambios, compatibilidad de copias anteriores, alcance por página y año,
+preservación de historiales, roles, CSRF y bloqueos. Revisión de la pantalla en Edge
+con datos ficticios, en escritorio y móvil: selección, detalle de cambios, formularios
+de añadir/Sync/quitar, estados congelado y vacío, sin desbordamiento de página.
+Las tablas permiten desplazamiento horizontal en pantallas pequeñas. La validación
+con los datos y la concurrencia real de SQL Server corresponde a la PC de pruebas.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

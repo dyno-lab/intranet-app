@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import json
 from typing import Iterable
 
@@ -99,7 +99,7 @@ def set_fiscal_lock(db: Session, fiscal_year_id: int, *, locked_through: date | 
     return state
 
 
-def build_participant_snapshot(db: Session, participant: CPParticipant, *, profile_rows=None) -> dict:
+def build_participant_snapshot(db: Session, participant: CPParticipant, *, profile_rows=None, program_rows=None) -> dict:
     from app.models.community_catalog import CPProfileField, CPProfileValue
 
     values = {}
@@ -113,7 +113,73 @@ def build_participant_snapshot(db: Session, participant: CPParticipant, *, profi
     ).where(CPProfileValue.participant_id == participant.participant_id)).all()
     values["profile_fields"] = {field.field_key: {"label": field.label, "value": value.value}
                                  for field, value in profile}
+    programs = program_rows if program_rows is not None else db.scalars(select(CPParticipantProgram).where(
+        CPParticipantProgram.participant_id == participant.participant_id)).all()
+    values["program_ids"] = sorted(link.program_id for link in programs)
     return values
+
+
+def comparable_snapshot(row: CPFiscalParticipant, program_rows) -> dict:
+    """Normalize legacy metadata in memory only; never rewrite a historical row."""
+    saved = json.loads(row.snapshot_json)
+    saved.pop("vca", None)
+    if "program_ids" not in saved:
+        def utc(value):
+            return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        # Before program IDs were stored, the association timestamp supplies the
+        # baseline. A later program is pending; existing programs are not new.
+        saved["program_ids"] = sorted(link.program_id for link in program_rows
+            if utc(link.created_at) <= utc(row.updated_at))
+    return saved
+
+
+SNAPSHOT_LABELS = {
+    "expediente_num": "Número de expediente", "exp_year": "Año de expediente",
+    "exp_sequence": "Secuencia", "nombre": "Nombre", "inicial": "Inicial",
+    "apellido_paterno": "Apellido paterno", "apellido_materno": "Apellido materno",
+    "genero": "Género", "fecha_nacimiento": "Fecha de nacimiento", "direccion_fisica": "Dirección física",
+    "pueblo": "Pueblo", "primera_vez": "Participa por primera vez", "escolaridad_participante": "Escolaridad",
+    "composicion_familiar": "Composición familiar", "relacion_familiar": "Relación familiar",
+    "estatus": "Estatus", "grupo_familiar": "Grupo familiar", "fuente_ingreso_principal": "Fuente de ingreso principal",
+    "rango_ingreso": "Rango de ingreso", "is_head_of_household": "Jefe de familia", "telefono": "Teléfono", "email": "Email",
+}
+
+
+def snapshot_changes(row, current, program_rows, program_labels):
+    saved = comparable_snapshot(row, program_rows)
+    changes = []
+
+    def display(value):
+        if value is None or value == "":
+            return "—"
+        if isinstance(value, bool):
+            return "Sí" if value else "No"
+        return str(value)
+
+    for key, label in SNAPSHOT_LABELS.items():
+        if saved.get(key) != current.get(key):
+            before, after = saved.get(key), current.get(key)
+            if key == "fecha_nacimiento":
+                before = date.fromisoformat(before).strftime('%d/%m/%Y') if before else None
+                after = date.fromisoformat(after).strftime('%d/%m/%Y') if after else None
+            changes.append({"label": label, "before": display(before), "after": display(after)})
+    previous_profile, current_profile = saved.get('profile_fields', {}), current.get('profile_fields', {})
+    for key in sorted(previous_profile.keys() | current_profile.keys()):
+        before, after = previous_profile.get(key, {}), current_profile.get(key, {})
+        if before and after and before.get('label') != after.get('label'):
+            changes.append({"label": f"Nombre del campo de perfil: {key}",
+                "before": display(before.get('label')), "after": display(after.get('label'))})
+        if before.get('value') != after.get('value') or bool(before) != bool(after):
+            changes.append({"label": after.get('label') or before.get('label') or key,
+                "before": display(before.get('value')), "after": display(after.get('value'))})
+    old_ids, new_ids = set(saved['program_ids']), set(current['program_ids'])
+    for pid in sorted(new_ids - old_ids):
+        changes.append({"label": "Programa añadido", "before": "No asociado",
+                        "after": program_labels.get(pid, f"Programa {pid}")})
+    for pid in sorted(old_ids - new_ids):
+        changes.append({"label": "Programa retirado", "before": program_labels.get(pid, f"Programa {pid}"),
+                        "after": "No asociado"})
+    return changes
 
 
 def snapshot_for_participant(db: Session, participant_id: int, fiscal_year_id: int) -> dict | None:
@@ -122,7 +188,9 @@ def snapshot_for_participant(db: Session, participant_id: int, fiscal_year_id: i
 
 
 def sync_participants(db: Session, fiscal_year_id: int, participant_ids: Iterable[int],
-                      *, actor_user_id: int) -> int:
+                      *, actor_user_id: int, mode: str = "sync") -> int:
+    if mode not in {"sync", "add", "pending"}:
+        raise ValueError("Seleccione una acción de sincronización válida.")
     require_fiscal_writable(db, fiscal_year_id, snapshots=True)
     _validate_actor(actor_user_id)
     ids = sorted(set(participant_ids))
@@ -134,17 +202,60 @@ def sync_participants(db: Session, fiscal_year_id: int, participant_ids: Iterabl
                               .execution_options(populate_existing=True)).all()
     if len(participants) != len(ids):
         raise ValueError("Uno o más expedientes seleccionados no existen.")
+    count = 0
     for participant in participants:
-        snapshot_json = json.dumps(build_participant_snapshot(db, participant), ensure_ascii=False, sort_keys=True)
         row = db.get(CPFiscalParticipant, (participant.participant_id, fiscal_year_id))
+        if (mode == "add" and row is not None) or (mode == "pending" and row is None):
+            continue
+        links = db.scalars(select(CPParticipantProgram).where(
+            CPParticipantProgram.participant_id == participant.participant_id)).all()
+        current = build_participant_snapshot(db, participant, program_rows=links)
+        if mode == "pending" and comparable_snapshot(row, links) == current:
+            continue
+        snapshot_json = json.dumps(current, ensure_ascii=False, sort_keys=True)
         if row is None:
             row = CPFiscalParticipant(participant_id=participant.participant_id, fiscal_year_id=fiscal_year_id)
             db.add(row)
         row.snapshot_json = snapshot_json
         row.updated_by_user_id = actor_user_id
         row.updated_at = _utcnow()
+        count += 1
     db.flush()
-    return len(participants)
+    return count
+
+
+def fiscal_history_ids(db: Session, fiscal_year_id: int, participant_ids):
+    """All history counts, including absent attendance and empty grade entries."""
+    from app.models.community_operations import CPActivitySession, CPAttendance, CPGradeItem, CPGradeReport
+    enrolled = set(db.scalars(select(CPFiscalEnrollment.participant_id).where(
+        CPFiscalEnrollment.fiscal_year_id == fiscal_year_id, CPFiscalEnrollment.participant_id.in_(participant_ids))))
+    attendance = set(db.scalars(select(CPAttendance.participant_id).join(
+        CPActivitySession, CPActivitySession.session_id == CPAttendance.session_id).where(
+        CPActivitySession.fiscal_year_id == fiscal_year_id, CPAttendance.participant_id.in_(participant_ids))))
+    grades = set(db.scalars(select(CPGradeItem.participant_id).join(
+        CPGradeReport, CPGradeReport.report_id == CPGradeItem.report_id).where(
+        CPGradeReport.fiscal_year_id == fiscal_year_id, CPGradeItem.participant_id.in_(participant_ids))))
+    return enrolled | attendance | grades
+
+
+def remove_fiscal_participant(db: Session, *, participant_id: int, fiscal_year_id: int,
+                             allowed_program_ids: set[int], actor_user_id: int):
+    from app.services.community import _participant_for_update
+
+    require_fiscal_writable(db, fiscal_year_id, snapshots=True)
+    _validate_actor(actor_user_id)
+    _participant_for_update(db, participant_id)
+    programs = set(db.scalars(select(CPParticipantProgram.program_id).where(
+        CPParticipantProgram.participant_id == participant_id)))
+    if not programs or not programs.issubset(allowed_program_ids):
+        raise ValueError("El expediente pertenece a otros programas. Cambie a Administración general para quitarlo del año fiscal.")
+    row = db.get(CPFiscalParticipant, (participant_id, fiscal_year_id))
+    if row is None:
+        raise ValueError("El expediente no está asociado a este año fiscal.")
+    if participant_id in fiscal_history_ids(db, fiscal_year_id, [participant_id]):
+        raise ValueError("No se puede quitar: tiene altas, bajas, asistencias o notas en este año fiscal. Gestione la baja desde sus programas.")
+    db.delete(row)
+    db.flush()
 
 
 def _enrollment(db: Session, participant_id: int, program_id: int, fiscal_year_id: int) -> CPFiscalEnrollment | None:
