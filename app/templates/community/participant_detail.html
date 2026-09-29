@@ -1,4 +1,5 @@
 {% extends "community/_base.html" %}
+{% from "community/_participant_sync_notice.html" import notice with context %}
 {% block title %}Expediente {{ participant.expediente_num }} · Comunidad{% endblock %}
 {% block content %}
 {% set p = participant %}
@@ -7,6 +8,7 @@
 {% macro day(item) %}{% if item %}<time datetime="{{ item.isoformat() }}">{{ item.strftime('%d/%m/%Y') }}</time>{% else %}No informado{% endif %}{% endmacro %}
 {% macro detail(label, item) %}<div class="participants-expediente-field"><dt class="participants-expediente-field__label">{{ label }}</dt><dd class="participants-expediente-field__value">{{ value(item) }}</dd></div>{% endmacro %}
 <div class="participants-page participants-expediente-page">
+  {{ notice(sync_notice) }}
   <section class="participants-hero participants-hero--expediente" aria-labelledby="expediente-title">
     <div class="participants-hero__content participants-hero__content--expediente">
       <div>

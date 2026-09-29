@@ -130,3 +130,6 @@
   .community-participants-page .community-program-choice { min-height: 2.75rem; }
   .community-participants-page .participants-page .row { --bs-gutter-y: .6rem; }
 }
+.community-participants-page .community-sync-notice { max-width: 14rem; white-space: normal; }
+.community-participants-page .community-sync-notice .badge { text-align: left; line-height: 1.35; }
+.community-participants-page .community-sync-notice a { font-weight: 500; }

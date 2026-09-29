@@ -1,4 +1,5 @@
 {% extends "community/_base.html" %}
+{% from "community/_participant_sync_notice.html" import notice with context %}
 {% block title %}Participantes · Comunidad{% endblock %}
 {% block page_class %}community-participants-page{% endblock %}
 {% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}" rel="stylesheet">{% endblock %}
@@ -54,7 +55,7 @@
         <thead><tr><th>Número de expediente</th><th>Nombre</th><th>Inicial</th><th>Apellido</th><th>Edad</th><th>Género</th><th>Estatus</th><th>Jefe familia</th><th>Tel.</th><th>Email</th><th>Programas</th><th class="text-end">Acciones</th></tr></thead>
         <tbody>{% for p in participants %}
           <tr class="participants-row {{ 'participants-row--first-time' if (p.primera_vez or '')|lower in ['si', 'sí'] }}">
-            <td class="participants-table__expediente">{{ p.expediente_num }}</td><td>{{ p.nombre }}</td><td>{{ p.inicial or '' }}</td><td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td><td>{{ p.edad if p.edad is not none else '—' }}</td><td>{{ p.genero }}</td><td>{{ p.estatus or '—' }}</td>
+            <td class="participants-table__expediente">{{ p.expediente_num }}{{ notice(dashboard.sync_notices.get(p.participant_id), compact=true) }}</td><td>{{ p.nombre }}</td><td>{{ p.inicial or '' }}</td><td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td><td>{{ p.edad if p.edad is not none else '—' }}</td><td>{{ p.genero }}</td><td>{{ p.estatus or '—' }}</td>
             <td>{% if p.is_head_of_household %}<span class="badge text-bg-primary participants-badge"><i class="bi bi-house-check" aria-hidden="true"></i><span>Jefe</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
             <td>{% if p.telefono %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene teléfono</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
             <td>{% if p.email %}<span class="badge text-bg-success participants-badge participants-badge--icon-only"><i class="bi bi-check2" aria-hidden="true"></i><span class="visually-hidden">Tiene email</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>

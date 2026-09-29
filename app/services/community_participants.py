@@ -106,8 +106,10 @@ def program_links(db, context, participant_ids):
     return links
 
 
-def registration_dashboard(db, context):
+def _participant_sync_state(db, context, participant_ids=None):
     scoped = participant_query(context)
+    if participant_ids is not None:
+        scoped = scoped.where(CPParticipant.participant_id.in_(participant_ids))
     visible_ids = scoped.with_only_columns(CPParticipant.participant_id)
     people = {p.participant_id: p for p in db.scalars(scoped)}
     associations = defaultdict(list)
@@ -118,15 +120,18 @@ def registration_dashboard(db, context):
         CPProfileValue, CPProfileValue.field_id == CPProfileField.field_id
     ).where(CPProfileValue.participant_id.in_(visible_ids))):
         profiles[value.participant_id].append((field, value))
-    assigned, pending = set(), set()
+    assigned, pending, associated = set(), set(), set()
+    pending_years = defaultdict(list)
     current = {}
-    for snapshot, frozen in db.execute(select(CPFiscalParticipant, CPFiscalState.snapshots_frozen).join(
+    for snapshot, year, frozen in db.execute(select(CPFiscalParticipant, CPFiscalYear, CPFiscalState.snapshots_frozen).join(
         CPFiscalYear, CPFiscalYear.fiscal_year_id == CPFiscalParticipant.fiscal_year_id
     ).outerjoin(CPFiscalState, CPFiscalState.fiscal_year_id == CPFiscalParticipant.fiscal_year_id).where(
         CPFiscalParticipant.participant_id.in_(visible_ids),
-        CPFiscalYear.is_active == True, CPFiscalYear.status == "active",  # noqa: E712
-    )):
+    ).order_by(CPFiscalYear.start_date.desc(), CPFiscalYear.fiscal_year_id.desc())):
         pid = snapshot.participant_id
+        associated.add(pid)
+        if not year.is_active or year.status != "active":
+            continue
         assigned.add(pid)
         if frozen:
             continue
@@ -136,6 +141,29 @@ def registration_dashboard(db, context):
         historical = comparable_snapshot(snapshot, associations[pid])
         if historical != current[pid]:
             pending.add(pid)
+            pending_years[pid].append({'label': year.code,
+                'url': '/community/fiscal-participants?' + urlencode({
+                    'fiscal_year_id': year.fiscal_year_id, 'q': people[pid].expediente_num,
+                    'sync_filter': 'pending'}) + '#assigned-participants'})
+    notices = {}
+    for pid, participant in people.items():
+        if pid in pending:
+            notices[pid] = {'kind': 'pending', 'label': 'Pendiente de sincronización',
+                            'links': pending_years[pid]}
+        elif pid not in associated:
+            notices[pid] = {'kind': 'unassigned', 'label': 'Pendiente de añadir a un año fiscal',
+                'links': [{'label': 'Añadir al año fiscal', 'url': '/community/fiscal-participants?' + urlencode({
+                    'q': participant.expediente_num, 'available_filter': 'never'}) + '#available-participants'}]}
+    return people, assigned, pending, notices
+
+
+def participant_sync_notices(db, context, participant_ids):
+    """Distinguish missing fiscal association from changed writable snapshots."""
+    return _participant_sync_state(db, context, participant_ids)[3]
+
+
+def registration_dashboard(db, context):
+    people, assigned, pending, notices = _participant_sync_state(db, context)
     program_people = defaultdict(set)
     for pid, program_id in db.execute(select(CPParticipantProgram.participant_id, CPParticipantProgram.program_id).where(
         CPParticipantProgram.program_id.in_(context.visible_program_ids))):
@@ -145,7 +173,7 @@ def registration_dashboard(db, context):
         return {"registered_count": len(ids), "assigned_count": len(ids & assigned),
                 "pending_sync_count": len(ids & pending)}
 
-    return {"totals": counts(set(people)), "program_rows": [
+    return {"totals": counts(set(people)), "sync_notices": notices, "program_rows": [
         {"program_id": p.program_id, "label": f"{p.code} · {p.name}", **counts(program_people[p.program_id])}
         for p in context.visible_programs]}
 

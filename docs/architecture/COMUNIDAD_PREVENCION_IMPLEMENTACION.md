@@ -590,6 +590,28 @@ de añadir/Sync/quitar, estados congelado y vacío, sin desbordamiento de págin
 Las tablas permiten desplazamiento horizontal en pantallas pequeñas. La validación
 con los datos y la concurrencia real de SQL Server corresponde a la PC de pruebas.
 
+## Avisos de sincronización en el expediente (2026-09-29)
+
+La tabla de participantes y la ficha del expediente distinguen dos situaciones:
+«Pendiente de añadir a un año fiscal» si nunca se ha creado una copia fiscal, y
+«Pendiente de sincronización» si los datos actuales difieren de una copia de un año
+abierto y descongelado. Un expediente sin año fiscal no tiene datos anteriores con
+los que comparar un cambio de apellido; aparece entre los disponibles para añadir.
+
+Administrador y Supervisor disponen de enlaces desde cada aviso. Los cambios
+pendientes llevan al año específico y al número de expediente, aunque exista un
+año más reciente. Si hay varios años pendientes, se muestra un enlace por año.
+Los roles User y Viewer ven el aviso sin enlaces a la administración de Sync.
+El aviso se retira al añadir o sincronizar según corresponda. Se mantienen los
+conteos de personas únicas, el alcance por programa y la conservación de años
+cerrados o congelados. No se actualiza ninguna copia fiscal al editar el expediente.
+
+Verificación: 206 pruebas de Comunidad aprobadas. Se editan ambos apellidos mediante
+la ruta del formulario y se verifica el dato anterior/actual en Sync, la conservación
+de la copia, los avisos de ambas pantallas, varios años, roles y bloqueos. Edge con
+datos ficticios confirma los avisos del listado en escritorio/móvil, sus enlaces al
+año correspondiente y a disponibles, y las alertas de la ficha en escritorio.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

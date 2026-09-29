@@ -1,0 +1,10 @@
+{% macro notice(status, compact=false) %}
+{% if status %}
+<div class="{{ 'community-sync-notice mt-2' if compact else 'alert alert-warning' }}" {% if not compact %}role="status"{% endif %}>
+  <span class="{{ 'badge text-bg-warning text-wrap' if compact else 'fw-semibold' }}"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>{{ status.label }}</span>
+  {% if not compact %}<p class="mb-2 mt-1">{% if status.kind == 'unassigned' %}Este expediente todavía no tiene una copia guardada en un año fiscal. Un Supervisor o Administrador debe añadirlo desde Sincronización.{% else %}Los datos actuales del expediente cambiaron. Revise y sincronice los años indicados para actualizar sus copias.{% endif %}</p>{% endif %}
+  {% if cp.role in ['admin', 'supervisor'] %}<div class="d-flex flex-wrap gap-2 mt-1">{% for link in status.links %}<a class="{{ 'small' if compact else 'btn btn-sm btn-outline-primary' }}" href="{{ link.url }}">{{ link.label if status.kind == 'unassigned' else 'Revisar Sync · ' ~ link.label }}</a>{% endfor %}</div>
+  {% elif status.kind == 'pending' %}<div class="small mt-1">{{ status.links|map(attribute='label')|join(', ') }}</div>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}

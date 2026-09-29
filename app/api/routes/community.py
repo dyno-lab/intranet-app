@@ -28,7 +28,8 @@ from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
 from app.services.community_duplicates import confirmed_duplicate, duplicate_confirmation, duplicate_participants
 from app.services.community_participants import (
-    filtered_query, participant_query, participant_search, program_links, registration_dashboard, roster_filters, roster_page,
+    filtered_query, participant_query, participant_search, participant_sync_notices,
+    program_links, registration_dashboard, roster_filters, roster_page,
 )
 from app.services.community_record import participant_record
 
@@ -396,6 +397,7 @@ def participant_detail(request: Request, participant_id: int, db: Session = Depe
     ).where(CPProfileValue.participant_id == participant_id).order_by(CPProfileField.sort_order)).all()
     return _render(request, "participant_detail", context, participant=participant,
                    associations=associations, profile=profile,
+                   sync_notice=participant_sync_notices(db, context, [participant_id]).get(participant_id),
                    available_programs=[p for p in context.visible_programs if p.program_id not in
                                        {association.program_id for association, _ in associations}],
                    record=participant_record(db, context, participant_id, request.query_params),

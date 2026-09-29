@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import test_community_routes as fixture
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.models.community_fiscal import CPFiscalParticipant
+from app.models.community import CPParticipant
 from app.services.community import create_fiscal_year, create_participant, update_participant
 from app.services.community_fiscal import set_fiscal_status, sync_participants
 from app.services.community_participants import filtered_query, roster_filters
@@ -22,6 +23,99 @@ class CommunityParticipantListTests(unittest.TestCase):
     token = fixture.CommunityRouteTests.token
     login = fixture.CommunityRouteTests.login
     participant_data = fixture.CommunityRouteTests.participant_data
+
+    def edit_surname(self, token, **changes):
+        form = self.client.get(f'/community/participants/{self.first_id}/edit')
+        values = {key: str(value) for key, value in form.context['values'].items() if value is not None}
+        return self.client.post(f'/community/participants/{self.first_id}/edit',
+            data={**values, 'token': token, **changes})
+
+    def test_edit_surname_keeps_fiscal_copy_and_shows_changes_until_explicit_sync(self):
+        self.seed()
+        token = self.login()
+        with Session(self.engine) as db:
+            sync_participants(db, self.year_id, [self.first_id], actor_user_id=self.admin_id)
+            db.commit()
+        response = self.edit_surname(token, apellido_paterno='Sánchez', apellido_materno='Torres')
+        self.assertEqual(response.status_code, 303, response.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(CPParticipant, self.first_id).apellido_paterno, 'Sánchez')
+            saved = json.loads(db.get(CPFiscalParticipant, (self.first_id, self.year_id)).snapshot_json)
+            self.assertEqual(saved['apellido_paterno'], 'Rivera')
+        params = {'fiscal_year_id': self.year_id, 'q': 'CP-2026-0001', 'sync_filter': 'pending'}
+        page = self.client.get('/community/fiscal-participants', params=params)
+        self.assertEqual(page.status_code, 200, page.text)
+        changes = {c['label']: c for c in page.context['assigned_rows'][0]['changes']}
+        self.assertEqual(changes['Apellido paterno'], {'label': 'Apellido paterno', 'before': 'Rivera', 'after': 'Sánchez'})
+        self.assertEqual(changes['Apellido materno']['after'], 'Torres')
+        roster = self.client.get('/community/participants')
+        self.assertEqual(roster.context['dashboard']['totals']['pending_sync_count'], 1)
+        self.client.post('/community/fiscal-participants/sync', data={'token': token,
+            'fiscal_year_id': self.year_id, 'participant_ids': [self.first_id]})
+        self.assertEqual(self.client.get('/community/fiscal-participants', params=params).context['assigned_rows'], [])
+        dashboard = self.client.get('/community/participants').context['dashboard']
+        self.assertEqual(dashboard['totals']['pending_sync_count'], 0)
+        self.assertNotIn(self.first_id, dashboard['sync_notices'])
+
+    def test_edited_record_has_pending_alert_and_link_to_its_year_in_roster_and_detail(self):
+        self.seed()
+        token = self.login()
+        self.edit_surname(token, apellido_paterno='Sánchez')
+        # A more recent year must not redirect the alert away from the affected year.
+        with Session(self.engine) as db:
+            create_fiscal_year(db, 'NEXT', 'Otro año', date(2026, 1, 1), date(2026, 12, 31))
+            db.commit()
+        roster = self.client.get('/community/participants')
+        table = roster.text.split('id="participants-table-card"', 1)[1]
+        self.assertIn('Pendiente de sincronización', table)
+        detail = self.client.get(f'/community/participants/{self.first_id}')
+        self.assertIn('Pendiente de sincronización', detail.text)
+        self.assertIn(f'fiscal_year_id={self.year_id}&amp;q=CP-2026-0001', table)
+        self.assertIn(f'fiscal_year_id={self.year_id}&amp;q=CP-2026-0001', detail.text)
+
+    def test_record_without_fiscal_year_shows_add_notice_instead_of_inventing_changes(self):
+        with Session(self.engine) as db:
+            year = create_fiscal_year(db, 'TEST', 'Año de prueba', date(2025, 1, 1), date(2025, 12, 31))
+            person = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
+                program_ids=[self.voca_id], fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
+            db.commit()
+            self.first_id, self.year_id = person.participant_id, year.fiscal_year_id
+        token = self.login()
+        self.assertEqual(self.edit_surname(token, apellido_paterno='Sánchez').status_code, 303)
+        roster = self.client.get('/community/participants')
+        notice = roster.context['dashboard']['sync_notices'][self.first_id]
+        self.assertEqual(notice['kind'], 'unassigned')
+        self.assertEqual(roster.context['dashboard']['totals']['pending_sync_count'], 0)
+        self.assertIn('Pendiente de añadir a un año fiscal', roster.text.split('id="participants-table-card"', 1)[1])
+        self.assertIn('Pendiente de añadir a un año fiscal', self.client.get(f'/community/participants/{self.first_id}').text)
+        available = self.client.get(notice['links'][0]['url'])
+        self.assertEqual(available.status_code, 200)
+        self.assertEqual(available.context['available_rows'][0]['participant'].apellido_paterno, 'Sánchez')
+        self.assertEqual(available.context['assigned_rows'], [])
+        self.client.post('/community/fiscal-participants/sync', data={'token': token,
+            'fiscal_year_id': self.year_id, 'participant_ids': [self.first_id], 'mode': 'add'})
+        self.assertNotIn(self.first_id, self.client.get('/community/participants').context['dashboard']['sync_notices'])
+
+    def test_notice_lists_each_pending_year_and_respects_read_only_roles(self):
+        self.seed()
+        with Session(self.engine) as db:
+            year = create_fiscal_year(db, 'NEXT', 'Otro año', date(2026, 1, 1), date(2026, 12, 31))
+            sync_participants(db, year.fiscal_year_id, [self.first_id], actor_user_id=self.admin_id)
+            db.commit()
+            next_id = year.fiscal_year_id
+        token = self.login()
+        self.edit_surname(token, apellido_paterno='Sánchez')
+        dashboard = self.client.get('/community/participants').context['dashboard']
+        self.assertEqual(dashboard['totals']['pending_sync_count'], 1)
+        self.assertEqual({link['label'] for link in dashboard['sync_notices'][self.first_id]['links']}, {'TEST', 'NEXT'})
+        self.client.post('/community/fiscal-participants/sync', data={'token': token,
+            'fiscal_year_id': next_id, 'participant_ids': [self.first_id]})
+        self.login(self.viewer_id)
+        roster = self.client.get('/community/participants')
+        self.assertEqual([link['label'] for link in roster.context['dashboard']['sync_notices'][self.first_id]['links']], ['TEST'])
+        self.assertIn('Pendiente de sincronización', roster.text)
+        self.assertNotIn('/community/fiscal-participants?', roster.text)
+        self.assertNotIn('/community/fiscal-participants?', self.client.get(f'/community/participants/{self.first_id}').text)
 
     def seed(self):
         with Session(self.engine) as db:
@@ -61,13 +155,16 @@ class CommunityParticipantListTests(unittest.TestCase):
         with Session(self.engine) as db:
             set_fiscal_status(db, self.year_id, closed=True, actor_user_id=self.admin_id)
             db.commit()
-        self.assertEqual(self.client.get('/community/participants').context['dashboard']['totals']['assigned_count'], 0)
+        dashboard = self.client.get('/community/participants').context['dashboard']
+        self.assertEqual(dashboard['totals']['assigned_count'], 0)
+        self.assertNotIn(self.first_id, dashboard['sync_notices'])
         with Session(self.engine) as db:
             set_fiscal_status(db, self.year_id, closed=False, actor_user_id=self.admin_id)
             db.commit()
         totals = self.client.get('/community/participants').context['dashboard']['totals']
         self.assertEqual(totals['assigned_count'], 1)
         self.assertEqual(totals['pending_sync_count'], 0)
+        self.assertNotIn(self.first_id, self.client.get('/community/participants').context['dashboard']['sync_notices'])
 
     def test_profile_only_change_is_pending_and_sync_clears_it(self):
         self.seed()
