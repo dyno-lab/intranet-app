@@ -372,6 +372,7 @@ REPORT_OPTIONS = [
     {"value": "embarazo", "label": "Embarazo"},
     {"value": "notas", "label": "Notas"},
     {"value": "visitas", "label": "Visitas"},
+    {"value": "cursos", "label": "Cursos de participantes (2.b.5)"},
     {"value": "por-programa", "label": "Informes por programa"},
     {"value": "hoja-cotejo", "label": "Hoja de Cotejo"},
     {"value": "vca", "label": "Informe VCA"},
@@ -479,6 +480,18 @@ def reports_run(
     year_value = int(year) if (year or "").strip() else None
     authorized_name = report_authorized_name(current_user, authorized_name)
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
+
+    if report_key == "cursos":
+        from urllib.parse import urlencode
+
+        suffix = {"screen": "", "pdf": "/pdf", "excel": "/excel"}.get(output)
+        if suffix is None:
+            raise HTTPException(400, "Formato de salida inválido.")
+        params = [("proposal_id", value) for value in _proposal_ids(proposal_id)]
+        params.extend([("month", month_value or ""), ("year", year_value or ""),
+                       ("employee_id", employee_id if employee_id is not None else ""),
+                       ("period_type", period_type), ("start_date", start_date or ""), ("end_date", end_date or "")])
+        return RedirectResponse("/ui/reports/cursos" + suffix + "?" + urlencode(params), status_code=303)
 
     if report_key == "completo":
         from urllib.parse import urlencode

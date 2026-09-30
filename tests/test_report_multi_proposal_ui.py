@@ -103,7 +103,7 @@ class ReportMultiProposalTemplateTests(unittest.TestCase):
                     self.assertTrue(parsed.multiple)
                     self.assertEqual(parsed.selected, ["1", "2"] if multiple else ["1"])
             templates_checked += 1
-        self.assertEqual(templates_checked, 13)
+        self.assertEqual(templates_checked, 14)
 
     def test_existing_visits_output_actions_and_single_proposal_referral_writes(self):
         expected_actions = ["/ui/reports/visitas", "/ui/reports/visitas/pdf/download", "/ui/reports/visitas/excel", "/ui/reports/visitas/pdf"]

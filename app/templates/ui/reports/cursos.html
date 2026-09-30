@@ -1,0 +1,64 @@
+{% extends "ui/_base.html" %}
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
+{% block title %}Cursos de participantes{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/participant-courses.css">
+<div class="courses-page" id="course-report" data-token="{{ course_token }}" data-query="{{ report_query }}">
+  <a href="/ui/reports/" class="courses-back">← Regreso a Centro de reportes</a>
+  <header class="courses-hero">
+    <div><span class="courses-eyebrow">Actividad 2.b.5</span><h1>Cursos de participantes</h1><p>Participantes no duplicados con asistencia confirmada. Un curso por participante y mes.</p></div>
+    <div class="courses-total"><strong>{{ total }}</strong><span>participantes únicos</span></div>
+  </header>
+  <section class="courses-panel">
+    <h2>Filtros del reporte</h2>
+    <form action="/ui/reports/cursos" method="get" id="course-filters" class="courses-filters">
+      <div class="courses-field"><label class="form-label" for="course-proposals">Propuestas *</label>
+        <select class="form-select" id="course-proposals" name="proposal_id" multiple required>
+          {% for proposal in proposals %}<option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id in report_proposal_ids %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="courses-field"><label class="form-label" for="course-period">Período *</label><select class="form-select" id="course-period" name="period_type"><option value="monthly" {% if selected_period_type == 'monthly' %}selected{% endif %}>Mensual</option><option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option></select></div>
+      <div class="courses-field" data-monthly {% if selected_period_type == 'custom' %}hidden{% endif %}><label class="form-label" for="course-month">Mes *</label><select class="form-select" name="month" id="course-month">{% for value, label in month_options %}<option value="{{ value }}" {% if value == selected_month %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="courses-field" data-monthly {% if selected_period_type == 'custom' %}hidden{% endif %}><label class="form-label" for="course-year">Año *</label><select class="form-select" name="year" id="course-year">{% for value in year_options %}<option value="{{ value }}" {% if value == selected_year %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
+      <div class="courses-field" data-custom {% if selected_period_type != 'custom' %}hidden{% endif %}><label class="form-label" for="course-start">Fecha inicial *</label><input class="form-control" type="date" name="start_date" id="course-start" value="{{ selected_start_date }}"></div>
+      <div class="courses-field" data-custom {% if selected_period_type != 'custom' %}hidden{% endif %}><label class="form-label" for="course-end">Fecha final *</label><input class="form-control" type="date" name="end_date" id="course-end" value="{{ selected_end_date }}"></div>
+      <div class="courses-field"><label class="form-label" for="course-scope">Residencial / alcance *</label>
+        {% if current_user.role in ['admin', 'supervisor', 'viewer'] %}
+        <select class="form-select" name="employee_id" id="course-scope" required><option value="0" {% if is_global %}selected{% endif %}>Global</option>{% for report_user in report_users %}<option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>{% endfor %}</select>
+        {% else %}<input class="form-control" id="course-scope" value="{{ residential_name }}" readonly><input type="hidden" name="employee_id" value="{{ selected_employee_id }}">{% endif %}
+      </div>
+      <div class="courses-actions">
+        <button class="btn btn-primary" type="submit">Vista previa</button>
+        <button class="btn btn-outline-primary" type="submit" formaction="/ui/reports/cursos/pdf/download" data-export>Descargar PDF</button>
+        <button class="btn btn-outline-success" type="submit" formaction="/ui/reports/cursos/excel" data-export>Descargar Excel</button>
+        <button class="btn btn-outline-secondary" type="submit" formaction="/ui/reports/cursos/pdf" formtarget="_blank" data-export>Versión imprimible</button>
+      </div>
+    </form>
+  </section>
+  <section class="courses-panel">
+    <div class="courses-table-heading"><div><h2>Listado de participantes</h2><p>{{ period_label }} · {{ residential_name }} · {{ proposal_label }}</p></div><span id="course-pending">{{ pending }} selecciones mensuales pendientes</span></div>
+    {% if rows %}
+    <div class="courses-table-wrap">
+      <table class="table courses-table">
+        <thead><tr><th scope="col">Nombre del participante</th><th scope="col">Residencial</th>{% for item in months %}<th scope="col">{{ item.label }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in rows %}<tr>
+          <td><strong>{{ row.name }}</strong><small>Exp. {{ row.expediente_num or 'Sin expediente' }}</small></td><td>{{ row.residential_name }}</td>
+          {% for cell in row.cells %}<td>
+            {% if cell.editable %}
+            <select class="form-select course-choice" aria-label="Curso de {{ row.name }} en {{ months[loop.index0].label }}" data-participant="{{ row.participant_id }}" data-year="{{ cell.year }}" data-month="{{ cell.month }}" data-revision="{{ cell.revision }}" data-saved="{{ cell.course }}">
+              <option value="">Seleccionar curso…</option>{% for code, label in courses.items() %}<option value="{{ code }}" {% if cell.course == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% else %}<span {% if cell.attended and not cell.course %}class="course-readonly-pending"{% endif %}>{{ cell.label }}</span>{% if cell.attended and cell.lock_reason %}<small>{{ cell.lock_reason }}</small>{% endif %}{% endif %}
+          </td>{% endfor %}
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}<p class="courses-empty">No hay participantes con asistencia confirmada a 2.b.5 para estos filtros.</p>{% endif %}
+    <div class="courses-save-bar">
+      <p id="course-status" role="status" aria-live="polite">{% if can_edit %}Guarda las selecciones antes de descargar el reporte.{% else %}Este reporte está disponible en modo de consulta.{% endif %}</p>
+      {% if can_edit and rows %}<button class="btn btn-primary" type="button" id="course-save" disabled>Guardar cursos</button>{% endif %}
+    </div>
+  </section>
+</div>
+<script src="/static/js/participant-courses.js" defer></script>
+{% endblock %}

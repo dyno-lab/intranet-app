@@ -80,6 +80,8 @@
           Reporte académico con distribución de notas.
           {% elif option.value == 'visitas' %}
           Visitas registradas y referidos del período.
+          {% elif option.value == 'cursos' %}
+          Participantes únicos de 2.b.5 y curso tomado en cada mes.
           {% elif option.value == 'por-programa' %}
           Participantes no duplicados agrupados por programa.
           {% elif option.value == 'hoja-cotejo' %}
@@ -95,7 +97,7 @@
           {% endif %}
         </span>
         <span class="reports-selected-summary__meta" data-selected-report-meta>
-          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
           Participantes
           {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
           Operativos
@@ -227,7 +229,7 @@
         <article
           class="reports-card {% if selected_report_key == option.value %}is-selected{% endif %}"
           data-report-card="{{ option.value }}"
-          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
           data-report-category="participants"
           {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
           data-report-category="operations"
@@ -252,6 +254,8 @@
             <i class="bi bi-heart-pulse"></i>
             {% elif option.value == 'notas' %}
             <i class="bi bi-journal-text"></i>
+            {% elif option.value == 'cursos' %}
+            <i class="bi bi-mortarboard"></i>
             {% elif option.value == 'visitas' %}
             <i class="bi bi-pin-map"></i>
             {% elif option.value == 'por-programa' %}
@@ -269,7 +273,7 @@
           <span class="reports-card__body">
             <span class="reports-card__topline">
               <strong class="reports-card__title">{{ option.label }}</strong>
-              {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa'] %}
+              {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
               <span class="reports-card__category reports-card__category--participants">Participantes</span>
               {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
               <span class="reports-card__category reports-card__category--operations">Operativos</span>
@@ -298,6 +302,8 @@
               Reporte académico con distribución de notas.
               {% elif option.value == 'visitas' %}
               Visitas registradas y referidos del período.
+              {% elif option.value == 'cursos' %}
+              Participantes únicos de 2.b.5 y curso tomado en cada mes.
               {% elif option.value == 'por-programa' %}
               Participantes no duplicados agrupados por programa.
               {% elif option.value == 'hoja-cotejo' %}
