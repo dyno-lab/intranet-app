@@ -1,10 +1,70 @@
 {% extends "community/_base.html" %}
+{% block title %}Gestión de años fiscales · Comunidad{% endblock %}
+{% block page_class %}community-fiscal-years-page{% endblock %}
+{% block page_styles %}
+<style>
+  .community-fiscal-years-page .fiscal-years-table { min-width: 65rem; }
+  .community-fiscal-years-page .fiscal-years-table td { vertical-align: top; }
+  .community-fiscal-years-page .fiscal-year-actions { display: flex; flex-wrap: wrap; gap: .4rem; min-width: 13rem; max-width: 19rem; }
+  .community-fiscal-years-page .fiscal-year-actions form { margin: 0; }
+  .community-fiscal-years-page .fiscal-year-editor { max-width: calc(100vw - 6rem); padding: .75rem; }
+  .community-fiscal-years-page .fiscal-year-notes { min-width: 12rem; max-width: 19rem; overflow-wrap: anywhere; }
+  @media (max-width: 991.98px) { .community-fiscal-years-page .ui-sidebar { display: none; } }
+</style>
+{% endblock %}
+{% macro token_fields() %}<input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="return_to" value="fiscal-years">{% endmacro %}
+{% macro fields(prefix, year=none, copying=false) %}
+  <div class="col-md-3"><label class="form-label" for="{{ prefix }}-code">{{ 'Nuevo código' if copying else 'Código' }}</label><input class="form-control" id="{{ prefix }}-code" name="code" maxlength="50" value="{{ year.code if year and not copying else '' }}" required></div>
+  <div class="col-md-5"><label class="form-label" for="{{ prefix }}-name">{{ 'Nuevo nombre' if copying else 'Nombre' }}</label><input class="form-control" id="{{ prefix }}-name" name="name" maxlength="150" value="{{ year.name ~ ' - copia' if copying else (year.name if year else '') }}" required></div>
+  {% for key, label in [('start_date','Fecha de inicio'), ('end_date','Fecha de fin')] %}<div class="col-md-2"><label class="form-label" for="{{ prefix }}-{{ key }}">{{ label }}</label><input class="form-control" type="date" id="{{ prefix }}-{{ key }}" name="{{ key }}" value="{{ year|attr(key) if year and not copying else '' }}" required {% if year and not copying and year.fiscal_year_id in locked_date_ids %}readonly aria-describedby="{{ prefix }}-date-help"{% endif %}></div>{% endfor %}
+  {% if year and not copying and year.fiscal_year_id in locked_date_ids %}<p class="form-text col-12 mb-0" id="{{ prefix }}-date-help">Las fechas están fijas porque este año tiene datos asociados, períodos cerrados o datos congelados. Puede editar el código y el nombre.</p>{% endif %}
+{% endmacro %}
+{% macro cancel(target) %}<button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ target }}">Cancelar</button>{% endmacro %}
 {% block content %}
-<section class="community-hero"><span class="community-eyebrow">Organización institucional</span><h1>Años fiscales</h1><p class="mb-0">Los años fiscales son compartidos por todos los programas de Comunidad.</p></section>
-{% if cp.role == 'admin' %}<section class="card mb-4"><div class="card-body"><h2 class="h5">Crear año fiscal</h2><form method="post" action="/community/fiscal-years" class="row g-3"><input type="hidden" name="token" value="{{ csrf_token }}">
-  {% for key, label, type in [('code','Código','text'),('name','Nombre','text'),('start_date','Fecha de inicio','date'),('end_date','Fecha de fin','date')] %}<div class="col-md-3"><label class="form-label" for="fiscal-{{ key }}">{{ label }}</label><input class="form-control" id="fiscal-{{ key }}" name="{{ key }}" type="{{ type }}" required></div>{% endfor %}
-  <div class="col-md-6"><label class="form-label" for="copy-from">Copiar configuración de otro año fiscal (opcional)</label><select class="form-select" id="copy-from" name="copy_from"><option value="">Empezar sin configuración</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}">{{ year.code }} · {{ year.name }}</option>{% endfor %}</select><p class="form-text">Copia actividades y configuración ADM. Los participantes se incorporan mediante sincronización; asistencias y notas permanecen en su año original.</p></div>
-  <div class="col-12"><button class="btn btn-primary" type="submit">Crear año fiscal</button><a class="btn btn-outline-primary ms-2" href="/community/fiscal-participants">Administrar cierres y sincronización</a></div>
-</form></div></section>{% endif %}
-<section class="card"><div class="card-body"><div class="table-responsive"><table class="table"><thead><tr><th>Año fiscal</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead><tbody>{% for year in years %}<tr><td><strong>{{ year.code }}</strong> · {{ year.name }}</td><td>{{ year.start_date.strftime('%d/%m/%Y') }}</td><td>{{ year.end_date.strftime('%d/%m/%Y') }}</td><td>{{ 'Abierto' if year.status == 'active' else 'Cerrado' }}</td></tr>{% else %}<tr><td colspan="4">Todavía no hay años fiscales registrados.</td></tr>{% endfor %}</tbody></table></div></div></section>
+<section class="community-hero"><span class="community-eyebrow">Organización institucional</span><h1>Gestión de años fiscales</h1><p class="mb-0">Los años fiscales y sus cierres aplican a todos los programas de Comunidad.</p></section>
+<section class="card mb-4"><div class="card-header"><h2 class="h5 mb-0">Crear año fiscal</h2></div><div class="card-body">
+<form method="post" action="/community/fiscal-years" class="row g-3 align-items-end">{{ token_fields() }}{{ fields('create') }}
+  <div class="col-md-8"><label class="form-label" for="copy-from">Copiar configuración de otro año fiscal (opcional)</label><select class="form-select" id="copy-from" name="copy_from"><option value="">Empezar sin configuración</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}">{{ year.code }} · {{ year.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><button class="btn btn-primary" type="submit">Crear año fiscal</button></div>
+  <p class="form-text mb-0">La copia incluye actividades, metas y configuración ADM. Los participantes se añaden mediante sincronización; asistencias y notas permanecen en su año original.</p>
+</form></div></section>
+<section class="card"><div class="card-header d-flex align-items-center gap-2"><h2 class="h5 mb-0">Años fiscales registrados</h2><span class="badge bg-secondary">{{ years|length }}</span></div>
+<div class="card-body p-0"><div class="table-responsive"><table class="table table-hover fiscal-years-table mb-0">
+<thead class="table-light"><tr><th>Código / nombre</th><th>Fechas</th><th>Estado</th><th>Participantes</th><th>Cierre / períodos</th><th>Acciones</th></tr></thead><tbody>
+{% for year in years %}{% set id = year.fiscal_year_id %}{% set state = states.get(id) %}{% set open = year.is_active and year.status == 'active' %}
+<tr id="fiscal-year-{{ id }}">
+  <td><strong>{{ year.code }}</strong><div>{{ year.name }}</div></td>
+  <td><div class="text-nowrap">{{ year.start_date.strftime('%d/%m/%Y') }}</div><div class="text-nowrap">{{ year.end_date.strftime('%d/%m/%Y') }}</div></td>
+  <td><span class="badge {{ 'bg-success' if open else 'bg-secondary' }}">{{ 'Abierto' if open else ('Cerrado' if year.status == 'closed' else 'Inactivo') }}</span><div class="small mt-2">Datos {{ 'congelados' if state and state.snapshots_frozen else 'sin congelar' }}</div></td>
+  <td><a class="btn btn-sm btn-outline-primary" href="/community/fiscal-participants?fiscal_year_id={{ id }}&amp;sync_filter=all">Participantes</a><div class="small text-muted mt-1">{{ participant_counts.get(id, 0) }} asociado(s)</div></td>
+  <td><div class="fiscal-year-notes small"><strong>Períodos cerrados hasta:</strong><div>{{ state.locked_through.strftime('%d/%m/%Y') if state and state.locked_through else 'Sin bloqueo mensual' }}</div>{% if state and state.period_lock_note %}<div class="mt-1">{{ state.period_lock_note }}</div>{% endif %}
+    {% if state and state.closed_at %}<div class="mt-2"><strong>{{ 'Cierre' if year.status == 'closed' else 'Último cierre' }}:</strong> {{ state.closed_at.strftime('%d/%m/%Y %H:%M') }} UTC</div><div>{{ closing_users.get(state.closed_by_user_id, 'Usuario ID ' ~ state.closed_by_user_id) }}</div>{% if state.closure_note %}<div>{{ state.closure_note }}</div>{% endif %}{% endif %}
+  </div></td>
+  <td><div class="fiscal-year-actions">
+    {% if open %}<button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-year-{{ id }}" aria-controls="edit-year-{{ id }}" aria-expanded="false">Editar</button>
+    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#periods-year-{{ id }}" aria-controls="periods-year-{{ id }}" aria-expanded="false">Cerrar períodos</button>
+    <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#close-year-{{ id }}" aria-controls="close-year-{{ id }}" aria-expanded="false">Cerrar año fiscal</button>
+    <form method="post" action="/community/fiscal-years/{{ id }}/freeze" onsubmit="return confirm('¿Cambiar la congelación de datos de participantes de este año fiscal para todos los programas?');">{{ token_fields() }}<input type="hidden" name="action" value="{{ 'unfreeze' if state and state.snapshots_frozen else 'freeze' }}"><button class="btn btn-sm btn-outline-secondary">{{ 'Descongelar datos' if state and state.snapshots_frozen else 'Congelar datos' }}</button></form>
+    {% elif year.is_active %}<span class="badge text-bg-light border align-self-center">Solo lectura</span><form method="post" action="/community/fiscal-years/{{ id }}/status" onsubmit="return confirm('¿Reabrir este año fiscal? Los cierres mensuales y la congelación de datos se conservarán.');">{{ token_fields() }}<input type="hidden" name="action" value="reopen"><button class="btn btn-sm btn-outline-primary">Reabrir</button></form>{% endif %}
+    <button class="btn btn-sm btn-outline-success" type="button" data-bs-toggle="collapse" data-bs-target="#copy-year-{{ id }}" aria-controls="copy-year-{{ id }}" aria-expanded="false">Copiar año fiscal</button>
+  </div></td>
+</tr>
+{% if open %}
+<tr class="collapse" id="edit-year-{{ id }}"><td colspan="6" class="bg-light"><div class="fiscal-year-editor"><h3 class="h6">Editar año fiscal {{ year.code }}</h3><form method="post" action="/community/fiscal-years/{{ id }}/edit" class="row g-3">{{ token_fields() }}{{ fields('edit-' ~ id, year) }}<div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-success">Guardar cambios</button>{{ cancel('edit-year-' ~ id) }}</div></form></div></td></tr>
+<tr class="collapse" id="periods-year-{{ id }}"><td colspan="6" class="bg-light"><div class="fiscal-year-editor"><h3 class="h6">Cerrar períodos de {{ year.code }}</h3>
+<form method="post" action="/community/fiscal-years/{{ id }}/periods" class="row g-3 align-items-end" onsubmit="return confirm('¿Actualizar el cierre mensual de este año fiscal para todos los programas?');">{{ token_fields() }}
+  <div class="col-md-4"><label class="form-label" for="month-{{ id }}">Cerrar períodos hasta</label><select class="form-select" id="month-{{ id }}" name="locked_through"><option value="">Sin bloqueo mensual</option>{% for option in month_options[id] %}<option value="{{ option.value }}" {{ 'selected' if state and state.locked_through and state.locked_through.isoformat() == option.value }}>{{ option.label }}</option>{% endfor %}</select></div>
+  <div class="col-md-5"><label class="form-label" for="period-note-{{ id }}">Nota del período (opcional)</label><input class="form-control" id="period-note-{{ id }}" name="period_lock_note" maxlength="500" value="{{ state.period_lock_note if state and state.period_lock_note else '' }}"></div>
+  <div class="col-md-3 d-flex flex-wrap gap-2"><button class="btn btn-sm btn-success">Guardar períodos</button>{{ cancel('periods-year-' ~ id) }}</div>
+  <p class="form-text mb-0">Se muestran períodos terminados dentro de este año fiscal. Elegir un mes anterior reabre los posteriores; «Sin bloqueo mensual» reabre todos. El cierre mensual no congela los datos de participantes.</p>
+</form></div></td></tr>
+<tr class="collapse" id="close-year-{{ id }}"><td colspan="6" class="bg-light"><div class="fiscal-year-editor"><h3 class="h6">Cerrar año fiscal {{ year.code }}</h3>
+<p class="small">El año quedará en solo lectura y se congelarán los datos de participantes. El cierre aplica a todos los programas.</p>
+<form method="post" action="/community/fiscal-years/{{ id }}/status" class="row g-3 align-items-end" onsubmit="return confirm('¿Cerrar este año fiscal para todos los programas y congelar los datos de participantes?');">{{ token_fields() }}<input type="hidden" name="action" value="close">
+  <div class="col-md-8"><label class="form-label" for="close-note-{{ id }}">Nota de cierre (opcional)</label><input class="form-control" id="close-note-{{ id }}" name="closure_note" maxlength="500"></div><div class="col-md-4 d-flex gap-2"><button class="btn btn-sm btn-warning">Confirmar cierre</button>{{ cancel('close-year-' ~ id) }}</div>
+</form></div></td></tr>
+{% endif %}
+<tr class="collapse" id="copy-year-{{ id }}"><td colspan="6" class="bg-light"><div class="fiscal-year-editor"><h3 class="h6">Copiar configuración de {{ year.code }}</h3><form method="post" action="/community/fiscal-years" class="row g-3" onsubmit="return confirm('¿Crear un nuevo año fiscal con esta configuración? Los participantes, asistencias y notas permanecerán en el año original.');">{{ token_fields() }}<input type="hidden" name="copy_from" value="{{ id }}">{{ fields('copy-' ~ id, year, copying=true) }}<p class="form-text mb-0">Copia actividades, metas y configuración ADM. El nuevo año inicia abierto, sin cierres mensuales ni participantes sincronizados.</p><div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-success">Crear copia</button>{{ cancel('copy-year-' ~ id) }}</div></form></div></td></tr>
+{% else %}<tr><td colspan="6" class="text-muted p-3">Todavía no hay años fiscales registrados.</td></tr>{% endfor %}
+</tbody></table></div></div></section>
 {% endblock %}

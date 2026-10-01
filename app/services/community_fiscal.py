@@ -69,20 +69,28 @@ def set_snapshot_freeze(db: Session, fiscal_year_id: int, *, frozen: bool, actor
     return state
 
 
-def set_fiscal_status(db: Session, fiscal_year_id: int, *, closed: bool, actor_user_id: int) -> CPFiscalYear:
+def set_fiscal_status(db: Session, fiscal_year_id: int, *, closed: bool, actor_user_id: int,
+                      closure_note: str | None = None) -> CPFiscalYear:
     year = _fiscal_year(db, fiscal_year_id)
+    note = _text(closure_note, "Nota de cierre", 500) if closure_note is not None else None
+    was_closed = year.status == "closed"
     state = _state(db, fiscal_year_id, actor_user_id)
     year.status = "closed" if closed else "active"
     if closed:
         state.snapshots_frozen = True
+        if not was_closed:
+            state.closed_at = _utcnow()
+            state.closed_by_user_id = actor_user_id
+            state.closure_note = note
     # Reopening deliberately retains both demographic freeze and month locks.
     db.flush()
     return year
 
 
 def set_fiscal_lock(db: Session, fiscal_year_id: int, *, locked_through: date | None,
-                    actor_user_id: int) -> CPFiscalState:
+                    actor_user_id: int, period_lock_note: str | None = None) -> CPFiscalState:
     year = require_fiscal_writable(db, fiscal_year_id)
+    note = _text(period_lock_note, "Nota del período", 500) if period_lock_note is not None else None
     if locked_through is not None:
         locked_through = _date(locked_through, "Cierre mensual")
         last_day = date(locked_through.year, locked_through.month,
@@ -95,6 +103,8 @@ def set_fiscal_lock(db: Session, fiscal_year_id: int, *, locked_through: date | 
             raise ValueError("No se pueden cerrar períodos con fechas futuras.")
     state = _state(db, fiscal_year_id, actor_user_id)
     state.locked_through = locked_through
+    if period_lock_note is not None:
+        state.period_lock_note = note
     db.flush()
     return state
 

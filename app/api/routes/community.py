@@ -32,6 +32,7 @@ from app.services.community_participants import (
     program_links, registration_dashboard, roster_filters, roster_page,
 )
 from app.services.community_record import participant_record
+from app.services.community_years import fiscal_year_management
 
 router = APIRouter(prefix="/community", tags=["community"])
 templates = Jinja2Templates(directory="app/templates")
@@ -176,8 +177,7 @@ def remove_program(request: Request, program_id: int, token: str = Form(...), db
 @router.get("/fiscal-years")
 def fiscal_years(request: Request, db: Session = Depends(get_db),
                  context: CommunityContext = Depends(require_community_admin)):
-    years = db.scalars(select(CPFiscalYear).order_by(CPFiscalYear.start_date.desc())).all()
-    return _render(request, "fiscal_years", context, years=years)
+    return _render(request, "fiscal_years", context, **fiscal_year_management(db))
 
 
 @router.post("/fiscal-years")

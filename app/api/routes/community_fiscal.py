@@ -18,6 +18,7 @@ from app.models.community_fiscal import CPFiscalEnrollment, CPFiscalParticipant,
 from app.services.community_fiscal import (discharge_participant, enroll_participant, remove_fiscal_participant,
     reactivate_participant, set_fiscal_lock, set_fiscal_status, set_snapshot_freeze, sync_participants)
 from app.services.community_fiscal_participants import fiscal_participant_lists
+from app.services.community_years import edit_fiscal_year
 
 router = APIRouter(prefix="/community", tags=["community-fiscal"])
 templates = Jinja2Templates(directory="app/templates")
@@ -180,23 +181,26 @@ def change_membership(request: Request, participant_id: int, fiscal_year_id: int
 
 @router.post("/fiscal-years/{fiscal_year_id}/status")
 def fiscal_status(request: Request, fiscal_year_id: int, action: str = Form(...), token: str = Form(...),
+                  return_to: str = Form(''), closure_note: str | None = Form(None),
                   db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
     validate_csrf(request, token)
     try:
         if action not in {"close", "reopen"}:
             raise ValueError("Seleccione cerrar o reabrir.")
-        set_fiscal_status(db, fiscal_year_id, closed=action == "close", actor_user_id=context.user.user_id)
+        set_fiscal_status(db, fiscal_year_id, closed=action == "close", actor_user_id=context.user.user_id,
+                         closure_note=closure_note)
         db.commit()
     except ValueError as exc:
         db.rollback()
-        return _redirect("/community/fiscal-participants", fiscal_year_id, error=str(exc))
-    return _redirect("/community/fiscal-participants", fiscal_year_id,
+        return _year_redirect(fiscal_year_id, return_to, error=str(exc))
+    return _year_redirect(fiscal_year_id, return_to,
                      message="Año cerrado y datos congelados." if action == "close" else
                      "Año reabierto. Los datos demográficos siguen congelados y los cierres mensuales se conservan.")
 
 
 @router.post("/fiscal-years/{fiscal_year_id}/freeze")
 def fiscal_freeze(request: Request, fiscal_year_id: int, action: str = Form(...), token: str = Form(...),
+                  return_to: str = Form(''),
                   db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
     validate_csrf(request, token)
     try:
@@ -206,20 +210,48 @@ def fiscal_freeze(request: Request, fiscal_year_id: int, action: str = Form(...)
         db.commit()
     except ValueError as exc:
         db.rollback()
-        return _redirect("/community/fiscal-participants", fiscal_year_id, error=str(exc))
-    return _redirect("/community/fiscal-participants", fiscal_year_id,
+        return _year_redirect(fiscal_year_id, return_to, error=str(exc))
+    return _year_redirect(fiscal_year_id, return_to,
                      message="Datos de participantes congelados." if action == "freeze" else "Datos habilitados para sincronización explícita.")
+
+
+async def _period_note(request: Request, period_lock_note: str = Form('')) -> str | None:
+    # Distinguish an explicitly cleared note from older forms without this field.
+    return period_lock_note if 'period_lock_note' in await request.form() else None
 
 
 @router.post("/fiscal-years/{fiscal_year_id}/periods")
 def fiscal_periods(request: Request, fiscal_year_id: int, locked_through: str = Form(""), token: str = Form(...),
+                   return_to: str = Form(''), period_lock_note: str | None = Depends(_period_note),
                    db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
     validate_csrf(request, token)
     try:
         closing_date = date.fromisoformat(locked_through) if locked_through else None
-        set_fiscal_lock(db, fiscal_year_id, locked_through=closing_date, actor_user_id=context.user.user_id)
+        set_fiscal_lock(db, fiscal_year_id, locked_through=closing_date, actor_user_id=context.user.user_id,
+                        period_lock_note=period_lock_note)
         db.commit()
     except ValueError as exc:
         db.rollback()
-        return _redirect("/community/fiscal-participants", fiscal_year_id, error=str(exc))
-    return _redirect("/community/fiscal-participants", fiscal_year_id, message="Cierre de períodos actualizado.")
+        return _year_redirect(fiscal_year_id, return_to, error=str(exc))
+    return _year_redirect(fiscal_year_id, return_to, message="Cierre de períodos actualizado.")
+
+
+def _year_redirect(fiscal_year_id, return_to, **values):
+    # Only these two internal destinations are allowed; old forms retain their target.
+    path = '/community/fiscal-years' if return_to == 'fiscal-years' else '/community/fiscal-participants'
+    return _redirect(path, fiscal_year_id, **values)
+
+
+@router.post('/fiscal-years/{fiscal_year_id}/edit')
+def update_fiscal_year(request: Request, fiscal_year_id: int, code: str = Form(...), name: str = Form(...),
+                       start_date: str = Form(...), end_date: str = Form(...), token: str = Form(...),
+                       db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_admin)):
+    validate_csrf(request, token)
+    try:
+        edit_fiscal_year(db, fiscal_year_id, code=code, name=name, start_date=start_date, end_date=end_date)
+        db.commit()
+    except (ValueError, IntegrityError) as exc:
+        db.rollback()
+        return _year_redirect(fiscal_year_id, 'fiscal-years', error=str(exc) if isinstance(exc, ValueError)
+                              else 'Ya existe un año fiscal con ese código.')
+    return _year_redirect(fiscal_year_id, 'fiscal-years', message='Año fiscal actualizado para todos los programas de Comunidad.')

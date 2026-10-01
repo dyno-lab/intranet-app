@@ -14,6 +14,18 @@ BEGIN
     );
 END;
 
+IF COL_LENGTH(N'dbo.cp_fiscal_states', N'period_lock_note') IS NULL
+    ALTER TABLE dbo.cp_fiscal_states ADD period_lock_note NVARCHAR(500) NULL;
+IF COL_LENGTH(N'dbo.cp_fiscal_states', N'closed_at') IS NULL
+    ALTER TABLE dbo.cp_fiscal_states ADD closed_at DATETIMEOFFSET NULL;
+IF COL_LENGTH(N'dbo.cp_fiscal_states', N'closed_by_user_id') IS NULL
+    ALTER TABLE dbo.cp_fiscal_states ADD closed_by_user_id INT NULL;
+IF COL_LENGTH(N'dbo.cp_fiscal_states', N'closure_note') IS NULL
+    ALTER TABLE dbo.cp_fiscal_states ADD closure_note NVARCHAR(500) NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_cp_fiscal_state_closer')
+    EXEC(N'ALTER TABLE dbo.cp_fiscal_states ADD CONSTRAINT FK_cp_fiscal_state_closer
+        FOREIGN KEY (closed_by_user_id) REFERENCES dbo.users(user_id)');
+
 IF OBJECT_ID(N'dbo.cp_fiscal_participants', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.cp_fiscal_participants (

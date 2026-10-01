@@ -16,6 +16,10 @@ class CPFiscalState(Base):
     fiscal_year_id: Mapped[int] = mapped_column(ForeignKey("cp_fiscal_years.fiscal_year_id"), primary_key=True)
     snapshots_frozen: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     locked_through: Mapped[date | None] = mapped_column(Date)
+    period_lock_note: Mapped[str | None] = mapped_column(Unicode(500))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.user_id"))
+    closure_note: Mapped[str | None] = mapped_column(Unicode(500))
     updated_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
 

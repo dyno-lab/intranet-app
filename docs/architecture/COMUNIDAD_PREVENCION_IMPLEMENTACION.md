@@ -101,7 +101,7 @@ flowchart TD
 | Portal y entrada | `/home`, `/community/login` | Tarjeta y selección de contexto |
 | Inicio | `/community` | Resumen de expedientes, distinto del conteo por asistencia |
 | Programas | `/community/programs` | Creación; disponibilidad automática en reportes |
-| Años fiscales | `/community/fiscal-years` | Crear y copiar configuración |
+| Años fiscales | `/community/fiscal-years` | Crear, editar, copiar, cerrar/reabrir años y períodos; congelar datos |
 | Catálogos | `/community/catalogs` | Opciones y perfil, desactivación sin borrar historial |
 | Expedientes | `/community/participants` | Lista, alta, búsqueda, asociación, detalle y edición |
 | Matrículas | `/community/participants/{id}/memberships` | Altas, bajas, reactivaciones e intervalos |
@@ -611,6 +611,49 @@ la ruta del formulario y se verifica el dato anterior/actual en Sync, la conserv
 de la copia, los avisos de ambas pantallas, varios años, roles y bloqueos. Edge con
 datos ficticios confirma los avisos del listado en escritorio/móvil, sus enlaces al
 año correspondiente y a disponibles, y las alertas de la ficha en escritorio.
+
+## Administración de años fiscales (2026-10-01)
+
+`/community/fiscal-years` reúne las acciones administrativas siguiendo el concepto
+de las propuestas de Faro: crear, editar, copiar configuración, cerrar o reabrir
+el año, cerrar períodos mensuales y congelar o descongelar datos de participantes.
+La tabla muestra fechas, estado, cantidad de participantes asociados, enlace a
+Sincronización, cierre mensual, nota del período y fecha/usuario/nota del último
+cierre completo. Estas acciones requieren el rol Administrador de Comunidad.
+
+Se pueden editar código y nombre de un año abierto. Sus fechas solo se pueden
+cambiar mientras no haya participantes sincronizados, altas/bajas, sesiones ni
+informes de notas escolares; tampoco pueden cambiarse con períodos cerrados o
+datos congelados. El servidor aplica la misma restricción aunque se altere el
+formulario. La edición conserva los números de expediente y los datos históricos.
+
+El cierre mensual ofrece los meses terminados dentro del rango fiscal, incluyendo
+el último día del año si termina a mitad de mes. Se puede elegir un mes anterior
+para reabrir los posteriores, o «Sin bloqueo mensual» para reabrir todos. Este
+cierre bloquea operaciones hasta la fecha seleccionada, sin congelar las copias
+demográficas. El cierre completo deja el año en solo lectura y congela esas copias.
+Reabrir conserva tanto el cierre mensual como la congelación; descongelar requiere
+una acción explícita. Todos los cierres aplican a todos los programas.
+
+La copia está disponible también para años cerrados. Incluye actividades, metas y
+configuración ADM; inicia un año abierto sin participantes, operaciones, cierres ni
+congelación. La pantalla de Sincronización conserva sus controles y destinos de
+retorno anteriores. Los formularios antiguos que no envían nota mensual conservan
+la nota existente.
+
+El arranque agrega, si faltan, cuatro columnas opcionales a `dbo.cp_fiscal_states`:
+`period_lock_note`, `closed_at`, `closed_by_user_id` y `closure_note`, con referencia
+al usuario de cierre. La migración es aditiva: no reescribe los históricos ni
+inventa fechas para cierres anteriores. Hay que reiniciar la aplicación después
+de actualizar el código para aplicar el esquema antes de usar las pantallas.
+
+Verificación: 221 pruebas de Comunidad aprobadas en bases temporales, incluidas
+15 para la gestión de años, compatibilidad de formularios anteriores, restricciones
+de fechas, permisos, CSRF y copia. Edge con datos ficticios comprobó edición, cierre
+mensual, notas, cierre/reapertura y copia en escritorio y móvil, sin errores de
+JavaScript ni desbordamiento de página. El esquema se compiló con el dialecto MSSQL
+y se comprobaron sus guardas aditivas; su ejecución real y concurrencia en SQL Server
+quedan para la PC de pruebas.
 
 ## Habilitación y alcance
 
