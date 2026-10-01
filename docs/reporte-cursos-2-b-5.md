@@ -67,3 +67,27 @@ Pruebas recomendadas:
 
 Validación automatizada: `python -B -m unittest tests.test_participant_courses
 tests.test_participant_courses_routes tests.test_report_multi_proposal_ui`.
+
+## Gráfica del reporte institucional
+
+En `/reporteinstitucionales/farodeesperanza`, la gráfica «Personas únicas por
+curso» aparece encima del mapa y utiliza el mismo anillo, paleta y tipografía
+de Escolaridad. Comparte el formulario de propuestas, año y fechas, y la misma
+consulta de indicadores; no incorpora filtros independientes.
+
+- Solo cuenta asistencias confirmadas a `2.b.5` dentro de los filtros actuales.
+- El curso corresponde al mes/año de la asistencia y a la selección guardada.
+- Repetir un curso en varios meses o propuestas cuenta una sola vez dentro de
+  ese curso. Cursos diferentes cuentan una vez en cada curso.
+- «Total por curso» suma esos conteos y es la base del porcentaje de cada sector.
+  «Personas únicas en 2.b.5» cuenta cada persona una sola vez en todo el período.
+- Pendientes cuenta personas con al menos un mes elegible sin curso seleccionado;
+  pueden tener otro mes ya clasificado. No se asigna un curso automáticamente.
+- La respuesta pública contiene únicamente cantidades y etiquetas de cursos.
+  La identidad actual de persona se enlaza al participante que guarda el curso;
+  las asistencias antiguas conservan su puente de identidad existente.
+
+Para validar: consultar un mes y luego varios meses con el formulario general;
+repetir un curso y cambiarlo en otro mes; seleccionar una o ambas propuestas;
+comprobar pendientes, un período sin asistencias y que el mapa y las demás
+gráficas mantienen sus filtros. No hay dependencias ni migraciones nuevas.

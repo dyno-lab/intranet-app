@@ -19,6 +19,10 @@
   const townValue = root.querySelector('[data-kpi="towns"]');
   const ageChart = root.querySelector('[data-chart="age"]');
   const educationChart = root.querySelector('[data-chart="education"]');
+  const coursesChart = root.querySelector('[data-chart="courses"]');
+  const coursesUnique = root.querySelector('[data-courses-unique]');
+  const coursesPending = root.querySelector('[data-courses-pending]');
+  const coursesNote = root.querySelector('[data-courses-note]');
   const gradesChart = root.querySelector('[data-chart="grades"]');
   const householdRing = root.querySelector("[data-household-ring]");
   const householdRingValue = root.querySelector("[data-household-ring-value]");
@@ -63,6 +67,10 @@
     || !townValue
     || !ageChart
     || !educationChart
+    || !coursesChart
+    || !coursesUnique
+    || !coursesPending
+    || !coursesNote
     || !gradesChart
     || !householdRing
     || !householdRingValue
@@ -133,14 +141,14 @@
     });
   };
 
-  const renderEducationChart = (values, emptyMessage = "No hay datos para mostrar.") => {
-    educationChart.replaceChildren();
+  const renderDonutChart = (container, values, title, centerLabel, emptyMessage) => {
+    container.replaceChildren();
     const entries = Object.entries(values);
     if (!entries.length) {
       const message = document.createElement("p");
       message.className = "institutional-report-filter__empty";
       message.textContent = emptyMessage;
-      educationChart.append(message);
+      container.append(message);
       return;
     }
 
@@ -161,13 +169,13 @@
       ? `conic-gradient(${segments.join(", ")})`
       : "#e7eef4";
     donut.setAttribute("role", "img");
-    donut.setAttribute("aria-label", `Escolaridad: ${numberFormatter.format(total)} personas`);
+    donut.setAttribute("aria-label", `${title}: ${numberFormatter.format(total)} ${centerLabel}`);
     const center = document.createElement("div");
     center.className = "institutional-report-donut__center";
     const totalValue = document.createElement("strong");
     totalValue.textContent = numberFormatter.format(total);
     const totalLabel = document.createElement("span");
-    totalLabel.textContent = "personas";
+    totalLabel.textContent = centerLabel;
     center.append(totalValue, totalLabel);
     donut.append(center);
 
@@ -190,7 +198,45 @@
     });
 
     chartLayout.append(donut, legend);
-    educationChart.append(chartLayout);
+    container.append(chartLayout);
+  };
+
+  const renderEducationChart = (values, emptyMessage = "No hay datos para mostrar.") => {
+    renderDonutChart(educationChart, values, "Escolaridad", "personas", emptyMessage);
+  };
+
+  const renderCoursesChart = (summary, message = "No hay asistencia confirmada a 2.b.5 para estos filtros.", placeholder = "—") => {
+    const values = summary?.unique_people > 0
+      ? Object.fromEntries(summary.by_course.map((row) => [row.label, row.people])) : {};
+    renderDonutChart(coursesChart, values, "Cursos", "total por curso", message);
+    coursesUnique.textContent = summary ? numberFormatter.format(summary.unique_people) : placeholder;
+    coursesPending.textContent = summary ? numberFormatter.format(summary.pending_people) : placeholder;
+    coursesNote.textContent = summary && summary.unique_people > 0 && summary.total_by_course === 0
+      ? "Las personas con asistencia aún no tienen cursos seleccionados en el período."
+      : "Porcentajes sobre el total por curso. En varios meses, una persona puede aparecer en cursos diferentes.";
+  };
+
+  const normalizeRealCourses = (payload) => {
+    const source = payload?.real?.courses;
+    const codes = ["reposteria", "charcuteria", "campo_laboral"];
+    if (!source || !["unique_people", "pending_people", "total_by_course"].every(
+      (field) => Number.isInteger(source[field]) && source[field] >= 0,
+    ) || !Array.isArray(source.by_course) || source.by_course.length !== codes.length) {
+      throw new Error("Los datos de cursos no tienen el formato esperado.");
+    }
+    const rows = codes.map((code) => {
+      const row = source.by_course.find((item) => item?.code === code);
+      if (!row || typeof row.label !== "string" || !row.label.trim()
+        || !Number.isInteger(row.people) || row.people < 0 || row.people > source.unique_people) {
+        throw new Error("La distribución de cursos no tiene el formato esperado.");
+      }
+      return { code, label: row.label.trim(), people: row.people };
+    });
+    if (source.pending_people > source.unique_people
+      || rows.reduce((sum, row) => sum + row.people, 0) !== source.total_by_course) {
+      throw new Error("Los totales de cursos no coinciden con su distribución.");
+    }
+    return { ...source, by_course: rows };
   };
 
   const renderGradesChart = (values, emptyMessage = "No hay datos para mostrar.") => {
@@ -899,6 +945,8 @@
     ageChart.removeAttribute("aria-busy");
     renderEducationChart({}, "No fue posible cargar la escolaridad real.");
     educationChart.removeAttribute("aria-busy");
+    renderCoursesChart(null, "No fue posible cargar los cursos.");
+    coursesChart.removeAttribute("aria-busy");
     renderGradesChart({}, "No fue posible cargar las notas reales.");
     gradesChart.removeAttribute("aria-busy");
     pregnancyWomenValue.textContent = "—";
@@ -961,6 +1009,8 @@
     ageChart.setAttribute("aria-busy", "true");
     renderEducationChart({}, "Consultando escolaridad real…");
     educationChart.setAttribute("aria-busy", "true");
+    renderCoursesChart(null, "Consultando cursos…", "…");
+    coursesChart.setAttribute("aria-busy", "true");
     renderGradesChart({}, "Consultando notas reales…");
     gradesChart.setAttribute("aria-busy", "true");
     renderTownTable({}, "Consultando municipios reales…");
@@ -1019,6 +1069,7 @@
         throw new Error("La distribución real por edad no coincide con el total de personas.");
       }
       const education = normalizeRealEducation(payload);
+      const courses = normalizeRealCourses(payload);
       const peopleByEducation = Object.values(education).reduce((total, value) => total + value, 0);
       if (peopleByEducation !== people) {
         throw new Error("La distribución real de escolaridad no coincide con el total de personas.");
@@ -1047,6 +1098,7 @@
       updateHouseholdRing(householdHeads, people);
       renderBars(ageChart, ageBuckets, { total: people, showPercent: true });
       renderEducationChart(education);
+      renderCoursesChart(courses);
       renderGradesChart(grades);
       pregnancyWomenValue.textContent = numberFormatter.format(pregnancy.women);
       pregnancyMenValue.textContent = numberFormatter.format(pregnancy.men);
@@ -1072,6 +1124,7 @@
         activeRequest = null;
         ageChart.removeAttribute("aria-busy");
         educationChart.removeAttribute("aria-busy");
+        coursesChart.removeAttribute("aria-busy");
         gradesChart.removeAttribute("aria-busy");
         townTable.removeAttribute("aria-busy");
         setAdmBusy(false);

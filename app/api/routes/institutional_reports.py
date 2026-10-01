@@ -12,11 +12,13 @@ from sqlalchemy.orm import Session, aliased
 from app.api.deps import get_db
 from app.models.adm_service_type import ADMServiceType
 from app.models.adm_service_type_activity_code import ADMServiceTypeActivityCode
+from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.catalog_option import CatalogOption
 from app.models.catalog_type import CatalogType
 from app.models.participant import Participant
+from app.models.participant_monthly_course import ParticipantMonthlyCourse
 from app.models.person import Person
 from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
@@ -25,6 +27,7 @@ from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
+from app.services.participant_courses import ACTIVITY_CODE as COURSE_ACTIVITY_CODE, COURSES
 
 
 router = APIRouter()
@@ -43,6 +46,7 @@ _FARO_REAL_METRICS = [
     "pregnancy",
     "towns_by_municipality",
     "adm",
+    "courses",
 ]
 _FARO_DEMO_METRICS = []
 _ADM_AGE_BUCKETS = (
@@ -132,6 +136,62 @@ def _age_reference_date(end_date: date | None, year: int | None) -> date:
     if year is not None:
         return date(year, 12, 31)
     return _current_date()
+
+
+def _faro_course_summary(db, *, proposal_ids, year, start_date, end_date):
+    # Current attendance identifies the person through its proposal snapshot.
+    # Legacy-only attendance uses the existing participant bridge. A stale legacy
+    # ID must never override the person on a current attendance record.
+    legacy_id = case(
+        (Attendance.proposal_participant_id.is_not(None), Person.legacy_participant_id),
+        else_=Attendance.participant_id,
+    )
+    statement = (
+        select(Person.person_id, legacy_id, ParticipantMonthlyCourse.course_code)
+        .select_from(Attendance)
+        .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
+        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .outerjoin(ProposalParticipant, and_(
+            ProposalParticipant.proposal_participant_id == Attendance.proposal_participant_id,
+            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
+        ))
+        .outerjoin(Person, or_(
+            Person.person_id == ProposalParticipant.person_id,
+            and_(Attendance.proposal_participant_id.is_(None),
+                 Person.legacy_participant_id == Attendance.participant_id),
+        ))
+        .outerjoin(ParticipantMonthlyCourse, and_(
+            ParticipantMonthlyCourse.participant_id == legacy_id,
+            ParticipantMonthlyCourse.report_year == extract("year", ActivitySession.session_date),
+            ParticipantMonthlyCourse.report_month == extract("month", ActivitySession.session_date),
+        ))
+        .where(
+            Attendance.attended == True,  # noqa: E712
+            ActivityCode.code == COURSE_ACTIVITY_CODE,
+            or_(Person.person_id.is_not(None),
+                and_(Attendance.proposal_participant_id.is_(None), Attendance.participant_id.is_not(None))),
+        )
+        .distinct()
+    )
+    statement = _apply_activity_session_filters(
+        statement, proposal_ids=proposal_ids, year=year, start_date=start_date, end_date=end_date,
+    )
+    people, pending = set(), set()
+    by_course = {code: set() for code in COURSES}
+    for person_id, participant_id, course_code in db.execute(statement).all():
+        identity = ("person", person_id) if person_id is not None else ("participant", participant_id)
+        people.add(identity)
+        if course_code in by_course:
+            by_course[course_code].add(identity)
+        else:
+            pending.add(identity)
+    return {
+        "unique_people": len(people),
+        "pending_people": len(pending),
+        "total_by_course": sum(len(values) for values in by_course.values()),
+        "by_course": [{"code": code, "label": label, "people": len(by_course[code])}
+                      for code, label in COURSES.items()],
+    }
 
 
 def _age_bucket(birth_date: date | None, reference_date: date) -> str:
@@ -992,6 +1052,13 @@ def faro_institutional_report_data(
         end_date=normalized_end_date,
         reference_date=reference_date,
     )
+    courses_summary = _faro_course_summary(
+        db,
+        proposal_ids=normalized_proposal_ids,
+        year=normalized_year,
+        start_date=normalized_start_date,
+        end_date=normalized_end_date,
+    )
 
     return _no_store_json(
         {
@@ -1007,6 +1074,7 @@ def faro_institutional_report_data(
                 "pregnancy": pregnancy_summary,
                 "towns_by_municipality": towns_by_municipality,
                 "adm": adm_summary,
+                "courses": courses_summary,
             },
             "filters": {
                 "proposal_ids": normalized_proposal_ids,

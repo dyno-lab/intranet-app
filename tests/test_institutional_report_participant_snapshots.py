@@ -77,6 +77,7 @@ class InstitutionalReportParticipantSnapshotTests(unittest.TestCase):
             ]
         )
 
+        db.results.append(_Result(values=[]))  # Course aggregate query.
         response = institutional_reports.faro_institutional_report_data(
             request=SimpleNamespace(session={}),
             proposal_ids=["17"],

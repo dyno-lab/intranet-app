@@ -118,6 +118,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             _Result(values=[]),
             _Result(values=[]),
             _Result(values=[]),
+            _Result(values=[]),
         ])
 
         response = self._call(
@@ -179,6 +180,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "pregnancy",
             "towns_by_municipality",
             "adm",
+            "courses",
         ])
         self.assertEqual(payload["meta"]["demo_metrics"], [])
         self.assertEqual(payload["meta"]["age_reference_date"], "2026-12-31")
@@ -187,7 +189,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         adm_service_types_sql = str(db.statements[6]).lower()
         self.assertIn("adm_service_types.proposal_id in", adm_service_types_sql)
         self.assertIn("adm_service_types.is_active", adm_service_types_sql)
-        self.assertEqual(len(db.statements), 7)
+        self.assertEqual(len(db.statements), 8)
+        self.assertEqual(payload["real"]["courses"]["unique_people"], 0)
 
     def test_data_endpoint_deduplicates_people_and_returns_aggregate_profiles_without_pii(self):
         db = _Database([
@@ -275,6 +278,8 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
                 ),
             ]),
             _Result(values=["Nuclear", "Monoparental"]),
+            _Result(values=[(90_101, 1, "reposteria"), (90_101, 1, "reposteria"),
+                            (90_101, 1, "charcuteria"), (90_102, 2, None)]),
         ])
 
         response = self._call(

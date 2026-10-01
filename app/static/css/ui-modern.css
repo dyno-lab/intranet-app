@@ -13449,6 +13449,34 @@ body.institutional-report-body {
   font-size: 0.7rem;
 }
 
+.institutional-report-courses {
+  padding-top: 1rem;
+}
+
+.institutional-report-courses__note {
+  margin: 1rem 0 0;
+  color: var(--institutional-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.institutional-report-courses__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.5rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--institutional-border);
+  color: var(--institutional-muted);
+  font-size: 0.78rem;
+}
+
+.institutional-report-courses__totals strong {
+  color: var(--faro-navy);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .institutional-report-grade-target {
   display: flex;
   align-items: center;
