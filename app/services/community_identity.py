@@ -112,6 +112,16 @@ def has_identity_link(db: Session, source_module: str, participant_id: int) -> b
     ).limit(1)) is not None
 
 
+def linked_participant_ids(db: Session, source_module: str, participant_ids: list[int]) -> set[int]:
+    """Read confirmed links for an already authorized roster page in one query."""
+    if not settings.COMMUNITY_ENABLED or not participant_ids:
+        return set()
+    source = _source_column(source_module)
+    return set(db.scalars(select(source).where(
+        source.in_(participant_ids), CPIdentityReview.is_same_person == True,  # noqa: E712
+    )))
+
+
 def has_identity_review(db: Session, source_module: str, participant_id: int) -> bool:
     if not settings.COMMUNITY_ENABLED:
         return False

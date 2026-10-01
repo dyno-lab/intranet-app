@@ -40,7 +40,7 @@ from app.models.user_residential import UserResidential
 from app.services.community_identity import (
     BasicIdentity, confirm_identity_review, find_identity_candidates, has_identity_link,
     has_identity_review, identity_similarity, normalize_identity_name, pending_identity_review, reopen_identity_review,
-    lock_identity_operations,
+    lock_identity_operations, linked_participant_ids,
 )
 
 
@@ -181,6 +181,9 @@ class CommunityIdentityDomainTests(IdentityFixture, unittest.TestCase):
         self.db.commit()
         self.assertTrue(has_identity_link(self.db, "community", self.cp_id))
         self.assertTrue(has_identity_link(self.db, "faro", self.faro_id))
+        self.assertEqual(linked_participant_ids(self.db, "community", [self.cp_id, 999]), {self.cp_id})
+        self.assertEqual(linked_participant_ids(self.db, "faro", [self.faro_id, 999]), {self.faro_id})
+        self.assertEqual(linked_participant_ids(self.db, "faro", [999]), set())
         self.assertEqual(review.reviewed_from, "community")
         self.assertEqual(review.reviewed_by_user_id, self.cp_user_id)
         self.assertEqual(self.db.get(CPParticipant, self.cp_id).direccion_fisica, "DIRECCION-CP-PRIVADA")
@@ -196,6 +199,8 @@ class CommunityIdentityDomainTests(IdentityFixture, unittest.TestCase):
         self.assertFalse(review.is_same_person)
         self.assertTrue(has_identity_review(self.db, "faro", self.faro_id))
         self.assertFalse(has_identity_link(self.db, "faro", self.faro_id))
+        self.assertEqual(linked_participant_ids(self.db, "faro", [self.faro_id]), set())
+        self.assertEqual(linked_participant_ids(self.db, "community", [self.cp_id]), set())
         self.assertEqual(find_identity_candidates(self.db, "community", self.cp_id), [])
         self.assertEqual(find_identity_candidates(self.db, "faro", self.faro_id), [])
 
@@ -255,11 +260,13 @@ class CommunityIdentityDomainTests(IdentityFixture, unittest.TestCase):
 
     def test_disabled_feature_performs_no_database_queries(self):
         self.statements.clear()
+        self.assertEqual(linked_participant_ids(self.db, "faro", []), set())
         with patch.object(settings, "COMMUNITY_ENABLED", False):
             self.assertEqual(find_identity_candidates(self.db, "faro", self.faro_id), [])
             self.assertFalse(has_identity_link(self.db, "faro", self.faro_id))
             self.assertFalse(has_identity_review(self.db, "faro", self.faro_id))
             self.assertFalse(pending_identity_review(self.db, "faro", self.faro_id))
+            self.assertEqual(linked_participant_ids(self.db, "faro", [self.faro_id]), set())
         self.assertEqual(self.statements, [])
 
 

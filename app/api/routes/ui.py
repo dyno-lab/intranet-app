@@ -67,7 +67,7 @@ from app.services.activity_proposals import attach_activity_assigned_proposal_id
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 from app.services.proposal_participant_sync import get_different_proposal_participant_fields
 from app.services.community_identity import (
-    linked_identity, has_identity_review, pending_identity_review,
+    linked_identity, has_identity_review, pending_identity_review, linked_participant_ids,
 )
 from app.services.community_identity_registration import prepare_registration_identity, save_registration_identity
 from app.helpers.report_context import MIN_REPORTING_YEAR
@@ -1048,6 +1048,7 @@ def new_list(
     ).offset(pagination["offset"]).limit(pagination["per_page"])
 
     participants = db.execute(stmt).scalars().all()
+    identity_linked_ids = linked_participant_ids(db, "faro", [p.participant_id for p in participants])
 
     participant_profile_presence = load_profile_field_presence_by_participants(
         db,
@@ -1062,6 +1063,7 @@ def new_list(
         {
             "p": p,
             "age": _calc_age(p.fecha_nacimiento),
+            "identity_linked": p.participant_id in identity_linked_ids,
             "is_active": _is_participant_active(p),
             "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
             "has_phone": participant_profile_presence.get(p.participant_id, {}).get("telefono", False),

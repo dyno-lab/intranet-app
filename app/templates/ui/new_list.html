@@ -451,7 +451,10 @@
                 {% set p = r.p %}
                 {% set primera_vez_si = (p.primera_vez or '')|lower in ['si', 'sí'] %}
                 <tr class="participants-row {{ 'participants-row--inactive' if not r.is_active else ('participants-row--first-time' if primera_vez_si else '') }}">
-                  <td class="participants-table__expediente">{{ p.expediente_num }}</td>
+                  <td class="participants-table__expediente">
+                    {{ p.expediente_num }}
+                    {% if r.identity_linked %}<div class="mt-1"><span class="badge text-bg-success participants-badge text-wrap" title="Vínculo confirmado entre expedientes"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>Vinculado con Comunidad</span></span></div>{% endif %}
+                  </td>
                   <td>{{ p.nombre }}</td>
                   <td>{{ p.inicial or '' }}</td>
                   <td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td>

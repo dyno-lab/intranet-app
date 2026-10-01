@@ -11,6 +11,7 @@ from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgr
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.models.community_fiscal import CPFiscalParticipant, CPFiscalState
 from app.services.community_fiscal import build_participant_snapshot, comparable_snapshot
+from app.services.community_identity import linked_participant_ids
 
 
 AGE_RANGES = (
@@ -186,9 +187,11 @@ def roster_page(db, context, params):
     page = min(_integer(params, "page", default=1, minimum=1, maximum=2147483647), total_pages)
     people = db.scalars(query.order_by(CPParticipant.participant_id.desc()).offset(
         (page - 1) * filters["per_page"]).limit(filters["per_page"])).all()
+    participant_ids = [p.participant_id for p in people]
     query_string = urlencode({key: value for key, value in filters.items() if value is not None and value != ""})
     page_links = {key: f"/community/participants?{query_string}&page={number}#participants-table-card" for key, number in (
         ("first", 1), ("prev", max(1, page - 1)), ("next", min(total_pages, page + 1)), ("last", total_pages))}
     return {"participants": people, "total": total, "page": page, "total_pages": total_pages,
             "filters": filters, "age_ranges": AGE_RANGES, "query_string": query_string, "page_links": page_links,
-            "participant_programs": program_links(db, context, [p.participant_id for p in people])}
+            "participant_programs": program_links(db, context, participant_ids),
+            "identity_linked_ids": linked_participant_ids(db, "community", participant_ids)}

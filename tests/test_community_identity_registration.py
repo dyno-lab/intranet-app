@@ -15,6 +15,7 @@ from app.models.community_identity import CPIdentityReview, CPIdentityReviewEven
 from app.models.participant import Participant
 from app.models.residential import Residential
 from app.services.community_identity_registration import prepare_registration_identity
+from app.services.community_identity import reopen_identity_review
 from app.services.community import create_participant
 from app.api.routes import ui
 from app.core.residential_scope import require_faro_access
@@ -85,6 +86,16 @@ class IdentityRegistrationTests(unittest.TestCase):
             self.assertEqual(review.reviewed_by_user_id, self.admin_id)
             self.assertEqual(db.get(Participant, self.faro_id).apellido_materno, 'Distinto')
             self.assertEqual(db.get(Participant, self.faro_id).edificio, 'NO-REVELAR')
+        roster = self.client.get('/community/participants')
+        table = roster.text.split('id="participants-table-card"', 1)[1]
+        self.assertEqual(table.count('Vinculado con Faro'), 1)
+        self.assertNotIn('FE-2026-ZZ-0001', table)
+        with Session(self.engine) as db:
+            review = db.scalar(select(CPIdentityReview))
+            reopen_identity_review(db, 'community', review.cp_participant_id, review.id,
+                review.revision, self.admin_id, 'Confirmación incorrecta')
+            db.commit()
+        self.assertNotIn('Vinculado con Faro', self.client.get('/community/participants').text)
 
     def test_cancel_keeps_form_without_creating(self):
         proof = self.confirmation(self.post())
@@ -102,6 +113,7 @@ class IdentityRegistrationTests(unittest.TestCase):
         with Session(self.engine) as db:
             self.assertFalse(db.scalar(select(CPIdentityReview)).is_same_person)
             self.assertFalse(db.scalar(select(CPIdentityReviewEvent)).decision)
+        self.assertNotIn('Vinculado con Faro', self.client.get('/community/participants').text)
 
     def test_pending_saves_and_expediente_offers_review(self):
         proof = self.confirmation(self.post())
@@ -109,6 +121,7 @@ class IdentityRegistrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 303)
         page = self.client.get(response.headers['location'])
         self.assertIn('Revisar coincidencias con Faro', page.text)
+        self.assertNotIn('Vinculado con Faro', self.client.get('/community/participants').text)
         with Session(self.engine) as db:
             self.assertIsNone(db.scalar(select(CPIdentityReview)))
 
@@ -277,6 +290,18 @@ class FaroIdentityRegistrationTests(unittest.TestCase):
             self.assertEqual(review.faro_participant_id, faro.participant_id)
             self.assertEqual(review.reviewed_from, 'faro')
             self.assertEqual(db.get(CPParticipant, self.cp_id).direccion_fisica, 'NO-REVELAR')
+        roster = self.client.get('/ui/new-list', params={'residential_id': self.residential_id})
+        table = roster.text.split('id="participants-table-card"', 1)[1]
+        self.assertEqual(table.count('Vinculado con Comunidad'), 1)
+        self.assertNotIn('CP-2026-0001', table)
+        with patch.object(settings, 'COMMUNITY_ENABLED', False):
+            self.assertNotIn('Vinculado con Comunidad', self.client.get('/ui/new-list').text)
+        with Session(self.engine) as db:
+            review = db.scalar(select(CPIdentityReview))
+            reopen_identity_review(db, 'faro', review.faro_participant_id, review.id,
+                review.revision, self.admin_id, 'Confirmación incorrecta')
+            db.commit()
+        self.assertNotIn('Vinculado con Comunidad', self.client.get('/ui/new-list').text)
 
     def test_faro_cancel_and_pending(self):
         proof = self.confirmation(self.post())
@@ -286,6 +311,7 @@ class FaroIdentityRegistrationTests(unittest.TestCase):
         result = self.post(identity_confirmation=proof, identity_decision='pending')
         self.assertEqual(result.status_code, 303)
         self.assertNotIn('community-identity', result.headers['location'])
+        self.assertNotIn('Vinculado con Comunidad', self.client.get('/ui/new-list').text)
         with Session(self.engine) as db:
             self.assertIsNotNone(db.scalar(select(Participant)))
             self.assertIsNone(db.scalar(select(CPIdentityReview)))
