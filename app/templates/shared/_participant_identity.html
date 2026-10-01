@@ -1,0 +1,17 @@
+{% macro assets() -%}
+<link href="/static/css/participant-identity.css?v=20261001-1" rel="stylesheet">
+<script src="/static/js/participant-identity.js?v=20261001-1" defer></script>
+{%- endmacro %}
+
+{% macro indicator(participant, abbreviation, module) -%}
+<button type="button" class="participant-identity-link" data-participant-identity-link
+        aria-label="Vinculado con {{ module }}" aria-expanded="false"
+        title="Vínculo confirmado con {{ module }}"
+        data-identity-description="{{ participant.nombre }} {{ participant.apellido_paterno }} · {{ participant.expediente_num }} · {{ module }}. Cada módulo conserva su expediente y su información.">
+  <i class="bi bi-link-45deg" aria-hidden="true"></i><span>{{ abbreviation }}</span>
+</button>
+{%- endmacro %}
+
+{% macro legend(abbreviation, module) -%}
+<div class="participant-identity-legend"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>{{ abbreviation }} · Vínculo confirmado con {{ module }}</span></div>
+{%- endmacro %}

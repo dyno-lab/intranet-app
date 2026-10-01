@@ -1,9 +1,11 @@
 {% extends "community/_base.html" %}
 {% from "community/_participant_sync_notice.html" import notice with context %}
+{% import "shared/_participant_identity.html" as identity %}
 {% block title %}Participantes · Comunidad{% endblock %}
 {% block page_class %}community-participants-page{% endblock %}
 {% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
+{{ identity.assets() }}
 <div class="participants-page">
   <section class="participants-hero">
     <div class="participants-hero__content">
@@ -56,8 +58,7 @@
         <tbody>{% for p in participants %}
           <tr class="participants-row {{ 'participants-row--first-time' if (p.primera_vez or '')|lower in ['si', 'sí'] }}">
             <td class="participants-table__expediente">
-              {{ p.expediente_num }}
-              {% if p.participant_id in identity_linked_ids %}<div class="mt-1"><span class="badge text-bg-success participants-badge text-wrap" title="Vínculo confirmado entre expedientes"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>Vinculado con Faro</span></span></div>{% endif %}
+              <div class="participant-record-line"><span>{{ p.expediente_num }}</span>{% if p.participant_id in identity_linked_ids %}{{ identity.indicator(p, 'FE', 'Faro de Esperanza') }}{% endif %}</div>
               {{ notice(dashboard.sync_notices.get(p.participant_id), compact=true) }}
             </td><td>{{ p.nombre }}</td><td>{{ p.inicial or '' }}</td><td>{{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</td><td>{{ p.edad if p.edad is not none else '—' }}</td><td>{{ p.genero }}</td><td>{{ p.estatus or '—' }}</td>
             <td>{% if p.is_head_of_household %}<span class="badge text-bg-primary participants-badge"><i class="bi bi-house-check" aria-hidden="true"></i><span>Jefe</span></span>{% else %}<span class="participants-empty-mark">—</span>{% endif %}</td>
@@ -79,6 +80,7 @@
         {% else %}<tr><td colspan="12" class="text-muted text-center py-4">No hay participantes que coincidan con los filtros seleccionados.</td></tr>{% endfor %}</tbody>
       </table>
     </div></div></div>
+    {% if identity_linked_ids %}{{ identity.legend('FE', 'Faro de Esperanza') }}{% endif %}
     {% if total_pages > 1 %}<nav aria-label="Paginación de participantes" class="mt-3"><ul class="pagination pagination-sm justify-content-center flex-wrap participants-pagination">
       {% for key, label, disabled in [('first', 'Primera', page == 1), ('prev', 'Anterior', page == 1)] %}<li class="page-item {{ 'disabled' if disabled }}"><a class="page-link" href="{{ page_links[key] }}" {% if disabled %}tabindex="-1" aria-disabled="true"{% endif %}>{{ label }}</a></li>{% endfor %}
       <li class="page-item disabled"><span class="page-link">Página {{ page }} / {{ total_pages }}</span></li>

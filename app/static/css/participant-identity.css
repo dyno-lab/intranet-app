@@ -1,0 +1,44 @@
+/* The identity marker stays beside the record number in both participant lists. */
+.participant-record-line {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  white-space: nowrap;
+}
+
+.participant-identity-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  padding: .25rem .4rem;
+  border: 1px solid #b6dbc5;
+  border-radius: 6px;
+  background: #e8f5ed;
+  color: #126741;
+  font: 600 .7rem/1.2 var(--bs-body-font-family);
+  cursor: pointer;
+}
+
+.participant-identity-link .bi { font-size: .85rem; }
+.participant-identity-link:hover,
+.participant-identity-link[aria-expanded="true"] { border-color: #126741; }
+.participant-identity-link:focus-visible { outline: 2px solid #126741; outline-offset: 2px; }
+
+.participant-identity-legend {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+  margin-top: .65rem;
+  color: var(--ui-muted, #61728c);
+  font-size: .8rem;
+}
+
+.participant-identity-legend .bi { color: #126741; }
+.participant-identity-popover { --bs-popover-max-width: 320px; --bs-popover-border-color: #b6dbc5; }
+.participant-identity-popover .popover-header { color: #126741; background: #e8f5ed; }
+
+@media (pointer: coarse) {
+  .participant-identity-link { min-width: 44px; min-height: 44px; }
+}
