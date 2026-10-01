@@ -101,7 +101,7 @@ flowchart TD
 | Portal y entrada | `/home`, `/community/login` | Tarjeta y selección de contexto |
 | Inicio | `/community` | Resumen de expedientes, distinto del conteo por asistencia |
 | Programas | `/community/programs` | Creación; disponibilidad automática en reportes |
-| Años fiscales | `/community/fiscal-years` | Crear, editar, copiar, cerrar/reabrir años y períodos; congelar datos |
+| Años fiscales | `/community/fiscal-years` | Crear, editar, copiar, cerrar/reabrir años y períodos; consultar estado de congelación |
 | Catálogos | `/community/catalogs` | Opciones y perfil, desactivación sin borrar historial |
 | Expedientes | `/community/participants` | Lista, alta, búsqueda, asociación, detalle y edición |
 | Matrículas | `/community/participants/{id}/memberships` | Altas, bajas, reactivaciones e intervalos |
@@ -616,7 +616,9 @@ año correspondiente y a disponibles, y las alertas de la ficha en escritorio.
 
 `/community/fiscal-years` reúne las acciones administrativas siguiendo el concepto
 de las propuestas de Faro: crear, editar, copiar configuración, cerrar o reabrir
-el año, cerrar períodos mensuales y congelar o descongelar datos de participantes.
+el año y cerrar períodos mensuales. Los botones de congelar y descongelar datos de
+participantes se mantienen únicamente en Sincronización; Años fiscales muestra
+solo el estado de congelación y conserva la congelación automática al cerrar el año.
 La tabla muestra fechas, estado, cantidad de participantes asociados, enlace a
 Sincronización, cierre mensual, nota del período y fecha/usuario/nota del último
 cierre completo. Estas acciones requieren el rol Administrador de Comunidad.
