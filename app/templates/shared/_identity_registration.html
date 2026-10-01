@@ -1,39 +1,63 @@
 {% if identity_prompt %}
 {% set prompt = identity_prompt %}
-<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}">
+{% set source_short = 'Comunidad' if prompt.source_module == 'community' else 'Faro' %}
+{% set other_short = 'Faro' if prompt.source_module == 'community' else 'Comunidad' %}
+{% set other_module = 'faro' if prompt.source_module == 'community' else 'community' %}
+{% macro identity_data(person) %}
+<dl class="identity-dialog__data">
+  <div><dt>Nombre</dt><dd>{{ person.nombre }}</dd></div>
+  <div><dt>Primer apellido</dt><dd>{{ person.apellido_paterno }}</dd></div>
+  <div><dt>Fecha de nacimiento</dt><dd>{{ person.fecha_nacimiento.strftime('%d/%m/%Y') }}</dd></div>
+  <div><dt>Segundo apellido</dt><dd>{{ person.apellido_materno or 'Sin registrar' }}</dd></div>
+</dl>
+{% endmacro %}
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}?v=20261001-2">
 <dialog open id="identity-registration-dialog" class="identity-dialog" data-source="{{ prompt.source_module }}" aria-labelledby="identity-title" aria-describedby="identity-description">
   <input type="hidden" name="identity_confirmation" value="{{ prompt.confirmation }}">
-  <div class="identity-dialog__heading">
-    <div><span class="identity-dialog__eyebrow">Identificación entre módulos</span><h2 id="identity-title">Posible expediente en {{ prompt.other_label }}</h2></div>
-    <button type="submit" name="identity_action" value="edit" class="identity-dialog__close" formnovalidate data-identity-close aria-label="Cerrar y volver al formulario" autofocus>×</button>
+  <div class="identity-dialog__brand">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="7" r="3"></circle><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5.65"></path></svg>
+    <strong>{{ 'Comunidad y Prevención' if prompt.source_module == 'community' else 'Programa Faro de Esperanza' }}</strong>
+    <small>Nuevo expediente</small>
   </div>
-  <p id="identity-description">Encontramos el mismo <strong>nombre, primer apellido y fecha de nacimiento</strong>. Revise si corresponden a la misma persona antes de guardar.</p>
-  {% if prompt.error %}<p class="alert alert-warning" role="alert">{{ prompt.error }}</p>{% endif %}
-  <div class="identity-dialog__comparison">
-    <section class="identity-dialog__record"><h3>Nuevo expediente · {{ prompt.source_label }}</h3>
-      <strong>{{ prompt.source.nombre }} {{ prompt.source.apellido_paterno }} {{ prompt.source.apellido_materno or '' }}</strong>
-      <dl><dt>Fecha de nacimiento</dt><dd>{{ prompt.source.fecha_nacimiento.strftime('%d/%m/%Y') }}</dd><dt>Expediente</dt><dd>{{ prompt.source.expediente_num }}</dd></dl>
-    </section>
-    <fieldset class="identity-dialog__candidates"><legend>Expedientes en {{ prompt.other_label }}</legend>
-      {% for candidate in prompt.candidates %}
-      <label class="identity-dialog__record identity-dialog__candidate">
-        <input type="radio" name="identity_candidate_id" value="{{ candidate.participant_id }}" {% if candidate.participant_id in prompt.linked_ids %}disabled{% elif prompt.candidates|length == 1 %}checked{% endif %}>
-        <span><strong>{{ candidate.nombre }} {{ candidate.apellido_paterno }} {{ candidate.apellido_materno or '' }}</strong><br><span>{{ candidate.expediente_num }}</span><br><span>Nacimiento: {{ candidate.fecha_nacimiento.strftime('%d/%m/%Y') }}</span>
-        {% if candidate.participant_id in prompt.linked_ids %}<span class="identity-dialog__conflict">Ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador.</span>{% endif %}</span>
-      </label>
-      {% endfor %}
-    </fieldset>
+  <div class="identity-dialog__body">
+    <div class="identity-dialog__heading">
+      <div><span class="identity-dialog__eyebrow">Revisión de identidad</span><h2 id="identity-title" tabindex="-1" autofocus>{{ 'Encontramos un expediente en ' if prompt.candidates|length == 1 else 'Encontramos coincidencias en ' }}{{ other_short }}</h2></div>
+      <button type="submit" name="identity_action" value="edit" class="identity-dialog__button identity-dialog__quiet identity-dialog__close" formnovalidate data-identity-close aria-label="Volver al formulario sin guardar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <p id="identity-description" class="identity-dialog__intro">El nombre, primer apellido y fecha de nacimiento coinciden con los que estás registrando.</p>
+    {% if prompt.error %}<p class="identity-dialog__conflict" role="alert">{{ prompt.error }}</p>{% endif %}
+    <div class="identity-dialog__comparison">
+      <section class="identity-dialog__record" data-module="{{ prompt.source_module }}" aria-label="Datos que se están ingresando en {{ source_short }}">
+        <h3>{{ source_short }} · Nuevo registro</h3>
+        <div class="identity-dialog__number">{{ prompt.source.expediente_num }}{{ ' · Sin guardar' if prompt.source_module == 'faro' }}</div>
+        {{ identity_data(prompt.source) }}
+      </section>
+      <div class="identity-dialog__candidates" role="group" aria-label="Expedientes existentes en {{ other_short }}">
+        {% for candidate in prompt.candidates %}
+        <section class="identity-dialog__record identity-dialog__candidate" data-module="{{ other_module }}" aria-label="Expediente existente {{ candidate.expediente_num }}">
+          <h3><label for="identity-candidate-{{ candidate.participant_id }}">
+            <input type="radio" name="identity_candidate_id" id="identity-candidate-{{ candidate.participant_id }}" value="{{ candidate.participant_id }}" {% if prompt.candidates|length == 1 %}class="identity-dialog__single-choice"{% endif %} {% if candidate.participant_id in prompt.linked_ids %}disabled{% elif prompt.candidates|length == 1 %}checked{% endif %}>
+            <span>{{ other_short }} · Expediente existente</span>
+          </label></h3>
+          <div class="identity-dialog__number">{{ candidate.expediente_num }}</div>
+          {{ identity_data(candidate) }}
+          {% if candidate.participant_id in prompt.linked_ids %}<p class="identity-dialog__conflict">Ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador.</p>{% endif %}
+        </section>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="identity-dialog__rule"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>Coinciden los tres datos de búsqueda</p>
+    {% if prompt.candidates|length > 1 %}<p class="identity-dialog__intro">Selecciona el expediente que corresponde a la misma persona.</p>{% endif %}
+    <p class="identity-dialog__question">¿Es la misma persona?</p>
+    <p class="identity-dialog__note">Si confirmas, se guardará el expediente de {{ source_short }} y quedará vinculado con {{ prompt.other_label }}. Cada módulo conservará sus datos, su número y su historial.</p>
+    <p class="identity-dialog__contact">Si tienes dudas sobre si se trata de la misma persona, comunícate con personal autorizado de {{ prompt.other_label }}: <a href="mailto:{{ prompt.contact }}">{{ prompt.contact }}</a>.</p>
+    <div class="identity-dialog__actions">
+      <button type="submit" class="identity-dialog__button identity-dialog__primary" name="identity_decision" value="yes" data-identity-confirm>Sí, es la misma persona</button>
+      <button type="submit" class="identity-dialog__button" name="identity_decision" value="no">{{ 'No, es otra persona' if prompt.candidates|length == 1 else 'Ninguno es la misma persona' }}</button>
+    </div>
+    <button type="submit" class="identity-dialog__button identity-dialog__quiet identity-dialog__later" name="identity_decision" value="pending">Guardar y revisar después</button>
   </div>
-  <p class="identity-dialog__note">Confirmar relaciona los expedientes para identificar a la persona entre módulos. Cada expediente conserva su número y su información.</p>
-  <div class="identity-dialog__confirm">
-    <button type="submit" class="btn btn-primary" name="identity_decision" value="yes" data-identity-confirm>Sí, es la misma persona</button>
-    <p>Si tiene dudas, comuníquese con personal autorizado de {{ prompt.other_label }}: <a href="mailto:{{ prompt.contact }}">{{ prompt.contact }}</a>.</p>
-  </div>
-  <div class="identity-dialog__actions">
-    <button type="submit" class="btn btn-outline-secondary" name="identity_decision" value="no">{{ 'No, es otra persona' if prompt.candidates|length == 1 else 'Ninguno es la misma persona' }}</button>
-    <button type="submit" class="btn btn-outline-secondary" name="identity_decision" value="pending">Guardar y revisar después</button>
-    <button type="submit" class="btn btn-link" name="identity_action" value="edit" formnovalidate data-identity-close>Volver al formulario</button>
-  </div>
+  <div class="identity-dialog__footer">Esta revisión aparece al pulsar Guardar participante. El segundo apellido se muestra como referencia.</div>
 </dialog>
 <script src="{{ request.url_for('static', path='js/identity-registration.js') }}" defer></script>
 {% endif %}
