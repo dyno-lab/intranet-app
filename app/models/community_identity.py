@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Unicode, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -28,3 +28,21 @@ class CPIdentityReview(Base):
     reviewed_from: Mapped[str] = mapped_column(String(20), nullable=False)
     reviewed_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    comparison_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    needs_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text('0'), nullable=False)
+    revision: Mapped[int] = mapped_column(default=1, server_default=text('1'), nullable=False)
+
+
+class CPIdentityReviewEvent(Base):
+    """Append-only history, including decisions reopened by a supervisor."""
+    __tablename__ = 'cp_identity_review_events'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    review_id: Mapped[int] = mapped_column(ForeignKey('cp_identity_reviews.id'), nullable=False, index=True)
+    previous_decision: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    decision: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    comparison_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reviewed_from: Mapped[str] = mapped_column(String(20), nullable=False)
+    reviewed_by_user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id'), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Unicode(500), nullable=True)

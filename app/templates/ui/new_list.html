@@ -92,6 +92,9 @@
     <div class="card shadow-sm border-0 participants-form-card" id="participant-register-card">
       <div class="card-body">
         <form method="post" action="/ui/new-list/create" class="row g-2 align-items-start">
+          {% set registration_values = registration_values|default({}) %}
+          {% if csrf_token %}<input type="hidden" name="token" value="{{ csrf_token }}">{% endif %}
+          {% if registration_error %}<div class="col-12 alert alert-warning" role="alert">{{ registration_error }}</div>{% endif %}
           {% if is_admin_or_supervisor_view %}
           <input type="hidden" name="residential_id" value="{{ selected_residential_id or '' }}">
           {% if not selected_residential_id %}
@@ -112,9 +115,9 @@
                 <div class="col-xl-2 col-lg-3 col-md-6">
                   <label class="form-label">Año de expediente *</label>
                   <select class="form-select" name="exp_year" id="exp_year" required>
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('exp_year', '') == '' }}>Selecciona</option>
                     {% for y in years %}
-                    <option value="{{ y }}">{{ y }}</option>
+                    <option value="{{ y }}" {{ 'selected' if registration_values.get('exp_year', '') == y|string }}>{{ y }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -126,7 +129,7 @@
 
                 <div class="col-xl-2 col-lg-2 col-md-4">
                   <label class="form-label">4 digitos *</label>
-                  <input class="form-control" name="exp_seq4" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
+                  <input class="form-control" name="exp_seq4" value="{{ registration_values.get('exp_seq4', '') }}" id="exp_seq4" maxlength="4" inputmode="numeric" pattern="\d{4}" required placeholder="0001">
                   <div class="form-text">Único dentro del residencial</div>
                 </div>
 
@@ -140,7 +143,7 @@
           {% else %}
           <div class="col-lg-3 col-md-4">
             <label class="form-label">Numero de expediente *</label>
-            <input class="form-control" name="expediente_num" required>
+            <input class="form-control" name="expediente_num" value="{{ registration_values.get('expediente_num', '') }}" required>
           </div>
           {% endif %}
 
@@ -153,36 +156,36 @@
               <div class="row g-2">
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Nombre *</label>
-                  <input class="form-control" name="nombre" required>
+                  <input class="form-control" name="nombre" value="{{ registration_values.get('nombre', '') }}" required>
                 </div>
 
                 <div class="col-xl-1 col-lg-2 col-md-2">
                   <label class="form-label">Inicial</label>
-                  <input class="form-control" name="inicial" maxlength="12">
+                  <input class="form-control" name="inicial" value="{{ registration_values.get('inicial', '') }}" maxlength="12">
                 </div>
 
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Apellido Paterno *</label>
-                  <input class="form-control" name="apellido_paterno" required>
+                  <input class="form-control" name="apellido_paterno" value="{{ registration_values.get('apellido_paterno', '') }}" required>
                 </div>
 
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Apellido Materno</label>
-                  <input class="form-control" name="apellido_materno">
+                  <input class="form-control" name="apellido_materno" value="{{ registration_values.get('apellido_materno', '') }}">
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-3">
                   <label class="form-label">Género *</label>
                   <select class="form-select" name="genero" required>
-                    <option value="">Selecciona</option>
-                    <option value="F">F</option>
-                    <option value="M">M</option>
+                    <option value="" {{ 'selected' if registration_values.get('genero', '') == '' }}>Selecciona</option>
+                    <option value="F" {{ 'selected' if registration_values.get('genero', '') == 'F' }}>F</option>
+                    <option value="M" {{ 'selected' if registration_values.get('genero', '') == 'M' }}>M</option>
                   </select>
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Fecha de nacimiento</label>
-                  <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento">
+                  <input type="date" class="form-control" name="fecha_nacimiento" value="{{ registration_values.get('fecha_nacimiento', '') }}" id="fecha_nacimiento">
                 </div>
 
                 <div class="col-xl-1 col-lg-2 col-md-2">
@@ -193,27 +196,27 @@
                 <div class="col-xl-2 col-lg-2 col-md-3">
                   <label class="form-label">VCA</label>
                   <select class="form-select" name="vca">
-                    <option value="">Selecciona</option>
-                    <option value="SI">SI</option>
-                    <option value="NO">NO</option>
+                    <option value="" {{ 'selected' if registration_values.get('vca', '') == '' }}>Selecciona</option>
+                    <option value="SI" {{ 'selected' if registration_values.get('vca', '') == 'SI' }}>SI</option>
+                    <option value="NO" {{ 'selected' if registration_values.get('vca', '') == 'NO' }}>NO</option>
                   </select>
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Participa por primera vez</label>
                   <select class="form-select" name="primera_vez">
-                    <option value="">Selecciona</option>
-                    <option value="SI">SI</option>
-                    <option value="NO">NO</option>
+                    <option value="" {{ 'selected' if registration_values.get('primera_vez', '') == '' }}>Selecciona</option>
+                    <option value="SI" {{ 'selected' if registration_values.get('primera_vez', '') == 'SI' }}>SI</option>
+                    <option value="NO" {{ 'selected' if registration_values.get('primera_vez', '') == 'NO' }}>NO</option>
                   </select>
                 </div>
 
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Escolaridad del participante</label>
                   <select class="form-select" name="escolaridad_participante">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('escolaridad_participante', '') == '' }}>Selecciona</option>
                     {% for opt in escolaridad_participante_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('escolaridad_participante', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -221,9 +224,9 @@
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Composicion Familiar</label>
                   <select class="form-select" name="composicion_familiar">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('composicion_familiar', '') == '' }}>Selecciona</option>
                     {% for opt in composicion_familiar_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('composicion_familiar', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -231,9 +234,9 @@
                 <div class="col-xl-2 col-lg-3 col-md-3">
                   <label class="form-label">Grupo familiar</label>
                   <select class="form-select" name="grupo_familiar">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('grupo_familiar', '') == '' }}>Selecciona</option>
                     {% for opt in grupo_familiar_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('grupo_familiar', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -241,9 +244,9 @@
                 <div class="col-xl-3 col-lg-4 col-md-6">
                   <label class="form-label">Fuente de ingreso principal</label>
                   <select class="form-select" name="fuente_ingreso_principal">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('fuente_ingreso_principal', '') == '' }}>Selecciona</option>
                     {% for opt in fuente_ingreso_principal_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('fuente_ingreso_principal', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -251,9 +254,9 @@
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Rango de ingreso</label>
                   <select class="form-select" name="rango_ingreso">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('rango_ingreso', '') == '' }}>Selecciona</option>
                     {% for opt in rango_ingreso_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('rango_ingreso', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -261,29 +264,29 @@
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Relacion familiar</label>
                   <select class="form-select" name="relacion_familiar">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('relacion_familiar', '') == '' }}>Selecciona</option>
                     {% for opt in relacion_familiar_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('relacion_familiar', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Edificio</label>
-                  <input class="form-control" name="edificio" maxlength="50">
+                  <input class="form-control" name="edificio" value="{{ registration_values.get('edificio', '') }}" maxlength="50">
                 </div>
 
                 <div class="col-xl-2 col-lg-2 col-md-3">
                   <label class="form-label">Apt</label>
-                  <input class="form-control" name="apart" maxlength="50">
+                  <input class="form-control" name="apart" value="{{ registration_values.get('apart', '') }}" maxlength="50">
                 </div>
 
                 <div class="col-xl-2 col-lg-3 col-md-4">
                   <label class="form-label">Estatus</label>
                   <select class="form-select" name="estatus">
-                    <option value="">Selecciona</option>
+                    <option value="" {{ 'selected' if registration_values.get('estatus', '') == '' }}>Selecciona</option>
                     {% for opt in estatus_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    <option value="{{ opt.value }}" {{ 'selected' if registration_values.get('estatus', '') == opt.value|string }}>{{ opt.label }}</option>
                     {% endfor %}
                   </select>
                 </div>
@@ -291,7 +294,7 @@
                 <div class="col-xl-4 col-lg-6 col-md-8">
                   <label class="form-label d-block">Jefe de familia</label>
                   <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="is_head_of_household" id="is_head_of_household">
+                    <input class="form-check-input" type="checkbox" name="is_head_of_household" {{ 'checked' if registration_values.get('is_head_of_household') == 'on' }} id="is_head_of_household">
                     <label class="form-check-label" for="is_head_of_household">Marcar como jefe de familia</label>
                   </div>
                   <div class="form-text">Solo puede existir uno por residencial, edificio y apartamento.</div>
@@ -336,6 +339,7 @@
               <span>Guardar Participante</span>
             </button>
           </div>
+          {% include 'shared/_identity_registration.html' %}
         </form>
       </div>
     </div>

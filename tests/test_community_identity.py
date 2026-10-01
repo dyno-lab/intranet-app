@@ -8,6 +8,8 @@ import re
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
+from types import SimpleNamespace
 
 os.environ.setdefault("DB_SERVER", "test-server")
 os.environ.setdefault("DB_NAME", "test-db")
@@ -28,7 +30,7 @@ from app.api.routes import community_identity
 from app.core.config import settings
 from app.models.base import Base
 from app.models.community import CPParticipant, CPParticipantProgram, CPProgram, CPUserAccess, CPUserProgram
-from app.models.community_identity import CPIdentityReview
+from app.models.community_identity import CPIdentityReview, CPIdentityReviewEvent
 from app.models.participant import Participant
 from app.models.platform_permission import PlatformPermission
 from app.models.residential import Residential
@@ -37,7 +39,8 @@ from app.models.user_platform_permission import UserPlatformPermission
 from app.models.user_residential import UserResidential
 from app.services.community_identity import (
     BasicIdentity, confirm_identity_review, find_identity_candidates, has_identity_link,
-    has_identity_review, identity_similarity, normalize_identity_name, pending_identity_review,
+    has_identity_review, identity_similarity, normalize_identity_name, pending_identity_review, reopen_identity_review,
+    lock_identity_operations,
 )
 
 
@@ -58,7 +61,7 @@ class IdentityFixture:
 
         models = (Residential, User, UserResidential, PlatformPermission, UserPlatformPermission,
                   Participant, CPProgram, CPUserAccess, CPUserProgram, CPParticipant,
-                  CPParticipantProgram, CPIdentityReview)
+                  CPParticipantProgram, CPIdentityReview, CPIdentityReviewEvent)
         Base.metadata.create_all(self.engine, tables=[model.__table__ for model in models])
         self.flag = patch.object(settings, "COMMUNITY_ENABLED", True)
         self.flag.start()
@@ -138,6 +141,25 @@ class CommunityIdentityDomainTests(IdentityFixture, unittest.TestCase):
         self.assertEqual([row.participant_id for row in find_identity_candidates(self.db, "community", self.cp_id)], [self.faro_id])
         self.assertEqual([row.participant_id for row in find_identity_candidates(self.db, "faro", self.faro_id)], [self.cp_id])
 
+    def test_sql_server_lock_failure_never_allows_confirmation_to_continue(self):
+        db = Mock()
+        db.get_bind.return_value = SimpleNamespace(dialect=SimpleNamespace(name='mssql'))
+        for code in (-1, -2, -3, -999):
+            with self.subTest(return_code=code):
+                db.execute.return_value.scalar_one.return_value = code
+                with self.assertRaisesRegex(ValueError, 'Otro empleado'):
+                    lock_identity_operations(db)
+        db.commit.assert_not_called()
+
+    def test_sql_server_granted_lock_is_owned_by_callers_transaction(self):
+        db = Mock()
+        db.get_bind.return_value = SimpleNamespace(dialect=SimpleNamespace(name='mssql'))
+        for code in (0, 1):
+            db.execute.return_value.scalar_one.return_value = code
+            lock_identity_operations(db)
+        db.commit.assert_not_called()
+        db.rollback.assert_not_called()
+
     def test_approximate_names_require_exact_birth_date_and_base_names(self):
         first = BasicIdentity(1, "CP", "Jose", "Rivera", "Lopez", date(2000, 5, 12))
         typo = BasicIdentity(2, "FE", "Josee", "Rivear", "Lopezz", date(2000, 5, 12))
@@ -185,6 +207,37 @@ class CommunityIdentityDomainTests(IdentityFixture, unittest.TestCase):
             confirm_identity_review(self.db, source_module="community", participant_id=self.cp_id,
                                      candidate_id=self.faro_id, is_same_person=True, actor_user_id=self.cp_user_id)
         self.assertEqual(self.db.scalar(select(func.count()).select_from(CPIdentityReview)), 0)
+
+    def test_changed_demographics_reopen_rejected_pair_without_losing_audit(self):
+        review = confirm_identity_review(self.db, source_module='community', participant_id=self.cp_id,
+            candidate_id=self.faro_id, is_same_person=False, actor_user_id=self.cp_user_id)
+        self.db.commit()
+        self.assertEqual(find_identity_candidates(self.db, 'community', self.cp_id), [])
+        self.db.get(Participant, self.faro_id).apellido_materno = 'Lopes'
+        self.db.commit()
+        self.assertTrue(pending_identity_review(self.db, 'community', self.cp_id))
+        confirm_identity_review(self.db, source_module='faro', participant_id=self.faro_id,
+            candidate_id=self.cp_id, is_same_person=True, actor_user_id=self.faro_user_id)
+        self.db.commit()
+        self.assertEqual(review.revision, 2)
+        self.assertEqual([row.decision for row in self.db.scalars(select(CPIdentityReviewEvent).order_by(CPIdentityReviewEvent.id))], [False, True])
+
+    def test_reopening_requires_reason_and_revision_preserves_old_decision(self):
+        review = confirm_identity_review(self.db, source_module='community', participant_id=self.cp_id,
+            candidate_id=self.faro_id, is_same_person=True, actor_user_id=self.cp_user_id)
+        self.db.commit()
+        with self.assertRaises(ValueError):
+            reopen_identity_review(self.db, 'community', self.cp_id, review.id, 1, self.cp_user_id, '')
+        reopen_identity_review(self.db, 'community', self.cp_id, review.id, 1, self.cp_user_id, 'Se confirmó por error')
+        self.db.commit()
+        self.assertFalse(has_identity_link(self.db, 'faro', self.faro_id))
+        self.assertTrue(pending_identity_review(self.db, 'faro', self.faro_id))
+        event = self.db.scalar(select(CPIdentityReviewEvent).order_by(CPIdentityReviewEvent.id.desc()))
+        self.assertTrue(event.previous_decision)
+        self.assertIsNone(event.decision)
+        self.assertEqual(event.reason, 'Se confirmó por error')
+        with self.assertRaises(ValueError):
+            reopen_identity_review(self.db, 'community', self.cp_id, review.id, 1, self.cp_user_id, 'Página anterior')
 
     def test_one_to_one_database_constraint_protects_confirmed_identity(self):
         confirm_identity_review(self.db, source_module="community", participant_id=self.cp_id,
@@ -251,7 +304,8 @@ class CommunityIdentityRouteTests(IdentityFixture, unittest.TestCase):
         self.assertIn("FE-2026-RES-0001", page.text)
         for private in ("EDIFICIO-PRIVADO", "APARTAMENTO-PRIVADO", "Residencial privado"):
             self.assertNotIn(private, page.text)
-        response = self.client.post(self.page(), data={"token": token, "candidate_id": self.faro_id, "decision": "yes"})
+        confirmation = re.search(r'name="confirmation" value="([^"]+)"', page.text).group(1)
+        response = self.client.post(self.page(), data={"token": token, "candidate_id": self.faro_id, "decision": "yes", "confirmation": confirmation})
         self.assertEqual(response.status_code, 303, response.text)
         self.assertTrue(response.headers["location"].startswith(f"/community/participants/{self.cp_id}?"))
         with Session(self.engine) as db:
@@ -263,7 +317,8 @@ class CommunityIdentityRouteTests(IdentityFixture, unittest.TestCase):
         self.assertIn("CP-2026-0001", page.text)
         for private in ("DIRECCION-CP-PRIVADA", "privado@example.com", "(787)-555-0100", "TANF-M"):
             self.assertNotIn(private, page.text)
-        response = self.client.post(self.page("faro"), data={"token": token, "candidate_id": self.cp_id, "decision": "no"})
+        confirmation = re.search(r'name="confirmation" value="([^"]+)"', page.text).group(1)
+        response = self.client.post(self.page("faro"), data={"token": token, "candidate_id": self.cp_id, "decision": "no", "confirmation": confirmation})
         self.assertEqual(response.status_code, 303, response.text)
         self.assertIn("No hay coincidencias pendientes", self.client.get(response.headers["location"]).text)
         with Session(self.engine) as db:
@@ -279,6 +334,37 @@ class CommunityIdentityRouteTests(IdentityFixture, unittest.TestCase):
         self.client.get(f"/_test/session/{self.denied_user_id}")
         self.assertEqual(self.client.get(self.page()).status_code, 403)
         self.assertEqual(self.client.get(self.page("faro")).status_code, 403)
+
+    def test_user_cannot_reopen_but_community_supervisor_can_with_audit(self):
+        token = self.login()
+        with Session(self.engine) as db:
+            review = confirm_identity_review(db, source_module='community', participant_id=self.cp_id,
+                candidate_id=self.faro_id, is_same_person=True, actor_user_id=self.cp_user_id)
+            db.commit()
+            review_id = review.id
+        data = {'token': token, 'review_id': review_id, 'revision': 1, 'reason': 'Confirmación equivocada'}
+        self.assertEqual(self.client.post(self.page() + '/reopen', data=data).status_code, 403)
+        with Session(self.engine) as db:
+            db.get(CPUserAccess, self.cp_user_id).role = 'supervisor'
+            db.commit()
+        response = self.client.post(self.page() + '/reopen', data=data)
+        self.assertEqual(response.status_code, 303)
+        with Session(self.engine) as db:
+            self.assertFalse(has_identity_link(db, 'community', self.cp_id))
+            self.assertEqual(db.scalar(select(func.count()).select_from(CPIdentityReviewEvent)), 2)
+
+    def test_manual_confirmation_rechecks_displayed_demographics_even_if_still_similar(self):
+        token = self.login()
+        page = self.client.get(self.page())
+        proof = re.search(r'name="confirmation" value="([^"]+)"', page.text).group(1)
+        with Session(self.engine) as db:
+            db.get(Participant, self.faro_id).apellido_materno = 'Lopes'
+            db.commit()
+        result = self.client.post(self.page(), data={'token': token, 'candidate_id': self.faro_id,
+            'decision': 'yes', 'confirmation': proof})
+        self.assertIn('error=', result.headers['location'])
+        with Session(self.engine) as db:
+            self.assertFalse(has_identity_link(db, 'community', self.cp_id))
 
     def test_source_record_must_belong_to_assigned_program_or_residential(self):
         with Session(self.engine) as db:

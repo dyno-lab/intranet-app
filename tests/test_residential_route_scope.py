@@ -31,6 +31,7 @@ from app.models.residential import Residential  # noqa: E402
 class _Request:
     def __init__(self, residential_id: int | None = None, form_data=None):
         self.session = {}
+        self.state = SimpleNamespace()
         self._form_data = FormData(form_data or {})
         if residential_id is not None:
             self.session[ACTIVE_RESIDENTIAL_SESSION_KEY] = residential_id
@@ -404,7 +405,7 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
             patch.object(
                 ui.templates,
                 "TemplateResponse",
-                side_effect=lambda _template, context: context,
+                side_effect=lambda _template=None, context=None, **kwargs: context,
             ),
         ):
             context = ui.new_list(
@@ -727,7 +728,7 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
             patch.object(
                 ui.templates,
                 "TemplateResponse",
-                side_effect=lambda _template, context: context,
+                side_effect=lambda _template=None, context=None, **kwargs: context,
             ),
         ):
             context = ui.participant_expediente(

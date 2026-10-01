@@ -25,7 +25,8 @@ from app.services.community import associate_participant_programs, create_fiscal
 from app.services.community import delete_participant, delete_program, next_participant_number, program_usage, update_program
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
-from app.services.community_identity import has_identity_link, identity_review_url, pending_identity_review
+from app.services.community_identity import linked_identity, has_identity_review, pending_identity_review
+from app.services.community_identity_registration import prepare_registration_identity, save_registration_identity
 from app.services.community_duplicates import confirmed_duplicate, duplicate_confirmation, duplicate_participants
 from app.services.community_participants import (
     filtered_query, participant_query, participant_search, participant_sync_notices,
@@ -269,7 +270,7 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
                        form_error="Revise el año de expediente y los programas seleccionados.")
     fields = {key: form.get(key) for key in PERSONAL_FIELDS}
     fields["is_head_of_household"] = form.get("is_head_of_household") == "on"
-    if form.get("duplicate_action") == "review":
+    if form.get("duplicate_action") == "review" or form.get("identity_action") == "edit":
         return _participant_form_response(request, context, db, values=values, form_error=None)
     try:
         validate_categories(db, fields)
@@ -280,9 +281,16 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
             return _participant_form_response(request, context, db, values=values, form_error=None,
                 duplicate_matches=matches,
                 duplicate_confirmation=duplicate_confirmation(fields, matches, **confirmation_context))
+        identity_prompt, identity_decision = prepare_registration_identity(db, 'community', fields, form,
+            actor_user_id=context.user.user_id, csrf=csrf_token(request))
+        if identity_prompt:
+            return _participant_form_response(request, context, db, values=values, form_error=None,
+                                              identity_prompt=identity_prompt)
         participant = create_participant(db, actor_user_id=context.user.user_id,
                                          exp_year=exp_year, program_ids=program_ids, fields=fields)
         save_profile_values(db, participant.participant_id, form)
+        save_registration_identity(db, 'community', participant.participant_id, identity_decision,
+                                   actor_user_id=context.user.user_id)
         db.commit()
     except ValueError as exc:
         db.rollback()
@@ -291,9 +299,10 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
         db.rollback()
         return _participant_form_response(request, context, db, values=values,
                        form_error="No se pudo guardar el expediente. Revise los datos e intente nuevamente.")
+    message = 'Expediente creado correctamente.'
     if pending_identity_review(db, "community", participant.participant_id):
-        return RedirectResponse(identity_review_url("community", participant.participant_id), status_code=303)
-    return _redirect(f"/community/participants/{participant.participant_id}", message="Expediente creado correctamente.")
+        message += ' Hay coincidencias con Faro para revisar desde el expediente.'
+    return _redirect(f"/community/participants/{participant.participant_id}", message=message)
 
 
 @router.get("/participants/lookup")
@@ -401,5 +410,6 @@ def participant_detail(request: Request, participant_id: int, db: Session = Depe
                    available_programs=[p for p in context.visible_programs if p.program_id not in
                                        {association.program_id for association, _ in associations}],
                    record=participant_record(db, context, participant_id, request.query_params),
-                   identity_linked=has_identity_link(db, "community", participant_id),
+                   identity_linked=linked_identity(db, "community", participant_id),
+                   identity_reviewed=context.role != 'viewer' and has_identity_review(db, 'community', participant_id),
                    identity_pending=context.role != "viewer" and pending_identity_review(db, "community", participant_id))

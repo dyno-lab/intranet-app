@@ -10,18 +10,21 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.api.deps import get_db
 from app.core.community_access import CommunityContext, csrf_token, require_community_writer, validate_csrf
-from app.core.config import settings
+from app.core.config import settings, require_session_secret
 from app.core.residential_scope import has_global_residential_access, require_faro_access, require_record_residential_id
 from app.models.community import CPParticipant, CPParticipantProgram
 from app.models.participant import Participant
 from app.models.user import User
+from app.models.community_identity import CPIdentityReview, CPIdentityReviewEvent
 from app.services.community_identity import (
-    BasicIdentity, confirm_identity_review, find_identity_candidates, has_identity_link,
-    identity_record_url, identity_review_url,
+    BasicIdentity, confirm_identity_review, find_identity_candidates, linked_identity,
+    identity_record_url, identity_review_url, _source_column, comparison_fingerprint, reopen_identity_review,
 )
+from app.services.community_identity_registration import CONTACTS, exact_identity
 
 
 def require_identity_enabled():
@@ -61,14 +64,34 @@ def _render(request: Request, db: Session, source_module: str, record, user: Use
             context: CommunityContext | None = None):
     source = BasicIdentity(record.participant_id, record.expediente_num, record.nombre,
                            record.apellido_paterno, record.apellido_materno, record.fecha_nacimiento)
+    candidates = find_identity_candidates(db, source_module, record.participant_id)
+    reviews = list(db.scalars(select(CPIdentityReview).where(_source_column(source_module) == record.participant_id)))
+    other_column = _source_column('faro' if source_module == 'community' else 'community')
+    revisions = {getattr(row, other_column.key): row.revision for row in reviews}
+    token = csrf_token(request)
+    confirmations = {}
+    serializer = URLSafeTimedSerializer(require_session_secret(), salt='identity-review')
+    for candidate in candidates:
+        cp, faro = (source, candidate) if source_module == 'community' else (candidate, source)
+        confirmations[candidate.participant_id] = serializer.dumps([source_module, source.participant_id,
+            candidate.participant_id, user.user_id, token, comparison_fingerprint(cp, faro), revisions.get(candidate.participant_id, 0)])
+    linked = linked_identity(db, source_module, record.participant_id)
+    # Include exact conflicts without offering a second link to the same target.
+    conflicts = find_identity_candidates(db, source_module, source.participant_id, conflicts_only=True)
+    can_correct = (context.role if context else user.role) in {'admin', 'supervisor'}
+    events = list(db.execute(select(CPIdentityReviewEvent, User.username).join(
+        User, User.user_id == CPIdentityReviewEvent.reviewed_by_user_id).where(
+        CPIdentityReviewEvent.review_id.in_([row.id for row in reviews])).order_by(
+        CPIdentityReviewEvent.id.desc()))) if reviews and can_correct else []
     return templates.TemplateResponse(request=request, name="community/identity_review.html", context={
         "request": request, "current_user": user, "cp": context, "today": date.today(),
         "base_template": "community/_base.html" if source_module == "community" else "ui/_base.html",
         "source": source, "source_label": "Comunidad y Prevención" if source_module == "community" else "Faro",
         "other_label": "Faro" if source_module == "community" else "Comunidad y Prevención",
-        "candidates": find_identity_candidates(db, source_module, record.participant_id),
-        "linked": has_identity_link(db, source_module, record.participant_id),
-        "csrf_token": csrf_token(request), "message": request.query_params.get("msg"),
+        "candidates": candidates, "exact_ids": {row.participant_id for row in candidates if exact_identity(source, row)},
+        "confirmations": confirmations, "contact": CONTACTS[source_module], "conflicts": conflicts,
+        "linked": linked, "can_correct": can_correct, "reviews": reviews, "events": events,
+        "csrf_token": token, "message": request.query_params.get("msg"),
         "error": request.query_params.get("error"),
         "post_url": identity_review_url(source_module, record.participant_id),
         "back_url": identity_record_url(source_module, record.participant_id),
@@ -76,12 +99,19 @@ def _render(request: Request, db: Session, source_module: str, record, user: Use
 
 
 def _review(db: Session, source_module: str, participant_id: int, candidate_id: int,
-            decision: str, user: User):
+            decision: str, user: User, confirmation: str, token: str):
     if decision not in {"yes", "no"}:
         raise HTTPException(422, "Responda Sí o No para confirmar la revisión.")
     try:
+        try:
+            proof = URLSafeTimedSerializer(require_session_secret(), salt='identity-review').loads(confirmation, max_age=900)
+            if not isinstance(proof, list) or len(proof) != 7 or proof[:5] != [source_module, participant_id, candidate_id, user.user_id, token]:
+                raise ValueError('Revise nuevamente la coincidencia antes de confirmar.')
+        except BadSignature:
+            raise ValueError('La confirmación venció. Recargue la comparación.') from None
         confirm_identity_review(db, source_module=source_module, participant_id=participant_id,
-                                candidate_id=candidate_id, is_same_person=decision == "yes", actor_user_id=user.user_id)
+                                candidate_id=candidate_id, is_same_person=decision == "yes", actor_user_id=user.user_id,
+                                expected_fingerprint=proof[5], expected_revision=proof[6])
         db.commit()
     except ValueError as exc:
         db.rollback()
@@ -106,10 +136,11 @@ def community_identity(request: Request, participant_id: int, db: Session = Depe
 @router.post("/community/participants/{participant_id}/identity")
 def review_community_identity(request: Request, participant_id: int, token: str = Form(...),
                               candidate_id: int = Form(...), decision: str = Form(...),
+                              confirmation: str = Form(''),
                               db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_writer)):
     validate_csrf(request, token)
     _community_source(db, participant_id, context)
-    return _review(db, "community", participant_id, candidate_id, decision, context.user)
+    return _review(db, "community", participant_id, candidate_id, decision, context.user, confirmation, token)
 
 
 @router.get("/ui/new-list/{participant_id}/community-identity")
@@ -122,7 +153,41 @@ def faro_identity(request: Request, participant_id: int, db: Session = Depends(g
 @router.post("/ui/new-list/{participant_id}/community-identity")
 def review_faro_identity(request: Request, participant_id: int, token: str = Form(...),
                          candidate_id: int = Form(...), decision: str = Form(...),
+                         confirmation: str = Form(''),
                          db: Session = Depends(get_db), user: User = Depends(require_faro_access)):
     validate_csrf(request, token)
     _faro_source(request, db, participant_id, user)
-    return _review(db, "faro", participant_id, candidate_id, decision, user)
+    return _review(db, "faro", participant_id, candidate_id, decision, user, confirmation, token)
+
+
+def _reopen(db, source_module, participant_id, review_id, revision, user, reason):
+    path = identity_review_url(source_module, participant_id)
+    try:
+        reopen_identity_review(db, source_module, participant_id, review_id, revision, user.user_id, reason)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return RedirectResponse(f"{path}?{urlencode({'error': str(exc)})}", status_code=303)
+    return RedirectResponse(f"{path}?{urlencode({'msg': 'Decisión reabierta. El vínculo anterior queda sin efecto; revise nuevamente la identidad.'})}", status_code=303)
+
+
+@router.post('/community/participants/{participant_id}/identity/reopen')
+def reopen_community_identity(request: Request, participant_id: int, token: str = Form(...),
+        review_id: int = Form(...), revision: int = Form(...), reason: str = Form(...),
+        db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_writer)):
+    validate_csrf(request, token)
+    _community_source(db, participant_id, context)
+    if context.role not in {'admin', 'supervisor'}:
+        raise HTTPException(403, 'Solo un Supervisor o Administrador puede corregir una decisión.')
+    return _reopen(db, 'community', participant_id, review_id, revision, context.user, reason)
+
+
+@router.post('/ui/new-list/{participant_id}/community-identity/reopen')
+def reopen_faro_identity(request: Request, participant_id: int, token: str = Form(...),
+        review_id: int = Form(...), revision: int = Form(...), reason: str = Form(...),
+        db: Session = Depends(get_db), user: User = Depends(require_faro_access)):
+    validate_csrf(request, token)
+    _faro_source(request, db, participant_id, user)
+    if user.role not in {'admin', 'supervisor'}:
+        raise HTTPException(403, 'Solo un Supervisor o Administrador puede corregir una decisión.')
+    return _reopen(db, 'faro', participant_id, review_id, revision, user, reason)

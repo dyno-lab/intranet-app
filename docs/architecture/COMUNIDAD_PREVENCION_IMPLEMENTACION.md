@@ -136,13 +136,67 @@ Las escrituras comprueban rol, alcance y CSRF; las descargas respetan el mismo a
   categorías homónimas de programas diferentes no se fusionan.
 - Notas exportadas requieren asistencia en programa/período seleccionado. Sus
   métricas se limitan a participantes/programas que tienen notas.
-- Cruce: DOB igual y similitud mínima 0.80 en nombre y cada apellido disponible,
-  ignorando tildes, mayúsculas y espacios adicionales. Segundo apellido ausente no
-  bloquea sugerencias. POST recalcula candidatos; índices filtrados garantizan 1:1.
-- No vuelve a ofrecerse un par rechazado. El flujo inicial no deshace decisiones.
-  Correcciones de identidades y reportes del conglomerado son ampliaciones futuras.
-- La creación web abre revisión de coincidencias. Registros creados por API Faro
-  pueden revisarlas posteriormente desde su expediente.
+- Al guardar un expediente web, una coincidencia exacta de nombre, primer apellido
+  y nacimiento en el otro módulo abre una ventana **antes de insertar**. Se ignoran
+  tildes, mayúsculas y espacios adicionales; el segundo apellido es una referencia.
+  Un candidato ya vinculado se muestra como conflicto. Varios candidatos requieren
+  seleccionar uno expresamente. Cerrar devuelve al formulario sin crear registros.
+- Sí guarda expediente y vínculo en una transacción; No registra el rechazo;
+  Guardar y revisar después crea el expediente con revisión pendiente. Los nombres
+  aproximados (DOB igual, similitud mínima 0.80 por nombre/apellido disponible)
+  aparecen en revisión separada, sin interrumpir el alta.
+- Contacto bajo la confirmación: `gacosta@csifpr.org` al registrar en Comunidad;
+  `eyrivera@csifpr.org` al registrar en Faro. Son enlaces de contacto, no envíos de correo.
+- Confirmaciones firmadas, ligadas al usuario y sesión, caducan a los 15 minutos.
+  Se recalculan candidatos en POST; SQL Server serializa las decisiones con un
+  bloqueo de aplicación transaccional y bloqueos de candidatos. Índices filtrados
+  únicos garantizan 1:1. Un conflicto revierte toda la creación.
+- Rechazos no reaparecen mientras los datos comparados sigan iguales. Supervisor
+  o Administrador del módulo de origen puede reabrir decisiones con motivo y
+  revisión vigente; el vínculo queda sin efecto hasta otra confirmación. La tabla
+  `cp_identity_review_events` conserva decisiones y correcciones. A decisiones
+  anteriores sin huella demográfica se les ofrece una nueva revisión; se conserva
+  la decisión anterior al corregirla.
+- La ficha muestra el número del expediente vinculado. No fusiona datos ni cambia
+  matrícula, asistencia, copias fiscales o permisos. Reportes globales e historial
+  integrado siguen fuera de esta entrega. Altas por API Faro se revisan después
+  desde el expediente; la ventana pertenece al flujo de creación web.
+
+## Entrega de identificación bidireccional — 2026-10-01
+
+La migración aditiva de Comunidad incorpora `comparison_fingerprint`, `needs_review`
+y `revision` a `cp_identity_reviews`, y crea `cp_identity_review_events`. Se ejecuta
+por el mecanismo de inicio existente con `COMMUNITY_ENABLED`; no modifica las
+tablas de expedientes de Faro. Con el módulo desactivado, el registro de Faro no
+consulta tablas CP.
+
+Validación local: suite completa **623 pruebas: OK, 1 omitida** (149.691 s).
+Se probaron ambos registros, conservación del formulario, Sí/No/pendiente,
+coincidencias múltiples, tokens vencidos/de otra sesión, candidatos modificados o
+vinculados por otro empleado, rollback de expediente/secuencia, permisos y
+auditoría de correcciones. Las bases son SQLite temporales con datos ficticios.
+Después del ajuste final del bloqueo y de conservar el formulario de Faro cuando
+otro empleado usa el número durante la revisión: **63 pruebas específicas OK**
+(15.351 s), incluyendo códigos de éxito/error de adquisición del bloqueo.
+
+Playwright/Edge comprobó las plantillas reales en 1440, 390 y 320 px: ventana modal,
+cierre con X/Escape, datos preservados, selección explícita, envío de las tres
+respuestas, enlaces de contacto y ausencia de errores JavaScript. Evidencia local
+en `_openclaw/identity-registration/` (no versionada). No hubo conexión ni despliegue
+al servidor de la organización.
+
+Validar en la PC de pruebas después de actualizar y reiniciar:
+
+1. Crear en Comunidad los datos de un expediente ficticio de Faro: al Guardar debe
+   aparecer la ventana con `gacosta@csifpr.org`. Cerrar conserva datos sin guardar;
+   confirmar crea solo el nuevo expediente CP y el vínculo.
+2. Repetir a la inversa desde Faro; comprobar `eyrivera@csifpr.org`.
+3. Probar No y Guardar y revisar después, y un nombre parecido para revisión aparte.
+4. Consultar el número vinculado en ambas fichas; como Supervisor, reabrir con
+   motivo y comprobar el historial de decisiones.
+5. Con dos navegadores/empleados, confirmar contra el mismo expediente simultáneamente:
+   solo uno puede establecer el vínculo. Esta prueba y la ejecución de la migración
+   sobre SQL Server requieren la PC de pruebas; SQLite no reproduce sus bloqueos.
 
 ## Verificación local
 

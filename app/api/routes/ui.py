@@ -43,6 +43,7 @@ from app.services.participant_profile_fields import (
     validate_profile_field_inputs,
 )
 from app.core.config import settings
+from app.core.community_access import csrf_token, validate_csrf
 from app.core.record_identifiers import build_expediente_number
 from app.core.participant_household import require_head_of_household_allowed
 from app.core.residential_scope import (
@@ -66,8 +67,9 @@ from app.services.activity_proposals import attach_activity_assigned_proposal_id
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 from app.services.proposal_participant_sync import get_different_proposal_participant_fields
 from app.services.community_identity import (
-    has_identity_link, has_identity_review, identity_review_url, pending_identity_review,
+    linked_identity, has_identity_review, pending_identity_review,
 )
+from app.services.community_identity_registration import prepare_registration_identity, save_registration_identity
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
 
@@ -1095,8 +1097,23 @@ def new_list(
     }
     context.update(_participant_form_catalogs(db))
     context.update(_participant_profile_context(db))
+    context.update(getattr(request.state, 'participant_registration', {}))
+    context['registration_values'] = context.get('registration_values', {})
+    if settings.COMMUNITY_ENABLED:
+        context['csrf_token'] = csrf_token(request)
 
-    return templates.TemplateResponse("ui/new_list.html", context)
+    return templates.TemplateResponse(request=request, name="ui/new_list.html", context=context)
+
+
+def _registration_response(request, db, current_user, residential_id, form_data, **extra):
+    """Render the same form with server-escaped input after a pre-save review."""
+    fields = load_active_new_list_fields(db)
+    request.state.participant_registration = {
+        'registration_values': dict(form_data),
+        'participant_profile_form_values': extract_profile_field_inputs(form_data, fields),
+        **extra,
+    }
+    return new_list(request, residential_id=str(residential_id), db=db, current_user=current_user)
 
 
 @router.post("/new-list/create")
@@ -1141,6 +1158,12 @@ async def create_participant(
     if record_residential is None or not record_residential.is_active:
         return _redirect_with_msg("/ui/new-list", "Error: El residencial activo no está disponible.")
 
+    form_data: FormData = await request.form()
+    if settings.COMMUNITY_ENABLED:
+        validate_csrf(request, str(form_data.get('token', '')))
+        if form_data.get('identity_action') == 'edit':
+            return _registration_response(request, db, current_user, record_residential_id, form_data)
+
     normalized_gender = _normalize_required_participant_gender(genero)
     if normalized_gender is None:
         return _redirect_with_msg(
@@ -1167,6 +1190,9 @@ async def create_participant(
             )
         ).scalar_one_or_none()
         if used_seq:
+            if form_data.get('identity_confirmation'):
+                return _registration_response(request, db, current_user, record_residential_id, form_data,
+                    registration_error=f'El número {seq4} ya fue utilizado en el residencial {initials}. Seleccione otro número; sus datos se conservaron.')
             return _redirect_with_msg(
                 "/ui/new-list",
                 f"Error: El número {seq4} ya fue utilizado en el residencial {initials}.",
@@ -1186,6 +1212,9 @@ async def create_participant(
         select(Participant).where(Participant.expediente_num == expediente_num)
     ).scalar_one_or_none()
     if exists:
+        if form_data.get('identity_confirmation'):
+            return _registration_response(request, db, current_user, record_residential_id, form_data,
+                registration_error='El número de expediente ya existe. Seleccione otro número; sus datos se conservaron.')
         return _redirect_with_msg("/ui/new-list", "Error: El expediente ya existe.")
 
     initial_error = _participant_initial_error(inicial)
@@ -1193,7 +1222,6 @@ async def create_participant(
         return _redirect_with_msg("/ui/new-list", initial_error)
 
     profile_fields = load_active_new_list_fields(db)
-    form_data: FormData = await request.form()
     profile_field_values = extract_profile_field_inputs(form_data, profile_fields)
     profile_field_errors = validate_profile_field_inputs(profile_fields, profile_field_values)
     if profile_field_errors:
@@ -1244,14 +1272,31 @@ async def create_participant(
         p.exp_employee_initials = initials
         p.exp_seq4 = seq4
 
-    db.add(p)
-    db.flush()
-    save_profile_field_values(db, p, profile_fields, profile_field_values)
-    db.commit()
+    try:
+        identity_prompt, identity_decision = prepare_registration_identity(db, 'faro',
+            {**dict(form_data), 'expediente_num': expediente_num}, form_data,
+            actor_user_id=current_user.user_id, csrf=csrf_token(request) if settings.COMMUNITY_ENABLED else '')
+    except ValueError as exc:
+        db.rollback()
+        return _registration_response(request, db, current_user, record_residential_id, form_data,
+                                      registration_error=str(exc))
+    if identity_prompt:
+        return _registration_response(request, db, current_user, record_residential_id, form_data,
+                                      identity_prompt=identity_prompt)
+    try:
+        db.add(p)
+        db.flush()
+        save_profile_field_values(db, p, profile_fields, profile_field_values)
+        save_registration_identity(db, 'faro', p.participant_id, identity_decision, actor_user_id=current_user.user_id)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _registration_response(request, db, current_user, record_residential_id, form_data,
+            registration_error='Otro empleado guardó el número o revisó la coincidencia. Revise los datos e intente nuevamente.')
 
     if settings.COMMUNITY_ENABLED and pending_identity_review(db, "faro", p.participant_id):
-        return _redirect_with_msg(identity_review_url("faro", p.participant_id),
-                                  "Participante creado. Revise la posible coincidencia con Comunidad y Prevención.")
+        return _redirect_with_msg(_build_participant_expediente_url(p.participant_id, None),
+                                  "Participante creado. Tiene coincidencias pendientes para revisar con Comunidad y Prevención.")
     return _redirect_with_msg("/ui/new-list", "Participante creado exitosamente.")
 
 
@@ -1493,7 +1538,8 @@ def participant_expediente(
         "msg": msg,
     }
     if settings.COMMUNITY_ENABLED:
-        context["community_identity_linked"] = has_identity_link(db, "faro", participant_id)
+        context["community_identity_linked"] = linked_identity(db, "faro", participant_id)
+        context['community_identity_reviewed'] = current_user.role != 'viewer' and has_identity_review(db, 'faro', participant_id)
         context["community_identity_pending"] = (
             current_user.role != "viewer" and pending_identity_review(db, "faro", participant_id)
         )
@@ -1511,7 +1557,7 @@ def participant_expediente(
         )
     )
 
-    return templates.TemplateResponse("ui/participant_expediente.html", context)
+    return templates.TemplateResponse(request=request, name="ui/participant_expediente.html", context=context)
 
 
 # ============================================================

@@ -11,11 +11,12 @@
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 {% endif %}
 {% if linked %}
-<div class="alert alert-success">La identidad ya está vinculada: este participante también participa en {{ other_label }}.</div>
+<div class="alert alert-success">Expediente vinculado con {{ other_label }}: <strong>{{ linked.expediente_num }}</strong>. El vínculo identifica a la persona; no indica una matrícula activa.</div>
 {% elif candidates %}
 {% for candidate in candidates %}
 <section class="card mb-4"><div class="card-body">
-  <h2 class="h5">Encontré una similitud con este participante. ¿Es el mismo participante?</h2>
+  <h2 class="h5">{{ 'Coincidencia exacta' if candidate.participant_id in exact_ids else 'Nombre parecido · revisión manual' }}</h2>
+  <p>¿Es la misma persona?</p>
   <div class="table-responsive"><table class="table"><thead><tr><th>Dato</th><th>{{ source_label }}</th><th>{{ other_label }}</th></tr></thead><tbody>
     <tr><th>Expediente</th><td>{{ source.expediente_num }}</td><td>{{ candidate.expediente_num }}</td></tr>
     <tr><th>Nombre</th><td>{{ source.nombre }}</td><td>{{ candidate.nombre }}</td></tr>
@@ -25,11 +26,28 @@
   </tbody></table></div>
   <form method="post" action="{{ post_url }}" class="d-flex flex-wrap gap-2">
     <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="candidate_id" value="{{ candidate.participant_id }}">
+    <input type="hidden" name="confirmation" value="{{ confirmations[candidate.participant_id] }}">
     <button class="btn btn-primary" type="submit" name="decision" value="yes">Sí, es la misma persona</button>
     <button class="btn btn-outline-secondary" type="submit" name="decision" value="no">No, son personas distintas</button>
   </form>
+  <p class="text-muted mt-2 mb-0">Si tiene dudas, comuníquese con personal autorizado de {{ other_label }}: <a href="mailto:{{ contact }}">{{ contact }}</a>.</p>
 </div></section>
 {% endfor %}
 {% else %}<div class="alert alert-info">No hay coincidencias pendientes de revisión con los datos actuales.</div>{% endif %}
+{% for candidate in conflicts %}<div class="alert alert-warning">{{ candidate.expediente_num }} · {{ candidate.nombre }} {{ candidate.apellido_paterno }}: ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador. Contacto: <a href="mailto:{{ contact }}">{{ contact }}</a>.</div>{% endfor %}
+{% if can_correct and reviews %}
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Decisiones de identidad</h2>
+  <p>Para corregir una decisión, indique el motivo y reábrala. Si había un vínculo, quedará sin efecto hasta una nueva confirmación. Se conserva el historial de decisiones.</p>
+  {% for review in reviews %}
+  <form method="post" action="{{ post_url }}/reopen" class="border rounded p-3 mb-2">
+    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="review_id" value="{{ review.id }}"><input type="hidden" name="revision" value="{{ review.revision }}">
+    <p>Decisión {{ review.id }} · {{ 'Pendiente de nueva revisión' if review.needs_review else 'Misma persona' if review.is_same_person else 'Personas distintas' }} · {{ review.reviewed_at.strftime('%d/%m/%Y %H:%M') }} UTC</p>
+    {% if not review.needs_review %}<label class="form-label" for="reason-{{ review.id }}">Motivo de la corrección</label><textarea class="form-control mb-2" id="reason-{{ review.id }}" name="reason" maxlength="500" required></textarea><button type="submit" class="btn btn-outline-danger">Reabrir decisión{{ ' y retirar vínculo' if review.is_same_person }}</button>{% endif %}
+  </form>
+  {% endfor %}
+  {% if events %}<details><summary>Historial de decisiones ({{ events|length }})</summary><div class="table-responsive"><table class="table"><thead><tr><th>Fecha UTC</th><th>Decisión</th><th>Usuario</th><th>Módulo</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody>{% for event, username in events %}<tr><td>{{ event.reviewed_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ event.review_id }}</td><td>{{ username }}</td><td>{{ 'Faro' if event.reviewed_from == 'faro' else 'Comunidad' }}</td><td>{{ 'Reabierta' if event.decision is none else 'Misma persona' if event.decision else 'Personas distintas' }}</td><td>{{ event.reason or '—' }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+</div></section>
+{% endif %}
 <a class="btn btn-outline-secondary" href="{{ back_url }}">Volver al expediente</a>
 {% endblock %}

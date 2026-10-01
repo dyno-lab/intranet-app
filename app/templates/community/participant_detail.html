@@ -15,7 +15,8 @@
         <span class="participants-hero__eyebrow">Expediente del participante</span>
         <h1 class="participants-hero__title participants-expediente__name" id="expediente-title">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</h1>
         <p class="participants-expediente__subtitle">Vista integral del expediente y su participación en Comunidad y Prevención.</p>
-        {% if identity_linked %}<p class="mb-0"><span class="badge text-bg-success"><i class="bi bi-link-45deg" aria-hidden="true"></i> También participa en Faro</span></p>{% elif identity_pending %}<p class="mb-0"><a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/identity">Revisar similitud con Faro</a></p>{% endif %}
+        {% if identity_linked %}<p class="mb-2"><span class="badge text-bg-success"><i class="bi bi-link-45deg" aria-hidden="true"></i> Expediente vinculado con Faro: {{ identity_linked.expediente_num }}</span></p>{% endif %}
+        {% if identity_pending or identity_reviewed %}<p class="mb-0"><a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/identity">{{ 'Revisar coincidencias con Faro' if identity_pending else 'Ver revisión de identidad con Faro' }}</a></p>{% endif %}
       </div>
       <dl class="participants-expediente__meta">
         <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Número de expediente</dt><dd class="participants-expediente__meta-value">{{ p.expediente_num }}</dd></div>

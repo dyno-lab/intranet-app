@@ -1,0 +1,39 @@
+{% if identity_prompt %}
+{% set prompt = identity_prompt %}
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}">
+<dialog open id="identity-registration-dialog" class="identity-dialog" data-source="{{ prompt.source_module }}" aria-labelledby="identity-title" aria-describedby="identity-description">
+  <input type="hidden" name="identity_confirmation" value="{{ prompt.confirmation }}">
+  <div class="identity-dialog__heading">
+    <div><span class="identity-dialog__eyebrow">Identificación entre módulos</span><h2 id="identity-title">Posible expediente en {{ prompt.other_label }}</h2></div>
+    <button type="submit" name="identity_action" value="edit" class="identity-dialog__close" formnovalidate data-identity-close aria-label="Cerrar y volver al formulario" autofocus>×</button>
+  </div>
+  <p id="identity-description">Encontramos el mismo <strong>nombre, primer apellido y fecha de nacimiento</strong>. Revise si corresponden a la misma persona antes de guardar.</p>
+  {% if prompt.error %}<p class="alert alert-warning" role="alert">{{ prompt.error }}</p>{% endif %}
+  <div class="identity-dialog__comparison">
+    <section class="identity-dialog__record"><h3>Nuevo expediente · {{ prompt.source_label }}</h3>
+      <strong>{{ prompt.source.nombre }} {{ prompt.source.apellido_paterno }} {{ prompt.source.apellido_materno or '' }}</strong>
+      <dl><dt>Fecha de nacimiento</dt><dd>{{ prompt.source.fecha_nacimiento.strftime('%d/%m/%Y') }}</dd><dt>Expediente</dt><dd>{{ prompt.source.expediente_num }}</dd></dl>
+    </section>
+    <fieldset class="identity-dialog__candidates"><legend>Expedientes en {{ prompt.other_label }}</legend>
+      {% for candidate in prompt.candidates %}
+      <label class="identity-dialog__record identity-dialog__candidate">
+        <input type="radio" name="identity_candidate_id" value="{{ candidate.participant_id }}" {% if candidate.participant_id in prompt.linked_ids %}disabled{% elif prompt.candidates|length == 1 %}checked{% endif %}>
+        <span><strong>{{ candidate.nombre }} {{ candidate.apellido_paterno }} {{ candidate.apellido_materno or '' }}</strong><br><span>{{ candidate.expediente_num }}</span><br><span>Nacimiento: {{ candidate.fecha_nacimiento.strftime('%d/%m/%Y') }}</span>
+        {% if candidate.participant_id in prompt.linked_ids %}<span class="identity-dialog__conflict">Ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador.</span>{% endif %}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+  </div>
+  <p class="identity-dialog__note">Confirmar relaciona los expedientes para identificar a la persona entre módulos. Cada expediente conserva su número y su información.</p>
+  <div class="identity-dialog__confirm">
+    <button type="submit" class="btn btn-primary" name="identity_decision" value="yes" data-identity-confirm>Sí, es la misma persona</button>
+    <p>Si tiene dudas, comuníquese con personal autorizado de {{ prompt.other_label }}: <a href="mailto:{{ prompt.contact }}">{{ prompt.contact }}</a>.</p>
+  </div>
+  <div class="identity-dialog__actions">
+    <button type="submit" class="btn btn-outline-secondary" name="identity_decision" value="no">{{ 'No, es otra persona' if prompt.candidates|length == 1 else 'Ninguno es la misma persona' }}</button>
+    <button type="submit" class="btn btn-outline-secondary" name="identity_decision" value="pending">Guardar y revisar después</button>
+    <button type="submit" class="btn btn-link" name="identity_action" value="edit" formnovalidate data-identity-close>Volver al formulario</button>
+  </div>
+</dialog>
+<script src="{{ request.url_for('static', path='js/identity-registration.js') }}" defer></script>
+{% endif %}

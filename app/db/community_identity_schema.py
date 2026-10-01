@@ -18,6 +18,27 @@ BEGIN
         CONSTRAINT FK_cp_identity_reviewer FOREIGN KEY (reviewed_by_user_id) REFERENCES dbo.users(user_id)
     );
 END;
+IF COL_LENGTH('dbo.cp_identity_reviews', 'comparison_fingerprint') IS NULL
+    ALTER TABLE dbo.cp_identity_reviews ADD comparison_fingerprint VARCHAR(64) NULL;
+IF COL_LENGTH('dbo.cp_identity_reviews', 'needs_review') IS NULL
+    ALTER TABLE dbo.cp_identity_reviews ADD needs_review BIT NOT NULL CONSTRAINT DF_cp_identity_needs_review DEFAULT 0;
+IF COL_LENGTH('dbo.cp_identity_reviews', 'revision') IS NULL
+    ALTER TABLE dbo.cp_identity_reviews ADD revision INT NOT NULL CONSTRAINT DF_cp_identity_revision DEFAULT 1;
+IF OBJECT_ID(N'dbo.cp_identity_review_events', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.cp_identity_review_events (
+        id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        review_id INT NOT NULL REFERENCES dbo.cp_identity_reviews(id),
+        previous_decision BIT NULL,
+        decision BIT NULL,
+        comparison_fingerprint VARCHAR(64) NULL,
+        reviewed_from VARCHAR(20) NOT NULL,
+        reviewed_by_user_id INT NOT NULL REFERENCES dbo.users(user_id),
+        reviewed_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_cp_identity_event_at DEFAULT SYSUTCDATETIME(),
+        reason NVARCHAR(500) NULL
+    );
+    CREATE INDEX IX_cp_identity_events_review ON dbo.cp_identity_review_events(review_id);
+END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.cp_identity_reviews') AND name = N'UQ_cp_identity_confirmed_community')
 BEGIN
     CREATE UNIQUE INDEX UQ_cp_identity_confirmed_community ON dbo.cp_identity_reviews(cp_participant_id)

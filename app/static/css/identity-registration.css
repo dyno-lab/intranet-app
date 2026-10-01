@@ -1,0 +1,17 @@
+.identity-dialog{--identity-accent:#146546;border:1px solid #d7e3df;border-radius:20px;background:#fff;color:#152d25;width:min(860px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:24px;box-shadow:0 20px 80px #112f3440;overflow:auto;line-height:1.5}
+.identity-dialog[data-source="faro"]{--identity-accent:#0d6efd;color:#16253f;border-color:#d9e3f3}
+.identity-dialog::backdrop{background:#142b3f80;backdrop-filter:blur(3px)}
+.identity-dialog__heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.identity-dialog__eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--identity-accent)}
+.identity-dialog h2{font-size:1.55rem;margin:6px 0 0;font-weight:700}.identity-dialog h3,.identity-dialog legend{font-size:.95rem;font-weight:700;margin:0 0 12px}
+.identity-dialog__close{background:none;border:0;font-size:1.8rem;line-height:1;padding:4px 8px;color:#65746e}
+.identity-dialog__comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}
+.identity-dialog__record{border:1px solid #dce3e0;border-radius:12px;padding:16px;overflow-wrap:anywhere;background:#f8faf9}
+.identity-dialog__record dl{margin:12px 0 0}.identity-dialog__record dt{font-size:.8rem;font-weight:400;color:#5c6c64}.identity-dialog__record dd{margin:0 0 8px}
+.identity-dialog__candidates{min-width:0}.identity-dialog__candidate{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;cursor:pointer}.identity-dialog__candidate input{margin-top:5px;accent-color:var(--identity-accent)}
+.identity-dialog__conflict{display:block;color:#835711;font-size:.85rem;margin-top:8px}
+.identity-dialog__note{background:#f0f5f3;border-radius:10px;padding:12px;font-size:.9rem}
+.identity-dialog__confirm{text-align:center;padding:8px 0}.identity-dialog__confirm .btn-primary{background:var(--identity-accent);border-color:var(--identity-accent)}
+.identity-dialog__confirm p{font-size:.85rem;margin:10px 0;overflow-wrap:anywhere}.identity-dialog__confirm a{color:var(--identity-accent)}
+.identity-dialog__actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;border-top:1px solid #e0e6e2;padding-top:16px}
+@media(max-width:600px){.identity-dialog{padding:16px}.identity-dialog__comparison{grid-template-columns:1fr;gap:12px}.identity-dialog h2{font-size:1.25rem}.identity-dialog__actions .btn{width:100%}}
