@@ -1,0 +1,49 @@
+/* Reuse the registration comparison in a page without dialog scrolling/chrome. */
+#identity-review-page {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  max-width: 100%;
+  max-height: none;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+#identity-review-page .identity-review__card {
+  min-width: 0;
+  border: 1px solid var(--identity-line);
+  border-radius: 18px;
+  background: #fff;
+}
+#identity-review-page h1 { margin: 8px 0; font-size: 23px; line-height: 1.25; font-weight: 700; color: var(--identity-ink); }
+#identity-review-page .identity-review__source { margin: 0; color: var(--identity-muted); overflow-wrap: anywhere; }
+#identity-review-page .identity-dialog__button { text-decoration: none; }
+#identity-review-page .identity-dialog__note:last-child { margin-bottom: 0; }
+#identity-review-page .identity-review__reference { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--identity-line); font-size: 12px; color: var(--identity-muted); }
+#identity-review-page .identity-review__notice { padding: 16px; border: 1px solid var(--identity-line); border-radius: 12px; background: #fff; overflow-wrap: anywhere; }
+#identity-review-page .identity-review__notice > .bi { margin-right: 8px; }
+#identity-review-page .identity-review__notice--success { background: #eef7f2; color: #116545; }
+#identity-review-page .identity-review__notice--warning { background: #fff7e7; color: #785214; }
+#identity-review-page .identity-review__history h2 { font-size: 19px; }
+#identity-review-page .identity-review__decision { margin: 12px 0; padding: 14px; border: 1px solid var(--identity-line); border-radius: 10px; }
+#identity-review-page .identity-review__decision-heading { display: grid; gap: 3px; margin-bottom: 10px; }
+#identity-review-page .identity-review__decision-heading:last-child { margin-bottom: 0; }
+#identity-review-page .identity-review__decision-heading span { color: var(--identity-muted); font-size: 12px; }
+#identity-review-page .identity-review__decision label { font-size: 13px; }
+#identity-review-page .identity-review__decision textarea { font: inherit; min-height: 70px; }
+#identity-review-page .identity-review__reopen { color: #a52938; border-color: #dbaab1; }
+#identity-review-page .identity-review__audit { margin-top: 16px; }
+#identity-review-page .identity-review__audit summary { cursor: pointer; color: var(--identity-accent); font-weight: 600; }
+#identity-review-page .identity-review__audit .table-responsive { margin-top: 12px; }
+#identity-review-page .identity-review__audit table { font-size: 12px; }
+/* This review uses the existing mobile menu instead of the desktop sidebar. */
+@media (max-width: 991.98px) {
+  .community-identity-review-page #desktopSidebar { display: none; }
+}
+@media (max-width: 560px) {
+  #identity-review-page h1 { font-size: 21px; }
+  #identity-review-page .identity-review__reopen { white-space: normal; }
+}

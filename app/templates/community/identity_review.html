@@ -1,53 +1,100 @@
 {% extends base_template %}
+{% from "shared/_identity_comparison.html" import identity_data %}
+{% set source_module = 'faro' if source_label == 'Faro' else 'community' %}
+{% set other_module = 'community' if source_module == 'faro' else 'faro' %}
+{% set source_short = 'Faro' if source_module == 'faro' else 'Comunidad' %}
+{% set other_short = 'Comunidad' if source_module == 'faro' else 'Faro' %}
 {% block title %}Revisar coincidencias · {{ source_label }}{% endblock %}
+{% block page_class %}community-identity-review-page{% endblock %}
 {% block content %}
-<section class="card mb-4"><div class="card-body">
-  <p class="text-muted mb-1">{{ source_label }} · {{ source.expediente_num }}</p>
-  <h1 class="h3">Revisar coincidencias con {{ other_label }}</h1>
-  <p class="mb-0">Compare los datos y confirme si se trata de la misma persona. Los expedientes conservarán sus datos y números independientes.</p>
-</div></section>
-{% if source_label == 'Faro' %}
-{% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
-{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-{% endif %}
-{% if linked %}
-<div class="alert alert-success">Expediente vinculado con {{ other_label }}: <strong>{{ linked.expediente_num }}</strong>. El vínculo identifica a la persona; no indica una matrícula activa.</div>
-{% elif candidates %}
-{% for candidate in candidates %}
-<section class="card mb-4"><div class="card-body">
-  <h2 class="h5">{{ 'Coincidencia exacta' if candidate.participant_id in exact_ids else 'Nombre parecido · revisión manual' }}</h2>
-  <p>¿Es la misma persona?</p>
-  <div class="table-responsive"><table class="table"><thead><tr><th>Dato</th><th>{{ source_label }}</th><th>{{ other_label }}</th></tr></thead><tbody>
-    <tr><th>Expediente</th><td>{{ source.expediente_num }}</td><td>{{ candidate.expediente_num }}</td></tr>
-    <tr><th>Nombre</th><td>{{ source.nombre }}</td><td>{{ candidate.nombre }}</td></tr>
-    <tr><th>Apellido paterno</th><td>{{ source.apellido_paterno }}</td><td>{{ candidate.apellido_paterno }}</td></tr>
-    <tr><th>Apellido materno</th><td>{{ source.apellido_materno or 'Sin registrar' }}</td><td>{{ candidate.apellido_materno or 'Sin registrar' }}</td></tr>
-    <tr><th>Fecha de nacimiento</th><td>{{ source.fecha_nacimiento.strftime('%d/%m/%Y') if source.fecha_nacimiento else 'Sin registrar' }}</td><td>{{ candidate.fecha_nacimiento.strftime('%d/%m/%Y') if candidate.fecha_nacimiento else 'Sin registrar' }}</td></tr>
-  </tbody></table></div>
-  <form method="post" action="{{ post_url }}" class="d-flex flex-wrap gap-2">
-    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="candidate_id" value="{{ candidate.participant_id }}">
-    <input type="hidden" name="confirmation" value="{{ confirmations[candidate.participant_id] }}">
-    <button class="btn btn-primary" type="submit" name="decision" value="yes">Sí, es la misma persona</button>
-    <button class="btn btn-outline-secondary" type="submit" name="decision" value="no">No, son personas distintas</button>
-  </form>
-  <p class="text-muted mt-2 mb-0">Si tiene dudas, comuníquese con personal autorizado de {{ other_label }}: <a href="mailto:{{ contact }}">{{ contact }}</a>.</p>
-</div></section>
-{% endfor %}
-{% else %}<div class="alert alert-info">No hay coincidencias pendientes de revisión con los datos actuales.</div>{% endif %}
-{% for candidate in conflicts %}<div class="alert alert-warning">{{ candidate.expediente_num }} · {{ candidate.nombre }} {{ candidate.apellido_paterno }}: ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador. Contacto: <a href="mailto:{{ contact }}">{{ contact }}</a>.</div>{% endfor %}
-{% if can_correct and reviews %}
-<section class="card mb-4"><div class="card-body">
-  <h2 class="h5">Decisiones de identidad</h2>
-  <p>Para corregir una decisión, indique el motivo y reábrala. Si había un vínculo, quedará sin efecto hasta una nueva confirmación. Se conserva el historial de decisiones.</p>
-  {% for review in reviews %}
-  <form method="post" action="{{ post_url }}/reopen" class="border rounded p-3 mb-2">
-    <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="review_id" value="{{ review.id }}"><input type="hidden" name="revision" value="{{ review.revision }}">
-    <p>Decisión {{ review.id }} · {{ 'Pendiente de nueva revisión' if review.needs_review else 'Misma persona' if review.is_same_person else 'Personas distintas' }} · {{ review.reviewed_at.strftime('%d/%m/%Y %H:%M') }} UTC</p>
-    {% if not review.needs_review %}<label class="form-label" for="reason-{{ review.id }}">Motivo de la corrección</label><textarea class="form-control mb-2" id="reason-{{ review.id }}" name="reason" maxlength="500" required></textarea><button type="submit" class="btn btn-outline-danger">Reabrir decisión{{ ' y retirar vínculo' if review.is_same_person }}</button>{% endif %}
-  </form>
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}?v=20261002-1">
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-review.css') }}?v=20261002-1">
+<div id="identity-review-page" data-source="{{ source_module }}">
+  <header class="identity-review__card">
+    <div class="identity-dialog__brand">
+      <i class="bi bi-people" aria-hidden="true"></i>
+      <strong>{{ 'Programa Faro de Esperanza' if source_module == 'faro' else source_label }}</strong>
+      <small>Expediente existente</small>
+    </div>
+    <div class="identity-dialog__body">
+      <span class="identity-dialog__eyebrow">Revisión de identidad</span>
+      <h1>Revisar coincidencias con {{ other_short }}</h1>
+      <p class="identity-review__source">{{ source.expediente_num }} · {{ source.nombre }} {{ source.apellido_paterno }}</p>
+    </div>
+  </header>
+  {% if source_module == 'faro' %}
+  {% if message %}<div class="identity-review__notice identity-review__notice--success" role="status">{{ message }}</div>{% endif %}
+  {% if error %}<div class="identity-review__notice identity-review__notice--warning" role="alert">{{ error }}</div>{% endif %}
+  {% endif %}
+
+  {% if linked %}
+  <section class="identity-review__card identity-dialog__body" aria-labelledby="linked-identity-title">
+    <span class="identity-dialog__eyebrow">Identidad confirmada</span>
+    <h2 id="linked-identity-title">Expedientes vinculados</h2>
+    <p class="identity-dialog__intro">Expediente vinculado con {{ other_label }}: <strong>{{ linked.expediente_num }}</strong>.</p>
+    <div class="identity-dialog__comparison">
+      <section class="identity-dialog__record" data-module="{{ source_module }}" aria-label="Expediente de {{ source_short }}">
+        <h3>{{ source_short }} · Expediente actual</h3><div class="identity-dialog__number">{{ source.expediente_num }}</div>{{ identity_data(source) }}
+      </section>
+      <section class="identity-dialog__record" data-module="{{ other_module }}" aria-label="Expediente vinculado de {{ other_short }}">
+        <h3>{{ other_short }} · Expediente vinculado</h3><div class="identity-dialog__number">{{ linked.expediente_num }}</div>{{ identity_data(linked) }}
+      </section>
+    </div>
+    <p class="identity-dialog__rule"><i class="bi bi-link-45deg" aria-hidden="true"></i>Vínculo confirmado entre módulos</p>
+    <p class="identity-dialog__note">Cada módulo conserva sus datos, su número y su historial. El vínculo identifica a la persona; no indica una matrícula activa.</p>
+  </section>
+  {% elif candidates %}
+  {% for candidate in candidates %}
+  {% set exact = candidate.participant_id in exact_ids %}
+  <section class="identity-review__card identity-dialog__body identity-review__candidate" aria-labelledby="candidate-title-{{ candidate.participant_id }}">
+    <span class="identity-dialog__eyebrow">{{ 'Coincidencia exacta' if exact else 'Nombre parecido · revisión manual' }}{% if candidates|length > 1 %} · {{ loop.index }} de {{ candidates|length }}{% endif %}</span>
+    <h2 id="candidate-title-{{ candidate.participant_id }}">{{ 'Encontramos un expediente en ' if exact else 'Encontramos un nombre parecido en ' }}{{ other_short }}</h2>
+    <p class="identity-dialog__intro">{{ 'El nombre, primer apellido y fecha de nacimiento coinciden con este expediente.' if exact else 'La fecha de nacimiento coincide y encontramos similitudes en el nombre o los apellidos. Revisa los datos antes de confirmar.' }}</p>
+    <div class="identity-dialog__comparison">
+      <section class="identity-dialog__record" data-module="{{ source_module }}" aria-label="Expediente de {{ source_short }}">
+        <h3>{{ source_short }} · Expediente actual</h3>
+        <div class="identity-dialog__number">{{ source.expediente_num }}</div>
+        {{ identity_data(source) }}
+      </section>
+      <section class="identity-dialog__record" data-module="{{ other_module }}" aria-label="Expediente existente {{ candidate.expediente_num }}">
+        <h3>{{ other_short }} · Expediente existente</h3>
+        <div class="identity-dialog__number">{{ candidate.expediente_num }}</div>
+        {{ identity_data(candidate) }}
+      </section>
+    </div>
+    <p class="identity-dialog__rule"><i class="bi {{ 'bi-check2' if exact else 'bi-search' }}" aria-hidden="true"></i>{{ 'Coinciden los tres datos de búsqueda' if exact else 'Posible coincidencia · requiere confirmación' }}</p>
+    <p class="identity-dialog__question">¿Es la misma persona?</p>
+    <p class="identity-dialog__note">Si confirmas, este expediente quedará vinculado con {{ other_label }}. Cada módulo conservará sus datos, su número y su historial.</p>
+    <p class="identity-dialog__contact">Si tienes dudas sobre si se trata de la misma persona, comunícate con personal autorizado de {{ other_label }}: <a href="mailto:{{ contact }}">{{ contact }}</a>.</p>
+    <form method="post" action="{{ post_url }}" class="identity-dialog__actions">
+      <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="candidate_id" value="{{ candidate.participant_id }}">
+      <input type="hidden" name="confirmation" value="{{ confirmations[candidate.participant_id] }}">
+      <button class="identity-dialog__button identity-dialog__primary" type="submit" name="decision" value="yes">Sí, es la misma persona</button>
+      <button class="identity-dialog__button" type="submit" name="decision" value="no">No, es otra persona</button>
+    </form>
+    <div class="identity-review__reference">El segundo apellido se muestra como referencia.</div>
+  </section>
   {% endfor %}
-  {% if events %}<details><summary>Historial de decisiones ({{ events|length }})</summary><div class="table-responsive"><table class="table"><thead><tr><th>Fecha UTC</th><th>Decisión</th><th>Usuario</th><th>Módulo</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody>{% for event, username in events %}<tr><td>{{ event.reviewed_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ event.review_id }}</td><td>{{ username }}</td><td>{{ 'Faro' if event.reviewed_from == 'faro' else 'Comunidad' }}</td><td>{{ 'Reabierta' if event.decision is none else 'Misma persona' if event.decision else 'Personas distintas' }}</td><td>{{ event.reason or '—' }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
-</div></section>
-{% endif %}
-<a class="btn btn-outline-secondary" href="{{ back_url }}">Volver al expediente</a>
+  {% else %}
+  <div class="identity-review__notice" role="status"><i class="bi bi-search" aria-hidden="true"></i>No hay coincidencias pendientes de revisión con los datos actuales.</div>
+  {% endif %}
+  {% for candidate in conflicts %}<div class="identity-review__notice identity-review__notice--warning">{{ candidate.expediente_num }} · {{ candidate.nombre }} {{ candidate.apellido_paterno }}: ya tiene un vínculo confirmado. Solicite revisión a un Supervisor o Administrador. Contacto: <a href="mailto:{{ contact }}">{{ contact }}</a>.</div>{% endfor %}
+
+  {% if can_correct and reviews %}
+  <section class="identity-review__card identity-dialog__body identity-review__history" aria-labelledby="identity-decisions-title">
+    <span class="identity-dialog__eyebrow">Seguimiento de la revisión</span>
+    <h2 id="identity-decisions-title">Decisiones de identidad</h2>
+    <p class="identity-dialog__note">Para corregir una decisión, indica el motivo y reábrela. Si había un vínculo, quedará sin efecto hasta una nueva confirmación. Se conserva el historial de decisiones.</p>
+    {% for review in reviews %}
+    <form method="post" action="{{ post_url }}/reopen" class="identity-review__decision">
+      <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="review_id" value="{{ review.id }}"><input type="hidden" name="revision" value="{{ review.revision }}">
+      <div class="identity-review__decision-heading"><strong>{{ 'Pendiente de nueva revisión' if review.needs_review else 'Misma persona' if review.is_same_person else 'Personas distintas' }}</strong><span>Decisión {{ review.id }} · {{ review.reviewed_at.strftime('%d/%m/%Y %H:%M') }} UTC</span></div>
+      {% if not review.needs_review %}<label class="form-label" for="reason-{{ review.id }}">Motivo de la corrección</label><textarea class="form-control mb-2" id="reason-{{ review.id }}" name="reason" maxlength="500" required></textarea><button type="submit" class="identity-dialog__button identity-review__reopen">Reabrir decisión{{ ' y retirar vínculo' if review.is_same_person }}</button>{% endif %}
+    </form>
+    {% endfor %}
+    {% if events %}<details class="identity-review__audit"><summary>Historial de decisiones ({{ events|length }})</summary><div class="table-responsive"><table class="table"><thead><tr><th>Fecha UTC</th><th>Decisión</th><th>Usuario</th><th>Módulo</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody>{% for event, username in events %}<tr><td>{{ event.reviewed_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ event.review_id }}</td><td>{{ username }}</td><td>{{ 'Faro' if event.reviewed_from == 'faro' else 'Comunidad' }}</td><td>{{ 'Reabierta' if event.decision is none else 'Misma persona' if event.decision else 'Personas distintas' }}</td><td>{{ event.reason or '—' }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+  </section>
+  {% endif %}
+  <div><a class="identity-dialog__button" href="{{ back_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Volver al expediente</a></div>
+</div>
 {% endblock %}

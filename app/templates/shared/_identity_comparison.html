@@ -1,0 +1,8 @@
+{% macro identity_data(person) -%}
+<dl class="identity-dialog__data">
+  <div><dt>Nombre</dt><dd>{{ person.nombre }}</dd></div>
+  <div><dt>Primer apellido</dt><dd>{{ person.apellido_paterno }}</dd></div>
+  <div><dt>Fecha de nacimiento</dt><dd>{{ person.fecha_nacimiento.strftime('%d/%m/%Y') if person.fecha_nacimiento else 'Sin registrar' }}</dd></div>
+  <div><dt>Segundo apellido</dt><dd>{{ person.apellido_materno or 'Sin registrar' }}</dd></div>
+</dl>
+{%- endmacro %}

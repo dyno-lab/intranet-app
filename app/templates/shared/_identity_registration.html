@@ -3,15 +3,8 @@
 {% set source_short = 'Comunidad' if prompt.source_module == 'community' else 'Faro' %}
 {% set other_short = 'Faro' if prompt.source_module == 'community' else 'Comunidad' %}
 {% set other_module = 'faro' if prompt.source_module == 'community' else 'community' %}
-{% macro identity_data(person) %}
-<dl class="identity-dialog__data">
-  <div><dt>Nombre</dt><dd>{{ person.nombre }}</dd></div>
-  <div><dt>Primer apellido</dt><dd>{{ person.apellido_paterno }}</dd></div>
-  <div><dt>Fecha de nacimiento</dt><dd>{{ person.fecha_nacimiento.strftime('%d/%m/%Y') }}</dd></div>
-  <div><dt>Segundo apellido</dt><dd>{{ person.apellido_materno or 'Sin registrar' }}</dd></div>
-</dl>
-{% endmacro %}
-<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}?v=20261001-2">
+{% from "shared/_identity_comparison.html" import identity_data %}
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/identity-registration.css') }}?v=20261002-1">
 <dialog open id="identity-registration-dialog" class="identity-dialog" data-source="{{ prompt.source_module }}" aria-labelledby="identity-title" aria-describedby="identity-description">
   <input type="hidden" name="identity_confirmation" value="{{ prompt.confirmation }}">
   <div class="identity-dialog__brand">
