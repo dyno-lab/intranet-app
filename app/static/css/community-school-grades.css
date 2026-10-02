@@ -1,0 +1,29 @@
+.community-grades { min-width: 0; }
+.community-grades .grades-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.community-grades h1 { font-size: 1.65rem; font-weight: 750; margin-bottom: .25rem; }
+.community-grades .card-body { padding: 1rem; }
+.community-grades .form-label { margin-bottom: .25rem; font-size: .9rem; }
+.community-grades .form-control, .community-grades .form-select { font-size: .9rem; }
+.community-grades .grades-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.community-grades form { margin-bottom: 0; }
+.community-grades .grades-note { padding: .75rem 1rem; border: 1px solid #dce6df; border-radius: .6rem; background: #fff; overflow-wrap: anywhere; }
+.community-grades .grades-observations { min-width: 10rem; max-width: 24rem; overflow-wrap: anywhere; white-space: pre-line; }
+.community-grades .grades-reports { font-size: .9rem; }
+.community-grades .grades-reports th { white-space: nowrap; }
+.community-grades .grades-table { font-size: .82rem; margin-bottom: .25rem; }
+.community-grades .grades-table th { white-space: nowrap; background: #f1f7f3; }
+.community-grades .grades-table td, .community-grades .grades-table th { padding: .5rem .3rem; }
+.community-grades .grades-number { width: 4.4rem; min-width: 4.4rem; padding: .3rem .2rem; text-align: center; font-size: .82rem; }
+.community-grades .grades-level { min-width: 4rem; padding-left: .4rem; }
+.community-grades .grades-record { white-space: nowrap; }
+.community-grades .grades-name { min-width: 10rem; max-width: 15rem; overflow-wrap: anywhere; }
+.community-grades .grades-row-actions { display: grid; gap: .35rem; }
+.community-grades .grades-row-actions .btn { width: 100%; font-size: .8rem; }
+.community-grades .grades-table-wrap { border: 1px solid #dce6df; border-radius: .5rem; }
+@media (max-width: 991.98px) {
+  .community-grades-page #desktopSidebar { display: none; }
+}
+@media (max-width: 575.98px) {
+  .community-grades .card-body { padding: .75rem; }
+  .community-grades .grades-heading > .grades-actions { justify-content: flex-start; }
+}

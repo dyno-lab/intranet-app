@@ -6,7 +6,7 @@ from datetime import date
 import math
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.community import CPFiscalYear, CPProgram
@@ -201,19 +201,42 @@ def school_grade_age(db: Session, participant_id: int, fiscal_year_id: int) -> i
     return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
 
-def save_grade_item(db: Session, *, report_id: int, participant_id: int,
-                    fields: Mapping[str, Any]) -> CPGradeItem:
+def editable_grade_report(db: Session, report_id: int) -> CPGradeReport:
     report = db.get(CPGradeReport, report_id)
     if report is None:
         raise ValueError("El informe de notas no existe.")
-    first, last = grade_period(db, report.fiscal_year_id, report.report_year, report.report_month)
+    first, _ = grade_period(db, report.fiscal_year_id, report.report_year, report.report_month)
     require_fiscal_writable(db, report.fiscal_year_id, first)
+    # A concurrent delete may have completed while waiting for the fiscal lock.
+    report = db.get(CPGradeReport, report_id, populate_existing=True)
+    if report is None:
+        raise ValueError("El informe de notas no existe.")
     _program(db, report.program_id)
+    return report
+
+
+def remove_grade_data(db: Session, *, report_id: int, participant_id: int | None = None) -> None:
+    editable_grade_report(db, report_id)
+    items = delete(CPGradeItem).where(CPGradeItem.report_id == report_id)
+    if participant_id is not None:
+        items = items.where(CPGradeItem.participant_id == participant_id)
+    db.execute(items)
+    if participant_id is None:
+        db.execute(delete(CPGradeReport).where(CPGradeReport.report_id == report_id))
+    db.flush()
+
+
+def save_grade_item(db: Session, *, report_id: int, participant_id: int,
+                    fields: Mapping[str, Any], add_only: bool = False) -> CPGradeItem:
+    report = editable_grade_report(db, report_id)
+    first, last = grade_period(db, report.fiscal_year_id, report.report_year, report.report_month)
     if participant_id not in enrolled_participant_ids(db, report.fiscal_year_id, report.program_id, first, min(last, date.today())):
         raise ValueError("El participante no tiene matrícula activa durante el período del informe.")
     if set(fields) - {*GRADE_FIELDS, "grade_level", "is_content_room"}:
         raise ValueError("El formulario contiene campos de notas no permitidos.")
     row = db.get(CPGradeItem, (report_id, participant_id))
+    if add_only and row is not None:
+        raise ValueError("El participante ya fue añadido al informe. Sus notas se conservan.")
     if row is None:
         age = school_grade_age(db, participant_id, report.fiscal_year_id)
         if age is None or not 0 <= age <= 21:

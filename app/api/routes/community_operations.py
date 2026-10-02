@@ -7,10 +7,10 @@ import io
 import json
 from urllib.parse import urlencode, parse_qsl
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -19,14 +19,15 @@ from app.core.community_access import CommunityContext, csrf_token, require_comm
 from app.models.community import CPFiscalYear, CPProgram
 from app.models.community_activity import CPActivity
 from app.models.community_operations import CPActivitySession, CPAttendance, CPGradeReport, CPGradeItem, GRADE_FIELDS
-from app.models.community_fiscal import CPFiscalParticipant
+from app.models.community_fiscal import CPFiscalParticipant, CPFiscalState
+from app.models.user import User
 from app.services import community_attendance as attendance_service
 from app.services.community_participants import AGE_RANGES
 from app.services.community_fiscal import require_fiscal_writable, snapshot_for_participant
 from app.services.community_operations import (
     create_activity_session, set_session_attendance,
     create_grade_report, save_grade_item, grade_period, grade_participant_ids,
-    grade_letter, GRADE_OPTIONS, GRADE_LABELS,
+    grade_letter, school_grade_age, remove_grade_data, GRADE_OPTIONS, GRADE_LABELS,
 )
 
 router = APIRouter(prefix="/community", tags=["community-operations"])
@@ -77,15 +78,6 @@ def _lock_message(db: Session, fiscal_year_id: int, event_date: date) -> str | N
     except ValueError as exc:
         return str(exc)
     return None
-
-
-def _page_links(path: str, page: int, has_next: bool, fiscal_year_id: int | None, program_id: int | None):
-    filters = {key: value for key, value in {"fiscal_year_id": fiscal_year_id, "program_id": program_id}.items() if value is not None}
-    return {
-        "page": page,
-        "previous_url": path + "?" + urlencode({**filters, "page": page - 1}) if page > 1 else None,
-        "next_url": path + "?" + urlencode({**filters, "page": page + 1}) if has_next else None,
-    }
 
 
 def _attendance_selection(request, db, cp):
@@ -325,23 +317,67 @@ def delete_attendance_session(session_id: int, request: Request, token: str = Fo
 
 @router.get("/school-grades")
 def grades_index(request: Request, fiscal_year_id: int | None = None, program_id: int | None = None,
-                 page: int = 1,
+                 page: int = 1, month: int | None = Query(None, ge=1, le=12),
+                 year: int | None = Query(None, ge=1000, le=9999),
                  db: Session = Depends(get_db), cp: CommunityContext = Depends(require_community_context)):
     page = max(1, page)
     years = _filters(db, cp, fiscal_year_id, program_id)
-    query = select(CPGradeReport, CPProgram, CPFiscalYear).join(
+    query = select(CPGradeReport, CPProgram, CPFiscalYear, User.username).join(
         CPProgram, CPProgram.program_id == CPGradeReport.program_id
-    ).join(CPFiscalYear, CPFiscalYear.fiscal_year_id == CPGradeReport.fiscal_year_id).where(
+    ).join(CPFiscalYear, CPFiscalYear.fiscal_year_id == CPGradeReport.fiscal_year_id).outerjoin(
+        User, User.user_id == CPGradeReport.created_by_user_id
+    ).where(
         CPGradeReport.program_id.in_(cp.visible_program_ids)
     )
     if fiscal_year_id is not None:
         query = query.where(CPGradeReport.fiscal_year_id == fiscal_year_id)
     if program_id is not None:
         query = query.where(CPGradeReport.program_id == program_id)
-    reports = db.execute(query.order_by(CPGradeReport.report_year.desc(), CPGradeReport.report_month.desc(), CPGradeReport.report_id.desc()).offset((page - 1) * 50).limit(51)).all()
+    if month is not None:
+        query = query.where(CPGradeReport.report_month == month)
+    if year is not None:
+        query = query.where(CPGradeReport.report_year == year)
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    page_count = max(1, (total + 49) // 50)
+    page = min(page, page_count)
+    reports = db.execute(query.order_by(CPGradeReport.report_year.desc(), CPGradeReport.report_month.desc(), CPGradeReport.report_id.desc()).offset((page - 1) * 50).limit(50)).all()
+    states = {state.fiscal_year_id: state for state in db.scalars(select(CPFiscalState).where(
+        CPFiscalState.fiscal_year_id.in_({row[0].fiscal_year_id for row in reports})
+    ))}
+    locked_ids = set()
+    for report, _, fiscal, _ in reports:
+        state = states.get(report.fiscal_year_id)
+        first = max(date(report.report_year, report.report_month, 1), fiscal.start_date)
+        if (not fiscal.is_active or fiscal.status != "active" or first > date.today()
+                or (state and state.locked_through and first <= state.locked_through)):
+            locked_ids.add(report.report_id)
+    filters = {key: value for key, value in dict(fiscal_year_id=fiscal_year_id, program_id=program_id,
+                                                month=month, year=year).items() if value is not None}
+    def page_url(number):
+        return "/community/school-grades?" + urlencode({**filters, "page": number})
+    year_options = {date.today().year}
+    for fiscal in years:
+        year_options.update(range(fiscal.start_date.year, min(fiscal.end_date.year, date.today().year) + 1))
     return _render(request, "school_grades", cp, years=years, selected_year=fiscal_year_id,
-                   selected_program=program_id, reports=reports[:50], report=None,
-                   **_page_links("/community/school-grades", page, len(reports) > 50, fiscal_year_id, program_id))
+                   selected_program=program_id, reports=reports, report=None, locked_ids=locked_ids,
+                   selected_month=month, selected_calendar_year=year, year_options=sorted(year_options, reverse=True),
+                   page=page, page_count=page_count, total=total,
+                   previous_url=page_url(page - 1) if page > 1 else None,
+                   next_url=page_url(page + 1) if page < page_count else None,
+                   return_query=urlencode({**filters, "page": page}))
+
+
+def _grade_return(request: Request, report: CPGradeReport | None = None):
+    allowed = {"fiscal_year_id", "program_id", "month", "year", "page"}
+    query = {key: value for key, value in parse_qsl(request.query_params.get("return_query", "")[:2000])
+             if key in allowed and value.isascii() and value.isdecimal() and len(value) <= 9}
+    if not query and report:
+        query = {"fiscal_year_id": report.fiscal_year_id, "program_id": report.program_id}
+    return urlencode(query)
+
+
+def _grade_detail_path(request, report):
+    return f"/community/school-grades/{report.report_id}?" + urlencode({"return_query": _grade_return(request, report)})
 
 
 @router.post("/school-grades")
@@ -360,7 +396,7 @@ def add_grade_report(request: Request, fiscal_year_id: int = Form(...), program_
     except (ValueError, IntegrityError) as exc:
         db.rollback()
         return _redirect(path, error=str(exc) if isinstance(exc, ValueError) else "Ya existe un informe en ese período o no se pudo guardar.")
-    return _redirect(f"/community/school-grades/{report.report_id}", message="Informe de notas creado.")
+    return _redirect(_grade_detail_path(request, report), message="Informe de notas creado.")
 
 
 @router.get("/school-grades/{report_id}")
@@ -371,26 +407,63 @@ def grade_detail(report_id: int, request: Request, db: Session = Depends(get_db)
     items = db.scalars(select(CPGradeItem).where(CPGradeItem.report_id == report_id).order_by(CPGradeItem.participant_id)).all()
     existing_ids = {item.participant_id for item in items}
     snapshots = {row["participant_id"]: row for row in _snapshots(db, report.fiscal_year_id, existing_ids)}
-    eligible = _snapshots(db, report.fiscal_year_id, set(grade_participant_ids(db, report)) - existing_ids)
+    lock_message = _lock_message(db, report.fiscal_year_id, first)
+    eligible = (_snapshots(db, report.fiscal_year_id, set(grade_participant_ids(db, report)) - existing_ids)
+                if not lock_message and cp.role != "viewer" else [])
+    age_map = {pid: school_grade_age(db, pid, report.fiscal_year_id)
+               for pid in existing_ids | {person["participant_id"] for person in eligible}}
+    items.sort(key=lambda item: (snapshots.get(item.participant_id, {}).get("apellido_paterno", ""),
+                                snapshots.get(item.participant_id, {}).get("nombre", ""), item.participant_id))
     return _render(request, "school_grades", cp, report=report, program=db.get(CPProgram, report.program_id),
                    fiscal_year=db.get(CPFiscalYear, report.fiscal_year_id), items=items, snapshots=snapshots,
                    eligible=eligible, grade_options=GRADE_OPTIONS, grade_columns=list(zip(GRADE_FIELDS, GRADE_LABELS)),
-                   grade_letter=grade_letter, lock_message=_lock_message(db, report.fiscal_year_id, first))
+                   grade_letter=grade_letter, lock_message=lock_message, age_map=age_map,
+                   return_query=_grade_return(request, report))
 
 
 @router.post("/school-grades/{report_id}/participants")
+@router.post("/school-grades/{report_id}/participants/add")
 async def save_grades(report_id: int, request: Request, db: Session = Depends(get_db),
                       cp: CommunityContext = Depends(require_community_writer)):
     form = await request.form()
     validate_csrf(request, str(form.get("token", "")))
-    _row(db, CPGradeReport, report_id, cp)
+    report = _row(db, CPGradeReport, report_id, cp)
+    path = _grade_detail_path(request, report)
+    add_only = request.url.path.endswith("/add")
     try:
         participant_id = int(form.get("participant_id", ""))
         fields = {field: form.get(field) for field in (*GRADE_FIELDS, "grade_level")}
         fields["is_content_room"] = form.get("is_content_room") == "on"
-        save_grade_item(db, report_id=report_id, participant_id=participant_id, fields=fields)
+        save_grade_item(db, report_id=report_id, participant_id=participant_id, fields=fields, add_only=add_only)
         db.commit()
     except (ValueError, IntegrityError) as exc:
         db.rollback()
-        return _redirect(f"/community/school-grades/{report_id}", error=str(exc) if isinstance(exc, ValueError) else "No se pudieron guardar las notas.")
-    return _redirect(f"/community/school-grades/{report_id}", message="Notas guardadas.")
+        return _redirect(path, error=str(exc) if isinstance(exc, ValueError) else "No se pudieron guardar las notas.")
+    return _redirect(path, message="Participante añadido." if add_only else "Notas guardadas.")
+
+
+def _remove_grades(request, db, cp, report_id, token, participant_id=None):
+    validate_csrf(request, token)
+    report = _row(db, CPGradeReport, report_id, cp)
+    detail_path = _grade_detail_path(request, report)
+    index_path = "/community/school-grades?" + _grade_return(request, report)
+    try:
+        remove_grade_data(db, report_id=report_id, participant_id=participant_id)
+        db.commit()
+    except (ValueError, IntegrityError) as exc:
+        db.rollback()
+        return _redirect(detail_path, error=str(exc) if isinstance(exc, ValueError) else "No se pudo eliminar el registro de notas.")
+    return _redirect(index_path if participant_id is None else detail_path,
+                     message="Informe de notas eliminado." if participant_id is None else "Participante retirado de este informe de notas.")
+
+
+@router.post("/school-grades/{report_id}/delete")
+def delete_grade_report(report_id: int, request: Request, token: str = Form(...),
+                        db: Session = Depends(get_db), cp: CommunityContext = Depends(require_community_writer)):
+    return _remove_grades(request, db, cp, report_id, token)
+
+
+@router.post("/school-grades/{report_id}/participants/{participant_id}/delete")
+def delete_grade_item(report_id: int, participant_id: int, request: Request, token: str = Form(...),
+                      db: Session = Depends(get_db), cp: CommunityContext = Depends(require_community_writer)):
+    return _remove_grades(request, db, cp, report_id, token, participant_id)

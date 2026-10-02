@@ -1,0 +1,40 @@
+{% set locked = viewer or lock_message %}
+<header class="grades-heading"><div><span class="community-eyebrow">Seguimiento escolar</span><h1>Informe de notas</h1><p class="mb-0 text-muted">{{ fiscal_year.code }} · {{ fiscal_year.name }} / {{ program.code }} · {{ program.name }} / {{ month_names[report.report_month] }} {{ report.report_year }}</p></div><div class="grades-actions">
+  {% if not locked %}<form method="post" action="/community/school-grades/{{ report.report_id }}/delete{{ return_suffix }}" onsubmit="return confirm('¿Borrar este informe de notas completo? Se eliminarán las notas de este informe.');"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-outline-danger btn-sm">Borrar informe</button></form>{% endif %}
+  <a class="btn btn-outline-secondary btn-sm" href="/community/school-grades?{{ return_query }}">Volver a informes</a></div>
+</header>
+{% if viewer %}<div class="alert alert-info"><strong>Modo de consulta:</strong> este informe es de solo lectura.</div>{% endif %}
+{% if lock_message %}<div class="alert alert-warning">{{ lock_message }} Las notas registradas permanecen disponibles para consulta.</div>{% endif %}
+{% if report.notes %}<p class="grades-note"><strong>Observaciones:</strong> {{ report.notes }}</p>{% endif %}
+{% if not locked %}
+<section class="card mb-3"><div class="card-body"><h2 class="h5">Añadir participante (0 a 21 años)</h2><p class="small text-muted">Participantes sincronizados al año fiscal y con alta en este programa durante el mes. Se utiliza su edad actual.</p>
+  {% if eligible %}<form method="post" action="/community/school-grades/{{ report.report_id }}/participants/add{{ return_suffix }}" class="row g-2 align-items-end"><input type="hidden" name="token" value="{{ csrf_token }}">
+    <div class="col-md-6"><label class="form-label" for="grade-participant">Participante *</label><select class="form-select" id="grade-participant" name="participant_id" required><option value="">Seleccione...</option>{% for participant in eligible %}<option value="{{ participant.participant_id }}">{{ participant.expediente_num }} | {{ participant.nombre }} {{ participant.apellido_paterno }} {{ participant.apellido_materno or '' }} | Edad {{ age_map[participant.participant_id] }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><label class="form-label" for="grade-level-new">Grado</label><select class="form-select" id="grade-level-new" name="grade_level"><option value="">Seleccione...</option>{% for level in grade_options %}<option>{{ level }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><div class="form-check mb-2"><input type="checkbox" class="form-check-input" name="is_content_room" id="content-new"><label class="form-check-label" for="content-new">Salón contenido</label></div></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Añadir</button></div>
+  </form>{% else %}<p class="mb-0">No hay participantes pendientes que cumplan la matrícula y el rango de edad. Revise la sincronización y las fechas de alta del programa si falta alguno.</p>{% endif %}
+</div></section>
+{% endif %}
+<section class="card"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2"><h2 class="h5 mb-0">Participantes añadidos <span class="badge bg-secondary">{{ items|length }}</span></h2><span class="small text-muted">{{ 'Datos en solo lectura.' if locked else 'Guarde cada fila luego de editar notas o grado.' }}</span></div>
+  <p class="small text-muted mb-2" id="grade-help">Notas de 0 a 100. El promedio incluye solo las materias con nota; una nota de 0 sí cuenta. E1–E4: electivas.</p>
+  <div class="table-responsive grades-table-wrap" tabindex="0" role="region" aria-label="Notas de participantes; deslice para ver todas las materias">
+    <table class="table table-sm table-hover align-middle grades-table" id="grade-items" aria-describedby="grade-help"><thead><tr><th>Expediente</th><th>Nombre</th><th>Edad</th><th>Género</th><th>Grado</th><th title="Salón contenido">Salón</th>
+      {% for label in ['Esp','Ing','Mat','Cien','Soc','E1','E2','E3','E4'] %}<th title="{{ grade_columns[loop.index0][1] }}">{{ label }}</th>{% endfor %}<th>Prom.</th><th>Nota</th><th>Acciones</th>
+    </tr></thead><tbody>
+    {% for item in items %}{% set participant = snapshots.get(item.participant_id, {}) %}{% set form_id = 'grade-form-' ~ item.participant_id %}
+      <tr><td class="grades-record"><strong>{{ participant.get('expediente_num', '—') }}</strong></td><td class="grades-name">{{ participant.get('nombre', 'Participante') }} {{ participant.get('inicial') or '' }} {{ participant.get('apellido_paterno', '') }} {{ participant.get('apellido_materno') or '' }}</td><td>{{ age_map[item.participant_id] if age_map[item.participant_id] is not none else '—' }}</td><td>{{ participant.get('genero') or '—' }}</td>
+        <td><select class="form-select form-select-sm grades-level" name="grade_level" form="{{ form_id }}" aria-label="Grado de {{ participant.get('nombre', 'participante') }}" {{ 'disabled' if locked }}><option value="">—</option>{% for level in grade_options %}<option {{ 'selected' if item.grade_level == level }}>{{ level }}</option>{% endfor %}</select></td>
+        <td class="text-center"><input type="checkbox" class="form-check-input" name="is_content_room" form="{{ form_id }}" aria-label="Salón contenido de {{ participant.get('nombre', 'participante') }}" {{ 'checked' if item.is_content_room }} {{ 'disabled' if locked }}></td>
+        {% for field, label in grade_columns %}<td><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm grades-number" name="{{ field }}" form="{{ form_id }}" aria-label="{{ label }} de {{ participant.get('nombre', 'participante') }}" value="{{ item|attr(field) if item|attr(field) is not none else '' }}" {{ 'disabled' if locked }}></td>{% endfor %}
+        <td><strong>{{ '%.2f'|format(item.average_grade) if item.average_grade is not none else '—' }}</strong></td><td>{% set letter = grade_letter(item.average_grade) %}{% if letter %}<span class="badge {{ 'bg-success' if letter == 'A' else 'bg-info text-dark' if letter == 'B' else 'bg-warning text-dark' if letter == 'C' else 'bg-secondary' if letter == 'D' else 'bg-danger' }}">{{ letter }}</span>{% else %}—{% endif %}</td>
+        <td>{% if not locked %}<div class="grades-row-actions">
+          <form id="{{ form_id }}" method="post" action="/community/school-grades/{{ report.report_id }}/participants{{ return_suffix }}"><input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="participant_id" value="{{ item.participant_id }}"><button class="btn btn-sm btn-primary">Guardar</button></form>
+          <form method="post" action="/community/school-grades/{{ report.report_id }}/participants/{{ item.participant_id }}/delete{{ return_suffix }}" onsubmit="return confirm('¿Quitar este participante y sus notas de este informe? Su expediente y sus otros informes se conservarán.');"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-sm btn-outline-danger">Quitar</button></form>
+        </div>{% else %}<span class="small text-muted">Solo lectura</span>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="18" class="text-muted py-4 text-center">Todavía no hay participantes en este informe.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div></section>
