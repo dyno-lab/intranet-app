@@ -2,6 +2,7 @@ import re
 import unittest
 from datetime import date
 from decimal import Decimal
+from urllib.parse import parse_qs, urlencode, urlsplit
 from unittest.mock import patch
 
 from fastapi import FastAPI, Request
@@ -18,7 +19,7 @@ from app.core.config import settings
 from app.models.community import CPParticipant, CPUserAccess
 from app.models.community_operations import CPGradeItem, CPGradeReport
 from app.services.community_fiscal import set_fiscal_lock, set_fiscal_status
-from app.services.community import create_program
+from app.services.community import create_fiscal_year
 from app.services.community_operations import save_grade_item
 
 
@@ -68,7 +69,7 @@ class SchoolGradeManagementTests(unittest.TestCase):
         self.report(report_month=2)
         self.report(program_id=self.tanf_id)
         self.db.commit()
-        page = self.client.get("/community/school-grades", params={"month": 1, "year": 2025})
+        page = self.client.get("/community/school-grades", params={"program_id": self.voca_id, "month": 1, "year": 2025})
         self.assertEqual([row[0].report_id for row in page.context["reports"]], [first.report_id])
         self.assertIn("Seguimiento escolar", page.text)
         self.assertIn("operator", page.text)
@@ -77,6 +78,42 @@ class SchoolGradeManagementTests(unittest.TestCase):
         for params in ({"month": 13}, {"year": 0}, {"month": "no"}):
             self.assertEqual(self.client.get("/community/school-grades", params=params).status_code, 422)
         self.assertEqual(self.client.get("/community/school-grades", params={"program_id": self.tanf_id}).status_code, 403)
+
+    def test_program_selection_limits_choices_and_creation_to_own_program(self):
+        self.report()
+        self.report(program_id=self.tanf_id)
+        self.db.commit()
+        landing = self.client.get("/community/school-grades")
+        self.assertEqual(landing.status_code, 200)
+        self.assertIn(f'/community/school-grades?program_id={self.voca_id}', landing.text)
+        self.assertNotIn(f'/community/school-grades?program_id={self.tanf_id}', landing.text)
+        self.assertNotIn('class="grades-create-form"', landing.text)
+        selected = self.client.get("/community/school-grades", params={"program_id": self.voca_id})
+        self.assertEqual(selected.context["selected_year"], self.fy_id)
+        self.assertEqual({row[0].program_id for row in selected.context["reports"]}, {self.voca_id})
+        self.assertIn(f'name="program_id" value="{self.voca_id}"', selected.text)
+        self.assertIn(f'name="fiscal_year_id" value="{self.fy_id}"', selected.text)
+        self.assertNotIn('id="create-program"', selected.text)
+        self.role("admin")
+        self.assertIn(f'/community/school-grades?program_id={self.tanf_id}',
+                      self.client.get("/community/school-grades").text)
+
+    def test_fiscal_selection_prefers_current_open_year_and_hides_closed_creation(self):
+        today = date.today()
+        current = create_fiscal_year(self.db, "CURRENT", "Actual", date(today.year, 1, 1), date(today.year, 12, 31))
+        future = create_fiscal_year(self.db, "FUTURE", "Próximo", date(today.year + 1, 1, 1), date(today.year + 1, 12, 31))
+        current_id, future_id = current.fiscal_year_id, future.fiscal_year_id
+        self.db.commit()
+        page = self.client.get("/community/school-grades", params={"program_id": self.voca_id})
+        self.assertEqual(page.context["selected_year"], current_id)
+        self.assertFalse(page.context["create_lock"])
+        for fiscal_id in (self.fy_id, future_id):
+            if fiscal_id == self.fy_id:
+                set_fiscal_status(self.db, fiscal_id, closed=True, actor_user_id=self.actor_id)
+                self.db.commit()
+            page = self.client.get("/community/school-grades", params={"program_id": self.voca_id, "fiscal_year_id": fiscal_id})
+            self.assertTrue(page.context["create_lock"])
+            self.assertNotIn('class="grades-create-form"', page.text)
 
     def test_table_preserves_zero_and_add_does_not_overwrite_existing_notes(self):
         report = self.report()
@@ -131,7 +168,11 @@ class SchoolGradeManagementTests(unittest.TestCase):
         self.assertIsNotNone(self.db.get(CPGradeItem, (other_id, self.participant_id)))
         self.post(path + "/participants/add", participant_id=self.participant_id)
         response = self.post(path + "/delete?return_query=month%3D1%26year%3D2025")
-        self.assertIn("/community/school-grades?month=1&year=2025&msg=", response.headers["location"])
+        query = parse_qs(urlsplit(response.headers["location"]).query)
+        self.assertEqual(query["program_id"], [str(self.voca_id)])
+        self.assertEqual(query["fiscal_year_id"], [str(self.fy_id)])
+        self.assertEqual(query["month"], ["1"])
+        self.assertIn("msg", query)
         self.db.expire_all()
         self.assertIsNone(self.db.get(CPGradeReport, own_id))
         self.assertIsNone(self.db.get(CPGradeItem, (own_id, self.participant_id)))
@@ -190,7 +231,7 @@ class SchoolGradeManagementTests(unittest.TestCase):
                 page = self.client.get(path)
                 self.assertNotIn(">Guardar</button>", page.text)
                 self.assertNotIn(">Quitar</button>", page.text)
-                listing = self.client.get("/community/school-grades")
+                listing = self.client.get("/community/school-grades", params={"program_id": self.voca_id})
                 self.assertIn(report.report_id, listing.context["locked_ids"])
                 for suffix in ("/delete", f"/participants/{self.participant_id}/delete", "/participants"):
                     response = self.post(path + suffix, participant_id=self.participant_id, math_grade="60")
@@ -205,21 +246,34 @@ class SchoolGradeManagementTests(unittest.TestCase):
                                        math_grade="95").headers["location"])
 
     def test_filtered_pagination_and_return_to_list_keep_context(self):
-        self.role("admin")
+        fiscal = create_fiscal_year(self.db, "ARCHIVE", "Período configurado", date(2020, 1, 1), date(2024, 12, 31))
+        fiscal_id = fiscal.fiscal_year_id
         for number in range(51):
-            program = create_program(self.db, f"PR{number}", f"Programa {number}")
-            self.report(program_id=program.program_id)
+            self.report(fiscal_year_id=fiscal_id, report_year=2020 + number // 12, report_month=1 + number % 12)
+        self.report(program_id=self.tanf_id, fiscal_year_id=fiscal_id, report_year=2020)
         self.db.commit()
-        first = self.client.get("/community/school-grades?month=1&year=2025")
+        filters = {"fiscal_year_id": fiscal_id, "program_id": self.voca_id}
+        first = self.client.get("/community/school-grades", params=filters)
         self.assertEqual(first.context["total"], 51)
         self.assertEqual(len(first.context["reports"]), 50)
-        self.assertEqual(first.context["next_url"], "/community/school-grades?month=1&year=2025&page=2")
+        self.assertEqual(first.context["next_url"], "/community/school-grades?" + urlencode({**filters, "page": 2}))
         second = self.client.get(first.context["next_url"])
         self.assertEqual(len(second.context["reports"]), 1)
         report = second.context["reports"][0][0]
-        detail = self.client.get(f"/community/school-grades/{report.report_id}?return_query=month%3D1%26year%3D2025%26page%3D2")
-        self.assertEqual(detail.context["return_query"], "month=1&year=2025&page=2")
-        self.assertIn('/community/school-grades?month=1&amp;year=2025&amp;page=2', detail.text)
+        return_query = urlencode({**filters, "page": 2})
+        detail = self.client.get(f"/community/school-grades/{report.report_id}", params={"return_query": return_query})
+        self.assertEqual(detail.context["return_query"], return_query)
+        self.assertIn('/community/school-grades?' + return_query.replace('&', '&amp;'), detail.text)
+
+    def test_legacy_detail_return_keeps_report_program_and_fiscal_year(self):
+        report = self.report()
+        self.db.commit()
+        page = self.client.get(f"/community/school-grades/{report.report_id}", params={
+            "return_query": f"month=1&year=2025&program_id={self.tanf_id}&fiscal_year_id=999",
+        })
+        query = parse_qs(page.context["return_query"])
+        self.assertEqual(query["program_id"], [str(self.voca_id)])
+        self.assertEqual(query["fiscal_year_id"], [str(self.fy_id)])
 
     def test_create_duplicate_errors_are_readable_and_do_not_duplicate_reports(self):
         fields = dict(fiscal_year_id=self.fy_id, program_id=self.voca_id, report_year=2025, report_month=1,

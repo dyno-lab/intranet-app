@@ -322,6 +322,14 @@ def grades_index(request: Request, fiscal_year_id: int | None = None, program_id
                  db: Session = Depends(get_db), cp: CommunityContext = Depends(require_community_context)):
     page = max(1, page)
     years = _filters(db, cp, fiscal_year_id, program_id)
+    if program_id is None:
+        return _render(request, "school_grades", cp, report=None, program=None, return_query="")
+    program = next(program for program in cp.visible_programs if program.program_id == program_id)
+    if fiscal_year_id is None and years:
+        open_years = [fiscal for fiscal in years if fiscal.is_active and fiscal.status == "active"]
+        current = next((fiscal for fiscal in open_years if fiscal.start_date <= date.today() <= fiscal.end_date), None)
+        fiscal_year_id = (current or next(iter(open_years), years[0])).fiscal_year_id
+    selected_fiscal = next((fiscal for fiscal in years if fiscal.fiscal_year_id == fiscal_year_id), None)
     query = select(CPGradeReport, CPProgram, CPFiscalYear, User.username).join(
         CPProgram, CPProgram.program_id == CPGradeReport.program_id
     ).join(CPFiscalYear, CPFiscalYear.fiscal_year_id == CPGradeReport.fiscal_year_id).outerjoin(
@@ -355,11 +363,14 @@ def grades_index(request: Request, fiscal_year_id: int | None = None, program_id
                                                 month=month, year=year).items() if value is not None}
     def page_url(number):
         return "/community/school-grades?" + urlencode({**filters, "page": number})
-    year_options = {date.today().year}
-    for fiscal in years:
-        year_options.update(range(fiscal.start_date.year, min(fiscal.end_date.year, date.today().year) + 1))
+    year_options = (range(selected_fiscal.start_date.year, selected_fiscal.end_date.year + 1)
+                    if selected_fiscal else [])
+    default_date = min(date.today(), selected_fiscal.end_date) if selected_fiscal else date.today()
+    create_lock = (_lock_message(db, fiscal_year_id, max(default_date.replace(day=1), selected_fiscal.start_date))
+                   if selected_fiscal else "Cree un año fiscal para registrar informes de notas.")
     return _render(request, "school_grades", cp, years=years, selected_year=fiscal_year_id,
-                   selected_program=program_id, reports=reports, report=None, locked_ids=locked_ids,
+                   selected_program=program_id, program=program, selected_fiscal=selected_fiscal,
+                   create_lock=create_lock, default_date=default_date, reports=reports, report=None, locked_ids=locked_ids,
                    selected_month=month, selected_calendar_year=year, year_options=sorted(year_options, reverse=True),
                    page=page, page_count=page_count, total=total,
                    previous_url=page_url(page - 1) if page > 1 else None,
@@ -371,8 +382,8 @@ def _grade_return(request: Request, report: CPGradeReport | None = None):
     allowed = {"fiscal_year_id", "program_id", "month", "year", "page"}
     query = {key: value for key, value in parse_qsl(request.query_params.get("return_query", "")[:2000])
              if key in allowed and value.isascii() and value.isdecimal() and len(value) <= 9}
-    if not query and report:
-        query = {"fiscal_year_id": report.fiscal_year_id, "program_id": report.program_id}
+    if report:
+        query.update(fiscal_year_id=report.fiscal_year_id, program_id=report.program_id)
     return urlencode(query)
 
 

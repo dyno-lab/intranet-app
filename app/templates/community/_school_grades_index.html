@@ -1,35 +1,36 @@
-<header class="grades-heading"><div><span class="community-eyebrow">Seguimiento escolar</span><h1>Notas escolares</h1><p class="text-muted mb-0">Informes mensuales por año fiscal y programa.</p></div></header>
-{% if viewer %}<div class="alert alert-info"><strong>Modo de consulta:</strong> puede filtrar y abrir informes. La creación y edición no están disponibles.</div>{% endif %}
-<section class="card mb-3" aria-label="Filtros de informes"><div class="card-body">
+<header class="grades-heading"><div><h1>Notas escolares · {{ program.code }}</h1><p class="text-muted mb-0">{{ program.name }}</p></div><a class="btn btn-outline-secondary btn-sm" href="/community/school-grades">Cambiar programa</a></header>
+{% if viewer %}<div class="alert alert-info"><strong>Modo de consulta:</strong> puede abrir informes. La creación y edición no están disponibles.</div>{% endif %}
+<section class="card mb-3" aria-label="Año fiscal y filtros de informes"><div class="card-body">
   <form method="get" class="row g-2 align-items-end grade-filters">
-    <div class="col-md-4 col-xl-3"><label class="form-label" for="filter-fiscal">Año fiscal</label><select class="form-select" name="fiscal_year_id" id="filter-fiscal"><option value="">Todos</option>{% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if selected_year == fiscal.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}</option>{% endfor %}</select></div>
-    <div class="col-md-4 col-xl-3"><label class="form-label" for="filter-program">Programa</label><select class="form-select" name="program_id" id="filter-program"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if selected_program == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+    <input type="hidden" name="program_id" value="{{ program.program_id }}">
+    <div class="col-md-5"><label class="form-label" for="filter-fiscal">Año fiscal</label><select class="form-select" name="fiscal_year_id" id="filter-fiscal" required>{% for fiscal in years %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if selected_year == fiscal.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}{{ ' · Cerrado' if fiscal.status != 'active' or not fiscal.is_active }}</option>{% else %}<option value="">Sin años fiscales</option>{% endfor %}</select></div>
     <div class="col-6 col-md-2"><label class="form-label" for="filter-month">Mes</label><select class="form-select" name="month" id="filter-month"><option value="">Todos</option>{% for number, label in months %}<option value="{{ number }}" {{ 'selected' if selected_month == number }}>{{ label }}</option>{% endfor %}</select></div>
     <div class="col-6 col-md-2"><label class="form-label" for="filter-year">Año del mes</label><select class="form-select" name="year" id="filter-year"><option value="">Todos</option>{% for number in year_options %}<option value="{{ number }}" {{ 'selected' if selected_calendar_year == number }}>{{ number }}</option>{% endfor %}</select></div>
-    <div class="col-xl-2 d-flex gap-2"><button class="btn btn-primary flex-fill">Buscar</button><a class="btn btn-outline-secondary flex-fill" href="/community/school-grades">Limpiar</a></div>
+    <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary flex-fill">Ver informes</button><a class="btn btn-outline-secondary" href="/community/school-grades?program_id={{ program.program_id }}{% if selected_year %}&amp;fiscal_year_id={{ selected_year }}{% endif %}">Limpiar</a></div>
   </form>
 </div></section>
 {% if not viewer %}
+{% if create_lock %}<div class="alert alert-warning">{{ create_lock }}</div>{% else %}
 <section class="card mb-3"><div class="card-body">
-  <h2 class="h5">Crear informe de notas</h2><p class="small text-muted">Seleccione un programa y un mes abierto dentro del año fiscal. Solo se permiten períodos hasta el mes actual.</p>
-  <form method="post" action="/community/school-grades{{ return_suffix }}" class="row g-2 align-items-end">
+  <h2 class="h5 mb-3">Crear informe de notas</h2>
+  <form method="post" action="/community/school-grades{{ return_suffix }}" class="grades-create-form">
     <input type="hidden" name="token" value="{{ csrf_token }}">
-    <div class="col-md-4 col-xl-3"><label class="form-label" for="create-fiscal">Año fiscal *</label><select class="form-select" name="fiscal_year_id" id="create-fiscal" required><option value="">Seleccione...</option>{% for fiscal in years %}{% if fiscal.is_active and fiscal.status == 'active' %}<option value="{{ fiscal.fiscal_year_id }}" {{ 'selected' if selected_year == fiscal.fiscal_year_id }}>{{ fiscal.code }} · {{ fiscal.name }}</option>{% endif %}{% endfor %}</select></div>
-    <div class="col-md-4 col-xl-3"><label class="form-label" for="create-program">Programa *</label><select class="form-select" name="program_id" id="create-program" required><option value="">Seleccione...</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if selected_program == program.program_id or (not selected_program and cp.visible_programs|length == 1) }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
-    <div class="col-6 col-md-2"><label class="form-label" for="create-month">Mes *</label><select class="form-select" name="report_month" id="create-month" required>{% for number, label in months %}<option value="{{ number }}" {{ 'selected' if number == (selected_month or today.month) }}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="col-6 col-md-2"><label class="form-label" for="create-year">Año del mes *</label><select class="form-select" name="report_year" id="create-year" required>{% for number in year_options %}<option value="{{ number }}" {{ 'selected' if number == (selected_calendar_year or today.year) }}>{{ number }}</option>{% endfor %}</select></div>
-    <div class="col-xl-2"><button class="btn btn-primary w-100">Crear informe</button></div>
-    <div class="col-12"><label class="form-label" for="create-notes">Observaciones generales</label><input class="form-control" name="notes" id="create-notes" maxlength="500"></div>
+    <input type="hidden" name="fiscal_year_id" value="{{ selected_year }}">
+    <input type="hidden" name="program_id" value="{{ program.program_id }}">
+    <div><label class="form-label" for="create-month">Mes *</label><select class="form-select" name="report_month" id="create-month" required>{% for number, label in months %}<option value="{{ number }}" {{ 'selected' if number == (selected_month or default_date.month) }}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label class="form-label" for="create-year">Año *</label><select class="form-select" name="report_year" id="create-year" required>{% for number in year_options %}<option value="{{ number }}" {{ 'selected' if number == (selected_calendar_year or default_date.year) }}>{{ number }}</option>{% endfor %}</select></div>
+    <div class="grades-create-notes"><label class="form-label" for="create-notes">Observaciones generales</label><input class="form-control" name="notes" id="create-notes" maxlength="500"></div>
+    <button class="btn btn-primary">Crear informe</button>
   </form>
 </div></section>
-{% endif %}
+{% endif %}{% endif %}
 <section class="card"><div class="card-body">
   <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h2 class="h5 mb-0">Informes creados</h2><span class="badge bg-secondary">{{ total }}</span></div>
-  <div class="table-responsive"><table class="table table-sm table-hover align-middle grades-reports"><thead><tr><th>Año fiscal</th><th>Programa</th><th>Mes</th><th>Año</th><th>Creado por</th><th>Observaciones</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
-    {% for row, program, fiscal, author in reports %}<tr>
-      <td><strong>{{ fiscal.code }}</strong><div class="small text-muted">{{ fiscal.name }}</div></td><td><strong>{{ program.code }}</strong><div class="small text-muted">{{ program.name }}</div></td><td>{{ month_names[row.report_month] }}</td><td>{{ row.report_year }}</td><td>{{ author or '—' }}</td><td class="grades-observations">{{ row.notes or '—' }}</td><td>{% if row.report_id in locked_ids %}<span class="badge bg-secondary">Solo lectura</span>{% else %}<span class="badge bg-success">Abierto</span>{% endif %}</td>
+  <div class="table-responsive"><table class="table table-sm table-hover align-middle grades-reports"><thead><tr><th>Programa</th><th>Mes</th><th>Año</th><th>Observaciones</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+    {% for row, row_program, fiscal, author in reports %}<tr>
+      <td><strong>{{ row_program.code }}</strong></td><td>{{ month_names[row.report_month] }}</td><td>{{ row.report_year }}</td><td class="grades-observations">{{ row.notes or '—' }}{% if author %}<div class="small text-muted">Creado por: {{ author }}</div>{% endif %}</td><td>{% if row.report_id in locked_ids %}<span class="badge bg-secondary">Solo lectura</span>{% else %}<span class="badge bg-success">Abierto</span>{% endif %}</td>
       <td><div class="grades-actions"><a class="btn btn-sm btn-primary" href="/community/school-grades/{{ row.report_id }}{{ return_suffix }}">Abrir</a>{% if not viewer and row.report_id not in locked_ids %}<form method="post" action="/community/school-grades/{{ row.report_id }}/delete{{ return_suffix }}" onsubmit="return confirm('¿Borrar este informe de notas completo? Se eliminarán las notas de este informe.');"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-sm btn-outline-danger">Borrar</button></form>{% endif %}</div></td>
-    </tr>{% else %}<tr><td colspan="8" class="text-muted py-4 text-center">No hay informes de notas para estos filtros.</td></tr>{% endfor %}
+    </tr>{% else %}<tr><td colspan="6" class="text-muted py-4 text-center">No hay informes de notas para este programa y los filtros seleccionados.</td></tr>{% endfor %}
   </tbody></table></div>
   <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2" aria-label="Páginas de notas escolares"><span class="small text-muted">{{ total }} informe{{ 's' if total != 1 }} · Página {{ page }} de {{ page_count }}</span><div class="d-flex gap-2">{% if previous_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ previous_url }}">Anterior</a>{% endif %}{% if next_url %}<a class="btn btn-sm btn-outline-primary" href="{{ next_url }}">Siguiente</a>{% endif %}</div></nav>
 </div></section>

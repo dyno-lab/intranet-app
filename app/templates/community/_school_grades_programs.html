@@ -1,0 +1,11 @@
+<header class="grades-heading"><div><h1>Notas escolares</h1><p class="text-muted mb-0">Seleccione el programa para gestionar sus informes.</p></div></header>
+<section class="card"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2"><h2 class="h5 mb-0">Mis programas</h2><span class="small text-muted">{{ 'Programas asignados' if cp.role == 'user' else 'Programas disponibles' }}</span></div>
+  <div class="grades-program-grid">
+    {% for program in cp.visible_programs %}
+    <a class="grades-program" href="/community/school-grades?program_id={{ program.program_id }}">
+      <span><strong>{{ program.code }}</strong><span class="grades-program-name">{{ program.name }}</span><small>Ver informes de notas</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+    {% else %}<p class="text-muted mb-0">No hay programas disponibles en este contexto.</p>{% endfor %}
+  </div>
+</div></section>

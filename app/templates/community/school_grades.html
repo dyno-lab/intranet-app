@@ -1,14 +1,27 @@
 {% extends "community/_base.html" %}
 {% block title %}Notas escolares | Comunidad y Prevención{% endblock %}
 {% block page_class %}community-grades-page{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ request.url_for('static', path='css/community-school-grades.css') }}?v=20261002-1">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ request.url_for('static', path='css/community-school-grades.css') }}?v=20261002-2">{% endblock %}
 {% block content %}
 {% set months = [(1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),(5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),(9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre')] %}
 {% set month_names = dict(months) %}
 {% set viewer = cp.role == 'viewer' %}
 {% set return_suffix = '?return_query=' ~ (return_query|urlencode) %}
 <div class="community-grades">
-{% if report %}{% include "community/_school_grades_detail.html" %}{% else %}{% include "community/_school_grades_index.html" %}{% endif %}
+{% if report %}{% include "community/_school_grades_detail.html" %}{% elif program %}{% include "community/_school_grades_index.html" %}{% else %}{% include "community/_school_grades_programs.html" %}{% endif %}
 </div>
 {% endblock %}
-{% block scripts %}<script>document.querySelectorAll('.grade-filters').forEach(form => form.addEventListener('submit', () => form.querySelectorAll('select').forEach(select => { if (!select.value) select.disabled = true; })));</script>{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.grade-filters').forEach(form => {
+  form.addEventListener('submit', () => form.querySelectorAll('select').forEach(select => {
+    if (!select.value) select.disabled = true;
+  }));
+  form.querySelector('#filter-fiscal').addEventListener('change', () => {
+    form.querySelector('#filter-month').value = '';
+    form.querySelector('#filter-year').value = '';
+    form.requestSubmit();
+  });
+});
+</script>
+{% endblock %}
