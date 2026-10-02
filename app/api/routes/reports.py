@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
@@ -144,6 +145,21 @@ def _participant_sort_key(participant, *field_names: str) -> tuple[str, ...]:
     return tuple(_normalize_text(getattr(participant, field_name)).casefold() for field_name in field_names)
 
 
+def _bonafide_participant_sort_key(participant):
+    building = _normalize_text(participant.edificio).casefold()
+    # Numeric segments keep buildings 2 and A2 before 10 and A10 respectively.
+    building_parts = tuple(
+        (0, int(part)) if part.isdecimal() else (1, part)
+        for part in re.split(r"(\d+)", building)
+        if part
+    )
+    return (
+        not building,
+        building_parts,
+        _participant_sort_key(participant, "apart", "apellido_paterno", "nombre"),
+    )
+
+
 def _report_participant_views(pairs, proposal_id):
     pairs = list(pairs)
     if len(_proposal_ids(proposal_id)) > 1:
@@ -262,15 +278,7 @@ def _build_bonafide_context(
             stmt = stmt.where(ActivitySession.residential_id == selected_user.residential_id)
         participant_rows = db.execute(stmt).all()
         participants = _report_participant_views(participant_rows, proposal_id)
-        participants.sort(
-            key=lambda participant: _participant_sort_key(
-                participant,
-                "edificio",
-                "apart",
-                "apellido_paterno",
-                "nombre",
-            )
-        )
+        participants.sort(key=_bonafide_participant_sort_key)
 
         for idx, participant in enumerate(participants, start=1):
             gender = _normalize_text(participant.genero).upper()
