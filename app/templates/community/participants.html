@@ -3,7 +3,7 @@
 {% import "shared/_participant_identity.html" as identity %}
 {% block title %}Participantes · Comunidad{% endblock %}
 {% block page_class %}community-participants-page{% endblock %}
-{% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}" rel="stylesheet">{% endblock %}
+{% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}?v=20261002-summary" rel="stylesheet">{% endblock %}
 {% block content %}
 {{ identity.assets() }}
 <div class="participants-page">
@@ -17,7 +17,7 @@
       </div>
     </div>
   </section>
-  <section class="participants-section participants-section--compact" aria-labelledby="registration-summary-title">
+  <section class="participants-section participants-section--compact participants-registration-summary" aria-labelledby="registration-summary-title">
     <div class="participants-section__header"><h2 class="participants-section__title" id="registration-summary-title">Resumen existente</h2></div>
     <div class="participants-summary-grid">
       <article class="participants-summary-card"><span class="participants-summary-card__label">Registrados</span><strong class="participants-summary-card__value">{{ dashboard.totals.registered_count }}</strong></article>
