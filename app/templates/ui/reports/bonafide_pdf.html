@@ -32,6 +32,8 @@
     .sig-title { margin-top: 4px; font-size: 10px; font-weight: 700; line-height: 1.2; }
     .page-number { text-align: right; font-size: 9px; color: #666; margin-top: 28px; }
     {% if pdf_renderer == 'wkhtmltopdf' %}
+    /* Qt rounds subpixel letter spacing to zero; use a whole pixel for names. */
+    td.participant-name { letter-spacing: 1px; }
     /* The download renderer scales the sheet down; use its remaining bottom space.
        Browser printing keeps the spacing above so the report still fits Letter. */
     .footer { margin-top: 36px; }
