@@ -6,7 +6,7 @@ from datetime import date
 import math
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.community import CPFiscalYear, CPProgram
@@ -18,6 +18,27 @@ from app.services.community_fiscal import require_fiscal_writable, snapshot_for_
 
 GRADE_OPTIONS = ("EE", "K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12")
 GRADE_LABELS = ("Español", "Inglés", "Matemáticas", "Ciencias", "Estudios sociales", "Electiva 1", "Electiva 2", "Electiva 3", "Electiva 4")
+
+
+def latest_grade_summary(db: Session, *, program_id: int, fiscal_year_id: int | None) -> dict:
+    """Read the latest reporting period within the caller's authorized program/year."""
+    subjects = [("spanish_grade", "Español"), ("math_grade", "Matemáticas"), ("english_grade", "Inglés")]
+    report = (db.scalar(select(CPGradeReport).where(
+        CPGradeReport.program_id == program_id, CPGradeReport.fiscal_year_id == fiscal_year_id,
+    ).order_by(CPGradeReport.report_year.desc(), CPGradeReport.report_month.desc(),
+               CPGradeReport.report_id.desc()).limit(1)) if fiscal_year_id is not None else None)
+    values = {}
+    if report is not None:
+        expressions = [func.count(CPGradeItem.participant_id).label("total")]
+        for field, _ in subjects:
+            column = getattr(CPGradeItem, field)
+            expressions.extend([func.avg(column).label(field), func.count(column).label(field + "_count")])
+        values = db.execute(select(*expressions).where(CPGradeItem.report_id == report.report_id)).mappings().one()
+    return {
+        "report": report, "total": values.get("total", 0),
+        "subjects": [{"label": label, "average": values.get(field), "count": values.get(field + "_count", 0)}
+                     for field, label in subjects],
+    }
 
 
 def _program(db: Session, program_id: int) -> CPProgram:

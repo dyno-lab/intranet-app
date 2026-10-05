@@ -1,7 +1,7 @@
 {% extends "community/_base.html" %}
 {% block title %}Notas escolares | Comunidad y Prevención{% endblock %}
 {% block page_class %}community-grades-page{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ request.url_for('static', path='css/community-school-grades.css') }}?v=20261002-2">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ request.url_for('static', path='css/community-school-grades.css') }}?v=20261005-summary">{% endblock %}
 {% block content %}
 {% set months = [(1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),(5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),(9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre')] %}
 {% set month_names = dict(months) %}
@@ -17,11 +17,9 @@ document.querySelectorAll('.grade-filters').forEach(form => {
   form.addEventListener('submit', () => form.querySelectorAll('select').forEach(select => {
     if (!select.value) select.disabled = true;
   }));
-  form.querySelector('#filter-fiscal').addEventListener('change', () => {
-    form.querySelector('#filter-month').value = '';
-    form.querySelector('#filter-year').value = '';
-    form.requestSubmit();
-  });
+});
+document.querySelectorAll('#grade-context select').forEach(select => {
+  select.addEventListener('change', () => select.form.requestSubmit());
 });
 </script>
 {% endblock %}

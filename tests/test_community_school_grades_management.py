@@ -286,6 +286,62 @@ class SchoolGradeManagementTests(unittest.TestCase):
         self.assertIn("Ya existe un informe", page.text)
         self.assertEqual(len(self.db.scalars(select(CPGradeReport)).all()), 1)
 
+    def test_dashboard_uses_latest_period_in_selected_program_and_fiscal_year(self):
+        latest = self.report(report_month=3)
+        older = self.report(report_month=1)
+        other_program = self.report(program_id=self.tanf_id, report_month=6)
+        archive = create_fiscal_year(self.db, "OLD", "Anterior", date(2024, 1, 1), date(2024, 12, 31))
+        archived = self.report(fiscal_year_id=archive.fiscal_year_id, report_year=2024, report_month=12)
+        second = self.new_participant("Segunda", [self.voca_id])
+        self.db.add_all([
+            CPGradeItem(report_id=latest.report_id, participant_id=self.participant_id,
+                        spanish_grade=0, math_grade=80),
+            CPGradeItem(report_id=latest.report_id, participant_id=second.participant_id,
+                        spanish_grade=100, english_grade=90),
+            CPGradeItem(report_id=older.report_id, participant_id=self.participant_id, spanish_grade=100),
+            CPGradeItem(report_id=other_program.report_id, participant_id=self.participant_id, spanish_grade=100),
+            CPGradeItem(report_id=archived.report_id, participant_id=self.participant_id, spanish_grade=99),
+        ])
+        self.db.commit()
+        page = self.client.get("/community/school-grades", params={
+            "program_id": self.voca_id, "fiscal_year_id": self.fy_id, "month": 1, "year": 2025,
+        })
+        self.assertEqual(page.status_code, 200)
+        summary = page.context["grade_summary"]
+        self.assertEqual(summary["report"].report_id, latest.report_id)
+        self.assertEqual(summary["total"], 2)
+        self.assertEqual([(s["label"], s["average"], s["count"]) for s in summary["subjects"]],
+                         [("Español", 50, 2), ("Matemáticas", 80, 1), ("Inglés", 90, 1)])
+        self.assertEqual([r[0].report_id for r in page.context["reports"]], [older.report_id])
+        self.assertEqual(page.context["report_counts"], {older.report_id: 1})
+        self.assertIn("Último informe: Marzo 2025", page.text)
+        self.assertIn("1 sin nota", page.text)
+        archived_page = self.client.get("/community/school-grades", params={
+            "program_id": self.voca_id, "fiscal_year_id": archive.fiscal_year_id,
+        })
+        self.assertEqual(archived_page.context["grade_summary"]["report"].report_id, archived.report_id)
+        self.assertEqual(archived_page.context["grade_summary"]["subjects"][0]["average"], 99)
+        self.assertEqual(self.client.get("/community/school-grades", params={"program_id": self.tanf_id}).status_code, 403)
+
+    def test_dashboard_empty_latest_report_does_not_reuse_older_notes(self):
+        empty = self.client.get("/community/school-grades", params={"program_id": self.voca_id})
+        self.assertIsNone(empty.context["grade_summary"]["report"])
+        older = self.report()
+        save_grade_item(self.db, report_id=older.report_id, participant_id=self.participant_id,
+                        fields={"spanish_grade": "90"})
+        latest = self.report(report_month=2)
+        self.db.commit()
+        for role in ("user", "viewer"):
+            self.role(role)
+            page = self.client.get("/community/school-grades", params={"program_id": self.voca_id})
+            summary = page.context["grade_summary"]
+            self.assertEqual(summary["report"].report_id, latest.report_id)
+            self.assertEqual(summary["total"], 0)
+            self.assertTrue(all(s["average"] is None and s["count"] == 0 for s in summary["subjects"]))
+            self.assertIn("Sin notas", page.text)
+            if role == "viewer":
+                self.assertNotIn('class="grades-create-form"', page.text)
+
 
 if __name__ == "__main__":
     unittest.main()

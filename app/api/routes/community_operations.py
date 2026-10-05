@@ -27,7 +27,7 @@ from app.services.community_fiscal import require_fiscal_writable, snapshot_for_
 from app.services.community_operations import (
     create_activity_session, set_session_attendance,
     create_grade_report, save_grade_item, grade_period, grade_participant_ids,
-    grade_letter, school_grade_age, remove_grade_data, GRADE_OPTIONS, GRADE_LABELS,
+    grade_letter, school_grade_age, remove_grade_data, latest_grade_summary, GRADE_OPTIONS, GRADE_LABELS,
 )
 
 router = APIRouter(prefix="/community", tags=["community-operations"])
@@ -349,6 +349,10 @@ def grades_index(request: Request, fiscal_year_id: int | None = None, program_id
     page_count = max(1, (total + 49) // 50)
     page = min(page, page_count)
     reports = db.execute(query.order_by(CPGradeReport.report_year.desc(), CPGradeReport.report_month.desc(), CPGradeReport.report_id.desc()).offset((page - 1) * 50).limit(50)).all()
+    report_counts = dict(db.execute(select(CPGradeItem.report_id, func.count(CPGradeItem.participant_id)).where(
+        CPGradeItem.report_id.in_([row[0].report_id for row in reports])
+    ).group_by(CPGradeItem.report_id)).all()) if reports else {}
+    grade_summary = latest_grade_summary(db, program_id=program_id, fiscal_year_id=fiscal_year_id)
     states = {state.fiscal_year_id: state for state in db.scalars(select(CPFiscalState).where(
         CPFiscalState.fiscal_year_id.in_({row[0].fiscal_year_id for row in reports})
     ))}
@@ -372,7 +376,7 @@ def grades_index(request: Request, fiscal_year_id: int | None = None, program_id
                    selected_program=program_id, program=program, selected_fiscal=selected_fiscal,
                    create_lock=create_lock, default_date=default_date, reports=reports, report=None, locked_ids=locked_ids,
                    selected_month=month, selected_calendar_year=year, year_options=sorted(year_options, reverse=True),
-                   page=page, page_count=page_count, total=total,
+                   page=page, page_count=page_count, total=total, report_counts=report_counts, grade_summary=grade_summary,
                    previous_url=page_url(page - 1) if page > 1 else None,
                    next_url=page_url(page + 1) if page < page_count else None,
                    return_query=urlencode({**filters, "page": page}))

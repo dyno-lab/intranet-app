@@ -1,5 +1,5 @@
 {% set locked = viewer or lock_message %}
-<header class="grades-heading"><div><h1>Informe de notas</h1><p class="mb-0 text-muted">{{ program.code }} · Año fiscal {{ fiscal_year.code }} · {{ month_names[report.report_month] }} {{ report.report_year }}</p></div><div class="grades-actions">
+<header class="grades-heading grades-hero"><div><div class="grades-eyebrow">Módulo operativo</div><h1>Informe de notas</h1><p class="grades-subtitle">{{ program.code }} · Año fiscal {{ fiscal_year.code }} · {{ month_names[report.report_month] }} {{ report.report_year }}</p></div><div class="grades-actions">
   {% if not locked %}<form method="post" action="/community/school-grades/{{ report.report_id }}/delete{{ return_suffix }}" onsubmit="return confirm('¿Borrar este informe de notas completo? Se eliminarán las notas de este informe.');"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-outline-danger btn-sm">Borrar informe</button></form>{% endif %}
   <a class="btn btn-outline-secondary btn-sm" href="/community/school-grades?{{ return_query }}">Volver</a></div>
 </header>
