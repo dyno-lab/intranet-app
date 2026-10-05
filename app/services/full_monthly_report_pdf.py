@@ -262,8 +262,8 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
 
     programs = data["por_programa"]["program_sections"]
     program_codes = [item["program"].code for item in programs]
-    parts = [institutional_tables.duplicated_pdf(data),
-        _original("duplicado", data["duplicado"], authorized),
+    parts = [_original("duplicado", data["duplicado"], authorized),
+        institutional_tables.duplicated_pdf(data),
         charts.program_services_pdf(["Programa " + code for code in program_codes],
             [item["total_all"] for item in programs],
             [dict(_program_participations(data["hoja_cotejo"])).get(code, 0) for code in program_codes], data["period_label"]),
