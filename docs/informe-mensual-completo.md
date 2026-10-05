@@ -157,7 +157,11 @@ Después del pull autorizado, actualizar el entorno y reiniciar la aplicación:
 ```
 
 Se añaden `pypdf` y `reportlab` (que incluye Pillow). Se utilizan los motores
-PDF existentes: wkhtmltopdf y Edge/Chrome/Chromium. Las hojas de visitas,
+PDF existentes: wkhtmltopdf y Edge/Chrome/Chromium. Bonafide utiliza el mismo
+motor de navegador que su descarga individual, priorizando Chrome, tanto en
+el informe completo como en los ZIP de Todos y de automatización. Requiere
+Chrome, Edge o Chromium; no regresa a wkhtmltopdf si falla el navegador, para
+evitar el espaciado incorrecto de las letras. Las hojas de visitas,
 embarazo y deserción priorizan Chromium. La hoja de cotejo institucional y las
 gráficas se dibujan directamente en PDF. Solo dentro del informe completo se
 ajusta la paginación de las tablas y gráficas; las plantillas de

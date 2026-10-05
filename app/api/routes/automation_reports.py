@@ -44,7 +44,10 @@ from app.services.report_excel_builders import (
     build_visitas_sheet,
     workbook_to_bytes,
 )
-from app.services.report_pdf import PDFBackendUnavailableError, PDFRenderError, render_template_to_pdf_bytes, build_zip_bytes
+from app.services.report_pdf import (
+    PDFBackendUnavailableError, PDFRenderError, build_zip_bytes,
+    render_template_to_chromium_pdf_bytes, render_template_to_pdf_bytes,
+)
 from app.api.routes.reports import templates, build_notes_pdf_chart_images, _pdf_download_filename
 
 router = APIRouter()
@@ -549,8 +552,18 @@ def automation_all_reports_pdf(
     ]
     files = []
     try:
-        for _, template_name, context, filename in pdf_specs:
-            files.append((filename, render_template_to_pdf_bytes(templates=templates, template_name=template_name, context={**context, "request": request}, request=request)))
+        for report_key, template_name, context, filename in pdf_specs:
+            pdf_context = {**context, "request": request}
+            if report_key == "bonafide":
+                payload = render_template_to_chromium_pdf_bytes(
+                    templates=templates, template_name=template_name, context=pdf_context,
+                    request=request, prefer_chrome=True,
+                )
+            else:
+                payload = render_template_to_pdf_bytes(
+                    templates=templates, template_name=template_name, context=pdf_context, request=request,
+                )
+            files.append((filename, payload))
     except PDFBackendUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except PDFRenderError as exc:

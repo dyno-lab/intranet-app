@@ -48,15 +48,15 @@ class FullMonthlyBonafidePaginationTests(unittest.TestCase):
                 self.assertIn(row["expediente"], text)
                 self.assertIn(row["nombre"], text)
 
-    @unittest.skipUnless(_available(report_pdf._resolve_wkhtmltopdf_binary), "wkhtmltopdf is unavailable")
-    def test_letter_pages_keep_bonafide_number_with_its_contents_in_wkhtmltopdf(self):
+    @unittest.skipUnless(_available(lambda: report_pdf._resolve_chromium_pdf_binary(prefer_chrome=True)), "Chromium is unavailable")
+    def test_letter_pages_keep_bonafide_table_signatures_and_number_in_chromium(self):
         for count in (0, 24, 25):
             with self.subTest(participants=count):
                 self.assert_sheets_keep_table_signatures_and_number_together(count)
 
-    @unittest.skipUnless(_available(report_pdf._resolve_chromium_pdf_binary), "Chromium is unavailable")
-    def test_chromium_fallback_preserves_bonafide_contents_and_pagination(self):
-        # Only simulate an unavailable first backend; Chromium renders the real HTML.
+    @unittest.skipUnless(_available(lambda: report_pdf._resolve_chromium_pdf_binary(prefer_chrome=True)), "Chromium is unavailable")
+    def test_bonafide_does_not_require_wkhtmltopdf(self):
+        # Chromium renders the real HTML even when the legacy backend is unavailable.
         with patch.object(report_pdf, "_resolve_wkhtmltopdf_binary",
                           side_effect=report_pdf.PDFBackendUnavailableError):
             self.assert_sheets_keep_table_signatures_and_number_together(25)
