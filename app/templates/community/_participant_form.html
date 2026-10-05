@@ -8,7 +8,7 @@
     {% for choice in catalog_options[key] %}<option value="{{ choice }}" {{ 'selected' if values.get(key) == choice }}>{{ catalog_labels.get(key, {}).get(choice, choice) }}</option>{% endfor %}
   </select>
   {% else %}
-  <input class="form-control" id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ values.get(key, '') or '' }}" maxlength="{{ limit }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %}{% if key == 'fecha_nacimiento' %} max="{{ today.isoformat() }}"{% endif %}{% if type == 'tel' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}"{% endif %}>
+  <input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ values.get(key, '') or '' }}" maxlength="{{ limit }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %}{% if key == 'fecha_nacimiento' %} max="{{ today.isoformat() }}"{% endif %}{% if type == 'tel' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}"{% endif %}>
   {% endif %}
   {% if type == 'tel' %}<div class="form-text">Formato requerido: (XXX)-XXX-XXXX</div>{% endif %}
   {% if type == 'email' %}<div class="form-text">Ingrese un correo electrónico válido.</div>{% endif %}
@@ -91,10 +91,10 @@
           <div class="row g-2">
             {{ field('telefono', 'Teléfono', 'col-xl-3 col-lg-4 col-md-6', 'tel', limit=30, placeholder='(XXX)-XXX-XXXX') }}
             {{ field('email', 'Email', 'col-xl-3 col-lg-4 col-md-6', 'email', limit=255, placeholder='email@email.com') }}
-            {% for field in profile_fields %}<div class="col-xl-3 col-lg-4 col-md-6"><label class="form-label" for="profile_{{ field.field_id }}">{{ field.label }}{{ ' *' if field.is_required }}</label><input class="form-control" id="profile_{{ field.field_id }}" name="profile_{{ field.field_id }}" type="{{ 'tel' if field.field_type == 'phone' else field.field_type }}" value="{{ profile_values.get(field.field_id, '') }}" maxlength="2000" {{ 'required' if field.is_required }}{% if field.field_type == 'phone' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}" placeholder="(XXX)-XXX-XXXX"{% endif %}></div>{% endfor %}
+            {% for field in profile_fields %}<div class="col-xl-3 col-lg-4 col-md-6"><label class="form-label" for="profile_{{ field.field_id }}">{{ field.label }}{{ ' *' if field.is_required }}</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="profile_{{ field.field_id }}" name="profile_{{ field.field_id }}" type="{{ 'tel' if field.field_type == 'phone' else field.field_type }}" value="{{ profile_values.get(field.field_id, '') }}" maxlength="2000" {{ 'required' if field.is_required }}{% if field.field_type == 'phone' %} data-phone-format pattern="\([0-9]{3}\)-[0-9]{3}-[0-9]{4}" placeholder="(XXX)-XXX-XXXX"{% endif %}></div>{% endfor %}
           </div>
         </div></div>
-        <div class="col-12"><button class="btn btn-success w-100 participants-submit-btn" type="submit" {% if participant is not defined and not cp.visible_programs %}disabled{% endif %}><i class="bi bi-save" aria-hidden="true"></i><span>{{ 'Guardar cambios' if participant is defined else 'Guardar Participante' }}</span></button></div>
+        <div class="col-12"><button class="btn btn-success w-100 participants-submit-btn" type="submit" {% if cp.role == 'viewer' or (participant is not defined and not cp.visible_programs) %}disabled{% endif %}><i class="bi bi-save" aria-hidden="true"></i><span>{{ 'Guardar cambios' if participant is defined else 'Guardar Participante' }}</span></button></div>
         {% include 'shared/_identity_registration.html' %}
       </form>
     </div>

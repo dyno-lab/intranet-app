@@ -244,7 +244,7 @@ class CommunityReportDataTests(_ReportFixture):
 class CommunityReportRouteTests(_ReportFixture):
     def setUp(self):
         super().setUp()
-        self.context = CommunityContext(self.actor, "viewer", (self.voca, self.tanf))
+        self.context = CommunityContext(self.actor, "supervisor", (self.voca, self.tanf))
         app = FastAPI()
         app.add_middleware(SessionMiddleware, secret_key="reports-route-tests-not-production")
         app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -263,7 +263,7 @@ class CommunityReportRouteTests(_ReportFixture):
         params.update(overrides)
         return params
 
-    def test_viewer_can_read_download_and_see_available_programs(self):
+    def test_supervisor_can_read_download_and_see_available_programs(self):
         page = self.client.get("/community/reports")
         self.assertEqual(page.status_code, 200, page.text)
         self.assertIn("VOCA", page.text)

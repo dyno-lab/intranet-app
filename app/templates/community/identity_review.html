@@ -69,8 +69,8 @@
     <form method="post" action="{{ post_url }}" class="identity-dialog__actions">
       <input type="hidden" name="token" value="{{ csrf_token }}"><input type="hidden" name="candidate_id" value="{{ candidate.participant_id }}">
       <input type="hidden" name="confirmation" value="{{ confirmations[candidate.participant_id] }}">
-      <button class="identity-dialog__button identity-dialog__primary" type="submit" name="decision" value="yes">Sí, es la misma persona</button>
-      <button class="identity-dialog__button" type="submit" name="decision" value="no">No, es otra persona</button>
+      <button class="identity-dialog__button identity-dialog__primary" type="submit" name="decision" value="yes" {{ 'disabled' if source_module == 'community' and cp.role == 'viewer' }}>Sí, es la misma persona</button>
+      <button class="identity-dialog__button" type="submit" name="decision" value="no" {{ 'disabled' if source_module == 'community' and cp.role == 'viewer' }}>No, es otra persona</button>
     </form>
     <div class="identity-review__reference">El segundo apellido se muestra como referencia.</div>
   </section>

@@ -45,6 +45,8 @@ class CommunityContext:
     def label(self) -> str:
         if self.selected_program_id is not None:
             return next(p.name for p in self.programs if p.program_id == self.selected_program_id)
+        if self.role == "viewer":
+            return "Todos los programas"
         return "Todos mis programas" if self.role == "user" else "Administración general"
 
 

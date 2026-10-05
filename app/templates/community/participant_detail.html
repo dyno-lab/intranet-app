@@ -26,8 +26,8 @@
       </dl>
       <div class="participants-hero__actions participants-expediente__actions">
         <a class="btn btn-outline-secondary" href="/community/participants#participants-table-card"><i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a Listado</a>
-        {% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-primary" href="{{ record_url }}/edit"><i class="bi bi-pencil-square" aria-hidden="true"></i> Editar participante</a>{% endif %}
-        {% if cp.role != 'viewer' %}<a class="btn btn-outline-primary" href="#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a>{% else %}<span class="badge text-bg-info participants-badge participants-expediente__readonly-badge"><i class="bi bi-lock" aria-hidden="true"></i> Solo lectura</span>{% endif %}
+        {% if cp.role in ['admin', 'supervisor', 'viewer'] %}<a class="btn btn-primary" href="{{ record_url }}/edit"><i class="bi bi-pencil-square" aria-hidden="true"></i> Editar participante</a>{% endif %}
+        <a class="btn btn-outline-primary" href="#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a>
       </div>
     </div>
     <aside class="participants-expediente-summary" aria-label="Resumen del expediente">
@@ -56,7 +56,7 @@
   </section>
   <section class="participants-section participants-expediente-anchor" id="contacto" aria-labelledby="contacto-title">
     <article class="participants-expediente-card">
-      <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="contacto-title">Información de contacto</h2><p class="participants-expediente-card__text">Datos actuales del expediente.</p></div>{% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/edit#telefono"><i class="bi bi-pencil" aria-hidden="true"></i> Editar contacto</a>{% endif %}</div>
+      <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="contacto-title">Información de contacto</h2><p class="participants-expediente-card__text">Datos actuales del expediente.</p></div>{% if cp.role in ['admin', 'supervisor', 'viewer'] %}<a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/edit#telefono"><i class="bi bi-pencil" aria-hidden="true"></i> Editar contacto</a>{% endif %}</div>
       <div class="participants-expediente-card__body"><dl class="participants-expediente-fields participants-expediente-fields--full">{{ detail('Teléfono', p.telefono) }}{{ detail('Email', p.email) }}{% for label, item in profile %}{{ detail(label, item) }}{% endfor %}</dl></div>
     </article>
   </section>

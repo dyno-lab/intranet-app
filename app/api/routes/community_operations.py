@@ -163,7 +163,7 @@ def _attendance_csv(rows, filename):
 
 @router.get("/attendance/export.csv")
 def export_community_sessions(request: Request, db: Session = Depends(get_db),
-                              cp: CommunityContext = Depends(require_community_context)):
+                              cp: CommunityContext = Depends(require_community_writer)):
     filters, _ = _attendance_selection(request, db, cp)
     query = attendance_service.filtered_sessions(cp, filters)
     rows = [["Control", "Fecha", "Año fiscal", "Programa", "Actividad", "Descripción", "Participaciones", "Creado por", "Minutos"]]
@@ -175,7 +175,7 @@ def export_community_sessions(request: Request, db: Session = Depends(get_db),
 
 @router.get("/attendance/export-attendance.csv")
 def export_community_attendance(request: Request, db: Session = Depends(get_db),
-                                cp: CommunityContext = Depends(require_community_context)):
+                                cp: CommunityContext = Depends(require_community_writer)):
     filters, _ = _attendance_selection(request, db, cp)
     selected = attendance_service.filtered_sessions(cp, filters)
     query = select(CPActivitySession, CPProgram.code, CPActivity.code, CPFiscalYear.code, CPFiscalParticipant.snapshot_json).join(
@@ -424,7 +424,7 @@ def grade_detail(report_id: int, request: Request, db: Session = Depends(get_db)
     snapshots = {row["participant_id"]: row for row in _snapshots(db, report.fiscal_year_id, existing_ids)}
     lock_message = _lock_message(db, report.fiscal_year_id, first)
     eligible = (_snapshots(db, report.fiscal_year_id, set(grade_participant_ids(db, report)) - existing_ids)
-                if not lock_message and cp.role != "viewer" else [])
+                if not lock_message else [])
     age_map = {pid: school_grade_age(db, pid, report.fiscal_year_id)
                for pid in existing_ids | {person["participant_id"] for person in eligible}}
     items.sort(key=lambda item: (snapshots.get(item.participant_id, {}).get("apellido_paterno", ""),

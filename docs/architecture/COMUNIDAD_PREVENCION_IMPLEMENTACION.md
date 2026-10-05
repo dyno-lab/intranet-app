@@ -12,8 +12,16 @@ la interfaz en navegador. Este documento no autoriza una puesta en producción.
 - Tablas propias `cp_` en la base de la plataforma. Expedientes y operaciones
   independientes de Faro; acceso desde `/home`, identidad verde y menú desplegable.
 - Roles independientes: `users.role` permanece como rol Faro; `cp_user_access.role`
-  contiene el rol de Comunidad. User tiene uno o varios programas; Viewer consulta;
+  contiene el rol de Comunidad. User tiene uno o varios programas; Viewer revisa la interfaz;
   Supervisor gestiona operación y sincronización; Admin añade configuración y cierres.
+- Viewer (definición del 5 de octubre de 2026): accede a Inicio, Expedientes,
+  Asistencias, Notas escolares y la pantalla de opciones de Reportes. Puede ver
+  formularios de crear y editar y explorar sus desplegables, pero los campos de
+  texto están bloqueados y no puede guardar, eliminar, confirmar vínculos, generar
+  reportes en pantalla ni descargar CSV/Excel/PDF. Administración no aparece en
+  su menú y sus rutas rechazan el acceso. Puede cambiar el contexto de programa
+  y usar los filtros desplegables de consulta. Estas restricciones se aplican al
+  rol de Comunidad; el rol y los permisos de Faro permanecen independientes.
 - Un expediente por participante de Comunidad, con número automático
   `CP-2026-0001`. Los registros `CP-2026-VOCA-0001` y `CP-2026-TANF-M-0001`
   comparten año y consecutivo. Se conservan entre años fiscales.

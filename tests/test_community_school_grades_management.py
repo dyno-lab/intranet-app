@@ -196,7 +196,7 @@ class SchoolGradeManagementTests(unittest.TestCase):
                 self.assertIn("msg=", response.headers["location"])
                 self.db.expunge(report)
 
-    def test_viewer_has_no_mutation_controls_and_all_posts_are_denied(self):
+    def test_viewer_previews_forms_with_disabled_actions_and_all_posts_are_denied(self):
         report = self.report()
         save_grade_item(self.db, report_id=report.report_id, participant_id=self.participant_id,
                         fields={"math_grade": "90"})
@@ -205,10 +205,11 @@ class SchoolGradeManagementTests(unittest.TestCase):
         path = f"/community/school-grades/{report.report_id}"
         page = self.client.get(path)
         self.assertEqual(page.status_code, 200)
-        self.assertIn("Modo de consulta", page.text)
-        self.assertNotIn("Borrar informe</button>", page.text)
-        self.assertNotIn(">Guardar</button>", page.text)
-        self.assertNotIn(">Quitar</button>", page.text)
+        self.assertIn("Viewer · Vista de revisión", page.text)
+        self.assertIn('disabled>Borrar informe</button>', page.text)
+        self.assertIn('disabled>Guardar</button>', page.text)
+        self.assertIn('disabled>Quitar</button>', page.text)
+        self.assertIn('community-viewer.js', page.text)
         for suffix in ("/delete", "/participants", "/participants/add", f"/participants/{self.participant_id}/delete"):
             self.assertEqual(self.post(path + suffix, participant_id=self.participant_id).status_code, 403)
         self.assertEqual(self.post("/community/school-grades", fiscal_year_id=self.fy_id, program_id=self.voca_id,
@@ -340,7 +341,8 @@ class SchoolGradeManagementTests(unittest.TestCase):
             self.assertTrue(all(s["average"] is None and s["count"] == 0 for s in summary["subjects"]))
             self.assertIn("Sin notas", page.text)
             if role == "viewer":
-                self.assertNotIn('class="grades-create-form"', page.text)
+                self.assertIn('class="grades-create-form"', page.text)
+                self.assertIn('disabled>Crear informe</button>', page.text)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@
     <noscript><button class="btn btn-primary">Seleccionar</button></noscript>
   </form>
 </header>
-{% if viewer %}<div class="alert alert-info"><strong>Modo de consulta:</strong> puede abrir informes. La creación y edición no están disponibles.</div>{% endif %}
 <section class="grades-summary" aria-labelledby="grades-summary-heading">
   <div class="grades-summary-heading"><div><h2 id="grades-summary-heading">Notas actuales · {{ program.code }}</h2><span class="text-muted">{% if grade_summary.report %}Último informe: {{ month_names[grade_summary.report.report_month] }} {{ grade_summary.report.report_year }} · {{ grade_summary.total }} participante{{ 's' if grade_summary.total != 1 }}{% else %}Sin informes en este año fiscal{% endif %}</span></div><span class="text-muted">Promedios sobre 100</span></div>
   <div class="grades-summary-grid">
@@ -20,7 +19,6 @@
   </div>
   <p class="grades-summary-help">Último informe del año fiscal seleccionado. Cada promedio usa únicamente las notas registradas de esa materia; una nota de 0 sí cuenta.</p>
 </section>
-{% if not viewer %}
 {% if create_lock %}<div class="alert alert-warning">{{ create_lock }}</div>{% else %}
 <section class="card mb-3"><div class="card-body">
   <h2 class="h5 mb-2">Crear informe de notas</h2>
@@ -30,11 +28,11 @@
     <input type="hidden" name="program_id" value="{{ program.program_id }}">
     <div><label class="form-label" for="create-month">Mes *</label><select class="form-select" name="report_month" id="create-month" required>{% for number, label in months %}<option value="{{ number }}" {{ 'selected' if number == (selected_month or default_date.month) }}>{{ label }}</option>{% endfor %}</select></div>
     <div><label class="form-label" for="create-year">Año *</label><select class="form-select" name="report_year" id="create-year" required>{% for number in year_options %}<option value="{{ number }}" {{ 'selected' if number == (selected_calendar_year or default_date.year) }}>{{ number }}</option>{% endfor %}</select></div>
-    <div class="grades-create-notes"><label class="form-label" for="create-notes">Observaciones generales</label><input class="form-control" name="notes" id="create-notes" maxlength="500"></div>
-    <button class="btn btn-primary">Crear informe</button>
+    <div class="grades-create-notes"><label class="form-label" for="create-notes">Observaciones generales</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" name="notes" id="create-notes" maxlength="500"></div>
+    <button class="btn btn-primary" {{ 'disabled' if cp.role == 'viewer' }}>Crear informe</button>
   </form>
 </div></section>
-{% endif %}{% endif %}
+{% endif %}
 <section class="card"><div class="card-body">
   <div class="grades-report-heading">
     <div><h2 class="h5 mb-1">Informes creados</h2><span class="small text-muted">{{ program.code }}{% if selected_fiscal %} · Año fiscal {{ selected_fiscal.name }}{% endif %}</span></div>

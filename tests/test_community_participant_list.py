@@ -235,9 +235,10 @@ class CommunityParticipantListTests(unittest.TestCase):
         self.login(self.viewer_id)
         page = self.client.get('/community/participants')
         self.assertEqual(page.status_code, 200)
-        self.assertNotIn('id="participant-register-card"', page.text)
-        self.assertNotIn('/edit"', page.text)
-        self.assertEqual(self.client.get('/community/participants/export.csv').status_code, 200)
+        self.assertIn('id="participant-register-card"', page.text)
+        self.assertIn('community-viewer.js', page.text)
+        self.assertIn('type="submit" disabled', page.text)
+        self.assertEqual(self.client.get('/community/participants/export.csv').status_code, 403)
 
     def test_age_filter_respects_birthday_and_leap_day(self):
         with Session(self.engine) as db:

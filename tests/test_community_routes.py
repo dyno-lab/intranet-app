@@ -154,7 +154,7 @@ class CommunityRouteTests(unittest.TestCase):
     def test_independent_viewer_role_blocks_writes_even_for_faro_admin(self):
         token = self.login(self.viewer_id)
         self.assertEqual(self.client.get("/community/participants").status_code, 200)
-        self.assertEqual(self.client.get("/community/participants/new").status_code, 403)
+        self.assertEqual(self.client.get("/community/participants/new").status_code, 200)
         self.assertEqual(self.client.post("/community/participants", data=self.participant_data(token)).status_code, 403)
         for path in ("programs", "fiscal-years"):
             self.assertEqual(self.client.get(f"/community/{path}").status_code, 403)

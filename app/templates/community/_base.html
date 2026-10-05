@@ -61,6 +61,7 @@
       <div class="ui-topbar__right"><a class="btn btn-outline-primary btn-sm" href="/community/login">{{ cp.label }} <i class="bi bi-arrow-left-right" aria-hidden="true"></i></a><a class="btn btn-outline-secondary btn-sm" href="/home">Portal</a><form method="post" action="/logout"><button class="btn btn-outline-secondary btn-sm">Salir</button></form></div>
     </header>
     <main class="ui-content-shell"><div class="ui-page-wrap">
+      {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
       {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
       {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
       {% block content %}{% endblock %}
@@ -86,5 +87,6 @@
   sync();
 })();
 </script>
+{% if cp.role == 'viewer' %}<script src="{{ request.url_for('static', path='js/community-viewer.js') }}?v=20261005"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body></html>

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.api.deps import get_db
-from app.core.community_access import CommunityContext, csrf_token, require_community_writer, validate_csrf
+from app.core.community_access import CommunityContext, csrf_token, require_community_context, require_community_writer, validate_csrf
 from app.core.config import settings, require_session_secret
 from app.core.residential_scope import has_global_residential_access, require_faro_access, require_record_residential_id
 from app.models.community import CPParticipant, CPParticipantProgram
@@ -128,7 +128,7 @@ def _review(db: Session, source_module: str, participant_id: int, candidate_id: 
 
 @router.get("/community/participants/{participant_id}/identity")
 def community_identity(request: Request, participant_id: int, db: Session = Depends(get_db),
-                       context: CommunityContext = Depends(require_community_writer)):
+                       context: CommunityContext = Depends(require_community_context)):
     record = _community_source(db, participant_id, context)
     return _render(request, db, "community", record, context.user, context)
 

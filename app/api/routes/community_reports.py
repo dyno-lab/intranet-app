@@ -22,6 +22,8 @@ def reports(request: Request, fiscal_year_id: int | None = None, program_ids: li
             db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_context)):
     result = None
     error = None
+    if context.role == "viewer" and (fiscal_year_id is not None or output != "screen"):
+        raise HTTPException(403, "El rol Viewer puede revisar las opciones, pero no generar ni descargar reportes.")
     if output not in {"screen", "excel", "pdf"}:
         raise HTTPException(422, "Formato inválido.")
     if fiscal_year_id is not None:

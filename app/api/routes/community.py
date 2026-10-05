@@ -210,7 +210,7 @@ def participants(request: Request, db: Session = Depends(get_db),
 
 @router.get("/participants/export.csv")
 def export_participants(request: Request, db: Session = Depends(get_db),
-                        context: CommunityContext = Depends(require_community_context)):
+                        context: CommunityContext = Depends(require_community_writer)):
     filters = roster_filters(request.query_params, context)
     output = io.StringIO(newline="")
     writer = csv.writer(output)
@@ -246,7 +246,7 @@ def participant_number_preview(exp_year: int = Query(..., ge=1000, le=9999),
 
 @router.get("/participants/new")
 def participant_form(request: Request, db: Session = Depends(get_db),
-                     context: CommunityContext = Depends(require_community_writer)):
+                     context: CommunityContext = Depends(require_community_context)):
     return _participant_form_response(request, context, db, values={}, form_error=None)
 
 
@@ -307,7 +307,7 @@ async def add_participant(request: Request, db: Session = Depends(get_db),
 
 @router.get("/participants/lookup")
 def participant_lookup(request: Request, q: str = "", db: Session = Depends(get_db),
-                       context: CommunityContext = Depends(require_community_writer)):
+                       context: CommunityContext = Depends(require_community_context)):
     rows = []
     term = q.strip()[:150]
     if len(term) >= 3:
@@ -322,7 +322,9 @@ def participant_lookup(request: Request, q: str = "", db: Session = Depends(get_
 
 @router.get("/participants/{participant_id}/edit")
 def edit_participant_form(request: Request, participant_id: int, db: Session = Depends(get_db),
-                          context: CommunityContext = Depends(require_community_supervisor)):
+                          context: CommunityContext = Depends(require_community_context)):
+    if context.role == "user":
+        raise HTTPException(403, "Los datos personales comunes requieren Supervisor o Administrador de Comunidad.")
     participant = db.scalar(_participant_query(context).where(CPParticipant.participant_id == participant_id))
     if participant is None:
         raise HTTPException(404, "Expediente no disponible.")
@@ -411,5 +413,5 @@ def participant_detail(request: Request, participant_id: int, db: Session = Depe
                                        {association.program_id for association, _ in associations}],
                    record=participant_record(db, context, participant_id, request.query_params),
                    identity_linked=linked_identity(db, "community", participant_id),
-                   identity_reviewed=context.role != 'viewer' and has_identity_review(db, 'community', participant_id),
-                   identity_pending=context.role != "viewer" and pending_identity_review(db, "community", participant_id))
+                   identity_reviewed=has_identity_review(db, 'community', participant_id),
+                   identity_pending=pending_identity_review(db, "community", participant_id))

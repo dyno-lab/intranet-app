@@ -337,7 +337,8 @@ class CommunityIdentityRouteTests(IdentityFixture, unittest.TestCase):
         with Session(self.engine) as db:
             db.get(CPUserAccess, self.cp_user_id).role = "viewer"
             db.commit()
-        self.assertEqual(self.client.get(self.page()).status_code, 403)
+        self.assertEqual(self.client.get(self.page()).status_code, 200)
+        self.assertEqual(self.client.post(self.page(), data={"token": "test"}).status_code, 403)
         self.client.get(f"/_test/session/{self.denied_user_id}")
         self.assertEqual(self.client.get(self.page()).status_code, 403)
         self.assertEqual(self.client.get(self.page("faro")).status_code, 403)

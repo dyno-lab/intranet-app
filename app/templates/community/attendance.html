@@ -1,17 +1,17 @@
 {% extends "community/_base.html" %}
 {% block title %}Asistencias · Comunidad y Prevención{% endblock %}
 {% macro session_fields(form, prefix, fixed_context=false) %}
-<div class="col-lg-2 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-date">Fecha *</label><input class="form-control" id="{{ prefix }}-date" type="date" name="session_date" value="{{ form.get('session_date') or '' }}" max="{{ today }}" required><div class="form-text">Dentro del año fiscal y sus períodos abiertos. No se permiten fechas futuras.</div></div>
-<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-year">Año fiscal *</label><select class="form-select" id="{{ prefix }}-year" name="fiscal_year_id" required {{ 'disabled' if fixed_context }}>
+<div class="col-lg-2 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-date">Fecha *</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="{{ prefix }}-date" type="date" name="session_date" value="{{ form.get('session_date') or '' }}" max="{{ today }}" required><div class="form-text">Dentro del año fiscal y sus períodos abiertos. No se permiten fechas futuras.</div></div>
+<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-year">Año fiscal *</label><select class="form-select" id="{{ prefix }}-year" name="fiscal_year_id" required {{ 'disabled' if fixed_context and cp.role != 'viewer' }}>
   <option value="">Seleccione un año fiscal</option>{% for year in years %}{% set bounds = fiscal_options[year.fiscal_year_id] %}<option value="{{ year.fiscal_year_id }}" data-min="{{ bounds.min }}" data-max="{{ bounds.max }}" data-closed="{{ 'true' if bounds.closed else 'false' }}" {{ 'selected' if form.get('fiscal_year_id') == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}{{ ' (sin período abierto)' if bounds.closed }}</option>{% endfor %}
 </select>{% if fixed_context %}<input type="hidden" name="fiscal_year_id" value="{{ form.fiscal_year_id }}">{% endif %}</div>
-<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-program">Programa *</label><select class="form-select" id="{{ prefix }}-program" name="program_id" required {{ 'disabled' if fixed_context }}>
+<div class="col-lg-3 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-program">Programa *</label><select class="form-select" id="{{ prefix }}-program" name="program_id" required {{ 'disabled' if fixed_context and cp.role != 'viewer' }}>
   <option value="">Seleccione un programa</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if form.get('program_id') == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}
 </select>{% if fixed_context %}<input type="hidden" name="program_id" value="{{ form.program_id }}">{% endif %}</div>
 <div class="col-lg-4 col-md-6 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-activity">Código de actividad *</label><select class="form-select" id="{{ prefix }}-activity" name="activity_id" required><option value="">Seleccione una actividad</option>{% for activity in activities %}<option value="{{ activity.activity_id }}" {{ 'selected' if form.get('activity_id') == activity.activity_id }}>{{ activity.code }} · {{ activity.description or '' }}</option>{% endfor %}</select></div>
-<div class="col-lg-2 col-md-4 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-minutes">Minutos</label><input class="form-control" id="{{ prefix }}-minutes" type="number" name="duration_minutes" step="5" min="5" max="2147483647" value="{{ form.get('duration_minutes') if form.get('duration_minutes') is not none else '' }}" data-minutes-input="{{ prefix }}-equivalent"></div>
+<div class="col-lg-2 col-md-4 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-minutes">Minutos</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="{{ prefix }}-minutes" type="number" name="duration_minutes" step="5" min="5" max="2147483647" value="{{ form.get('duration_minutes') if form.get('duration_minutes') is not none else '' }}" data-minutes-input="{{ prefix }}-equivalent"></div>
 <div class="col-lg-2 col-md-4 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-equivalent">Equivale a</label><input class="form-control bg-light" id="{{ prefix }}-equivalent" readonly tabindex="-1" placeholder="0 minutos"></div>
-<div class="col-lg-8 col-md-12 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-notes">Observaciones</label><input class="form-control" id="{{ prefix }}-notes" name="notes" maxlength="500" value="{{ form.get('notes') or '' }}"></div>
+<div class="col-lg-8 col-md-12 attendance-create-form__field"><label class="form-label" for="{{ prefix }}-notes">Observaciones</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="{{ prefix }}-notes" name="notes" maxlength="500" value="{{ form.get('notes') or '' }}"></div>
 <div class="col-12"><p class="form-text mb-0" data-context-message role="status">Seleccione un programa y año fiscal para cargar sus actividades.</p>{% if fixed_context %}<p class="form-text mb-0">Esta sesión tiene asistencias guardadas; su programa y año fiscal se conservan.</p>{% endif %}</div>
 {% endmacro %}
 {% block content %}
@@ -23,8 +23,8 @@
       <div class="attendance-hero__content"><span class="attendance-hero__eyebrow">Módulo operativo</span><h1 class="attendance-hero__title">Asistencias</h1><p class="attendance-hero__lead">Cree sesiones por programa y año fiscal, registre asistencias y consulte su historial.</p></div>
       <div class="attendance-hero__actions">
         {% if filters.fiscal_year_id and cp.role in ['admin', 'supervisor'] %}<a class="btn btn-outline-secondary" href="/community/fiscal-participants?fiscal_year_id={{ filters.fiscal_year_id }}">Sincronización del año fiscal</a>{% endif %}
-        <a class="btn btn-outline-success" href="/community/attendance/export.csv?{{ export_query }}">Exportar sesiones CSV</a>
-        <a class="btn btn-outline-success" href="/community/attendance/export-attendance.csv?{{ export_query }}">Exportar asistencias CSV</a>
+        <a data-viewer-download class="btn btn-outline-success {{ 'disabled' if cp.role == 'viewer' }}" {% if cp.role == 'viewer' %}aria-disabled="true" tabindex="-1"{% else %}href="/community/attendance/export.csv?{{ export_query }}"{% endif %}>Exportar sesiones CSV</a>
+        <a data-viewer-download class="btn btn-outline-success {{ 'disabled' if cp.role == 'viewer' }}" {% if cp.role == 'viewer' %}aria-disabled="true" tabindex="-1"{% else %}href="/community/attendance/export-attendance.csv?{{ export_query }}"{% endif %}>Exportar asistencias CSV</a>
       </div>
     </div>
     <div class="attendance-hero__summary">
@@ -36,29 +36,27 @@
     <div class="attendance-section__header attendance-section__header--compact"><h2 class="attendance-section__title">Filtros de búsqueda</h2><div class="attendance-list-meta"><span>Mostrando {{ sessions|length }} de {{ metrics.total_activities }} sesiones</span><span>Página {{ page }} de {{ total_pages }}</span></div></div>
     <div class="card shadow-sm border-0 attendance-filter-card"><div class="card-body">
       <form method="get" action="/community/attendance" class="row g-2 align-items-end attendance-filter-form">
-        <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-control">Número de control</label><input class="form-control" id="filter-control" name="control_number" value="{{ filters.control_number }}" placeholder="Ej. CP-123" maxlength="64"></div>
+        <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-control">Número de control</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="filter-control" name="control_number" value="{{ filters.control_number }}" placeholder="Ej. CP-123" maxlength="64"></div>
         <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-program">Programa</label><select class="form-select" id="filter-program" name="program_id"><option value="">Todos mis programas</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if filters.program_id == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
         <div class="col-xl-3 col-md-6"><label class="form-label" for="filter-fiscal">Año fiscal</label><select class="form-select" id="filter-fiscal" name="fiscal_year_id"><option value="">Todos</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if filters.fiscal_year_id == year.fiscal_year_id }}>{{ year.code }} · {{ year.name }}{{ ' (cerrado)' if year.status != 'active' }}</option>{% endfor %}</select></div>
         <div class="col-xl-1 col-md-3"><label class="form-label" for="filter-month">Mes</label><select class="form-select" id="filter-month" name="month"><option value="">Todos</option>{% for value, label in month_options %}<option value="{{ value }}" {{ 'selected' if filters.month == value }}>{{ label }}</option>{% endfor %}</select></div>
         <div class="col-xl-2 col-md-3"><label class="form-label" for="filter-year">Año calendario</label><select class="form-select" id="filter-year" name="year"><option value="">Todos</option>{% for year in filter_years %}<option value="{{ year }}" {{ 'selected' if filters.year == year }}>{{ year }}</option>{% endfor %}</select></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-from">Desde</label><input class="form-control" id="filter-from" type="date" name="from_date" value="{{ filters.from_date or '' }}"></div>
-        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-to">Hasta</label><input class="form-control" id="filter-to" type="date" name="to_date" value="{{ filters.to_date or '' }}"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-from">Desde</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="filter-from" type="date" name="from_date" value="{{ filters.from_date or '' }}"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label" for="filter-to">Hasta</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" id="filter-to" type="date" name="to_date" value="{{ filters.to_date or '' }}"></div>
         <div class="col-lg-2 col-md-4"><label class="form-label" for="filter-page-size">Por página</label><select class="form-select" id="filter-page-size" name="per_page">{% for size in [25, 50, 100] %}<option value="{{ size }}" {{ 'selected' if per_page == size }}>{{ size }}</option>{% endfor %}</select></div>
         <div class="col-lg-2 col-md-4 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div><div class="col-lg-2 col-md-4 d-grid"><a class="btn btn-outline-secondary" href="/community/attendance">Limpiar</a></div>
       </form>
     </div></div>
   </section>
-  {% if cp.role != 'viewer' %}
   <section class="attendance-section">
     <div class="attendance-section__header attendance-section__header--compact"><h2 class="attendance-section__title">Creación de sesión</h2></div>
     <div class="card shadow-sm border-0 attendance-form-card"><div class="card-body">
       <form method="post" action="/community/attendance?{{ query_string }}" class="row g-2 align-items-start attendance-create-form" data-session-form data-today="{{ today }}">
         <input type="hidden" name="token" value="{{ csrf_token }}">{{ session_fields(create_form, 'create') }}
-        <div class="col-lg-4 d-grid attendance-create-form__submit"><button class="btn btn-success attendance-submit-btn" type="submit" data-session-submit>Crear y Abrir Sesión</button></div>
+        <div class="col-lg-4 d-grid attendance-create-form__submit"><button class="btn btn-success attendance-submit-btn" type="submit" data-session-submit {{ 'disabled' if cp.role == 'viewer' }}>Crear y Abrir Sesión</button></div>
       </form>
     </div></div>
   </section>
-  {% else %}<div class="alert alert-info">Modo de consulta: puede revisar sesiones y asistencias, pero no modificarlas.</div>{% endif %}
   <section class="attendance-section">
     <div class="attendance-section__header"><h2 class="attendance-section__title">Sesiones registradas</h2></div>
     <div class="card shadow-sm border-0 attendance-table-card"><div class="card-body"><div class="table-responsive">
@@ -93,7 +91,7 @@
     {% if session.notes %}<p class="text-muted">{{ session.notes }}</p>{% endif %}
     <div class="attendance-detail-actions"><div class="attendance-detail-actions__main">
       <div class="attendance-detail-actions__group attendance-detail-actions__group--primary">
-        {% if not read_only %}<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm" aria-controls="editSessionForm" aria-expanded="{{ 'true' if open_edit else 'false' }}">Editar sesión</button>{% else %}<span class="badge text-bg-secondary">Solo lectura</span>{% endif %}
+        {% if not lock_message %}<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm" aria-controls="editSessionForm" aria-expanded="{{ 'true' if open_edit else 'false' }}">Editar sesión</button>{% else %}<span class="badge text-bg-secondary">Solo lectura</span>{% endif %}
         <a class="btn btn-outline-secondary" href="{{ back_url }}">Volver a sesiones</a>
         {% if cp.role in ['admin', 'supervisor'] %}<a class="btn btn-outline-secondary" href="/community/fiscal-participants?fiscal_year_id={{ session.fiscal_year_id }}">Sincronización del año fiscal</a>{% endif %}
       </div>
@@ -103,11 +101,11 @@
       </div>{% endif %}
     </div></div>
     <div class="attendance-detail-note"><div class="attendance-detail-note__icon"><i class="bi bi-info-circle-fill" aria-hidden="true"></i></div><p class="mb-0">Marque los participantes de este programa que asistieron y presione <strong>Guardar Asistencia</strong>. La disponibilidad corresponde a la matrícula en la fecha de la sesión.</p></div>
-    {% if not read_only %}<div class="collapse attendance-session-edit {{ 'show' if open_edit }}" id="editSessionForm">
+    {% if not lock_message %}<div class="collapse attendance-session-edit {{ 'show' if open_edit }}" id="editSessionForm">
       <h2 class="attendance-section__title mb-3">Editar sesión</h2>
       <form method="post" action="/community/attendance/{{ session.session_id }}/edit?return_query={{ return_query|urlencode }}" class="row g-2 attendance-create-form" data-session-form data-today="{{ today }}">
         <input type="hidden" name="token" value="{{ csrf_token }}">{{ session_fields(edit_form, 'edit', has_attendance) }}
-        <div class="col-12"><button class="btn btn-primary" type="submit" data-session-submit>Guardar Cambios</button> <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">Cancelar</button></div>
+        <div class="col-12"><button class="btn btn-primary" type="submit" data-session-submit {{ 'disabled' if cp.role == 'viewer' }}>Guardar Cambios</button> <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#editSessionForm">Cancelar</button></div>
       </form>
     </div>{% endif %}
   </div></section>
@@ -116,8 +114,8 @@
     <p class="attendance-section__text">Las selecciones se conservan aunque cambie o limpie los filtros.</p>
     <div class="row g-2 align-items-end attendance-participants-filter__form">
       <div class="col-lg-3 col-md-6"><label class="form-label" for="age-range-filter">Rango de edad</label><select class="form-select" id="age-range-filter"><option value="">Todos los rangos</option>{% for option in age_ranges %}<option value="{{ option.value }}" data-min="{{ option.min if option.min is not none else '' }}" data-max="{{ option.max if option.max is not none else '' }}">{{ option.label }}</option>{% endfor %}</select></div>
-      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-min-filter">Edad desde</label><input class="form-control" type="number" min="0" id="age-min-filter" placeholder="Desde"></div>
-      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-max-filter">Edad hasta</label><input class="form-control" type="number" min="0" id="age-max-filter" placeholder="Hasta"></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-min-filter">Edad desde</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" type="number" min="0" id="age-min-filter" placeholder="Desde"></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label" for="age-max-filter">Edad hasta</label><input {{ 'readonly' if cp.role == 'viewer' }} class="form-control" type="number" min="0" id="age-max-filter" placeholder="Hasta"></div>
       <div class="col-lg-2 col-md-6 d-grid"><button class="btn btn-primary" type="button" id="apply-age-filter">Filtrar</button></div>
       <div class="col-lg-3 col-md-6 d-grid"><button class="btn btn-outline-secondary" type="button" id="clear-age-filter">Limpiar filtros</button></div>
       <div class="col-md-6"><div class="form-check mt-2"><input class="form-check-input" id="hide-inactive-filter" type="checkbox" checked><label class="form-check-label" for="hide-inactive-filter">Ocultar participantes inactivos</label></div></div>

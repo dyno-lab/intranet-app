@@ -260,7 +260,7 @@ class CommunityFiscalRouteTests(_FiscalFixture):
         self.assertNotIn("TANF-M", page.text)
         self.context = CommunityContext(self.actor, "viewer", (self.voca, self.tanf))
         self.assertEqual(self.client.post(path, data=payload).status_code, 403)
-        self.assertNotIn("Dar de baja", self.client.get(path).text)
+        self.assertIn("disabled>Dar de baja", self.client.get(path).text)
 
     def test_supervisor_cannot_close_year_and_user_cannot_sync(self):
         self.context = CommunityContext(self.actor, "supervisor", (self.voca, self.tanf))
