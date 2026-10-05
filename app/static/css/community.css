@@ -33,6 +33,7 @@
 .community-body .attendance-pagination .page-link { color: #126443; }
 .community-body .form-control:focus, .community-body .form-select:focus { border-color: #388e66; box-shadow: 0 0 0 .2rem #19805b26; }
 .community-body .ui-brand-mark { background: #ffffff16; color: #d4f4e1; }
+.community-body .ui-subnav-link.is-active { background: rgba(25, 121, 79, .38); }
 .community-body .ui-topbar form { margin: 0; }
 .community-body .ui-topbar__title { color: #174a37; }
 .community-hero { padding: 1.75rem; margin-bottom: 1.5rem; border-radius: 1rem; background: linear-gradient(120deg, #e4f2e8, #fff); border: 1px solid #c8dfd1; }
