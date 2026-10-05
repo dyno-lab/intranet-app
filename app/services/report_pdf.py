@@ -50,31 +50,32 @@ def _resolve_wkhtmltopdf_binary() -> str:
     )
 
 
-def _resolve_chromium_pdf_binary() -> str:
+def _resolve_chromium_pdf_binary(*, prefer_chrome: bool = False) -> str:
     candidates = [
         os.environ.get("EDGE_PATH", ""),
         os.environ.get("CHROME_PATH", ""),
         os.environ.get("CHROMIUM_PATH", ""),
-        shutil.which("msedge") or "",
-        shutil.which("chrome") or "",
-        shutil.which("chromium") or "",
-        shutil.which("chromium-browser") or "",
-        shutil.which("google-chrome") or "",
     ]
+    commands = ["msedge", "chrome", "chromium", "chromium-browser", "google-chrome"]
+    if prefer_chrome:
+        commands = ["chrome", "google-chrome", "chromium", "chromium-browser", "msedge"]
+    candidates.extend(shutil.which(command) or "" for command in commands)
     if os.name == "nt":
         program_files = [
             os.environ.get("ProgramFiles", ""),
             os.environ.get("ProgramFiles(x86)", ""),
             os.environ.get("LocalAppData", ""),
         ]
-        for root in program_files:
-            if not root:
-                continue
-            candidates.append(str(Path(root, "Microsoft", "Edge", "Application", "msedge.exe")))
-        for root in program_files:
-            if not root:
-                continue
-            candidates.append(str(Path(root, "Google", "Chrome", "Application", "chrome.exe")))
+        browser_paths = [
+            ("Microsoft", "Edge", "Application", "msedge.exe"),
+            ("Google", "Chrome", "Application", "chrome.exe"),
+        ]
+        if prefer_chrome:
+            browser_paths.reverse()
+        for browser_path in browser_paths:
+            for root in program_files:
+                if root:
+                    candidates.append(str(Path(root, *browser_path)))
 
     for candidate in candidates:
         if not candidate:
@@ -199,12 +200,13 @@ def render_template_to_chromium_pdf_bytes(
     template_name: str,
     context: dict,
     request: Request | None = None,
+    prefer_chrome: bool = False,
 ) -> bytes:
     env: Environment = templates.env
     template = env.get_template(template_name)
     rendered_html = template.render(context)
     prepared_html = _prepare_html_document(_inject_chromium_pdf_readiness(rendered_html), request=request)
-    chromium_binary = _resolve_chromium_pdf_binary()
+    chromium_binary = _resolve_chromium_pdf_binary(prefer_chrome=prefer_chrome)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)

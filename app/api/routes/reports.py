@@ -4374,8 +4374,26 @@ def bonafide_report_pdf_download(
 ):
     proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_bonafide_context(db, current_user, proposal_id, month, year, employee_id, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"current_user": current_user})
-    return _render_report_pdf_response(request, "ui/reports/bonafide_pdf.html", context, _pdf_download_filename("bonafide", context))
+    context.update({"current_user": current_user, "request": request})
+    # Render the printable sheet with a browser, without the wkhtmltopdf-specific CSS.
+    try:
+        pdf_bytes = render_template_to_chromium_pdf_bytes(
+            templates=templates,
+            template_name="ui/reports/bonafide_pdf.html",
+            context=context,
+            request=request,
+            prefer_chrome=True,
+        )
+    except PDFBackendUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        logger.exception("Chromium PDF renderer failed for Bonafide.")
+        raise HTTPException(status_code=500, detail="No se pudo generar el PDF de Bonafide con el formato imprimible.") from exc
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_pdf_download_filename("bonafide", context)}"'},
+    )
 
 
 @router.get("/bonafide/excel")

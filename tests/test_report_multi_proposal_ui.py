@@ -154,6 +154,57 @@ class ReportMultiProposalDownloadRouteTests(unittest.TestCase):
         self.assertEqual(response.headers["content-type"], "application/pdf")
         self.assertEqual(response.headers["content-disposition"], 'attachment; filename="visitas.pdf"')
 
+    def test_bonafide_download_uses_printable_template_and_keeps_filters(self):
+        context = {"period_label": "Julio a agosto 2026", "residential_name": "Global",
+                   "selected_period_type": "custom", "selected_start_date": "2026-07-01",
+                   "selected_end_date": "2026-08-31", "rows": [], "pages": [[]]}
+        query = self.query + "&period_type=custom&start_date=2026-07-01&end_date=2026-08-31"
+        with patch.object(reports, "_build_bonafide_context", return_value=context) as build, \
+             patch.object(reports, "render_template_to_chromium_pdf_bytes", return_value=b"%PDF-printable") as render, \
+             patch.object(reports, "render_template_to_pdf_bytes", return_value=b"%PDF-legacy") as legacy:
+            response = self.client.get("/ui/reports/bonafide/pdf/download" + query)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"%PDF-printable")
+        self.assertEqual(build.call_args.args[2], [1, 2])
+        self.assertEqual(build.call_args.kwargs, {"period_type": "custom", "start_date": "2026-07-01", "end_date": "2026-08-31"})
+        self.assertEqual(render.call_args.kwargs["template_name"], "ui/reports/bonafide_pdf.html")
+        self.assertNotIn("pdf_renderer", render.call_args.kwargs["context"])
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertEqual(response.headers["content-disposition"], 'attachment; filename="bonafide_Global_2026-07-01_a_2026-08-31.pdf"')
+        legacy.assert_not_called()
+
+    def test_bonafide_browser_failure_does_not_return_a_different_pdf_format(self):
+        errors = [(reports.PDFBackendUnavailableError("Browser unavailable"), 503),
+                  (reports.PDFRenderError("PDF rendering failed"), 500)]
+        for error, status in errors:
+            with self.subTest(status=status), \
+                 patch.object(reports, "_build_bonafide_context", return_value={"residential_name": "Global"}), \
+                 patch.object(reports, "render_template_to_chromium_pdf_bytes", side_effect=error), \
+                 patch.object(reports.logger, "exception") as log, \
+                 patch.object(reports, "render_template_to_pdf_bytes", return_value=b"%PDF-legacy") as legacy:
+                response = self.client.get("/ui/reports/bonafide/pdf/download" + self.query)
+                self.assertEqual(response.status_code, status)
+                self.assertNotEqual(response.headers["content-type"], "application/pdf")
+                legacy.assert_not_called()
+                if status == 500:
+                    log.assert_called_once()
+                    self.assertNotIn("PDF rendering failed", response.text)
+
+    def test_bonafide_browser_preference_keeps_other_reports_default(self):
+        from app.services.report_pdf import _resolve_chromium_pdf_binary
+
+        for chrome_available in (True, False):
+            available = {"msedge": "edge-test.exe"}
+            if chrome_available:
+                available["chrome"] = "chrome-test.exe"
+            with self.subTest(chrome_available=chrome_available), \
+                 patch.dict(os.environ, {"EDGE_PATH": "", "CHROME_PATH": "", "CHROMIUM_PATH": ""}), \
+                 patch("app.services.report_pdf.shutil.which", side_effect=lambda name: available.get(name)), \
+                 patch("app.services.report_pdf.Path.exists", lambda path: str(path) in available.values()):
+                self.assertEqual(_resolve_chromium_pdf_binary(), "edge-test.exe")
+                self.assertEqual(_resolve_chromium_pdf_binary(prefer_chrome=True),
+                                 "chrome-test.exe" if chrome_available else "edge-test.exe")
+
     def test_excel_download_keeps_sheet_title_mime_and_all_proposals(self):
         context = {"period_label": "Septiembre 2026", "selected_user": None, "is_global": True, "residential_name": "Global"}
         with patch.object(reports, "_build_visits_context", return_value=context) as build, patch.object(reports, "build_visitas_sheet") as sheet, patch.object(reports, "workbook_to_bytes", return_value=BytesIO(b"xlsx-test")), patch.object(reports, "_period_filename_suffix", return_value="2026_9"):
