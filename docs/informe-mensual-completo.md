@@ -1,7 +1,9 @@
 # Informe mensual completo
 
-Nuevo reporte en **Reportes > Informe mensual completo**, exclusivo para el rol
-`admin`. Permite seleccionar una o varias propuestas, un mes y alcance global.
+Reporte en **Reportes > Informe mensual completo**, disponible para los roles
+`admin` y `supervisor` con acceso a Faro. Ambos pueden preparar, visualizar y
+descargar el informe con sus complementos manuales. Los roles `user` y `viewer`
+no tienen acceso. Permite seleccionar una o varias propuestas, un mes y alcance global.
 El filtro de residencial de la navegación no cambia ese alcance explícito.
 Pantalla y PDF abren la preparación; allí se puede visualizar o descargar un
 único PDF con 13 secciones, índice, marcadores y numeración continua. Las
@@ -212,8 +214,10 @@ base de datos.
    Incorporar plazas y fotos; guardar/cargar un borrador y volver a adjuntar.
 4. Probar dos propuestas y un mes sin datos. Las personas compartidas se cuentan
    con los criterios de los reportes actuales, sin sumar totales residenciales.
-5. Con supervisor, viewer y usuario común, verificar que no aparece la opción
-   y que `/ui/reports/completo` y su generación rechazan el acceso directo.
+5. Con supervisor, verificar la opción en Reportes, la preparación, vista previa
+   y descarga PDF, incluyendo anexos. El informe conserva el alcance global y
+   los cálculos del administrador. Con viewer y usuario común, verificar que no
+   aparece la opción y que `/ui/reports/completo` y su generación rechazan el acceso directo.
 6. Abrir los reportes existentes y sus descargas para comprobar continuidad.
 7. En reclutamiento, comparar un período con 11 residenciales en julio, 12 en
    agosto y 9 en septiembre. El acumulado de septiembre debe ser 12 si todos

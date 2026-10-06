@@ -14,7 +14,7 @@ import unicodedata
 
 from sqlalchemy import func, select
 
-from app.core.auth import require_admin
+from app.core.auth import require_admin_or_supervisor
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.residential import Residential
@@ -65,7 +65,7 @@ def build_recruitment_data(db, current_user, proposal_ids, month, year):
     is not a residential. Neither participant ages nor their home addresses
     define this measure.
     """
-    require_admin(current_user)
+    require_admin_or_supervisor(current_user)
     month_start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
     with db.no_autoflush:

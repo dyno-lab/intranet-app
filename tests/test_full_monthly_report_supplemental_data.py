@@ -194,8 +194,9 @@ class FullMonthlyReportSupplementalDataTests(unittest.TestCase):
         self.assertEqual(self.user._active_residential_id, 1)
         self.assertIn(participant, self.db.dirty)
 
-    def test_rejects_non_admin_and_invalid_selection(self):
-        for override in ({"current_user": SimpleNamespace(role="supervisor")},
+    def test_rejects_other_roles_and_invalid_selection(self):
+        for override in ({"current_user": SimpleNamespace(role="user")},
+                         {"current_user": SimpleNamespace(role="viewer")},
                          {"proposal_ids": []}, {"proposal_ids": [999]}, {"month": 13}, {"year": 0}):
             with self.subTest(override=override), self.assertRaises(HTTPException) as error:
                 self.build(**override)

@@ -188,8 +188,25 @@ class FullMonthlyReportDataTests(unittest.TestCase):
                           ("Histórico", 1), ("Sin residencial", 1)])
         self.assertEqual(certification["total"], 5)
 
-    def test_rejects_non_admin_and_invalid_filters(self):
-        for role in ("user", "supervisor", "viewer"):
+    def test_supervisor_keeps_global_metrics_and_navigation_scope(self):
+        expected = self.build()
+        self.user.role = "supervisor"
+        self.user._active_residential_id = 1
+        data = self.build()
+
+        self.assertTrue(data["no_duplicado"]["is_global"])
+        self.assertEqual(data["no_duplicado"]["total_all"], 2)
+        self.assertEqual(data["duplicado"]["total_all"], 3)
+        self.assertEqual(data["total_contact_hours"], 5.5)
+        self.assertEqual([row["residential_id"] for row in data["residentials"]], [1, 2])
+        self.assertEqual([row["selected_proposal_id"] for row in data["hoja_cotejo_admin"]], [1, 2])
+        for key in ("recruitment", "target_cumulative", "visit_certification"):
+            self.assertEqual(data[key], expected[key])
+        self.assertEqual(self.user.role, "supervisor")
+        self.assertEqual(self.user._active_residential_id, 1)
+
+    def test_rejects_other_roles_and_invalid_filters(self):
+        for role in ("user", "viewer"):
             with self.subTest(role=role), self.assertRaises(HTTPException) as error:
                 self.build(current_user=SimpleNamespace(role=role))
             self.assertEqual(error.exception.status_code, 403)

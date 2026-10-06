@@ -71,7 +71,7 @@ class FullMonthlyReportRouteTests(unittest.TestCase):
             return self.user
 
         app.dependency_overrides[get_db] = database
-        # Exercise the real require_admin dependency on both endpoints.
+        # Exercise the real role dependency on both endpoints.
         app.dependency_overrides[get_current_user] = current_user
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
@@ -108,46 +108,67 @@ class FullMonthlyReportRouteTests(unittest.TestCase):
         self.assertNotIn('name="target_2"', response.text)
         self.render.assert_not_called()
 
-    def test_reports_generate_preserves_selection_and_requires_admin(self):
+    def test_reports_generate_preserves_selection_for_admin_and_supervisor(self):
         from urllib.parse import parse_qs, urlsplit
         from app.api.routes import reports
 
         self.client.app.include_router(reports.router, prefix="/ui/reports")
         params = {"report_key": "completo", "proposal_id": [2, 1], "month": "7",
                   "year": "2026", "period_type": "monthly", "authorized_name": "Nombre & Apellido"}
-        for output in ("screen", "pdf"):
-            with self.subTest(output=output):
-                response = self.client.get("/ui/reports/run", params={**params, "output": output}, follow_redirects=False)
-                self.assertEqual(response.status_code, 303)
-                location = urlsplit(response.headers["location"])
-                self.assertEqual(location.path, "/ui/reports/completo")
-                selection = parse_qs(location.query)
-                self.assertEqual(set(selection["proposal_id"]), {"2", "1"})
-                self.assertEqual(selection["authorized_name"], ["Nombre & Apellido"])
-                self.assertEqual(self.client.get(response.headers["location"]).status_code, 200)
+        for role in ("admin", "supervisor"):
+            self.user.role = role
+            for output in ("screen", "pdf"):
+                with self.subTest(role=role, output=output):
+                    response = self.client.get("/ui/reports/run", params={**params, "output": output}, follow_redirects=False)
+                    self.assertEqual(response.status_code, 303)
+                    location = urlsplit(response.headers["location"])
+                    self.assertEqual(location.path, "/ui/reports/completo")
+                    selection = parse_qs(location.query)
+                    self.assertEqual(set(selection["proposal_id"]), {"2", "1"})
+                    self.assertEqual(selection["authorized_name"], ["Nombre & Apellido"])
+                    self.assertEqual(self.client.get(response.headers["location"]).status_code, 200)
         for invalid in ({"period_type": "custom"}, {"output": "excel"}):
             self.assertEqual(self.client.get("/ui/reports/run", params={**params, **invalid}).status_code, 400)
-        self.user.role = "supervisor"
-        self.assertEqual(self.client.get("/ui/reports/run", params=params, follow_redirects=False).status_code, 403)
+        for role in ("user", "viewer"):
+            self.user.role = role
+            self.assertEqual(self.client.get("/ui/reports/run", params=params, follow_redirects=False).status_code, 403)
         self.render.assert_not_called()
 
-    def test_preview_and_download_return_one_pdf_and_do_not_cache_it(self):
-        for disposition in ("inline", "attachment"):
-            with self.subTest(disposition=disposition):
-                response = self.post(self.form(disposition=disposition, authorized_name="  Autorizado  "))
-                self.assertEqual(response.status_code, 200, response.text)
-                self.assertEqual(response.content, self.pdf)
-                self.assertEqual(response.headers["content-type"], "application/pdf")
-                self.assertEqual(response.headers["cache-control"], "no-store")
-                self.assertEqual(response.headers["x-content-type-options"], "nosniff")
-                self.assertEqual(response.headers["content-disposition"],
-                                 f'{disposition}; filename="informe_mensual_completo_2026_07.pdf"')
-                self.assertEqual(self.render.call_args.args[2:5], ([2, 1], 7, 2026))
-                self.assertEqual(self.render.call_args.args[5]["authorized_name"], "Autorizado")
+    def test_catalog_shows_complete_report_only_to_admin_and_supervisor(self):
+        from fastapi import Request
+        from app.api.routes import reports
 
-    def test_non_admin_cannot_prepare_or_post_even_with_an_existing_valid_form(self):
+        request = Request({"type": "http", "path": "/ui/reports/", "query_string": b"",
+                           "headers": [], "session": {}, "scheme": "http", "server": ("localhost", 80)})
+        for role in ("admin", "supervisor", "user", "viewer"):
+            self.user.role = role
+            with self.subTest(role=role), Session(self.engine) as db, \
+                 patch.object(reports, "_build_current_month_dashboard_cards", return_value={}), \
+                 patch.object(reports.templates, "TemplateResponse", side_effect=lambda name, context: context):
+                context = reports.reports_home(request, db=db, current_user=self.user)
+                html = reports.templates.get_template("ui/reports/index.html").render(context)
+                self.assertEqual('value="completo"' in html, role in ("admin", "supervisor"))
+
+    def test_preview_and_download_return_one_pdf_and_do_not_cache_it(self):
+        for role in ("admin", "supervisor"):
+            self.user.role = role
+            for disposition in ("inline", "attachment"):
+                with self.subTest(role=role, disposition=disposition):
+                    response = self.post(self.form(disposition=disposition, authorized_name="  Autorizado  "))
+                    self.assertEqual(response.status_code, 200, response.text)
+                    self.assertEqual(response.content, self.pdf)
+                    self.assertEqual(response.headers["content-type"], "application/pdf")
+                    self.assertEqual(response.headers["cache-control"], "no-store")
+                    self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+                    self.assertEqual(response.headers["content-disposition"],
+                                     f'{disposition}; filename="informe_mensual_completo_2026_07.pdf"')
+                    self.assertEqual(self.render.call_args.args[1].role, role)
+                    self.assertEqual(self.render.call_args.args[2:5], ([2, 1], 7, 2026))
+                    self.assertEqual(self.render.call_args.args[5]["authorized_name"], "Autorizado")
+
+    def test_other_roles_cannot_prepare_or_post_even_with_an_existing_valid_form(self):
         form = self.form()
-        for role in ("user", "viewer", "supervisor"):
+        for role in ("user", "viewer"):
             self.user.role = role
             with self.subTest(role=role):
                 self.assertEqual(self.prepare().status_code, 403)
@@ -162,13 +183,15 @@ class FullMonthlyReportRouteTests(unittest.TestCase):
         self.render.assert_not_called()
 
     def test_missing_wrong_and_non_ascii_csrf_tokens_are_rejected(self):
-        form = self.form()
-        for token in (None, "incorrect-token", "contraseña"):
-            values = {key: value for key, value in form.items() if key != "token"}
-            if token is not None:
-                values["token"] = token
-            with self.subTest(token=token):
-                self.assertEqual(self.post(values).status_code, 403)
+        for role in ("admin", "supervisor"):
+            self.user.role = role
+            form = self.form()
+            for token in (None, "incorrect-token", "contraseña"):
+                values = {key: value for key, value in form.items() if key != "token"}
+                if token is not None:
+                    values["token"] = token
+                with self.subTest(role=role, token=token):
+                    self.assertEqual(self.post(values).status_code, 403)
         self.render.assert_not_called()
 
     def test_invalid_selection_is_rejected_on_prepare_and_generate(self):

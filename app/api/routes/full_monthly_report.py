@@ -17,7 +17,7 @@ from starlette.formparsers import MultiPartException
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.deps import get_db
-from app.core.auth import require_admin
+from app.core.auth import require_admin_or_supervisor
 from app.core.roles import report_authorized_name
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -79,7 +79,7 @@ def _selection(values, db: Session):
 
 
 @router.get("/completo", response_class=HTMLResponse)
-def full_monthly_prepare(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def full_monthly_prepare(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_supervisor)):
     from app.api.routes.reports import MONTH_OPTIONS
 
     ids, month, year, proposals = _selection(request.query_params, db)
@@ -107,7 +107,7 @@ def _build_pdf(db, user, ids, month, year, supplements):
 
 
 @router.post("/completo/pdf")
-async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_supervisor)):
     # Authenticate before parsing attachments or performing report queries.
     try:
         from app.services.full_monthly_report_pdf import validate_supplement_file

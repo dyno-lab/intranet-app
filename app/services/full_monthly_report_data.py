@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select, union
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_admin
+from app.core.auth import require_admin_or_supervisor
 from app.helpers.report_proposals import proposal_ids as normalize_proposal_ids
 from app.models.activity_session import ActivitySession
 from app.models.activity_code import ActivityCode
@@ -69,7 +69,7 @@ def _visit_certification(db, proposal_ids, month, year, residentials):
 
 
 class _GlobalReportUser:
-    """Read-only view of an administrator for this explicitly global report."""
+    """Read-only view of an authorized user for this explicitly global report."""
 
     _active_residential_id = None
 
@@ -128,7 +128,7 @@ def build_full_monthly_report_data(
     year: int,
     authorized_name: str | None = None,
 ) -> dict[str, Any]:
-    """Return one monthly, global administrator report without writing data.
+    """Return one monthly, global report for admins or supervisors without writes.
 
     Stable public shape:
     * ``proposals`` contains the selected Proposal models; ``month``, ``year``,
@@ -159,7 +159,7 @@ def build_full_monthly_report_data(
     report preserves that rule for its individual sheets while retaining the
     original unrestricted global totals and exposing coverage information.
     """
-    require_admin(current_user)
+    require_admin_or_supervisor(current_user)
     selected_ids = normalize_proposal_ids(proposal_ids)
     if not selected_ids:
         raise HTTPException(status_code=422, detail="Selecciona al menos una propuesta.")

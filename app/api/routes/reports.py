@@ -10,7 +10,7 @@ from sqlalchemy import and_, or_, case, distinct, extract, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import get_current_user, is_admin_or_supervisor, require_admin_or_supervisor
 from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
 from app.core.residential_scope import has_global_residential_access
@@ -446,7 +446,7 @@ def reports_home(
         {
             "request": request,
             "current_user": current_user,
-            "report_options": REPORT_OPTIONS + ([{"value": "completo", "label": "Informe mensual completo"}] if current_user.role == "admin" else []),
+            "report_options": REPORT_OPTIONS + ([{"value": "completo", "label": "Informe mensual completo"}] if is_admin_or_supervisor(current_user) else []),
             "period_type_options": PERIOD_TYPE_OPTIONS,
             "productivity_only_screen": productivity_only_screen,
             "selected_report_key": report_key,
@@ -506,7 +506,7 @@ def reports_run(
     if report_key == "completo":
         from urllib.parse import urlencode
 
-        require_admin(current_user)
+        require_admin_or_supervisor(current_user)
         if period_type != "monthly" or output not in {"screen", "pdf"}:
             raise HTTPException(status_code=400, detail="El informe completo utiliza un período mensual y salida en PDF.")
         params = [("proposal_id", value) for value in _proposal_ids(proposal_id)]

@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_admin
+from app.core.auth import require_admin_or_supervisor
 from app.helpers.report_proposals import proposal_ids as normalize_proposal_ids
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
@@ -61,7 +61,7 @@ def build_supplemental_data(
     the report's end). Participants are unique across all selected proposals,
     never the sum of monthly, residential or proposal unique counts.
     """
-    require_admin(current_user)
+    require_admin_or_supervisor(current_user)
     selected_ids = normalize_proposal_ids(proposal_ids)
     if not selected_ids:
         raise HTTPException(422, "Selecciona al menos una propuesta.")
