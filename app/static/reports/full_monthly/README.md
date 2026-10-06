@@ -20,7 +20,9 @@ el nuevo informe mensual completo.
   de gráfica. No incluyen gráficas históricas, firmas ni valores mensuales.
   Se conservan las proporciones propias de cada página, distintas de la carta.
 - `checklist_header.png`: encabezado de la hoja de cotejo del Word entregado en
-  `upgrades`, conservando la posición y el tamaño de su exportación a PDF.
+  `upgrades`, idéntico al logo visible de `agosto 2026.docx`. Los títulos,
+  compañía, período y residenciales siguen la alineación y subrayados de este
+  último Word; las fechas, nombres y resultados se generan con datos actuales.
 - `centers_csif_header.png` y `centers_faro_footer.png`: logos de la hoja
   `Centros de servicio.docx`. No se importan sus direcciones, teléfonos,
   asignaciones de oficinas ni su mapa histórico como datos iniciales.

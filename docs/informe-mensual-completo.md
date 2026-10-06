@@ -57,21 +57,36 @@ usan los datos del mes de las propuestas seleccionadas con los criterios
 actuales de deduplicación. El cotejo es único para esa extensión: agrupa por ID
 de actividad y acumula las sesiones con asistencia confirmada desde la primera
 asistencia de ambas hasta el cierre del mes. Las metas mensuales se multiplican
-una sola vez por los meses transcurridos; las metas explícitas del período se
-aplican una sola vez. Reclutamiento une los residenciales distintos de ambas.
+por el número de propuestas seleccionadas para las actividades del Word:
+12 mensuales y 36 del período por propuesta se convierten en 24 y 72 al
+seleccionar ambas. Reclutamiento une los residenciales distintos de ambas.
 El encabezado del cotejo identifica las dos propuestas sin cambiar sus columnas.
 
 Seleccionar solo 005 o solo 006 **no incorpora** datos de la otra. Si además
 se seleccionan otras propuestas, mantienen sus cotejos individuales y no se
-incluyen en el cotejo de la extensión. Una actividad con metas configuradas
-diferentes entre 005 y 006 devuelve un mensaje para revisar la configuración;
-el informe no elige una meta arbitrariamente ni las suma.
+incluyen en el cotejo de la extensión. Las frecuencias expresamente aprobadas
+del Word prevalecen en esta hoja sobre las metas configuradas en la base de
+datos. Para actividades que no aparecen en ese Word, metas configuradas
+diferentes entre 005 y 006 siguen requiriendo revisar la configuración.
 
 El período acumulado comienza en la primera asistencia confirmada de cada
-propuesta y termina al cierre del mes seleccionado. Las metas mensuales se
-acumulan por los meses transcurridos, salvo una meta explícita del período:
-18 actividades realizadas entre julio y agosto con meta mensual de 12 dan
-18/24 = 75%; con una meta específica de período de 36 dan 18/36 = 50%.
+propuesta y termina al cierre del mes seleccionado. En las hojas de cotejo de
+005 y 006, `agosto 2026.docx` define 136 frecuencias: 25 metas numéricas y 111
+actividades «Según Necesidad». El mes se evalúa contra la meta mensual; el
+acumulado se evalúa contra la meta completa del período, desde el primer mes.
+Por ejemplo, 6 realizadas en el mes sobre 12 dan 50%, y 18 acumuladas sobre 36
+dan 50%. Con ambas propuestas, los denominadores son 24 y 72, respectivamente.
+Los resultados realizados no se multiplican. Los porcentajes conservan el
+redondeo actual y el límite de 100%.
+
+Reclutamiento usa las metas mensuales y del período indicadas en el Word:
+18/18 por propuesta, salvo `1.a.8`, que usa 6/6; mantiene los conteos reales
+de residenciales distintos. `4.d.12` requiere una sola actividad durante la
+propuesta (dos si se seleccionan ambas). «Según Necesidad» muestra el conteo
+acumulado sin denominador y 100% cuando existe actividad, o 0% cuando no existe.
+Las reglas están en `full_monthly_report_checklist_goals.py`, sin escribir metas
+en SQL ni modificar el cotejo individual. Las demás propuestas y códigos no
+incluidos en el Word conservan sus metas y fórmulas anteriores.
 
 En la carta y la hoja de cotejo, **reclutamiento de grupos** significa los
 residenciales atendidos con asistencia confirmada por programa y población. En
@@ -84,9 +99,9 @@ Se usa el residencial de la sesión; no la dirección del participante. La carta
 enumera los residenciales efectivamente atendidos en el mes.
 
 Las filas de reclutamiento del informe completo no alteran las actividades,
-servicios, personas, horas ni metas de los informes existentes. Usan la meta
-configurada de su actividad de reclutamiento cuando existe; sin ella indican
-«Meta no configurada» y no inventan porcentajes ni copian metas históricas.
+servicios, personas, horas ni metas de los informes existentes. En 005 y 006
+usan las metas del Word; en otros planes usan la meta configurada de su
+actividad de reclutamiento cuando existe y, sin ella, «Meta no configurada».
 
 Las tablas institucionales de duplicados, horas, referidos externos y las tres
 hojas de participantes propuestos siguen los Word de `upgrades`. Estas últimas
@@ -218,9 +233,11 @@ base de datos.
 11. Seleccionar 005 y 006 juntas: comprobar un único cotejo de programas para
     la extensión y acumulados desde su primera asistencia. Comparar carta,
     tablas y gráficas con los reportes actuales usando ambas propuestas.
-    Con meta mensual de 12, un acumulado de 18 actividades entre julio y agosto
-    debe mostrar 18/24 = 75%, sin duplicar el denominador. Después seleccionar
-    solo 006 y confirmar que conserva únicamente los datos de esa propuesta.
+    Para una actividad del Word con 12 mensuales y 36 del período, ambas
+    propuestas usan metas 24 y 72: 18 acumuladas deben mostrar 18/72 = 25%.
+    Después seleccionar solo 006 y confirmar metas 12 y 36, usando únicamente
+    los resultados de esa propuesta. Revisar «Según Necesidad» y `4.d.12`
+    (una actividad por propuesta), además del encabezado del Word.
 
 La generación reúne varias decenas de hojas; puede tardar unos minutos según
 el volumen del mes, la conexión a SQL Server y el motor PDF instalado.

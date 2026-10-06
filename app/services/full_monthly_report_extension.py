@@ -2,7 +2,8 @@
 
 Monthly counts keep the existing multi-proposal report's activity IDs and
 participant identity. Confirmed cumulative sessions span both proposals;
-goals and elapsed months belong to the shared plan and are applied once.
+Legacy goal contexts retain the shared-plan calculation. The institutional
+checklist applies its approved Word goals per selected proposal when displayed.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.services import hoja_cotejo_admin_service as admin
 from app.services.full_monthly_report_targets import selected_extension
+from app.services.full_monthly_report_checklist_goals import has_reference_frequency
 
 
 def consolidate_extension_checklists(db, user, proposals, contexts, recruitment, monthly, month, year):
@@ -44,7 +46,10 @@ def consolidate_extension_checklists(db, user, proposals, contexts, recruitment,
         if previous is not None and signature(previous) != signature(goal):
             code = next(row["activity_code"] for block in structure for population in block["population_blocks"]
                         for row in population["rows"] if row["activity_code_id"] == goal.activity_code_id)
-            raise HTTPException(422, f"La actividad {code} tiene metas diferentes en 005 y 006. Revisa su configuración antes de consolidar la extensión.")
+            # The institutional checklist has explicit approved targets for
+            # these codes; its display does not use either configured DB goal.
+            if not has_reference_frequency(code):
+                raise HTTPException(422, f"La actividad {code} tiene metas diferentes en 005 y 006. Revisa su configuración antes de consolidar la extensión.")
         goals[goal.activity_code_id] = goal
 
     first_dates = [recruitment["by_proposal"][identifier]["start_date"] for identifier in ids

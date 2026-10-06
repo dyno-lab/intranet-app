@@ -1,7 +1,8 @@
 """Institutional checklist layout for the complete report only.
 
-The columns follow the supplied monthly PDF. Activity rows keep the existing
-administrative values. Recruitment rows show distinct residential coverage.
+The columns follow the supplied Word. Actual counts keep the existing
+administrative values, with approved monthly and proposal-period frequencies.
+Recruitment rows show distinct residential coverage.
 """
 from __future__ import annotations
 
@@ -13,12 +14,14 @@ from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfgen.canvas import Canvas
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import Paragraph, Table, TableStyle
 
 from app.services.report_pdf import PDFRenderError
 from app.services.full_monthly_report_frontmatter import _fonts
 from app.services.full_monthly_report_recruitment import recruitment_code
 from app.services.hoja_cotejo_admin_service import _percent as goal_percent, _format_cumulative_ratio
+from app.services.full_monthly_report_checklist_goals import apply_frequency, reference_plan_multiplier
 
 
 STATIC = Path(__file__).resolve().parents[1] / "static" / "reports" / "full_monthly"
@@ -47,6 +50,7 @@ def _recruitment_row(code, counts, original=None):
         "achievement_text": (f"{monthly} residenciales atendidos en el mes; "
                              f"{cumulative} residenciales distintos acumulados en el período de la propuesta."),
         "activities_count": monthly,
+        "cumulative_activities": cumulative,
         "monthly_percent": goal_percent(monthly, target),
         "met": monthly >= target if target is not None else None,
         "goal_summary": original["goal_summary"] if original else "Meta no configurada",
@@ -56,8 +60,9 @@ def _recruitment_row(code, counts, original=None):
 
 
 def checklist_rows(context, populations, recruitment=None):
-    """Group the original row objects for display without changing their values."""
+    """Group current results and apply the approved plan to display copies only."""
     programs = []
+    multiplier = reference_plan_multiplier(context)
     for program in context.get("program_blocks", []):
         source_rows = {row["activity_code_id"]: row for row in program["rows"]}
         displayed = set()
@@ -84,6 +89,9 @@ def checklist_rows(context, populations, recruitment=None):
         if remaining:
             rows.append((program["program_display_name"], None))
             rows.extend((None, row) for row in remaining)
+        if multiplier:
+            rows = [(group, apply_frequency(row, multiplier) if row is not None else None)
+                    for group, row in rows]
         programs.append((program["program_code"], rows))
     return programs
 
@@ -140,20 +148,27 @@ def checklist_pdf(context, populations, residential_names, authorized_name="", *
     year = context["selected_year"]
     month_number = context["selected_month"]
     last_day = monthrange(year, month_number)[1]
-    residences = _paragraph("RESIDENCIALES: " + residential_names, ParagraphStyle("ChecklistLocations", parent=BODY, fontName=FONTS["bold"], fontSize=6, leading=6.96))
+    residences = Paragraph("RESIDENCIALES: <u>" + escape(residential_names) + "</u>",
+                           ParagraphStyle("ChecklistLocations", parent=BODY, fontName=FONTS["bold"], fontSize=6, leading=6.84))
     _, location_height = residences.wrap(756, 120)
-    top = min(496, 513 - location_height)
+    top = min(494.14, 508.06 - location_height)
 
     def decorate():
         logo = STATIC / "checklist_header.png"
         if logo.exists():
             canvas.drawImage(str(logo), 24.35, 570.41, width=150.95, height=37.493, mask="auto")
         canvas.setFont(FONTS["bold"], 6)
-        canvas.drawCentredString(421, 539, "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES")
-        canvas.drawCentredString(421, 532, "HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO")
-        canvas.drawString(18, 525, "COMPAÑÍA: Centro Sor Isolina Ferré, Inc.")
-        canvas.drawCentredString(487, 525, f"PERÍODO DE INFORME: DESDE 1 de {month.lower()} de {year} HASTA {last_day} de {month.lower()} de {year}")
-        residences.drawOn(canvas, 18, 517 - location_height)
+        # Match the title and metadata alignment of agosto 2026.docx.
+        canvas.drawCentredString(396, 537.10, "ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES")
+        canvas.drawCentredString(396, 530.26, "HOJA MENSUAL DE COTEJO DE PROGRAMAS LOGRADAS POR ACTIVIDAD SEGÚN EL PLAN DE TRABAJO")
+        canvas.drawString(18, 523.30, "COMPAÑÍA:")
+        canvas.drawString(283.61, 523.30, f"PERÍODO DE INFORME: DESDE 1 de {month.lower()} de {year} HASTA {last_day} de {month.lower()} de {year}")
+        company = "Centro Sor Isolina Ferré, Inc."
+        canvas.setFont(FONTS["normal"], 6)
+        canvas.drawString(55.2, 523.30, company)
+        canvas.setLineWidth(.3)
+        canvas.line(55.2, 522.2, 55.2 + stringWidth(company, FONTS["normal"], 6), 522.2)
+        residences.drawOn(canvas, 18, 515.50 - location_height)
         proposal = context.get("proposal")
         if proposal:
             canvas.setFont(FONTS["normal"], 5.3)

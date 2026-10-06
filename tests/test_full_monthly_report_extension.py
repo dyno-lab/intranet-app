@@ -92,13 +92,46 @@ class FullMonthlyReportExtensionTests(unittest.TestCase):
                 self.assertEqual(context["program_blocks"][0]["rows"][0]["cumulative_ratio"], ratio)
 
     def test_different_configured_activity_goals_are_reported_instead_of_chosen_silently(self):
+        activities = self.fixture.tables["activity_codes"]
+        self.fixture.db.execute(activities.update().where(activities.c.activity_code_id == 10).values(code="9.a.99"))
         goals = self.fixture.tables["activity_productivity_goals"]
         self.fixture.db.execute(goals.update().where(goals.c.proposal_id == 2).values(goal_value=24))
         self.fixture.db.commit()
         with self.assertRaises(HTTPException) as error:
             self.build()
         self.assertEqual(error.exception.status_code, 422)
-        self.assertIn("1.a.2", error.exception.detail)
+        self.assertIn("9.a.99", error.exception.detail)
+
+    def test_reference_frequency_takes_precedence_over_different_database_goals(self):
+        goals = self.fixture.tables["activity_productivity_goals"]
+        self.fixture.db.execute(goals.update().where(goals.c.proposal_id == 2).values(goal_value=24))
+        self.fixture.db.commit()
+        context = self.build()["hoja_cotejo_admin"][0]
+        recruitment = context["recruitment"]
+        groups = checklist_rows(context, recruitment["program_blocks"], recruitment["groups"])
+        row = next(row for _, entries in groups for _, row in entries if row and row["activity_code"] == "1.a.2")
+        self.assertEqual(row["goal_summary"], "Según Necesidad")
+        self.assertEqual(row["cumulative_ratio"], "3")
+        self.assertEqual(row["percent"], 100)
+
+    def test_reference_period_goal_is_fixed_and_summed_only_for_selected_proposals(self):
+        activities = self.fixture.tables["activity_codes"]
+        self.fixture.db.execute(activities.update().where(activities.c.activity_code_id == 10).values(code="1.a.5"))
+        self.fixture.db.commit()
+        for selected, count, cumulative, target, period_target in (
+            ([1], 1, 2, 12, 36), ([2], 2, 1, 12, 36), ([1, 2], 3, 3, 24, 72),
+        ):
+            for month in (7, 8):
+                with self.subTest(proposals=selected, month=month):
+                    data = self.build(proposal_ids=selected, month=month)
+                    context = data["hoja_cotejo_admin"][0]
+                    groups = checklist_rows(context, data["hoja_cotejo"]["program_blocks"])
+                    row = next(row for _, entries in groups for _, row in entries if row and row["activity_code"] == "1.a.5")
+                    self.assertEqual(row["activities_count"], count if month == 7 else 0)
+                    self.assertEqual((row["goal_target"], row["cumulative_target"]), (target, period_target))
+                    self.assertEqual(row["cumulative_ratio"], f"{cumulative}/{period_target}")
+                    # Display rules do not rewrite DB goals or original contexts.
+                    self.assertEqual(context["program_blocks"][0]["rows"][0]["goal_target"], 12)
 
     def test_other_selected_proposals_keep_their_own_checklist_and_data(self):
         data = self.build(proposal_ids=[3, 2, 1, 2])
@@ -134,7 +167,8 @@ class FullMonthlyReportExtensionTests(unittest.TestCase):
         self.assertEqual(text.count("HOJA MENSUAL DE COTEJO"), 1)
         self.assertIn("005", text)
         self.assertIn("006", text)
-        self.assertIn("3/24", text)
+        self.assertIn("Según Necesidad", text)
+        self.assertNotIn("3/24", text)
         self.assertIn("2 residenciales distintos acumulados", text)
         front = " ".join(" ".join(page.extract_text() for page in pdf.pages[:starts[0]]).split())
         self.assertIn("2 participantes certificados", front)
