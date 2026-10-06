@@ -1347,6 +1347,9 @@ def _build_vca_context(
                 counts.setdefault(participant_id, {})
                 counts[participant_id][column_id] = counts[participant_id].get(column_id, 0) + 1
 
+            residential_names = dict(db.execute(
+                select(Residential.residential_id, Residential.name)
+            ).all()) if is_global and participant_rows else {}
             for participant in participant_rows:
                 row_values = {column.vca_column_id: counts.get(participant.participant_id, {}).get(column.vca_column_id, "") for column in columns}
                 if not any(value != "" for value in row_values.values()):
@@ -1359,6 +1362,14 @@ def _build_vca_context(
                     "edad": _calc_age(participant.fecha_nacimiento) or "",
                     "column_values": row_values,
                 })
+                if is_global:
+                    rows[-1]["residential_name"] = residential_names.get(participant.residential_id) or "Sin residencial"
+            if is_global:
+                # Stable sorting preserves the existing surname/name order within each residential.
+                rows.sort(key=lambda row: (
+                    row["residential_name"] == "Sin residencial",
+                    _normalize_text(row["residential_name"]).casefold(),
+                ))
             total_people = len(rows)
 
     return {

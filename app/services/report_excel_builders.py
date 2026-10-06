@@ -621,28 +621,31 @@ def build_vca_sheet(wb: Workbook, context: dict, title: str = "VCA"):
         style_meta_label(ws.cell(row=idx, column=1, value=label))
         style_meta_value(ws.cell(row=idx, column=2, value=value))
 
-    headers = ["Expediente", "Nombre", "Género", "Edad", *[column.name for column in context.get("columns", [])]]
+    residential_offset = 1 if context.get("is_global") else 0
+    headers = (["Residencial"] if residential_offset else []) + ["Expediente", "Nombre", "Género", "Edad", *[column.name for column in context.get("columns", [])]]
     for col_index, header in enumerate(headers, start=1):
         style_header(ws.cell(row=8, column=col_index, value=header))
 
     end_row = 8
     for row_index, row in enumerate(context.get("rows", []), start=9):
-        ws.cell(row=row_index, column=1, value=row.get("expediente", "")).alignment = LEFT
-        ws.cell(row=row_index, column=2, value=row.get("nombre", "")).alignment = LEFT
-        ws.cell(row=row_index, column=3, value=row.get("genero", "")).alignment = CENTER
-        ws.cell(row=row_index, column=4, value=row.get("edad", "")).alignment = CENTER
-        for offset, column in enumerate(context.get("columns", []), start=5):
+        if residential_offset:
+            ws.cell(row=row_index, column=1, value=row.get("residential_name", "")).alignment = LEFT
+        ws.cell(row=row_index, column=1 + residential_offset, value=row.get("expediente", "")).alignment = LEFT
+        ws.cell(row=row_index, column=2 + residential_offset, value=row.get("nombre", "")).alignment = LEFT
+        ws.cell(row=row_index, column=3 + residential_offset, value=row.get("genero", "")).alignment = CENTER
+        ws.cell(row=row_index, column=4 + residential_offset, value=row.get("edad", "")).alignment = CENTER
+        for offset, column in enumerate(context.get("columns", []), start=5 + residential_offset):
             ws.cell(row=row_index, column=offset, value=row["column_values"].get(column.vca_column_id, "")).alignment = LEFT
         end_row = row_index
 
     apply_table_border(ws, 8, end_row, 1, max(4, len(headers)))
     ws.auto_filter.ref = f"A8:{chr(64 + len(headers))}{max(end_row, 8)}" if len(headers) <= 26 else None
-    ws.column_dimensions["A"].width = 20
-    ws.column_dimensions["B"].width = 35
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 10
+    if residential_offset:
+        ws.column_dimensions["A"].width = 28
+    for index, width in enumerate((20, 35, 12, 10), start=1 + residential_offset):
+        ws.column_dimensions[get_column_letter(index)].width = width
     for index in range(len(context.get("columns", []))):
-        ws.column_dimensions[chr(69 + index)].width = 28
+        ws.column_dimensions[get_column_letter(5 + residential_offset + index)].width = 28
     return ws
 
 

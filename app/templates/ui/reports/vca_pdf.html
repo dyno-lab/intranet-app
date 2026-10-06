@@ -40,6 +40,7 @@
     <table>
       <thead>
         <tr>
+          {% if is_global %}<th style="width:18%;">Residencial</th>{% endif %}
           <th style="width:13%;">Expediente</th>
           <th style="width:22%;">Nombre</th>
           <th style="width:7%;">Género</th>
@@ -52,6 +53,7 @@
       <tbody>
         {% for row in rows %}
         <tr>
+          {% if is_global %}<td>{{ row.residential_name }}</td>{% endif %}
           <td>{{ row.expediente }}</td>
           <td>{{ row.nombre }}</td>
           <td class="center">{{ row.genero }}</td>
@@ -63,7 +65,7 @@
         {% endfor %}
         {% if rows|length == 0 %}
         <tr>
-          <td colspan="{{ 4 + (columns|length) }}" class="center">No hay participantes VCA con asistencias en el periodo seleccionado.</td>
+          <td colspan="{{ (5 if is_global else 4) + (columns|length) }}" class="center">No hay participantes VCA con asistencias en el periodo seleccionado.</td>
         </tr>
         {% endif %}
       </tbody>

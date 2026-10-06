@@ -236,6 +236,7 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
                 _Result([(mapping, activity, column)]),
                 _Result([(participant, proposal_participant)]),
                 _Result([(participant.participant_id, ACTIVITY_CODE_ID)]),
+                _Result([(9, "Residencial del participante")]),
             ],
         )
 
@@ -253,6 +254,7 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
         self.assertEqual(context["rows"][0]["nombre"], "Snapshot Proposal Frozen")
         self.assertEqual(context["rows"][0]["genero"], "M")
         self.assertEqual(context["rows"][0]["column_values"], {71: 1})
+        self.assertEqual(context["rows"][0]["residential_name"], "Residencial del participante")
         participant_sql = _sql(db.statements[2])
         self.assertIn("case when", participant_sql)
         self.assertIn("then proposal_participants.vca", participant_sql)

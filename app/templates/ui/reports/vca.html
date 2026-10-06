@@ -230,6 +230,7 @@
           <table class="table table-hover align-middle vca-table">
             <thead>
               <tr>
+                {% if is_global %}<th scope="col">Residencial</th>{% endif %}
                 <th scope="col">Expediente</th>
                 <th scope="col">Nombre</th>
                 <th scope="col" class="text-center">G&eacute;nero</th>
@@ -242,6 +243,7 @@
             <tbody>
               {% for row in rows %}
               <tr>
+                {% if is_global %}<td>{{ row.residential_name }}</td>{% endif %}
                 <td>{{ row.expediente }}</td>
                 <td>{{ row.nombre }}</td>
                 <td class="text-center">{{ row.genero }}</td>
