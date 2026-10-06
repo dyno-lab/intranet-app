@@ -216,6 +216,28 @@
         </div>
       </section>
 
+      {% if vca_summary %}
+      <section class="vca-panel vca-results" aria-label="VCA registrados y atendidos por residencial">
+        <div class="vca-results__header">
+          <div>
+            <h2 class="vca-section-title">VCA registrados y atendidos</h2>
+            <p class="vca-section-text">Registrados: activos vinculados a la(s) propuesta(s), con o sin asistencia. Atendidos: personas del listado en el período. El PDF y la versión imprimible incluyen el resumen con el formato institucional.</p>
+          </div>
+        </div>
+        <div class="vca-table-wrap">
+          <table class="table table-hover align-middle vca-table">
+            <thead><tr><th scope="col">Residencial</th><th scope="col" class="text-center">VCA registrados</th><th scope="col" class="text-center">VCA atendidos</th></tr></thead>
+            <tbody>
+              {% for summary_row in vca_summary.rows %}
+              <tr><td>{{ summary_row.residential_name }}</td><td class="text-center">{{ summary_row.registered }}</td><td class="text-center">{{ summary_row.served }}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot><tr><th scope="row">Total</th><td class="text-center fw-bold">{{ vca_summary.total.registered }}</td><td class="text-center fw-bold">{{ vca_summary.total.served }}</td></tr></tfoot>
+          </table>
+        </div>
+      </section>
+      {% endif %}
+
       {% if has_selection and has_columns and has_rows %}
       <section class="vca-panel vca-results" aria-label="Vista previa web">
         <div class="vca-results__header">

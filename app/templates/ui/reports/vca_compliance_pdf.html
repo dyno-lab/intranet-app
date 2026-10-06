@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Informe de cumplimiento VCA</title>
+  {% include "ui/reports/_vca_compliance_styles.html" %}
+  <style>
+    body { margin: 0; }
+    .vca-compliance:first-of-type { break-before: auto; page-break-before: auto; }
+    /* Qt needs whole-pixel spacing and borders to keep text and lines legible. */
+    .vca-compliance { letter-spacing: 1px; }
+    .vca-compliance .compliance-table th,
+    .vca-compliance .compliance-table td,
+    .vca-compliance .compliance-totals { border: 1px solid #000; }
+    .vca-compliance .compliance-line { border-bottom: 1px solid #000; }
+    .vca-compliance .compliance-signatures span { border-top: 1px solid #000; }
+  </style>
+</head>
+<body>
+  {% include "ui/reports/_vca_compliance_pdf.html" %}
+</body>
+</html>

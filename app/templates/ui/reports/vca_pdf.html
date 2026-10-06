@@ -18,6 +18,7 @@
     th { background: #f2f2f2; text-align: center; }
     td.center { text-align: center; }
   </style>
+  {% if vca_summary %}{% include "ui/reports/_vca_compliance_styles.html" %}{% endif %}
 </head>
 <body>
   <div class="page">
@@ -71,5 +72,6 @@
       </tbody>
     </table>
   </div>
+  {% if vca_summary %}{% include "ui/reports/_vca_compliance_pdf.html" %}{% endif %}
 </body>
 </html>

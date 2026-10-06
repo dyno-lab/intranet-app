@@ -108,6 +108,8 @@ from app.services.report_pdf import (
 )
 from app.services.notes_chart_svg import build_notes_pdf_chart_images
 from app.services.report_productivity_consolidation import consolidate_productivity_inputs
+from app.services.vca_report_summary import build_vca_summary, registered_vca_by_person
+from app.services.vca_report_pdf import render_vca_legacy_pdf
 from app.services.proposal_participant_snapshots import (
     PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS as _PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS,
     participant_snapshot_view as _participant_snapshot_view,
@@ -1257,6 +1259,7 @@ def _build_vca_context(
     rows = []
     residential_name = None
     total_people = 0
+    vca_summary = None
 
     if proposal_id and ((period["month"] and period["year"]) or period["is_custom"]) and (selected_user or is_global):
         proposal = db.get(Proposal, _primary_proposal_id(proposal_id))
@@ -1349,7 +1352,7 @@ def _build_vca_context(
 
             residential_names = dict(db.execute(
                 select(Residential.residential_id, Residential.name)
-            ).all()) if is_global and participant_rows else {}
+            ).all()) if is_global else {selected_user.residential_id: residential_name}
             for participant in participant_rows:
                 row_values = {column.vca_column_id: counts.get(participant.participant_id, {}).get(column.vca_column_id, "") for column in columns}
                 if not any(value != "" for value in row_values.values()):
@@ -1371,6 +1374,18 @@ def _build_vca_context(
                     _normalize_text(row["residential_name"]).casefold(),
                 ))
             total_people = len(rows)
+            registered_people = registered_vca_by_person(
+                db, _proposal_ids(proposal_id), None if is_global else selected_user.residential_id)
+            vca_summary = build_vca_summary(
+                registered_people=registered_people, rows=rows, columns=columns,
+                participant_details={participant.participant_id: {
+                    "residential_id": participant.residential_id if is_global else selected_user.residential_id,
+                    "age": _calc_age(participant.fecha_nacimiento),
+                } for participant in participant_rows},
+                residential_names=residential_names,
+                residential_ids=([option.residential_id for option in base_context.get("report_residentials", [])]
+                                 if is_global else [selected_user.residential_id]),
+            )
 
     return {
         **base_context,
@@ -1389,6 +1404,7 @@ def _build_vca_context(
         "columns": columns,
         "rows": rows,
         "total_people": total_people,
+        "vca_summary": vca_summary,
     }
 
 
@@ -1754,13 +1770,16 @@ def _render_report_pdf_response(
 ) -> Response:
     pdf_context = {**context, "request": request}
     try:
-        pdf_bytes = render_template_to_pdf_bytes(
-            templates=templates,
-            template_name=template_name,
-            context=pdf_context,
-            request=request,
-            wkhtmltopdf_args=wkhtmltopdf_args,
-        )
+        if template_name == "ui/reports/vca_pdf.html" and context.get("vca_summary"):
+            pdf_bytes = render_vca_legacy_pdf(templates=templates, context=pdf_context, request=request)
+        else:
+            pdf_bytes = render_template_to_pdf_bytes(
+                templates=templates,
+                template_name=template_name,
+                context=pdf_context,
+                request=request,
+                wkhtmltopdf_args=wkhtmltopdf_args,
+            )
     except PDFBackendUnavailableError as exc:
         raise HTTPException(status_code=503, detail=error_detail or str(exc)) from exc
     except PDFRenderError as exc:
@@ -1816,6 +1835,8 @@ def all_reports_pdf(
                     templates=templates, template_name=template_name, context=pdf_context,
                     request=request, prefer_chrome=True,
                 )
+            elif report_key == "vca" and context.get("vca_summary"):
+                payload = render_vca_legacy_pdf(templates=templates, context=pdf_context, request=request)
             else:
                 payload = render_template_to_pdf_bytes(
                     templates=templates, template_name=template_name, context=pdf_context, request=request,

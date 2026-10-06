@@ -237,6 +237,7 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
                 _Result([(participant, proposal_participant)]),
                 _Result([(participant.participant_id, ACTIVITY_CODE_ID)]),
                 _Result([(9, "Residencial del participante")]),
+                _Result([(proposal_participant.person_id, 9)]),
             ],
         )
 

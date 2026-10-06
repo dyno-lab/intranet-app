@@ -1,0 +1,93 @@
+{% set summary_pages = (vca_summary.rows|batch(18)|list) or [[]] %}
+{% set service_count = columns|length %}
+{% set proposal_label = namespace(parts=[]) %}
+{% for proposal in proposals %}
+  {% if proposal.proposal_id in selected_proposal_ids %}
+    {% set proposal_label.parts = proposal_label.parts + [proposal.code ~ ' - ' ~ proposal.name] %}
+  {% endif %}
+{% endfor %}
+{% for summary_page in summary_pages %}
+<section class="vca-compliance">
+  <div class="compliance-heading">
+    <img class="compliance-logo" src="/static/img/vca-compliance-avp.png" alt="Administración de Vivienda Pública">
+    ADMINISTRACIÓN DE VIVIENDA PÚBLICA<br>
+    ÁREA DE PROGRAMAS COMUNALES Y DE RESIDENTES<br>
+    NEGOCIADO DE SERVICIOS DE CALIDAD DE VIDA
+  </div>
+  <div class="compliance-period">PERÍODO: {{ period_label }}</div>
+  <h2>INFORME DE CUMPLIMIENTO VCA {{ 'CONSOLIDADO' if is_global else 'POR PROYECTO' }}</h2>
+  <table class="compliance-meta">
+    <tr>
+      <td style="width:64%;"><strong>AGENTE ADMINISTRADOR:</strong> CENTROS SOR ISOLINA FERRÉ</td>
+      <td><strong>ÁREA:</strong> <span class="compliance-line">&nbsp;</span></td>
+    </tr>
+    <tr><td colspan="2"><strong>PROPUESTA(S):</strong> {{ proposal_label.parts|join('; ') or selected_proposal_ids|join(', ') }}{% if not is_global %} &nbsp; <strong>PROYECTO:</strong> {{ residential_name }}{% endif %}</td></tr>
+    <tr>
+      <td><strong>PREPARADO POR:</strong> <span class="compliance-line">&nbsp;</span> &nbsp; <strong>PUESTO:</strong> <span class="compliance-line">&nbsp;</span></td>
+      <td><strong>FIRMA:</strong> <span class="compliance-line">&nbsp;</span></td>
+    </tr>
+  </table>
+  {% if is_global %}
+  <div class="compliance-totals">
+    POBLACIÓN TOTAL CON IMPEDIMENTOS POR ÁREA: &nbsp; {{ vca_summary.total.registered }}<br>
+    <span>POBLACIÓN ATENDIDA POR GÉNERO:</span><span>F &nbsp; {{ vca_summary.total.f }}</span><span>M &nbsp; {{ vca_summary.total.m }}</span>
+  </div>
+  {% endif %}
+  <div class="compliance-instructions">Instrucciones: Completar el Informe según las instrucciones impartidas por la Administración de Vivienda Pública.</div>
+  <table class="compliance-table">
+    <colgroup>
+      {% if is_global %}<col style="width:2%;"><col style="width:17%;">{% endif %}
+      <col style="width:{{ 7 if is_global else 8 }}%;">
+      {% for band in vca_summary.age_bands %}<col style="width:{{ 2.7 if is_global else 3.5 }}%;"><col style="width:{{ 2.7 if is_global else 3.5 }}%;">{% endfor %}
+      <col style="width:{{ 3.5 if is_global else 4 }}%;"><col style="width:{{ 3.5 if is_global else 4 }}%;">
+      <col style="width:{{ 7 if is_global else 9 }}%;">
+      {% for column in columns %}<col style="width:{{ (27.6 if is_global else 33) / service_count }}%;">{% endfor %}
+    </colgroup>
+    <thead>
+      <tr>
+        {% if is_global %}<th rowspan="3" colspan="2">Nombre del Proyecto</th>{% endif %}
+        <th rowspan="3">Total de personas con impedimentos</th>
+        <th colspan="12">Cantidad de personas con impedimentos por edad</th>
+        <th colspan="2" rowspan="2">Totales por Género</th>
+        <th rowspan="3">Total de la población que reciben servicios</th>
+        {% if service_count %}<th colspan="{{ service_count }}">Ejemplos en los cuales reciben servicios</th>{% endif %}
+      </tr>
+      <tr>
+        {% for band in vca_summary.age_bands %}<th colspan="2" class="vca-age-{{ loop.index0 }}">{{ band[2] }}</th>{% endfor %}
+        {% for column in columns %}<th rowspan="2">{{ column.name }}</th>{% endfor %}
+      </tr>
+      <tr>
+        {% for band in vca_summary.age_bands %}<th class="vca-age-{{ loop.index0 }}">F</th><th class="vca-age-{{ loop.index0 }}">M</th>{% endfor %}
+        <th># F</th><th># M</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set display_rows = summary_page + ([vca_summary.total] if is_global and loop.last else []) %}
+      {% set page_offset = loop.index0 * 18 %}
+      {% for summary_row in display_rows %}
+      {% set total_row = is_global and summary_row is sameas vca_summary.total %}
+      <tr{% if total_row %} class="compliance-total"{% endif %}>
+        {% if is_global %}
+          {% if total_row %}<td colspan="2" class="compliance-name">Total</td>
+          {% else %}<td>{{ page_offset + loop.index }}</td><td class="compliance-name">{{ summary_row.residential_name }}</td>{% endif %}
+        {% endif %}
+        <td class="compliance-green">{{ summary_row.registered }}</td>
+        {% for age in summary_row.ages %}<td class="vca-age-{{ loop.index0 }}">{{ age.f }}</td><td class="vca-age-{{ loop.index0 }}">{{ age.m }}</td>{% endfor %}
+        <td class="compliance-green">{{ summary_row.f }}</td><td class="compliance-green">{{ summary_row.m }}</td>
+        <td>{{ summary_row.served }}</td>
+        {% for column in columns %}<td>{{ summary_row.services.get(column.vca_column_id, 0) }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="compliance-notes">Total de personas con impedimentos: VCA activos registrados en la(s) propuesta(s), con o sin asistencia. Edad, género y población que recibe servicios: personas únicas del listado en el período. Las columnas de servicios suman participaciones confirmadas; una persona puede aportar varias.</p>
+  {% if loop.last %}
+    {% if vca_summary.total.unknown_age or vca_summary.total.unknown_gender %}
+    <p class="compliance-notes">Datos sin clasificar entre las personas atendidas: edad, {{ vca_summary.total.unknown_age }}; género, {{ vca_summary.total.unknown_gender }}. Estas personas se conservan en el total atendido.</p>
+    {% endif %}
+    <div class="compliance-certification">Yo, __________________________________ Presidente de la Compañía - Alcalde - Organización: __________________________________ certifico que la información suministrada en este documento es fiel y exacta.
+      <div class="compliance-signatures"><span>FIRMA</span><span>D-M-A</span></div>
+    </div>
+  {% endif %}
+</section>
+{% endfor %}

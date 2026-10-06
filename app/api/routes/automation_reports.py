@@ -44,6 +44,7 @@ from app.services.report_excel_builders import (
     build_visitas_sheet,
     workbook_to_bytes,
 )
+from app.services.vca_report_pdf import render_vca_legacy_pdf
 from app.services.report_pdf import (
     PDFBackendUnavailableError, PDFRenderError, build_zip_bytes,
     render_template_to_chromium_pdf_bytes, render_template_to_pdf_bytes,
@@ -559,6 +560,8 @@ def automation_all_reports_pdf(
                     templates=templates, template_name=template_name, context=pdf_context,
                     request=request, prefer_chrome=True,
                 )
+            elif report_key == "vca" and context.get("vca_summary"):
+                payload = render_vca_legacy_pdf(templates=templates, context=pdf_context, request=request)
             else:
                 payload = render_template_to_pdf_bytes(
                     templates=templates, template_name=template_name, context=pdf_context, request=request,
