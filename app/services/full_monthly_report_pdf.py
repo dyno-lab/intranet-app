@@ -303,12 +303,9 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
         [(row["residential_name"], row["attendances"]) for row in certification["rows"]],
         certification["total"], data["period_label"]),
         charts.residential_visits_pdf([(r["residential_name"], by_residential[r["residential_name"]]["visits"]) for r in residentials]
-            + [(name, values["visits"]) for name, values in sorted(by_residential.items()) if name not in {r["residential_name"] for r in residentials}], data["period_label"]),
-        _original("visitas", data["visitas"], authorized)]
+            + [(name, values["visits"]) for name, values in sorted(by_residential.items()) if name not in {r["residential_name"] for r in residentials}], data["period_label"])]
     if "visit_roles_pdf" in files:
         parts.append(files["visit_roles_pdf"]["content"])
-    else:
-        parts.append(_pages("Visitas por puesto", [_text("Pendiente de completar. El desglose por puesto se incorpora mediante un anexo manual; el sistema registra las visitas por empleado.")], data))
     section(8, parts)
 
     parts = [institutional_tables.participant_targets_pdf(data, supplements)]

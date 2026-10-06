@@ -32,9 +32,10 @@ una misma persona en distintas actividades también cuentan. Se usa el
 residencial de la sesión y el orden institucional, incluyendo ceros. Los datos
 históricos de residenciales inactivos o sin asignar se conservan en filas
 adicionales. «Total Acumuladas» es la suma de esas filas del mes, no un acumulado
-de meses anteriores. La gráfica y el detalle actual de Visitas conservan sus
-cálculos y la configuración de actividades; el detalle mantiene columnas
-separadas de visitas, asistencias y horas. No se modifica `/ui/reports/visitas`.
+de meses anteriores. La gráfica de Visitas conserva sus cálculos y la
+configuración de actividades. El resumen por empleado y sus páginas de
+continuación no se incluyen en el informe completo. Ese detalle sigue disponible
+en `/ui/reports/visitas`, sin cambios en sus columnas ni cálculos.
 
 Los tipos de gráficas siguen el modelo: columnas por residencial y por
 programa, circular de servicios por residencial, columnas de actividades por
@@ -146,9 +147,10 @@ El administrador puede incorporar:
 - Fotografías JPEG/PNG o PDF de fotografías, en el orden seleccionado.
 
 Los complementos son opcionales; posiciones existentes reserva dos páginas
-en blanco con la numeración general cuando no se adjunta su PDF. Las demás
-secciones manuales sin contenido se identifican como pendientes. Un PDF con
-secciones pendientes requiere completarse antes
+en blanco con la numeración general cuando no se adjunta su PDF. Visitas por
+puesto solo se incorpora al adjuntar su PDF, sin generar una hoja provisional
+cuando falta. Las demás secciones manuales sin contenido se identifican como
+pendientes. Un PDF con secciones pendientes requiere completarse antes
 de considerarse el informe institucional final. Las firmas no se reutilizan
 desde el PDF histórico. Para anexos con formularios, sellos o firmas como
 anotaciones, se solicita una copia aplanada/impresa a PDF, evitando que esas

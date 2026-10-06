@@ -93,7 +93,13 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertIn("Residencial 1 2 Residencial 2 1", visits)
         self.assertIn("Total Acumuladas 3", visits)
         self.assertNotIn("Visitas Asistencias Horas", visits)
-        self.assertLess(visits.index("Total Acumuladas"), visits.index("Reporte: visitas"))
+        self.assertIn("Gráfica 6:", visits)
+        self.assertNotIn("Reporte: visitas", visits)
+        self.assertNotIn("Visitas por puesto", visits)
+        self.assertNotIn("Pendiente de completar", visits)
+        starts = [reader.get_destination_page_number(item) for item in reader.outline]
+        # Section IX contains only its cover, certification and chart by default.
+        self.assertEqual(starts[9] - starts[8], 3)
 
     def test_manual_text_is_literal_and_does_not_become_reportlab_markup(self):
         reader = self.build(narrative="Resultado <b>literal</b> & comprobado", centers_notes="Oficina <script>alert(1)</script>")
@@ -159,6 +165,7 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
     def test_uploaded_staffing_and_centers_replace_provisional_sheets(self):
         files = {key: renderer.validate_supplement_file(_one_page(label)) for key, label in (
             ("staffing_pdf", "POSICIONES FINALES"), ("centers_pdf", "CENTROS Y MAPA FINALES"),
+            ("visit_roles_pdf", "VISITAS POR PUESTO AUTORIZADAS"),
         )}
         staffing = PdfWriter()
         for label in ("POSICIONES FINALES", "PLAZAS SEGUNDA HOJA"):
@@ -167,7 +174,8 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         staffing.write(payload)
         files["staffing_pdf"] = renderer.validate_supplement_file(payload.getvalue())
         reader = self.build(files=files)
-        for section, label in (("I.", "POSICIONES FINALES"), ("II.", "CENTROS Y MAPA FINALES")):
+        for section, label in (("I.", "POSICIONES FINALES"), ("II.", "CENTROS Y MAPA FINALES"),
+                               ("IX.", "VISITAS POR PUESTO AUTORIZADAS")):
             body = self.section_text(reader, section)
             self.assertEqual(body.count(label), 1)
             self.assertNotIn("Pendiente de completar", body)
@@ -178,6 +186,10 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertEqual(starts[1] - starts[0], 3)
         self.assertIn("PLAZAS SEGUNDA HOJA", self.section_text(reader, "I."))
         self.assertEqual(starts[2] - starts[1], 2)
+        self.assertEqual(starts[9] - starts[8], 4)
+        visits = self.section_text(reader, "IX.")
+        self.assertLess(visits.index("Gráfica 6:"), visits.index("VISITAS POR PUESTO AUTORIZADAS"))
+        self.assertNotIn("Reporte: visitas", visits)
 
     def test_missing_staffing_reserves_two_numbered_blank_pages_and_keeps_centers(self):
         reader = self.build()
