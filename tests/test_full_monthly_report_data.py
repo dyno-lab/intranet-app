@@ -146,6 +146,48 @@ class FullMonthlyReportDataTests(unittest.TestCase):
         self.assertEqual(len(data["residentials"]), 2)
         self.assertEqual(self.user._active_residential_id, 1)
 
+    def test_visit_certification_counts_confirmed_attendance_for_the_seven_codes(self):
+        # These activities need no visit/program mappings. A repeated person
+        # still counts on every confirmed attendance, including across proposals.
+        codes = ("1.a.9", "2.b.2", "3.c.2", "3.c.10", "3.c.20", "4.d.2", "1.a.7")
+        for identifier, code in enumerate(codes, 20):
+            self.insert("activity_codes", activity_code_id=identifier, proposal_id=1,
+                        code=code, is_active=True)
+            self.insert("activity_sessions", session_id=identifier, proposal_id=1,
+                        residential_id=2, session_date=date(2026, 7, 8),
+                        activity_code_id=identifier, employee_id=1, hours=1)
+            for offset, attended in enumerate((True, True, False)):
+                self.insert("attendance", attendance_id=identifier * 10 + offset,
+                            session_id=identifier, participant_id=offset + 1, attended=attended)
+        self.db.commit()
+
+        data = self.build()
+        certification = data["visit_certification"]
+        self.assertEqual([row["attendances"] for row in certification["rows"]], [2, 13])
+        self.assertEqual(certification["total"], 15)
+        self.assertEqual(self.build(proposal_ids=[1])["visit_certification"]["total"], 14)
+        self.assertEqual(self.build(proposal_ids=[2])["visit_certification"]["total"], 1)
+        self.assertEqual(self.build(month=8)["visit_certification"]["total"], 0)
+        # The existing visit report retains its configured activities and metrics.
+        self.assertEqual(data["visitas"]["summary"], {"visits": 3, "attendances": 3, "hours": 5.5})
+
+    def test_visit_certification_preserves_zero_and_historical_locations(self):
+        self.insert("residentials", residential_id=3, code="R3", name="Sin visitas", is_active=True)
+        self.insert("residentials", residential_id=4, code="R4", name="Histórico", is_active=False)
+        for identifier, residential_id in ((20, 4), (21, None)):
+            self.insert("activity_sessions", session_id=identifier, proposal_id=1,
+                        residential_id=residential_id, session_date=date(2026, 7, 8),
+                        activity_code_id=10, employee_id=1, hours=1)
+            self.insert("attendance", attendance_id=identifier, session_id=identifier,
+                        participant_id=1, attended=True)
+        self.db.commit()
+
+        certification = self.build()["visit_certification"]
+        self.assertEqual([(row["residential_name"], row["attendances"]) for row in certification["rows"]],
+                         [("Residencial 1", 2), ("Residencial 2", 1), ("Sin visitas", 0),
+                          ("Histórico", 1), ("Sin residencial", 1)])
+        self.assertEqual(certification["total"], 5)
+
     def test_rejects_non_admin_and_invalid_filters(self):
         for role in ("user", "supervisor", "viewer"):
             with self.subTest(role=role), self.assertRaises(HTTPException) as error:

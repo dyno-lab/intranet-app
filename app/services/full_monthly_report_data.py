@@ -11,12 +11,14 @@ from datetime import date
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select, union
+from sqlalchemy import func, select, union
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin
 from app.helpers.report_proposals import proposal_ids as normalize_proposal_ids
 from app.models.activity_session import ActivitySession
+from app.models.activity_code import ActivityCode
+from app.models.attendance import Attendance
 from app.models.pregnancy_report import PregnancyReport
 from app.models.proposal import Proposal
 from app.models.residential import Residential
@@ -29,6 +31,41 @@ from app.services.consolidado_mensual_service import _official_residential_sort_
 from app.services.full_monthly_report_supplemental_data import build_supplemental_data
 from app.services.full_monthly_report_recruitment import build_recruitment_data
 from app.services.full_monthly_report_extension import consolidate_extension_checklists
+
+
+VISIT_CERTIFICATION_CODES = ("1.a.2", "1.a.9", "2.b.2", "3.c.2", "3.c.10", "3.c.20", "4.d.2")
+
+
+def _visit_certification(db, proposal_ids, month, year, residentials):
+    """Count confirmed attendance for the certification's approved activities.
+
+    Group by the session's residential, without deduplicating people or joining
+    configurable visit/program mappings that could exclude or multiply rows.
+    """
+    results = db.execute(
+        select(ActivitySession.residential_id, Residential.name, func.count(Attendance.attendance_id))
+        .select_from(ActivitySession)
+        .join(Attendance, Attendance.session_id == ActivitySession.session_id)
+        .join(ActivityCode, ActivityCode.activity_code_id == ActivitySession.activity_code_id)
+        .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
+        .where(
+            ActivitySession.proposal_id.in_(proposal_ids),
+            ActivitySession.session_date >= date(year, month, 1),
+            ActivitySession.session_date <= date(year, month, monthrange(year, month)[1]),
+            Attendance.attended == True,  # noqa: E712
+            func.lower(func.ltrim(func.rtrim(ActivityCode.code))).in_(VISIT_CERTIFICATION_CODES),
+        )
+        .group_by(ActivitySession.residential_id, Residential.name)
+    ).all()
+    by_id = {identifier: {"residential_id": identifier, "residential_name": name or "Sin residencial",
+                          "attendances": int(count)} for identifier, name, count in results}
+    rows = [by_id.pop(row["residential_id"], {
+        "residential_id": row["residential_id"], "residential_name": row["residential_name"], "attendances": 0,
+    }) for row in residentials]
+    # Preserve historical/unassigned attendance as additional rows, as the old
+    # global summary did, rather than silently dropping it from the total.
+    rows.extend(sorted(by_id.values(), key=lambda row: row["residential_name"].casefold()))
+    return {"rows": rows, "total": sum(row["attendances"] for row in rows)}
 
 
 class _GlobalReportUser:
@@ -115,6 +152,8 @@ def build_full_monthly_report_data(
       with separate residential and global counts and proposal start dates.
     * ``recruitment`` counts distinct session residentials reached by confirmed
       attendance, monthly and across the proposal history, by program/population.
+    * ``visit_certification`` counts confirmed attendance for the seven approved
+      visit activity codes, by session residential, for the selected month only.
 
     Existing residential reports only allow active locations. The complete
     report preserves that rule for its individual sheets while retaining the
@@ -190,6 +229,7 @@ def build_full_monthly_report_data(
         admin_contexts = consolidate_extension_checklists(
             db, report_user, proposals, admin_contexts, recruitment, contexts["hoja_cotejo"], month, year,
         )
+        visit_certification = _visit_certification(db, selected_ids, month, year, residentials)
 
     hoja = contexts["hoja_cotejo"]
     return {
@@ -203,6 +243,7 @@ def build_full_monthly_report_data(
         **supplemental,
         "recruitment": recruitment,
         "residentials": residentials,
+        "visit_certification": visit_certification,
         "hoja_cotejo_admin": admin_contexts,
         "total_contact_hours": hoja["total_contact_hours"],
         "program_hours": [
@@ -218,6 +259,7 @@ def build_full_monthly_report_data(
             "global_duplicates": "duplicado.total_all",
             "program_hours": "hoja_cotejo.program_blocks.program_contact_hours",
             "total_contact_hours": "hoja_cotejo.total_contact_hours",
+            "visit_certification": "confirmed_attendance_for_approved_visit_codes",
             "admin_goals": ("hoja_cotejo_admin_with_shared_extension"
                             if any(context.get("selected_proposal_ids") for context in admin_contexts)
                             else "hoja_cotejo_admin_by_proposal"),

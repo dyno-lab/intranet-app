@@ -29,6 +29,7 @@ from app.services import full_monthly_report_charts as charts
 from app.services import full_monthly_report_tables as institutional_tables
 from app.services.full_monthly_report_checklist import checklist_pdf
 from app.services.full_monthly_report_centers import centers_pdf
+from app.services.full_monthly_report_visits import visits_summary_pdf
 from app.services.full_monthly_report_frontmatter import SECTION_TITLES, cover_pdf, section_cover_pdf, letter_pdf, contents_pdf
 
 STATIC = Path(__file__).resolve().parents[1] / "static" / "img"
@@ -237,12 +238,17 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
             offsets.append(offsets[-1] + len(PdfReader(BytesIO(part)).pages))
         section_details[index] = [(title, offsets[part_index]) for title, part_index in details]
         sections.append((SECTIONS[index], _merge([section_cover_pdf(index, data), *parts])))
-    def manual(index, key, explanation):
-        if key in files:
-            return [files[key]["content"]]
-        return [_pages(SECTIONS[index], [_text("Pendiente de completar. " + explanation)], data)]
-
-    section(0, manual(0, "staffing_pdf", "Plazas autorizadas, ocupadas y vacantes. Información incorporada manualmente por el administrador."))
+    if "staffing_pdf" in files:
+        staffing = files["staffing_pdf"]["content"]
+    else:
+        # Reserve the two manual staffing sheets; the book adds their page numbers.
+        blank_staffing = PdfWriter()
+        for _ in range(2):
+            blank_staffing.add_blank_page(width=letter[0], height=letter[1])
+        output = BytesIO()
+        blank_staffing.write(output)
+        staffing = output.getvalue()
+    section(0, [staffing])
     if "centers_pdf" in files:
         center_parts = [files["centers_pdf"]["content"]]
     else:
@@ -292,11 +298,10 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
         bucket = by_residential[row["residential_name"]]
         for key in bucket:
             bucket[key] += row[key]
-    visit_rows = [[name, values["visits"], values["attendances"], f'{values["hours"]:.2f}'] for name, values in sorted(by_residential.items())]
-    summary = data["visitas"]["summary"]
-    visit_rows.append(["Total", summary["visits"], summary["attendances"], f'{summary["hours"]:.2f}'])
-    parts = [_pages(SECTIONS[8], [_table(["Residencial", "Visitas", "Asistencias", "Horas"], visit_rows, [260, 85, 95, 100], total=True), Spacer(1, 12),
-        _text("Visitas y asistencias se presentan por separado, conforme al reporte actual de visitas.")], data),
+    certification = data["visit_certification"]
+    parts = [visits_summary_pdf(
+        [(row["residential_name"], row["attendances"]) for row in certification["rows"]],
+        certification["total"], data["period_label"]),
         charts.residential_visits_pdf([(r["residential_name"], by_residential[r["residential_name"]]["visits"]) for r in residentials]
             + [(name, values["visits"]) for name, values in sorted(by_residential.items()) if name not in {r["residential_name"] for r in residentials}], data["period_label"]),
         _original("visitas", data["visitas"], authorized)]
@@ -321,8 +326,8 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
     section(12, parts)
 
     cover = cover_pdf(data, supplements)
-    letter = letter_pdf(data, supplements)
-    front_count = len(PdfReader(BytesIO(cover)).pages) + len(PdfReader(BytesIO(letter)).pages)
+    presentation_letter = letter_pdf(data, supplements)
+    front_count = len(PdfReader(BytesIO(cover)).pages) + len(PdfReader(BytesIO(presentation_letter)).pages)
     toc_count = 1
     for _ in range(4):
         cursor = front_count + toc_count + 1
@@ -340,7 +345,7 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
             break
         toc_count = actual
     writer = PdfWriter()
-    for payload in [cover, letter, toc, *[payload for _, payload in sections]]:
+    for payload in [cover, presentation_letter, toc, *[payload for _, payload in sections]]:
         for page in PdfReader(BytesIO(payload)).pages:
             writer.add_page(page, excluded_keys=("/Annots", "/AA"))
     for title, page_number in toc_rows:

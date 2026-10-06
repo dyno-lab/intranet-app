@@ -87,9 +87,13 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertIn("Residencial 2 3.50 3.50", hours)
         self.assertIn("Total Acumuladas 5.50 5.50", hours)
         self.assertIn("Total Acumulados 1", hours)
-        visits = self.section_text(reader, "IX.")
-        self.assertIn("Visitas\nAsistencias\nHoras", visits)
-        self.assertIn("Total\n3\n3\n5.50", visits)
+        visits = " ".join(self.section_text(reader, "IX.").split())
+        self.assertIn("Certificación visitas realizadas por el personal de servicios al residente.", visits)
+        self.assertIn("Residenciales Visitas", visits)
+        self.assertIn("Residencial 1 2 Residencial 2 1", visits)
+        self.assertIn("Total Acumuladas 3", visits)
+        self.assertNotIn("Visitas Asistencias Horas", visits)
+        self.assertLess(visits.index("Total Acumuladas"), visits.index("Reporte: visitas"))
 
     def test_manual_text_is_literal_and_does_not_become_reportlab_markup(self):
         reader = self.build(narrative="Resultado <b>literal</b> & comprobado", centers_notes="Oficina <script>alert(1)</script>")
@@ -117,6 +121,8 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertIn("total de 0 servicios", " ".join(text.split()))
         self.assertIn("Agosto 2026", reader.metadata.title)
         self.assertIn("Total Acumuladas 0.00 0.00", " ".join(self.section_text(reader, "VIII.").split()))
+        self.assertIn("Residencial 1 0 Residencial 2 0 Total Acumuladas 0",
+                      " ".join(self.section_text(reader, "IX.").split()))
 
     def test_thirty_residentials_paginate_charts_without_losing_last_location(self):
         for identifier in range(3, 31):
@@ -126,6 +132,9 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         reader = self.build()
         self.assertEqual(len(reader.outline), 13)
         self.assertIn("Residencial 30", self.section_text(reader, "III."))
+        visits = " ".join(self.section_text(reader, "IX.").split())
+        self.assertIn("Residencial 30 0", visits)
+        self.assertEqual(visits.count("Total Acumuladas"), 1)
         self.assertIn("2 participantes certificados", " ".join(" ".join(p.extract_text() for p in reader.pages[:8]).split()))
 
     def test_attachment_preserves_visible_content_and_excludes_active_pdf_objects(self):
@@ -151,6 +160,12 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         files = {key: renderer.validate_supplement_file(_one_page(label)) for key, label in (
             ("staffing_pdf", "POSICIONES FINALES"), ("centers_pdf", "CENTROS Y MAPA FINALES"),
         )}
+        staffing = PdfWriter()
+        for label in ("POSICIONES FINALES", "PLAZAS SEGUNDA HOJA"):
+            staffing.add_page(PdfReader(BytesIO(_one_page(label))).pages[0])
+        payload = BytesIO()
+        staffing.write(payload)
+        files["staffing_pdf"] = renderer.validate_supplement_file(payload.getvalue())
         reader = self.build(files=files)
         for section, label in (("I.", "POSICIONES FINALES"), ("II.", "CENTROS Y MAPA FINALES")):
             body = self.section_text(reader, section)
@@ -160,12 +175,19 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
             self.assertNotIn("Office Service", body)
         # Each section retains its existing cover followed by the supplied PDF.
         starts = [reader.get_destination_page_number(item) for item in reader.outline]
-        self.assertEqual(starts[1] - starts[0], 2)
+        self.assertEqual(starts[1] - starts[0], 3)
+        self.assertIn("PLAZAS SEGUNDA HOJA", self.section_text(reader, "I."))
         self.assertEqual(starts[2] - starts[1], 2)
 
-    def test_missing_manual_files_keep_the_original_fallback_sheets(self):
+    def test_missing_staffing_reserves_two_numbered_blank_pages_and_keeps_centers(self):
         reader = self.build()
-        self.assertIn("Pendiente de completar", self.section_text(reader, "I."))
+        starts = [reader.get_destination_page_number(item) for item in reader.outline]
+        self.assertEqual(starts[1] - starts[0], 3)
+        for index in range(starts[0] + 1, starts[1]):
+            page = reader.pages[index]
+            self.assertEqual(page.extract_text().strip(), f"Informe completo - {index + 1} / {len(reader.pages)}")
+            self.assertEqual(len(page.images), 0)
+            self.assertEqual((float(page.mediabox.width), float(page.mediabox.height)), (612, 792))
         self.assertIn("Service Centers", self.section_text(reader, "II."))
         self.assertIn("Residencial 1", self.section_text(reader, "II."))
 

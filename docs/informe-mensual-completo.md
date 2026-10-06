@@ -23,7 +23,18 @@ Las gráficas usan los valores de las tablas. Los servicios por programa suman
 las participaciones de cada actividad una sola vez dentro de ese programa,
 según la configuración y las filas de la Hoja de Cotejo. Una misma persona
 puede participar en varios programas. Las horas también proceden de esa hoja.
-Visitas conserva columnas separadas de visitas, asistencias y horas.
+La primera hoja de la sección IX reproduce la certificación de `visitas.pdf`,
+con las columnas Residenciales y Visitas, encabezado, logos, colores y nota
+al pie. «Visitas» suma las **asistencias confirmadas** de `1.a.2`, `1.a.9`,
+`2.b.2`, `3.c.2`, `3.c.10`, `3.c.20` y `4.d.2` durante el mes y las propuestas
+seleccionadas. Diez presentes en una actividad suman diez; las asistencias de
+una misma persona en distintas actividades también cuentan. Se usa el
+residencial de la sesión y el orden institucional, incluyendo ceros. Los datos
+históricos de residenciales inactivos o sin asignar se conservan en filas
+adicionales. «Total Acumuladas» es la suma de esas filas del mes, no un acumulado
+de meses anteriores. La gráfica y el detalle actual de Visitas conservan sus
+cálculos y la configuración de actividades; el detalle mantiene columnas
+separadas de visitas, asistencias y horas. No se modifica `/ui/reports/visitas`.
 
 Los tipos de gráficas siguen el modelo: columnas por residencial y por
 programa, circular de servicios por residencial, columnas de actividades por
@@ -119,14 +130,16 @@ El administrador puede incorporar:
   y certificaciones bonafide firmadas.
 - Fotografías JPEG/PNG o PDF de fotografías, en el orden seleccionado.
 
-Los complementos son opcionales; las secciones sin contenido se identifican
-como pendientes. Un PDF con secciones pendientes requiere completarse antes
+Los complementos son opcionales; posiciones existentes reserva dos páginas
+en blanco con la numeración general cuando no se adjunta su PDF. Las demás
+secciones manuales sin contenido se identifican como pendientes. Un PDF con
+secciones pendientes requiere completarse antes
 de considerarse el informe institucional final. Las firmas no se reutilizan
 desde el PDF histórico. Para anexos con formularios, sellos o firmas como
 anotaciones, se solicita una copia aplanada/impresa a PDF, evitando que esas
 apariencias desaparezcan al ensamblar el documento.
 
-Al cargar plazas, el PDF sustituye la hoja provisional de posiciones. Al cargar
+Al cargar plazas, el PDF sustituye las dos páginas en blanco de posiciones. Al cargar
 centros/oficinas/mapa, el PDF sustituye las hojas automáticas de centros; debe
 incluir todas las hojas finales de esa sección. Las portadas se conservan y
 el índice y la numeración se actualizan. Sin un archivo se conserva el contenido

@@ -28,6 +28,10 @@ el nuevo informe mensual completo.
   propuestos suministradas en `upgrades`. Son imágenes institucionales extraídas
   de los Word; no incluyen gráficas históricas ni valores de sus tablas. Las
   tablas se reconstruyen con datos actuales, conservando colores y dimensiones.
+- `visits_footer.png`: logos del pie de `visitas.pdf`, proporcionado por el
+  usuario para la certificación de visitas. El encabezado reutiliza la imagen
+  idéntica `chart_017_image11.png`. No se incorporan cifras ni la paginación
+  histórica del PDF; la tabla se genera con las asistencias actuales.
 
 La plantilla `1-Portadas-2025.docx` y su PDF de referencia conservan el mismo
 diseño de separadores utilizado aquí. El orden del informe sigue la numeración
@@ -37,7 +41,7 @@ Los PDF incluyen únicamente las páginas indicadas, sin anotaciones ni acciones
 No contienen hojas de participantes, cifras mensuales, cartas históricas ni
 firmas manuscritas. La carta se genera con los contextos actuales de los reportes.
 
-Para las partes variables se utilizan Times New Roman, Arial y Copperplate Gothic
+Para las partes variables se utilizan Times New Roman, Calibri, Arial y Copperplate Gothic
 Bold cuando están instaladas en Windows. Otros equipos emplean las fuentes PDF
 estándar Times, Helvetica y Helvetica Bold; los separadores mantienen siempre sus
 fuentes incrustadas originales.
