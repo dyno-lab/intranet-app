@@ -28,11 +28,11 @@ from app.services.report_pdf import (
 from app.services import full_monthly_report_charts as charts
 from app.services import full_monthly_report_tables as institutional_tables
 from app.services.full_monthly_report_checklist import checklist_pdf
-from app.services.full_monthly_report_centers import centers_pdf
 from app.services.full_monthly_report_visits import visits_summary_pdf
 from app.services.full_monthly_report_frontmatter import SECTION_TITLES, cover_pdf, section_cover_pdf, letter_pdf, contents_pdf
 
 STATIC = Path(__file__).resolve().parents[1] / "static" / "img"
+SERVICE_CENTERS_TEMPLATE = Path(__file__).resolve().parents[1] / "static" / "reports" / "full_monthly" / "service_centers.pdf"
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parents[1] / "templates"))
 INK = colors.HexColor("#17365D")
 PALE = colors.HexColor("#E9EFF7")
@@ -252,7 +252,7 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
     if "centers_pdf" in files:
         center_parts = [files["centers_pdf"]["content"]]
     else:
-        center_parts = [centers_pdf(data, supplements)]
+        center_parts = [SERVICE_CENTERS_TEMPLATE.read_bytes()]
     section(1, center_parts)
     unique = data["no_duplicado"]
     section(2, [_original("no_duplicado", unique, authorized),
@@ -349,7 +349,13 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
         writer.add_outline_item(title, page_number - 1)
     total_pages = len(writer.pages)
     divider_pages = {page_number for _, page_number in toc_rows}
+    # The fixed center sheets must remain exactly as supplied. They still count
+    # toward physical page numbers, but receive no transforms or book footer.
+    original_center_pages = (set(range(toc_rows[1][1] + 1, toc_rows[2][1]))
+                             if "centers_pdf" not in files else set())
     for number, page in enumerate(writer.pages, 1):
+        if number in original_center_pages:
+            continue
         page.transfer_rotation_to_content()
         if number <= front_count or number in divider_pages:
             continue

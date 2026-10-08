@@ -118,8 +118,13 @@ y del período conservan la deduplicación global de los reportes actuales.
 AMP, metas por programa y metas por sexo/población se muestran pendientes cuando
 no se han suministrado. El código interno del residencial no se utiliza como AMP.
 Por decisión del administrador, los códigos AMP y los datos de centros de los
-Word no se cargan como valores iniciales. Centros, direcciones y contactos se
-completan mediante las observaciones y los anexos manuales existentes.
+Word no se cargan como valores iniciales. Para centros de servicio se incorpora
+ahora el PDF `2_Mapas Plantilla 2023-2024.pdf`, proporcionado y aprobado por el
+usuario el 8 de octubre de 2026: exactamente sus dos hojas, tabla vertical y
+mapa horizontal, después de la portada II. Se conservan direcciones, teléfonos,
+cantidades, imágenes y formato del archivo; no se recalculan con el mes ni con
+los residenciales seleccionados. Las hojas no reciben textos, cambios de tamaño
+ni el pie «Informe completo»; sí cuentan para el índice y la numeración física.
 
 Las propuestas **005 - 2025-000094-B** y **006 - 2025-000094-C** comparten
 las 18 metas de participantes aprobadas el 22 de septiembre de 2026, por un
@@ -136,10 +141,10 @@ Al seleccionar 005, 006 o ambas, cada meta se usa una sola vez: el total es
 1,782, nunca 3,564. Las selecciones que incluyan otras propuestas o planes
 conservan las metas manuales hasta configurar sus valores y regla de consolidación.
 
-El administrador puede incorporar:
+El administrador o supervisor puede incorporar:
 
-- Fecha, firmante, cargo y copia de la carta; observaciones adicionales e
-  información de centros. La carta se prepara automáticamente con los
+- Fecha, firmante, cargo y copia de la carta; observaciones adicionales.
+  La carta se prepara automáticamente con los
   resultados actuales. Revisar los nombres precargados desde el modelo.
 - Metas de participantes por residencial. Vacío significa pendiente; cero es
   una meta explícita sin porcentaje aplicable. Solo se presenta meta global
@@ -159,10 +164,12 @@ anotaciones, se solicita una copia aplanada/impresa a PDF, evitando que esas
 apariencias desaparezcan al ensamblar el documento.
 
 Al cargar plazas, el PDF sustituye las dos páginas en blanco de posiciones. Al cargar
-centros/oficinas/mapa, el PDF sustituye las hojas automáticas de centros; debe
+centros/oficinas/mapa, el PDF sustituye las dos hojas originales de centros; debe
 incluir todas las hojas finales de esa sección. Las portadas se conservan y
 el índice y la numeración se actualizan. Sin un archivo se conserva el contenido
 predeterminado. Los demás anexos mantienen su comportamiento actual.
+Las observaciones de centros de borradores anteriores se aceptan por compatibilidad,
+pero no se imprimen sobre las hojas fijas ni generan hojas adicionales.
 
 Cada archivo admite hasta 15 MB, el conjunto hasta 60 MB y se pueden adjuntar
 hasta 20 archivos de fotografías. Cada PDF admite hasta 250 páginas, sin cifrar;
@@ -224,7 +231,8 @@ base de datos.
    repiten y 13 si uno es nuevo. Confirmar el mismo valor en carta y cotejo;
    un mes vacío conserva los ya atendidos y el cambio de año no reinicia la unión.
 8. Verificar que los AMP, direcciones y teléfonos históricos del Word no están
-   precargados. Completar los centros mediante textos/anexos manuales; una meta
+   precargados desde los Word. Los centros usan las dos hojas del PDF aprobado;
+   se pueden sustituir adjuntando otro PDF. Una meta
    de reclutamiento ausente debe seguir pendiente, con porcentaje no aplicable.
 9. Seleccionar 005, 006 y ambas juntas y comprobar las metas de julio, agosto y
    septiembre: Arístides Chavier 192, Columbus Landing 108 y total 1,782 para
@@ -232,7 +240,10 @@ base de datos.
    fijas se conservan. En agosto, si los atendidos siguen siendo 1,125 del mes
    y 1,298 acumulados, la primera hoja de metas debe mostrar 63% y 73%.
    Verificar también los 18 AMP, completos y sin cortes, en sus residenciales.
-10. Cargar los PDF finales de posiciones y centros/mapa. Comprobar una portada
+10. Sin adjuntar centros/mapa, comprobar después de la portada II las dos hojas
+    exactas del PDF aprobado: tabla vertical y mapa horizontal, sin pie añadido.
+    Verificar que la portada III y el índice cuentan ambas hojas.
+    Cargar los PDF finales de posiciones y centros/mapa. Comprobar una portada
     por sección, todos los documentos cargados una sola vez y ausencia de la
     hoja provisional y de centros pendientes. Revisar índice y numeración,
     tanto en Vista previa como en Descargar PDF.

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from hashlib import sha256
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
@@ -59,8 +61,9 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertIn("2 participantes certificados", " ".join(toc.split()))
         self.assertIn("total de 3 servicios", " ".join(toc.split()))
         self.assertIn("Julio 2026", reader.metadata.title)
+        center_pages = set(range(destinations[1] + 1, destinations[2]))
         for number, page in enumerate(reader.pages, 1):
-            if number - 1 < destinations[0] - 1 or number - 1 in destinations:
+            if number - 1 < destinations[0] - 1 or number - 1 in destinations or number - 1 in center_pages:
                 self.assertNotIn("Informe completo -", page.extract_text())
             else:
                 self.assertIn(f"Informe completo - {number} / {len(reader.pages)}", page.extract_text())
@@ -105,7 +108,31 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         reader = self.build(narrative="Resultado <b>literal</b> & comprobado", centers_notes="Oficina <script>alert(1)</script>")
         text = "\n".join(page.extract_text() for page in reader.pages)
         self.assertIn("Resultado <b>literal</b> & comprobado", text)
-        self.assertIn("Oficina <script>alert(1)</script>", text)
+        self.assertNotIn("Oficina <script>alert(1)</script>", text)
+
+    def test_centers_are_the_two_original_pages_without_added_text_or_scaling(self):
+        source_path = Path(__file__).resolve().parents[1] / "app/static/reports/full_monthly/service_centers.pdf"
+        self.assertEqual(sha256(source_path.read_bytes()).hexdigest(),
+                         "48eee734eac36ea7db8f7aeb8f3016d0a67320e7c55279ca5fc1af96965fce32")
+        source = PdfReader(source_path)
+        reader = self.build(centers_notes="No modificar las páginas originales")
+        starts = [reader.get_destination_page_number(item) for item in reader.outline]
+        pages = reader.pages[starts[1] + 1:starts[2]]
+        self.assertEqual(len(pages), 2)
+        self.assertEqual([(float(p.mediabox.width), float(p.mediabox.height)) for p in pages],
+                         [(612, 792), (792, 612)])
+        for original, included in zip(source.pages, pages):
+            self.assertEqual(included.get_contents().get_data(), original.get_contents().get_data())
+            self.assertEqual(included.extract_text(), original.extract_text())
+            self.assertEqual(included.mediabox, original.mediabox)
+            self.assertEqual(included.cropbox, original.cropbox)
+            self.assertEqual(included.rotation, original.rotation)
+            self.assertEqual([image.data for image in included.images], [image.data for image in original.images])
+            self.assertNotIn("Informe completo -", included.extract_text())
+        self.assertIn("Service Centers", pages[0].extract_text())
+        self.assertIn("Residents Services Centers", pages[1].extract_text())
+        # The next cover is still indexed at its physical page after both sheets.
+        self.assertEqual(starts[2] - starts[1], 3)
 
     def test_sheet_pagination_is_css_and_keeps_report_values_escaped(self):
         html = renderer.TEMPLATES.get_template("ui/reports/full_monthly_sheet.html").render({
@@ -201,7 +228,7 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
             self.assertEqual(len(page.images), 0)
             self.assertEqual((float(page.mediabox.width), float(page.mediabox.height)), (612, 792))
         self.assertIn("Service Centers", self.section_text(reader, "II."))
-        self.assertIn("Residencial 1", self.section_text(reader, "II."))
+        self.assertIn("Residents Services Centers", self.section_text(reader, "II."))
 
     def test_visible_signature_and_form_annotations_require_a_flattened_copy(self):
         for subtype in ("/Stamp", "/Widget"):

@@ -61,9 +61,9 @@
         <div class="form-text" id="full-monthly-narrative-help">La carta institucional se prepara con los datos del mes. Agrega aquí las observaciones adicionales; los saltos de línea se conservan.</div>
       </div>
       <div>
-        <label class="form-label" for="full-monthly-centers-notes">Información de centros y oficinas</label>
-        <textarea class="form-control" id="full-monthly-centers-notes" name="centers_notes" rows="4" maxlength="10000" aria-describedby="full-monthly-centers-help"></textarea>
-        <div class="form-text" id="full-monthly-centers-help">Completa manualmente las direcciones, teléfonos u observaciones. Los datos históricos de los Word no se precargan.</div>
+        <p class="form-label mb-0">Centros de servicio y mapa</p>
+        <input type="hidden" id="full-monthly-centers-notes" name="centers_notes" value="">
+        <div class="form-text" id="full-monthly-centers-help">Las dos hojas originales de Service Centers y mapa se incluyen automáticamente, sin modificar sus textos, imágenes ni orientación. Las observaciones de centros de borradores anteriores no se agregan a estas hojas.</div>
       </div>
     </section>
 
@@ -103,7 +103,7 @@
         <div>
           <label class="form-label" for="full-monthly-centers">Centros, oficinas y mapa · PDF</label>
           <input class="form-control" type="file" id="full-monthly-centers" name="centers_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
-          <div class="form-text">Sustituye las hojas automáticas de centros. Incluye en este PDF los centros y el mapa; la portada se conserva.</div>
+          <div class="form-text">Opcional: sustituye las dos hojas originales de Service Centers y mapa. Sin adjunto se incluyen automáticamente; la portada se conserva.</div>
         </div>
         <div>
           <label class="form-label" for="full-monthly-targets-pdf">Metas por programa y población · PDF</label>

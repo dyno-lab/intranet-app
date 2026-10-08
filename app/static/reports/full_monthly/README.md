@@ -25,7 +25,15 @@ el nuevo informe mensual completo.
   último Word; las fechas, nombres y resultados se generan con datos actuales.
 - `centers_csif_header.png` y `centers_faro_footer.png`: logos de la hoja
   `Centros de servicio.docx`. No se importan sus direcciones, teléfonos,
-  asignaciones de oficinas ni su mapa histórico como datos iniciales.
+  asignaciones de oficinas ni su mapa histórico como datos iniciales. El
+  generador anterior se conserva, pero ya no es la salida predeterminada.
+- `service_centers.pdf`: copia íntegra del archivo `2_Mapas Plantilla 2023-2024.pdf`
+  aprobado por el usuario el 8 de octubre de 2026. Contiene la tabla original de
+  Service Centers (Letter vertical) y el mapa (Letter horizontal), en ese orden.
+  Estas dos páginas se incorporan después de la portada II sin reconstruirlas,
+  modificar textos, recalcular valores ni agregar pies de numeración. Se cuentan
+  en el índice y la paginación física del resto del informe. SHA-256 del original:
+  `48eee734eac36ea7db8f7aeb8f3016d0a67320e7c55279ca5fc1af96965fce32`.
 - `table_*.png`: logos de las tablas de duplicados, referidos y participantes
   propuestos suministradas en `upgrades`. Son imágenes institucionales extraídas
   de los Word; no incluyen gráficas históricas ni valores de sus tablas. Las
@@ -41,7 +49,9 @@ romana del PDF completo, incluso cuando el archivo Word guarda VII después de I
 
 Los PDF incluyen únicamente las páginas indicadas, sin anotaciones ni acciones.
 No contienen hojas de participantes, cifras mensuales, cartas históricas ni
-firmas manuscritas. La carta se genera con los contextos actuales de los reportes.
+firmas manuscritas. `service_centers.pdf` conserva los datos de centros y contactos
+del archivo suministrado por solicitud expresa. La carta se genera con los
+contextos actuales de los reportes.
 
 Para las partes variables se utilizan Times New Roman, Calibri, Arial y Copperplate Gothic
 Bold cuando están instaladas en Windows. Otros equipos emplean las fuentes PDF
