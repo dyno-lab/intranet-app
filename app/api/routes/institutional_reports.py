@@ -27,7 +27,7 @@ from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
-from app.services.participant_courses import ACTIVITY_CODE as COURSE_ACTIVITY_CODE, COURSES
+from app.services.participant_courses import ACTIVITY_CODE as COURSE_ACTIVITY_CODE, AVAILABLE_COURSES, COURSES
 
 
 router = APIRouter()
@@ -177,20 +177,20 @@ def _faro_course_summary(db, *, proposal_ids, year, start_date, end_date):
         statement, proposal_ids=proposal_ids, year=year, start_date=start_date, end_date=end_date,
     )
     people, pending = set(), set()
-    by_course = {code: set() for code in COURSES}
+    by_course = {code: set() for code in AVAILABLE_COURSES}
     for person_id, participant_id, course_code in db.execute(statement).all():
         identity = ("person", person_id) if person_id is not None else ("participant", participant_id)
         people.add(identity)
         if course_code in by_course:
             by_course[course_code].add(identity)
-        else:
+        elif course_code not in COURSES:
             pending.add(identity)
     return {
         "unique_people": len(people),
         "pending_people": len(pending),
         "total_by_course": sum(len(values) for values in by_course.values()),
         "by_course": [{"code": code, "label": label, "people": len(by_course[code])}
-                      for code, label in COURSES.items()],
+                      for code, label in AVAILABLE_COURSES.items()],
     }
 
 

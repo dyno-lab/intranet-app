@@ -212,13 +212,13 @@
     coursesUnique.textContent = summary ? numberFormatter.format(summary.unique_people) : placeholder;
     coursesPending.textContent = summary ? numberFormatter.format(summary.pending_people) : placeholder;
     coursesNote.textContent = summary && summary.unique_people > 0 && summary.total_by_course === 0
-      ? "Las personas con asistencia aún no tienen cursos seleccionados en el período."
+      ? "No hay selecciones de Repostería o Charcutería para el período."
       : "Porcentajes sobre el total por curso. En varios meses, una persona puede aparecer en cursos diferentes.";
   };
 
   const normalizeRealCourses = (payload) => {
     const source = payload?.real?.courses;
-    const codes = ["reposteria", "charcuteria", "campo_laboral"];
+    const codes = ["reposteria", "charcuteria"];
     if (!source || !["unique_people", "pending_people", "total_by_course"].every(
       (field) => Number.isInteger(source[field]) && source[field] >= 0,
     ) || !Array.isArray(source.by_course) || source.by_course.length !== codes.length) {

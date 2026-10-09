@@ -31,7 +31,7 @@ class InstitutionalCoursesTests(unittest.TestCase):
         self.source.save([self.source.change(), self.source.change(participant=2),
                           self.source.change(month=8, course='charcuteria')], **self.period)
         result = self.summary()
-        self.assertEqual(self.counts(result), dict(reposteria=2, charcuteria=1, campo_laboral=0))
+        self.assertEqual(self.counts(result), dict(reposteria=2, charcuteria=1))
         self.assertEqual((result['unique_people'], result['total_by_course'], result['pending_people']), (2, 3, 0))
         self.assertNotIn('Participante', json.dumps(result))
         self.assertNotIn('participant_id', json.dumps(result))
@@ -51,7 +51,7 @@ class InstitutionalCoursesTests(unittest.TestCase):
         self.assertEqual(self.summary(proposal_ids=[2])['total_by_course'], 1)
         self.assertEqual(self.summary(proposal_ids=[2])['unique_people'], 1)
         august = self.summary(start_date=date(2026, 8, 1), end_date=date(2026, 8, 1))
-        self.assertEqual(self.counts(august), dict(reposteria=0, charcuteria=1, campo_laboral=0))
+        self.assertEqual(self.counts(august), dict(reposteria=0, charcuteria=1))
         self.assertEqual(self.summary(start_date=date(2026, 7, 2), end_date=date(2026, 7, 30))['unique_people'], 0)
         self.assertEqual(self.summary(year=2025)['unique_people'], 0)
         self.assertEqual(self.summary(year=None)['unique_people'], 2)
@@ -73,7 +73,25 @@ class InstitutionalCoursesTests(unittest.TestCase):
         result = self.summary(end_date=date(2026, 7, 31))
         self.assertEqual(result['unique_people'], 3)
         self.assertEqual(result['pending_people'], 1)
-        self.assertEqual(self.counts(result), dict(reposteria=1, charcuteria=1, campo_laboral=0))
+        self.assertEqual(self.counts(result), dict(reposteria=1, charcuteria=1))
+
+    def test_retired_course_is_excluded_from_chart_without_reclassifying_saved_people(self):
+        self.data.insert('participant_monthly_courses', participant_id=1, report_year=2026,
+                         report_month=7, course_code='campo_laboral', revision=1)
+        self.db.commit()
+        self.source.save([self.source.change(participant=2),
+                          self.source.change(month=8, course='charcuteria')], **self.period)
+        result = self.summary()
+        self.assertEqual(self.counts(result), dict(reposteria=1, charcuteria=1))
+        self.assertEqual((result['unique_people'], result['total_by_course'], result['pending_people']), (2, 2, 0))
+        self.assertNotIn('campo_laboral', json.dumps(result))
+        self.assertEqual(self.source.build()['rows'][0]['cells'][0]['course'], 'campo_laboral')
+
+        # This proposal/month only has a saved retired course: no pie sector,
+        # and it must not become a pending selection merely because it is hidden.
+        historical = self.summary(proposal_ids=[2], end_date=date(2026, 7, 31))
+        self.assertEqual(self.counts(historical), dict(reposteria=0, charcuteria=0))
+        self.assertEqual((historical['unique_people'], historical['total_by_course'], historical['pending_people']), (1, 0, 0))
 
     def test_large_population_uses_one_read_query_with_bounded_parameters(self):
         self.db.execute(self.data.tables['participants'].insert(), [dict(participant_id=i, nombre=f'Persona {i}') for i in range(10, 2211)])
@@ -116,7 +134,7 @@ class InstitutionalCoursesTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload['filters'], dict(proposal_ids=[1, 2], year=2026,
                          start_date='2026-08-01', end_date='2026-08-31'))
-        self.assertEqual(self.counts(payload['real']['courses']), dict(reposteria=0, charcuteria=1, campo_laboral=0))
+        self.assertEqual(self.counts(payload['real']['courses']), dict(reposteria=0, charcuteria=1))
         self.assertEqual(payload['real']['courses']['unique_people'], 1)
         self.assertIn('courses', payload['meta']['real_metrics'])
         self.assertEqual(response.headers['cache-control'], 'no-store')

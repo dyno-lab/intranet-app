@@ -13,7 +13,8 @@ de una instalación particular ni modifica las asistencias o cálculos existente
   se copian automáticamente a otros meses.
 - Preparación para el campo Laboral ya no está disponible para asignar, tampoco
   mediante envíos directos al servidor. Si fue guardado anteriormente, conserva
-  su etiqueta en las descargas y su conteo histórico en la gráfica institucional.
+  su etiqueta en las descargas del reporte de cursos; se excluye de la distribución
+  y los porcentajes de la gráfica institucional.
   En pantalla se identifica como curso guardado; no se cambia automáticamente
   al guardar otro participante. Puede sustituirse por un curso disponible o
   vaciarse con los mismos permisos, cierres y control de versiones existentes.
@@ -88,6 +89,11 @@ consulta de indicadores; no incorpora filtros independientes.
 
 - Solo cuenta asistencias confirmadas a `2.b.5` dentro de los filtros actuales.
 - El curso corresponde al mes/año de la asistencia y a la selección guardada.
+- La gráfica y su leyenda muestran únicamente Repostería y Charcutería. Los
+  registros anteriores de Campo Laboral no aportan sectores ni se incluyen en
+  «Total por curso». Se conservan en el historial y no pasan a pendientes por
+  retirarse de la gráfica; el total de personas únicas en 2.b.5 sigue basado en
+  todas las asistencias confirmadas del período.
 - Repetir un curso en varios meses o propuestas cuenta una sola vez dentro de
   ese curso. Cursos diferentes cuentan una vez en cada curso.
 - «Total por curso» suma esos conteos y es la base del porcentaje de cada sector.

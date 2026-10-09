@@ -24,7 +24,7 @@ from app.models.residential import Residential
 ACTIVITY_CODE = '2.b.5'
 COURSE_EDITOR_ROLES = frozenset({ADMIN_ROLE, SUPERVISOR_ROLE, USER_ROLE})
 AVAILABLE_COURSES = {'reposteria': 'Repostería', 'charcuteria': 'Charcutería'}
-# Retain retired labels for saved reports and historical institutional counts.
+# Retain retired labels for saved reports and recognizing historical selections.
 COURSES = {**AVAILABLE_COURSES,
            'campo_laboral': 'Preparación para el campo Laboral'}
 MONTHS = [(1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'), (5, 'Mayo'), (6, 'Junio'),
