@@ -133,9 +133,11 @@ def build_full_monthly_report_data(
     Stable public shape:
     * ``proposals`` contains the selected Proposal models; ``month``, ``year``,
       ``period_label`` and ``authorized_name`` describe the document.
-    * ``no_duplicado``, ``duplicado``, ``por_programa``, ``embarazo``,
+    * ``no_duplicado``, ``duplicado``, ``por_programa``,
       ``desercion``, ``visitas``, ``adm`` and ``hoja_cotejo`` are unmodified
       existing report-builder contexts for all selected proposals, globally.
+    * ``embarazo`` uses the existing summary restricted to records with
+      workshops checked, for both its table and pregnancy-prevention chart.
     * ``residentials`` contains the active Residential model, its ID/name and
       existing no_duplicado, duplicado, bonafide, por_programa and hoja_cotejo
       contexts for that residential. Global totals must never be reconstructed
@@ -188,7 +190,7 @@ def build_full_monthly_report_data(
             "no_duplicado": reports._build_no_duplicado_context(**named),
             "duplicado": reports._build_no_duplicado_context(**named, duplicated=True),
             "por_programa": reports._build_por_programa_context(**named),
-            "embarazo": reports._build_pregnancy_summary_context(**common),
+            "embarazo": reports._build_pregnancy_summary_context(**common, workshops_only=True),
             "desercion": reports._build_school_dropout_summary_context(**common),
             "visitas": reports._build_visits_context(**named),
             "adm": reports._build_adm_context(**named),

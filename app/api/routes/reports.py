@@ -2165,6 +2165,8 @@ def _build_pregnancy_summary_context(
     period_type: str = "monthly",
     start_date: date | str | None = None,
     end_date: date | str | None = None,
+    *,
+    workshops_only: bool = False,
 ):
     period = _build_period_filter(period_type, month, year, start_date, end_date)
 
@@ -2212,6 +2214,12 @@ def _build_pregnancy_summary_context(
             .outerjoin(Residential, Residential.residential_id == PregnancyReport.residential_id)
             .where(_proposal_filter(PregnancyReport.proposal_id, proposal_id))
         )
+
+        if workshops_only:
+            # The complete report certifies services received. Filter before
+            # deduplication so unchecked records cannot contribute cases or
+            # assign a participant to a residential without workshop service.
+            stmt = stmt.where(PregnancyReportItem.participated_workshops == True)  # noqa: E712
 
         if period["is_custom"]:
             stmt = stmt.where(
@@ -2343,6 +2351,7 @@ def _build_pregnancy_summary_context(
         "total": total,
         "chart_labels": ["Embarazos", "No embarazos"],
         "chart_values": [total["pregnancy_cases"], total["non_pregnant"]],
+        "workshops_only": workshops_only,
     }
 
 

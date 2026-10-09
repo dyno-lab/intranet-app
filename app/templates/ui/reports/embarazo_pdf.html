@@ -49,7 +49,7 @@
       <thead>
         <tr>
           <th>Residencial</th>
-          <th>Total reclutados</th>
+          <th>{{ 'Participantes en talleres' if workshops_only else 'Total reclutados' }}</th>
           <th>F</th>
           <th>M</th>
           <th>Participantes femeninas embarazadas</th>
@@ -61,7 +61,7 @@
         {% for row in rows %}
         <tr>
           <td class="left">{{ row.residential_name }}</td>
-          <td class="center">{{ row.recruited }}</td>
+          <td class="center">{{ row.participation if workshops_only else row.recruited }}</td>
           <td class="center">{{ row.f }}</td>
           <td class="center">{{ row.m }}</td>
           <td class="center">{{ row.pregnant_f }}</td>
@@ -71,7 +71,7 @@
         {% endfor %}
         {% if rows|length == 0 %}
         <tr>
-          <td colspan="7" class="center">No hay registros de pregnancy para los criterios seleccionados.</td>
+          <td colspan="7" class="center">{% if workshops_only %}No hay participantes con Talleres marcado para los criterios seleccionados.{% else %}No hay registros de pregnancy para los criterios seleccionados.{% endif %}</td>
         </tr>
         {% endif %}
       </tbody>
@@ -79,7 +79,7 @@
       <tfoot>
         <tr>
           <td class="left">TOTAL</td>
-          <td class="center">{{ total.recruited }}</td>
+          <td class="center">{{ total.participation if workshops_only else total.recruited }}</td>
           <td class="center">{{ total.f }}</td>
           <td class="center">{{ total.m }}</td>
           <td class="center">{{ total.pregnant_f }}</td>

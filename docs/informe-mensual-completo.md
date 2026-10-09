@@ -21,6 +21,14 @@ administrativa conservan su propuesta de origen, salvo la extensión 005/006
 seleccionada conjuntamente, que comparte un solo cotejo. El total global de personas
 no se obtiene sumando los residenciales ni los programas.
 
+La sección XI de prevención de embarazo incluye únicamente los registros con
+**Talleres** marcado dentro del mes y las propuestas seleccionadas. La columna
+**Participantes en talleres**, F/M, casos de embarazo, porcentaje de prevención
+y gráfica usan esa misma población, conservando la deduplicación actual. Los
+registros de personas únicamente reclutadas no aportan cantidades ni casos.
+Si no hay talleres marcados, se informa que no hay participantes y los totales
+son cero. El reporte individual de Embarazo conserva sus criterios anteriores.
+
 Las gráficas usan los valores de las tablas. Los servicios por programa suman
 las participaciones de cada actividad una sola vez dentro de ese programa,
 según la configuración y las filas de la Hoja de Cotejo. Una misma persona
