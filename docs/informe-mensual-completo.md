@@ -109,6 +109,14 @@ asignación de actividad a programa/población de cada propuesta antes de unirla
 Se usa el residencial de la sesión; no la dirección del participante. La carta
 enumera los residenciales efectivamente atendidos en el mes.
 
+En la carta, «Se completaron … tipos de actividades» cuenta cada renglón realizado
+una vez, incluyendo Reclutamiento de grupos cuando hubo residenciales atendidos
+en el mes. Por ejemplo, reclutamiento y seis actividades listadas dan **7**, sin
+sumar sus cantidades de sesiones ni participaciones. Reclutamiento no se cuenta
+otra vez si también aparece en el catálogo; el acumulado de meses anteriores
+por sí solo no añade una actividad al mes. Se conserva la deduplicación de las
+demás actividades por ID dentro de cada programa.
+
 Las filas de reclutamiento del informe completo no alteran las actividades,
 servicios, personas, horas ni metas de los informes existentes. En 005 y 006
 usan las metas del Word; en otros planes usan la meta configurada de su

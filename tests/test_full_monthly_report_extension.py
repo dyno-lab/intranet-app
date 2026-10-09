@@ -174,8 +174,12 @@ class FullMonthlyReportExtensionTests(unittest.TestCase):
         self.assertIn("2 participantes certificados", front)
         self.assertIn("total de 3 servicios", front)
         self.assertIn("2 residenciales distintos acumulados", front)
+        # The approved original service-center sheets have no added footer.
+        center_pages = set(range(starts[1] + 1, starts[2]))
         for number, page in enumerate(pdf.pages, 1):
-            if number - 1 > starts[0] and number - 1 not in starts:
+            if number - 1 in center_pages:
+                self.assertNotIn("Informe completo -", page.extract_text())
+            elif number - 1 > starts[0] and number - 1 not in starts:
                 self.assertIn(f"Informe completo - {number} / {len(pdf.pages)}", page.extract_text())
 
 

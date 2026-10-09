@@ -304,6 +304,7 @@ def letter_pdf(data: dict, supplements: dict) -> bytes:
                                f"{unique_phrase}un total de <b><i><u>{_number(service_count)} servicios</u></i></b> "
                                "ofrecidos. Los mismos se desglosan a continuación:"))
         sequence = 0
+        completed_types = 0
         displayed = set()
         for population in block["population_blocks"]:
             group_counts = data.get("recruitment", {}).get("groups", {}).get((code, population["population_label"]))
@@ -316,6 +317,10 @@ def letter_pdf(data: dict, supplements: dict) -> bytes:
             story.append(paragraph(f"PROGRAMA #{_plain(code)}: {_plain(str(population['population_label']).upper())}", heading))
             if group_counts is not None:
                 sequence += 1
+                # Recruitment is a listed activity even without a session for
+                # its catalogue code. Historical coverage alone is not monthly work.
+                if group_counts["monthly_count"] > 0:
+                    completed_types += 1
                 story.append(paragraph(
                     f"{sequence}. Reclutamiento de grupos - "
                     f"<b><u>{_number(group_counts['monthly_count'])}</u></b> residenciales atendidos en el mes; "
@@ -326,14 +331,15 @@ def letter_pdf(data: dict, supplements: dict) -> bytes:
                 if group_counts is not None and group_code and row["activity_code"].casefold() == group_code:
                     continue
                 sequence += 1
+                completed_types += 1
                 story.append(paragraph(
                     f"{sequence}. {_plain(row['activity_description'])} - "
                     f"<b><u>{_number(row['activities_count'])}</u></b> actividades a "
                     f"<b><u>{_number(row['duplicados'])}</u></b> participaciones.", activity))
-        if not active_rows:
+        if not completed_types:
             story.append(paragraph("No se registraron actividades durante el período."))
         story.extend([Spacer(1, 11.52), paragraph(
-            f"Se completaron <b><u>{_number(len(active_rows))}</u></b> tipos de actividades "
+            f"Se completaron <b><u>{_number(completed_types)}</u></b> tipos de actividades "
             f"en el Programa {_plain(code)}.")])
     story.append(PageBreak())
     hours = f"{float(data['total_contact_hours']):,.2f}"
