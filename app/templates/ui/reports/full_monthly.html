@@ -115,15 +115,26 @@
           <input class="form-control" type="file" id="full-monthly-visit-roles" name="visit_roles_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
         </div>
         <div>
-          <label class="form-label" for="full-monthly-signed">Certificaciones bonafide firmadas · PDF</label>
-          <input class="form-control" type="file" id="full-monthly-signed" name="signed_bonafide_pdf" accept="application/pdf,.pdf" aria-describedby="full-monthly-files-help">
-          <div class="form-text">Anexo de las certificaciones correspondientes al período seleccionado.</div>
-        </div>
-        <div>
           <label class="form-label" for="full-monthly-photos">Fotografías · PDF, JPG o PNG</label>
           <input class="form-control" type="file" id="full-monthly-photos" name="photos" multiple accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" aria-describedby="full-monthly-files-help full-monthly-photos-help">
           <div class="form-text" id="full-monthly-photos-help">Hasta 20 archivos. Se incorporan en el orden de selección.</div>
         </div>
+      </div>
+    </section>
+
+    <section class="full-monthly-panel" aria-labelledby="full-monthly-bonafides-title">
+      <h2 id="full-monthly-bonafides-title">Bonafides firmados por residencial · Opcional</h2>
+      <p class="text-muted" id="full-monthly-bonafides-help">Adjunta un PDF por residencial con todas sus páginas firmadas del mes y las propuestas seleccionadas. Sustituirá únicamente el Bonafide de ese residencial en su posición habitual. Sin archivo adjunto se conserva el Bonafide generado sin firma. El índice y la numeración se actualizan automáticamente.</p>
+      <div class="full-monthly-upload-grid">
+        {% for residential in residentials %}
+        <div>
+          <label class="form-label" for="full-monthly-signed-{{ residential.residential_id }}">{{ residential.name }}{% if residential.municipality %} · {{ residential.municipality }}{% endif %}</label>
+          <input class="form-control" type="file" id="full-monthly-signed-{{ residential.residential_id }}" name="signed_bonafide_pdf_{{ residential.residential_id }}" accept="application/pdf,.pdf" aria-describedby="full-monthly-bonafides-help full-monthly-files-help">
+          <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-clear-bonafide="full-monthly-signed-{{ residential.residential_id }}" aria-label="Quitar Bonafide firmado de {{ residential.name }}" hidden>Quitar archivo</button>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No hay residenciales activos para adjuntar Bonafides.</p>
+        {% endfor %}
       </div>
     </section>
 
@@ -151,5 +162,5 @@
     <p class="text-danger" id="full-monthly-upload-error" role="alert" hidden></p>
   </form>
 </div>
-<script src="/static/js/full-monthly-report.js" defer></script>
+<script src="/static/js/full-monthly-report.js?v=bonafide-residencial-1" defer></script>
 {% endblock %}

@@ -273,6 +273,71 @@ class FullMonthlyReportRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.render.assert_not_called()
 
+    def test_bonafide_inputs_identify_active_residentials_and_remain_optional(self):
+        html = self.prepare().text
+        self.assertIn('name="signed_bonafide_pdf_1"', html)
+        self.assertNotIn('name="signed_bonafide_pdf_2"', html)
+        self.assertNotIn('name="signed_bonafide_pdf"', html)
+        self.assertIn("Sin archivo adjunto se conserva el Bonafide generado sin firma", html)
+        self.assertEqual(self.post(self.form()).status_code, 200)
+        self.assertEqual(self.render.call_args.args[5]["signed_bonafides"], {})
+
+    def test_signed_bonafide_is_associated_with_residential_in_preview_and_download(self):
+        for role in ("admin", "supervisor"):
+            self.user.role = role
+            for disposition in ("inline", "attachment"):
+                with self.subTest(role=role, disposition=disposition):
+                    response = self.post(self.form(disposition=disposition), files={
+                        "signed_bonafide_pdf_1": ("cualquier-nombre.pdf", self.pdf, "application/pdf"),
+                        "staffing_pdf": ("plazas.pdf", self.pdf, "application/pdf"),
+                    })
+                    self.assertEqual(response.status_code, 200, response.text)
+                    supplements = self.render.call_args.args[5]
+                    self.assertEqual(supplements["signed_bonafides"], {1: {"kind": "pdf", "content": self.pdf}})
+                    self.assertEqual(supplements["files"]["staffing_pdf"]["content"], self.pdf)
+                    self.assertNotIn("signed_bonafide_pdf", supplements["files"])
+
+    def test_signed_bonafide_rejects_invalid_locations_duplicates_and_legacy_upload(self):
+        form = self.form()
+        for field in ("signed_bonafide_pdf_2", "signed_bonafide_pdf_999", "signed_bonafide_pdf_x",
+                      "signed_bonafide_pdf_01", "signed_bonafide_pdf"):
+            with self.subTest(field=field):
+                response = self.post(form, files={field: ("firmado.pdf", self.pdf)})
+                self.assertEqual(response.status_code, 400, response.text)
+        response = self.post(form, files=[("signed_bonafide_pdf_1", ("firmado.pdf", self.pdf))] * 2)
+        self.assertEqual(response.status_code, 400)
+        self.render.assert_not_called()
+
+    def test_signed_bonafide_validates_pdf_and_counts_towards_all_size_limits(self):
+        form = self.form()
+        response = self.post(form, files={"signed_bonafide_pdf_1": ("firmado.pdf", b"not pdf")})
+        self.assertEqual(response.status_code, 400)
+        with patch.object(routes, "MAX_FILE_BYTES", len(self.pdf) - 1):
+            self.assertEqual(self.post(form, files={"signed_bonafide_pdf_1": ("firmado.pdf", self.pdf)}).status_code, 413)
+        with patch.object(routes, "MAX_TOTAL_BYTES", len(self.pdf) * 2 - 1):
+            response = self.post(form, files={"signed_bonafide_pdf_1": ("firmado.pdf", self.pdf),
+                                             "centers_pdf": ("centros.pdf", self.pdf)})
+        self.assertEqual(response.status_code, 413)
+        self.render.assert_not_called()
+
+    def test_all_residential_uploads_and_twenty_photos_fit_the_form_parser(self):
+        with self.engine.begin() as connection:
+            connection.execute(routes.Residential.__table__.insert(), [
+                {"residential_id": identifier, "code": f"R{identifier}", "name": f"Residencial {identifier}",
+                 "is_active": True, "created_at": None}
+                for identifier in range(3, 20)
+            ])
+        # A browser sends empty file controls too. Only one residential has a PDF.
+        files = [(f"signed_bonafide_pdf_{identifier}", ("firmado.pdf", self.pdf) if identifier == 1 else ("", b""))
+                 for identifier in (1, *range(3, 20))]
+        files += [(field, ("", b"")) for field in routes.PDF_FIELDS]
+        files += [("photos", (f"foto-{index}.pdf", self.pdf)) for index in range(20)]
+        response = self.post(self.form(), files=files)
+        self.assertEqual(response.status_code, 200, response.text)
+        supplements = self.render.call_args.args[5]
+        self.assertEqual(set(supplements["signed_bonafides"]), {1})
+        self.assertEqual(len(supplements["photos"]), 20)
+
     def test_file_and_aggregate_size_limits_are_enforced_before_generation(self):
         form = self.form()
         with patch.object(routes, "MAX_FILE_BYTES", len(self.pdf) - 1):

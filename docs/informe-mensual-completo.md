@@ -165,8 +165,8 @@ El administrador o supervisor puede incorporar:
 - Metas de participantes por residencial. Vacío significa pendiente; cero es
   una meta explícita sin porcentaje aplicable. Solo se presenta meta global
   cuando todos los residenciales tienen una meta ingresada.
-- PDF de plazas, centros/mapa, metas por programa/población, visitas por puesto
-  y certificaciones bonafide firmadas.
+- PDF de plazas, centros/mapa, metas por programa/población y visitas por puesto.
+- Bonafides firmados: un PDF opcional por residencial con todas sus páginas.
 - Fotografías JPEG/PNG o PDF de fotografías, en el orden seleccionado.
 
 Los complementos son opcionales; posiciones existentes reserva dos páginas
@@ -186,6 +186,19 @@ el índice y la numeración se actualizan. Sin un archivo se conserva el conteni
 predeterminado. Los demás anexos mantienen su comportamiento actual.
 Las observaciones de centros de borradores anteriores se aceptan por compatibilidad,
 pero no se imprimen sobre las hojas fijas ni generan hojas adicionales.
+
+En **Bonafides firmados por residencial**, cada archivo sustituye únicamente las
+hojas Bonafide de ese residencial dentro de la sección IV, después de su resumen
+No Duplicado. El orden lo determina el informe, independientemente del orden de
+carga o del nombre del archivo; el orden interno de sus páginas se conserva.
+Se debe adjuntar el PDF completo del residencial, correspondiente al mes y las
+propuestas seleccionadas. No se identifican residenciales ni firmas mediante OCR.
+El sistema actualiza el índice y la numeración según la cantidad de páginas.
+Sin archivo para un residencial, se generan sus Bonafides sin firma como antes;
+sin ningún archivo, todos se generan. «Quitar archivo» permite volver a ese
+comportamiento antes de generar. Los firmados ya no se agregan como anexo aparte.
+Los formularios abiertos antes de esta actualización deben abrirse nuevamente
+para asociar cada PDF con su residencial. No se guardan archivos entre generaciones.
 
 Cada archivo admite hasta 15 MB, el conjunto hasta 60 MB y se pueden adjuntar
 hasta 20 archivos de fotografías. Cada PDF admite hasta 250 páginas, sin cifrar;

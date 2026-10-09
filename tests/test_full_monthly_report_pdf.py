@@ -230,6 +230,53 @@ class FullMonthlyReportPdfTests(unittest.TestCase):
         self.assertIn("Service Centers", self.section_text(reader, "II."))
         self.assertIn("Residents Services Centers", self.section_text(reader, "II."))
 
+    def test_signed_bonafides_replace_only_their_residential_in_order_and_update_index(self):
+        signed = PdfWriter()
+        for label in ("FIRMADO RESIDENCIAL 1 - PAGINA 1", "FIRMADO RESIDENCIAL 1 - PAGINA 2"):
+            signed.add_page(PdfReader(BytesIO(_one_page(label))).pages[0])
+        output = BytesIO()
+        signed.write(output)
+        uploads = {1: renderer.validate_supplement_file(output.getvalue())}
+        def original(name, context, _authorized):
+            return _one_page(name + " " + str(context.get("residential_name", "")))
+        with patch.object(renderer, "_original", side_effect=original) as render:
+            reader = PdfReader(BytesIO(renderer.build_full_monthly_pdf(self.data, {"signed_bonafides": uploads})))
+        text = self.section_text(reader, "IV.")
+        expected = ["no_duplicado Residencial 1", "FIRMADO RESIDENCIAL 1 - PAGINA 1",
+                    "FIRMADO RESIDENCIAL 1 - PAGINA 2", "no_duplicado Residencial 2", "bonafide Residencial 2"]
+        positions = [text.index(label) for label in expected]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("bonafide Residencial 1", text)
+        self.assertNotIn("Certificaciones firmadas - anexo", text)
+        self.assertEqual([call.args[1]["residential_name"] for call in render.call_args_list if call.args[0] == "bonafide"],
+                         ["Residencial 2"])
+        starts = [reader.get_destination_page_number(item) for item in reader.outline]
+        self.assertEqual(starts[4] - starts[3], 6)  # Cover, two summaries, three Bonafide pages.
+        toc = " ".join(" ".join(page.extract_text() for page in reader.pages[:starts[0]]).split())
+        self.assertIn(f'Residencial 1 {starts[3] + 2}', toc)
+        self.assertIn(f'Residencial 2 {starts[3] + 5}', toc)
+        for index in range(starts[3] + 1, starts[4]):
+            self.assertIn(f"Informe completo - {index + 1} / {len(reader.pages)}", reader.pages[index].extract_text())
+
+    def test_all_signed_bonafides_follow_report_order_not_upload_order(self):
+        uploads = {identifier: renderer.validate_supplement_file(_one_page(f"FIRMADO {identifier}"))
+                   for identifier in (2, 1)}
+        with patch.object(renderer, "_original", side_effect=lambda name, *_: _one_page(name)) as render:
+            reader = PdfReader(BytesIO(renderer.build_full_monthly_pdf(self.data, {"signed_bonafides": uploads})))
+        text = self.section_text(reader, "IV.")
+        self.assertLess(text.index("FIRMADO 1"), text.index("FIRMADO 2"))
+        self.assertEqual(text.count("FIRMADO 1"), 1)
+        self.assertEqual(text.count("FIRMADO 2"), 1)
+        self.assertFalse(any(call.args[0] == "bonafide" for call in render.call_args_list))
+        self.assertNotIn("Certificaciones firmadas - anexo", text)
+
+    def test_no_signed_bonafides_keep_all_generated_bonafides(self):
+        reader = self.build()
+        text = self.section_text(reader, "IV.")
+        self.assertEqual(text.count("Reporte: bonafide"), 2)
+        self.assertEqual(text.count("Reporte: no_duplicado"), 2)
+        self.assertNotIn("Certificaciones firmadas - anexo", text)
+
     def test_visible_signature_and_form_annotations_require_a_flattened_copy(self):
         for subtype in ("/Stamp", "/Widget"):
             with self.subTest(subtype=subtype):

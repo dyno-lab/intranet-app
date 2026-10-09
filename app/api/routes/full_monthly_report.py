@@ -28,7 +28,8 @@ templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger(__name__)
 MAX_FILE_BYTES = 15 * 1024 * 1024
 MAX_TOTAL_BYTES = 60 * 1024 * 1024
-PDF_FIELDS = ("staffing_pdf", "centers_pdf", "targets_pdf", "visit_roles_pdf", "signed_bonafide_pdf")
+PDF_FIELDS = ("staffing_pdf", "centers_pdf", "targets_pdf", "visit_roles_pdf")
+SIGNED_BONAFIDE_PREFIX = "signed_bonafide_pdf_"
 
 
 class _BoundedReportRoute(APIRoute):
@@ -115,7 +116,11 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
         raise HTTPException(503, "La generación del informe completo requiere actualizar las dependencias de la aplicación.") from exc
     from app.services.report_pdf import PDFBackendUnavailableError, PDFRenderError
 
-    async with request.form(max_files=25, max_fields=200, max_part_size=256 * 1024) as form:
+    residentials = db.scalars(select(Residential).where(Residential.is_active == True)).all()  # noqa: E712
+    # Browsers also submit empty file controls. Allow one per residential,
+    # the other PDF sections and up to twenty photographic attachments.
+    max_files = len(residentials) + len(PDF_FIELDS) + 21
+    async with request.form(max_files=max_files, max_fields=200, max_part_size=256 * 1024) as form:
         token = str(form.get("token", ""))
         expected = request.session.get("full_report_token", "")
         if not expected or not hmac.compare_digest(token.encode("utf-8"), expected.encode("utf-8")):
@@ -124,7 +129,7 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
         disposition = str(form.get("disposition", "inline"))
         if disposition not in {"inline", "attachment"}:
             raise HTTPException(400, "Formato de salida inválido.")
-        supplements = {"files": {}, "photos": [], "targets": {}}
+        supplements = {"files": {}, "photos": [], "targets": {}, "signed_bonafides": {}}
         for key, limit in (("narrative", 20000), ("centers_notes", 10000), ("authorized_name", 200),
                            ("letter_date", 10), ("letter_signer_name", 200), ("letter_signer_title", 200), ("letter_copy", 500)):
             value = form.get(key, "")
@@ -137,7 +142,6 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
             except ValueError as exc:
                 raise HTTPException(400, "La fecha de la carta no es válida.") from exc
         supplements["authorized_name"] = report_authorized_name(current_user, supplements["authorized_name"])
-        residentials = db.scalars(select(Residential).where(Residential.is_active == True)).all()  # noqa: E712
         valid_residential_ids = {row.residential_id for row in residentials}
         fixed_targets = configured_targets(proposals, residentials)["targets"]
         supplements["targets"].update(fixed_targets)
@@ -153,8 +157,24 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
             if residential_id in fixed_targets and target != fixed_targets[residential_id]:
                 raise HTTPException(400, "La meta está fijada para la propuesta. Vuelve a abrir la preparación del informe.")
             supplements["targets"][residential_id] = target
+        if any((isinstance(item, UploadFile) and item.filename) or (isinstance(item, str) and item)
+               for item in form.getlist("signed_bonafide_pdf")):
+            raise HTTPException(400, "Vuelve a abrir la preparación del informe y adjunta cada Bonafide firmado en su residencial.")
+        signed_fields = {}
+        for key in form:
+            if not key.startswith(SIGNED_BONAFIDE_PREFIX):
+                continue
+            suffix = key[len(SIGNED_BONAFIDE_PREFIX):]
+            if len(suffix) > 19 or not suffix.isascii() or not suffix.isdecimal():
+                raise HTTPException(400, "Residencial inválido para el Bonafide firmado.")
+            residential_id = int(suffix)
+            if key != f"{SIGNED_BONAFIDE_PREFIX}{residential_id}" or residential_id not in valid_residential_ids:
+                raise HTTPException(400, "Residencial inválido para el Bonafide firmado. Vuelve a abrir la preparación del informe.")
+            if any(not isinstance(item, UploadFile) and item != "" for item in form.getlist(key)):
+                raise HTTPException(400, "Adjunta un archivo PDF para el Bonafide firmado.")
+            signed_fields[key] = residential_id
         total_bytes = 0
-        for key in (*PDF_FIELDS, "photos"):
+        for key in (*PDF_FIELDS, *signed_fields, "photos"):
             uploads = [item for item in form.getlist(key) if isinstance(item, UploadFile) and item.filename]
             if len(uploads) > (20 if key == "photos" else 1):
                 raise HTTPException(400, "Cantidad de archivos no permitida.")
@@ -169,6 +189,8 @@ async def full_monthly_pdf(request: Request, db: Session = Depends(get_db), curr
                     raise HTTPException(400, str(exc)) from exc
                 if key == "photos":
                     supplements["photos"].append(item)
+                elif key in signed_fields:
+                    supplements["signed_bonafides"][signed_fields[key]] = item
                 else:
                     supplements["files"][key] = item
         try:

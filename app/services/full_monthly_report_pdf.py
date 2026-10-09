@@ -259,11 +259,12 @@ def build_full_monthly_pdf(data: dict, supplements: dict) -> bytes:
         charts.residential_unique_pdf([(r["residential_name"], r["no_duplicado"]["total_all"]) for r in residentials], data["period_label"])])
     parts = []
     residential_details = []
+    signed_bonafides = supplements.get("signed_bonafides", {})
     for row in residentials:
         residential_details.append((row["residential_name"], len(parts)))
-        parts += [_original("no_duplicado", row["no_duplicado"], authorized), _original("bonafide", row["bonafide"], authorized)]
-    if "signed_bonafide_pdf" in files:
-        parts += [_pages("Certificaciones firmadas - anexo", [_text("Documentos incorporados por el administrador para este período.")], data), files["signed_bonafide_pdf"]["content"]]
+        parts.append(_original("no_duplicado", row["no_duplicado"], authorized))
+        signed = signed_bonafides.get(row["residential_id"])
+        parts.append(signed["content"] if signed else _original("bonafide", row["bonafide"], authorized))
     section(3, parts, residential_details)
 
     programs = data["por_programa"]["program_sections"]

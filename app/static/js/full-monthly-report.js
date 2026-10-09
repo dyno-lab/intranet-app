@@ -10,6 +10,18 @@
   const maxFileSize = 15 * 1024 * 1024;
   const maxTotalSize = 60 * 1024 * 1024;
 
+  form.querySelectorAll('[data-clear-bonafide]').forEach(button => {
+    const input = document.getElementById(button.dataset.clearBonafide);
+    const update = () => { button.hidden = input.files.length === 0; };
+    input.addEventListener('change', update);
+    button.addEventListener('click', () => {
+      input.value = '';
+      update();
+      input.focus();
+    });
+    update();
+  });
+
   document.getElementById('full-monthly-export').addEventListener('click', () => {
     const draft = { version: 1, type: 'informe-mensual-completo', texts: {}, targets: {} };
     Object.keys(textLimits).forEach(name => { draft.texts[name] = form.elements.namedItem(name).value; });
