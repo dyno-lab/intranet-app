@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.period_guard import is_future_reporting_period, is_proposal_period_locked
 from app.core.proposal_guard import is_proposal_finalized
+from app.core.roles import ADMIN_ROLE, SUPERVISOR_ROLE, USER_ROLE
 from app.helpers.report_context import base_reports_context, resolve_reporting_scope
 from app.helpers.report_proposals import proposal_ids as normalize_proposals
 from app.models.activity_code import ActivityCode
@@ -21,6 +22,7 @@ from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 
 ACTIVITY_CODE = '2.b.5'
+COURSE_EDITOR_ROLES = frozenset({ADMIN_ROLE, SUPERVISOR_ROLE, USER_ROLE})
 COURSES = {'reposteria': 'Repostería', 'charcuteria': 'Charcutería',
            'campo_laboral': 'Preparación para el campo Laboral'}
 MONTHS = [(1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'), (5, 'Mayo'), (6, 'Junio'),
@@ -107,7 +109,7 @@ def build_course_report(db, user, *, proposal_ids, month=None, year=None, employ
         for pid, day, proposal in lock_rows:
             if is_proposal_finalized(proposal) or is_proposal_period_locked(proposal, day.month, day.year):
                 locks[(pid, day.year, day.month)] = 'Mes cerrado o propuesta finalizada.'
-        can_edit = user.role in {'admin', 'user'}
+        can_edit = user.role in COURSE_EDITOR_ROLES
         rows = []
         for pid, person in participants.items():
             name = ' '.join(str(getattr(person, field, '') or '').strip() for field in
@@ -147,8 +149,8 @@ def build_course_report(db, user, *, proposal_ids, month=None, year=None, employ
 
 
 def save_course_assignments(db, user, filters, changes):
-    if user.role not in {'admin', 'user'}:
-        raise HTTPException(403, 'Solo administradores y usuarios de su residencial pueden guardar cursos.')
+    if user.role not in COURSE_EDITOR_ROLES:
+        raise HTTPException(403, 'Solo administradores, supervisores y usuarios de su residencial pueden guardar cursos.')
     if not isinstance(changes, list) or not 1 <= len(changes) <= 5000:
         raise HTTPException(422, 'Envía entre una y 5000 selecciones modificadas.')
     context = build_course_report(db, user, **filters)

@@ -4,7 +4,7 @@ import re
 import unittest
 from unittest.mock import patch
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 from pypdf import PdfReader
@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from tests import test_participant_courses as fixtures
 from app.api.deps import get_db
 from app.core.auth import get_current_user
+from app.core.residential_scope import require_faro_access
 from app.api.routes import participant_courses as routes
 from app.api.routes import reports
 from app.models.participant_monthly_course import ParticipantMonthlyCourse
@@ -78,6 +79,63 @@ class ParticipantCourseRoutesTests(unittest.TestCase):
         self.user = None
         response = self.client.get('/ui/reports/cursos', params=self.params, follow_redirects=False)
         self.assertEqual(response.status_code, 303)
+
+    def test_supervisor_sees_selects_and_can_save_with_csrf(self):
+        self.user.role = 'supervisor'
+        page = self.client.get('/ui/reports/cursos', params=self.params)
+        self.assertIn('class="form-select course-choice"', page.text)
+        self.assertIn('id="course-save"', page.text)
+        self.assertEqual(self.save([self.source.change()], token='wrong').status_code, 403)
+        saved = self.save([self.source.change()])
+        self.assertEqual(saved.status_code, 200, saved.text)
+        page = self.client.get('/ui/reports/cursos', params=self.params)
+        self.assertIn('data-saved="reposteria"', page.text)
+        record = self.source.db.scalars(select(ParticipantMonthlyCourse)).one()
+        self.assertEqual(record.updated_by_user_id, self.user.user_id)
+
+    def test_assigned_residential_context_allows_courses_and_blocks_other_residentials(self):
+        # Exercise the same assignment dependency as main.py, including users
+        # whose legacy residential_id differs from their selected assignment.
+        self.user.role, self.user.residential_id = 'user', 1
+        for rid in (1, 2):
+            self.source.source.insert('user_residentials', user_residential_id=rid,
+                                      user_id=self.user.user_id, residential_id=rid, is_active=True)
+        self.source.db.commit()
+        app = FastAPI()
+        app.add_middleware(SessionMiddleware, secret_key='courses-test-session-secret')
+        app.include_router(routes.router, prefix='/ui/reports', dependencies=[Depends(require_faro_access)])
+        app.dependency_overrides.update(self.app.dependency_overrides)
+
+        @app.get('/test/residential/{rid}')
+        def select_residential(request: Request, rid: int):
+            request.session['active_residential_id'] = rid
+
+        with patch('app.core.residential_scope._FARO_PERMISSION_DEPENDENCY', return_value=self.user), TestClient(app) as client:
+            for role in ('user', 'supervisor'):
+                self.user.role = role
+                with self.subTest(role=role):
+                    client.get('/test/residential/2')
+                    # A crafted report filter cannot override the assignment.
+                    params = {**self.params, 'employee_id': -1}
+                    page = client.get('/ui/reports/cursos', params=params)
+                    self.assertEqual(page.status_code, 200, page.text)
+                    self.assertIn('data-participant="1"', page.text)
+                    self.assertNotIn('data-participant="2"', page.text)
+                    token = re.search(r'data-token="([^"]+)"', page.text).group(1)
+                    revision = int(re.search(r'data-revision="(\d+)"', page.text).group(1))
+                    saved = client.post('/ui/reports/cursos/save', params=params,
+                        json=[self.source.change(revision=revision)], headers={'X-CSRF-Token': token})
+                    self.assertEqual(saved.status_code, 200, saved.text)
+                    outside = client.post('/ui/reports/cursos/save', params=params,
+                        json=[self.source.change(participant=2)], headers={'X-CSRF-Token': token})
+                    self.assertEqual(outside.status_code, 403)
+                    client.get('/test/residential/1')
+                    page = client.get('/ui/reports/cursos', params=self.params)
+                    self.assertIn('data-participant="2"', page.text)
+                    client.get('/test/residential/999')
+                    denied = client.get('/ui/reports/cursos', params=self.params, follow_redirects=False)
+                    self.assertEqual(denied.status_code, 303)
+                    self.assertTrue(denied.headers['location'].startswith('/login?'))
 
     def test_all_exports_use_saved_choices_and_same_people(self):
         self.save([self.source.change()])

@@ -20,9 +20,11 @@ de una instalación particular ni modifica las asistencias o cálculos existente
 - Sin asistencia se muestra «Sin asistencia en 2.b.5»; con asistencia y sin curso
   se muestra «Pendiente de seleccionar». Las personas pendientes permanecen en
   el listado y en el total único.
-- Admin y usuarios de su residencial pueden guardar. Supervisor y viewer solo
-  consultan y descargan. El contexto residencial y los permisos Faro existentes
-  se verifican también en el servidor.
+- Admin, supervisores y usuarios de su residencial pueden guardar. Viewer solo
+  consulta y descarga. Los usuarios trabajan en el residencial activo de sus
+  asignaciones; los supervisores pueden trabajar en alcance global o residencial.
+  Al entrar bajo un residencial asignado, también el supervisor queda limitado a
+  ese contexto. Los permisos Faro se verifican en el servidor al consultar y guardar.
 - Un mes futuro, cerrado o de propuesta finalizada es de consulta. Al compartir
   una selección mensual, un cierre no se elude escogiendo otra propuesta o rango.
 - Se comprueban versiones para evitar que dos usuarios sobrescriban cambios.
@@ -61,7 +63,10 @@ Pruebas recomendadas:
    que los conserva por separado y que su nombre cuenta una sola vez.
 4. Seleccionar 005, 006 y ambas; las asistencias respetan la selección y el curso
    mensual de una misma persona no se duplica.
-5. Verificar usuario con residencial propio, viewer de consulta y un mes cerrado.
+5. Como usuario con residenciales asignados, elegir uno al entrar a Faro, guardar
+   un curso y volver a consultar; repetir en su otro residencial asignado.
+   Como supervisor, guardar en Global y en un residencial. Viewer solo consulta.
+   Un mes cerrado, futuro o de propuesta finalizada debe seguir sin permitir editar.
 6. Abrir la misma selección en dos pestañas; guardar en una y confirmar que la
    otra pide volver a consultar antes de sobrescribir.
 

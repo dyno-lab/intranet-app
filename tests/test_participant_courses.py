@@ -1,6 +1,7 @@
 from datetime import date
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from fastapi import HTTPException
 from sqlalchemy import event, select
@@ -68,12 +69,59 @@ class ParticipantCoursesTests(unittest.TestCase):
         self.save([self.change()])
 
     def test_read_only_roles_cannot_save(self):
-        for role in ('viewer', 'supervisor'):
-            self.user.role = role
+        for role in ('viewer', 'unknown'):
+            self.user.role, self.user.residential_id = role, 1
             self.assertFalse(self.build()['can_edit'])
             with self.assertRaises(HTTPException) as error:
                 self.save([self.change()])
             self.assertEqual(error.exception.status_code, 403)
+
+    def test_supervisor_can_save_and_change_courses_in_global_and_residential_scope(self):
+        self.user.role = 'supervisor'
+        for scope in (0, -1, -2):
+            with self.subTest(scope=scope):
+                data = self.build(employee_id=scope)
+                self.assertTrue(data['can_edit'])
+                cell = data['rows'][0]['cells'][0]
+                self.assertTrue(cell['editable'])
+                self.save([self.change(course='charcuteria', revision=cell['revision'])], employee_id=scope)
+                self.assertEqual(self.build(employee_id=scope)['rows'][0]['cells'][0]['course'], 'charcuteria')
+
+    def test_active_residential_is_respected_for_users_and_supervisors(self):
+        self.user.residential_id = 1
+        self.user._active_residential_id = 2
+        for revision, role in enumerate(('user', 'supervisor')):
+            self.user.role = role
+            data = self.build(employee_id=-1)
+            self.assertEqual(data['selected_employee_id'], -2)
+            self.assertEqual([r['participant_id'] for r in data['rows']], [1])
+            self.assertTrue(data['rows'][0]['cells'][0]['editable'])
+            self.save([self.change(revision=revision)], employee_id=-1)
+            with self.assertRaises(HTTPException) as error:
+                self.save([self.change(participant=2)], employee_id=0)
+            self.assertEqual(error.exception.status_code, 403)
+
+    def test_supervisor_cannot_edit_closed_finalized_or_future_months(self):
+        self.user.role = 'supervisor'
+        proposals = self.source.tables['proposals']
+        for values in (
+            dict(locked_through_year=2026, locked_through_month=7, status='active'),
+            dict(locked_through_year=None, locked_through_month=None, status='finalized'),
+        ):
+            with self.subTest(values=values):
+                self.db.execute(proposals.update().where(proposals.c.proposal_id == 1).values(**values))
+                self.db.commit()
+                self.assertFalse(self.build(proposal_ids=[2])['rows'][0]['cells'][0]['editable'])
+                with self.assertRaises(HTTPException) as error:
+                    self.save([self.change()], proposal_ids=[2])
+                self.assertEqual(error.exception.status_code, 409)
+        self.db.execute(proposals.update().where(proposals.c.proposal_id == 1).values(status='active'))
+        self.db.commit()
+        with patch('app.services.participant_courses.is_future_reporting_period', return_value=True):
+            self.assertFalse(self.build()['rows'][0]['cells'][0]['editable'])
+            with self.assertRaises(HTTPException) as error:
+                self.save([self.change()])
+            self.assertEqual(error.exception.status_code, 409)
 
     def test_validation_atomicity_and_month_uniqueness(self):
         for changes in [[self.change(), self.change(participant=2, course='otro')],

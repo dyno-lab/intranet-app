@@ -12,7 +12,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
-from app.services.participant_courses import build_course_report, save_course_assignments
+from app.services.participant_courses import COURSE_EDITOR_ROLES, build_course_report, save_course_assignments
 from app.services.participant_courses_exports import course_report_excel, course_report_pdf
 
 router = APIRouter()
@@ -49,7 +49,7 @@ def courses_screen(request: Request, db: Session = Depends(get_db), user: User =
 
 @router.post('/cursos/save')
 async def courses_save(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role not in {'admin', 'user'}:
+    if user.role not in COURSE_EDITOR_ROLES:
         raise HTTPException(403, 'No tienes permiso para guardar cursos.')
     token, expected = request.headers.get('X-CSRF-Token', ''), request.session.get('course_report_token', '')
     if not expected or not hmac.compare_digest(token.encode(), expected.encode()):
