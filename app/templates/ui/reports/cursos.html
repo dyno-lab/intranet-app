@@ -46,8 +46,10 @@
           {% for cell in row.cells %}<td class="bonafide-filter-field">
             {% if cell.editable %}
             <select class="form-select course-choice" aria-label="Curso de {{ row.name }} en {{ months[loop.index0].label }}" data-participant="{{ row.participant_id }}" data-year="{{ cell.year }}" data-month="{{ cell.month }}" data-revision="{{ cell.revision }}" data-saved="{{ cell.course }}">
+              {% if cell.course and cell.course not in courses %}<option value="{{ cell.course }}" selected disabled>Conservar curso guardado</option>{% endif %}
               <option value="">Seleccionar curso…</option>{% for code, label in courses.items() %}<option value="{{ code }}" {% if cell.course == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
+            {% if cell.course and cell.course not in courses %}<small data-retired-course>Curso guardado: {{ cell.label }}</small>{% endif %}
             {% else %}<span {% if cell.attended and not cell.course %}class="course-readonly-pending"{% endif %}>{{ cell.label }}</span>{% if cell.attended and cell.lock_reason %}<small>{{ cell.lock_reason }}</small>{% endif %}{% endif %}
           </td>{% endfor %}
         </tr>{% endfor %}</tbody>
@@ -60,5 +62,5 @@
     </div>
   </section>
 </div>
-<script src="/static/js/participant-courses.js" defer></script>
+<script src="/static/js/participant-courses.js?v=cursos-disponibles-2" defer></script>
 {% endblock %}

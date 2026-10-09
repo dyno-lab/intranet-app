@@ -23,7 +23,9 @@ from app.models.residential import Residential
 
 ACTIVITY_CODE = '2.b.5'
 COURSE_EDITOR_ROLES = frozenset({ADMIN_ROLE, SUPERVISOR_ROLE, USER_ROLE})
-COURSES = {'reposteria': 'Repostería', 'charcuteria': 'Charcutería',
+AVAILABLE_COURSES = {'reposteria': 'Repostería', 'charcuteria': 'Charcutería'}
+# Retain retired labels for saved reports and historical institutional counts.
+COURSES = {**AVAILABLE_COURSES,
            'campo_laboral': 'Preparación para el campo Laboral'}
 MONTHS = [(1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'), (5, 'Mayo'), (6, 'Junio'),
           (7, 'Julio'), (8, 'Agosto'), (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')]
@@ -143,7 +145,7 @@ def build_course_report(db, user, *, proposal_ids, month=None, year=None, employ
             'selected_employee_id': scope['employee_id'], 'is_global': scope['is_global'],
             'residential_name': 'Global' if scope['is_global'] else scope['selected_residential'].name,
             'months': months, 'period_label': period_label, 'rows': rows, 'total': len(rows),
-            'courses': COURSES, 'can_edit': can_edit,
+            'courses': AVAILABLE_COURSES, 'can_edit': can_edit,
             'pending': sum(c['attended'] and not c['course'] for r in rows for c in r['cells']),
             'year_options': sorted(set(base['year_options']) | {start.year, end.year})}
 
@@ -161,7 +163,7 @@ def save_course_assignments(db, user, filters, changes):
             raise HTTPException(422, 'Selección de curso inválida.')
         key = (change['participant_id'], change['year'], change['month'])
         course = change.get('course')
-        if key in seen or not isinstance(course, str) or course not in {'', *COURSES} or change['revision'] < 0:
+        if key in seen or not isinstance(course, str) or course not in {'', *AVAILABLE_COURSES} or change['revision'] < 0:
             raise HTTPException(422, 'Selecciona un solo curso válido por participante y mes.')
         seen.add(key)
         cell = cells.get(key)

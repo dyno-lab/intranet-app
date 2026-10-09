@@ -93,6 +93,41 @@ class ParticipantCourseRoutesTests(unittest.TestCase):
         record = self.source.db.scalars(select(ParticipantMonthlyCourse)).one()
         self.assertEqual(record.updated_by_user_id, self.user.user_id)
 
+    def test_course_choices_exclude_retired_course_and_server_rejects_it(self):
+        page = self.client.get('/ui/reports/cursos', params=self.params)
+        self.assertIn('<option value="reposteria"', page.text)
+        self.assertIn('<option value="charcuteria"', page.text)
+        self.assertNotIn('<option value="campo_laboral"', page.text)
+        response = self.save([self.source.change(course='campo_laboral')])
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.source.db.scalars(select(ParticipantMonthlyCourse)).all(), [])
+
+    def test_retired_saved_course_is_preserved_until_explicitly_changed(self):
+        self.source.source.insert('participant_monthly_courses', participant_id=1,
+            report_year=2026, report_month=7, course_code='campo_laboral', revision=1)
+        self.source.db.commit()
+        page = self.client.get('/ui/reports/cursos', params=self.params)
+        self.assertIn('<option value="campo_laboral" selected disabled>Conservar curso guardado</option>', page.text)
+        self.assertIn('Curso guardado: Preparación para el campo Laboral', page.text)
+        self.assertIn('data-saved="campo_laboral"', page.text)
+        # Saving another participant must not clear the old course or revision.
+        self.assertEqual(self.save([self.source.change(participant=2)]).status_code, 200)
+        data = self.source.build()
+        legacy = data['rows'][0]['cells'][0]
+        self.assertEqual((legacy['course'], legacy['revision']), ('campo_laboral', 1))
+        self.assertEqual(data['pending'], 0)
+        for suffix in ('/pdf', '/pdf/download'):
+            response = self.client.get('/ui/reports/cursos' + suffix, params=self.params)
+            self.assertEqual(response.status_code, 200)
+            text = ' '.join(page.extract_text() for page in PdfReader(BytesIO(response.content)).pages)
+            self.assertIn('Preparación para el campo Laboral', text)
+        response = self.client.get('/ui/reports/cursos/excel', params=self.params)
+        self.assertEqual(load_workbook(BytesIO(response.content)).active['D9'].value,
+                         'Preparación para el campo Laboral')
+        response = self.save([self.source.change(course='charcuteria', revision=1)])
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.source.build()['rows'][0]['cells'][0]['course'], 'charcuteria')
+
     def test_assigned_residential_context_allows_courses_and_blocks_other_residentials(self):
         # Exercise the same assignment dependency as main.py, including users
         # whose legacy residential_id differs from their selected assignment.

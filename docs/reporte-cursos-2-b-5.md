@@ -9,8 +9,14 @@ de una instalación particular ni modifica las asistencias o cálculos existente
 
 - Una fila por identidad de participante, con el mismo criterio y ficha por
   propuesta que los reportes consolidados actuales.
-- Un curso por persona y mes/año: Repostería, Charcutería o Preparación para el
-  campo Laboral. Las selecciones no se copian automáticamente a otros meses.
+- Un curso por persona y mes/año: Repostería o Charcutería. Las selecciones no
+  se copian automáticamente a otros meses.
+- Preparación para el campo Laboral ya no está disponible para asignar, tampoco
+  mediante envíos directos al servidor. Si fue guardado anteriormente, conserva
+  su etiqueta en las descargas y su conteo histórico en la gráfica institucional.
+  En pantalla se identifica como curso guardado; no se cambia automáticamente
+  al guardar otro participante. Puede sustituirse por un curso disponible o
+  vaciarse con los mismos permisos, cierres y control de versiones existentes.
 - Un período personalizado muestra sus meses como columnas. Las fechas exactas
   determinan quién tiene asistencia; una selección sigue correspondiendo al mes
   calendario completo aunque se consulte un rango parcial de ese mes.

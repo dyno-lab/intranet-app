@@ -57,6 +57,8 @@
       dirty.forEach(select => {
         select.dataset.revision = revisions.get(`${select.dataset.participant}/${select.dataset.year}/${select.dataset.month}`);
         select.dataset.saved = select.value;
+        select.querySelector('option[disabled]')?.remove();
+        select.parentElement.querySelector('[data-retired-course]')?.remove();
       });
       message('Cursos guardados correctamente. Ya puedes descargar el reporte.');
     } catch (error) { message(error.message || 'No se pudieron guardar los cursos.', true); }
