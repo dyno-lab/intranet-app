@@ -2,6 +2,7 @@ from app.core.config import settings
 from app.core.platform_permissions import bootstrap_platform_settings_user
 from app.db.session import SessionLocal, engine
 from app.db.participant_courses_schema import PARTICIPANT_COURSES_SQL
+from app.db.notifications_schema import NOTIFICATIONS_SQL
 
 
 PHASE1_PROPOSALS_SQL = """
@@ -2628,6 +2629,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_SQL)
         conn.exec_driver_sql(PHASE10_PROPOSAL_ACTIVITY_CODES_SQL)
         conn.exec_driver_sql(PARTICIPANT_COURSES_SQL)
+        conn.exec_driver_sql(NOTIFICATIONS_SQL)
         conn.exec_driver_sql(PHASE9_REPORT_TEMPLATES_SQL)
         if settings.COMMUNITY_ENABLED:
             from app.db.community_schema import COMMUNITY_SCHEMA_SQL

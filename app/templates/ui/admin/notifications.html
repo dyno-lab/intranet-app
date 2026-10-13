@@ -1,0 +1,50 @@
+{% extends 'ui/_base.html' %}
+{% block title %}Notificaciones | Faro{% endblock %}
+{% block content %}
+<div class="mb-4"><div class="text-primary fw-semibold small text-uppercase mb-2">Administración</div><h1 class="h3 fw-bold">Anuncios del programa</h1><p class="text-secondary mb-0">Publica novedades para los usuarios de Faro y define a quiénes se mostrarán.</p></div>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<div class="card border-0 shadow-sm mb-4"><div class="card-body p-4">
+  <h2 class="h5 mb-3">Nuevo anuncio</h2>
+  <form method="post" action="/ui/admin/notifications" id="notification-publish">
+    <input type="hidden" name="csrf_token" value="{{ notification_token }}">
+    <div class="mb-3"><label class="form-label" for="announcement-title">Título</label><input class="form-control" id="announcement-title" name="title" maxlength="160" value="{{ values.get('title', '') }}" required></div>
+    <div class="mb-3"><label class="form-label" for="announcement-message">Mensaje</label><textarea class="form-control" id="announcement-message" name="message" rows="4" maxlength="4000" required aria-describedby="message-help">{{ values.get('message', '') }}</textarea><div id="message-help" class="form-text">Hasta 4,000 caracteres. Se publica como texto, sin formato HTML.</div></div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-6"><label class="form-label" for="announcement-start">Mostrar desde</label><input class="form-control" type="date" id="announcement-start" name="starts_on" min="2000-01-01" max="2100-12-31" value="{{ values.get('starts_on', '') }}" required></div>
+      <div class="col-sm-6"><label class="form-label" for="announcement-end">Mostrar hasta <span class="text-secondary">(opcional)</span></label><input class="form-control" type="date" id="announcement-end" name="ends_on" min="2000-01-01" max="2100-12-31" value="{{ values.get('ends_on', '') }}"><div class="form-text">Incluye el día final. Sin fecha, permanece hasta retirarlo.</div></div>
+    </div>
+    <div class="row g-3 mb-3">
+      <fieldset class="col-md-6"><legend class="fs-6 fw-semibold">Roles destinatarios</legend>
+        <label class="form-label visually-hidden" for="announcement-role-scope">Alcance por rol</label>
+        <select class="form-select mb-2" id="announcement-role-scope" name="role_scope" data-audience-scope="roles"><option value="all" {% if values.get('role_scope') == 'all' %}selected{% endif %}>Todos los roles</option><option value="selected" {% if values.get('role_scope') == 'selected' %}selected{% endif %}>Seleccionar roles</option></select>
+        <div class="fn-audience" data-audience-options="roles">
+          {% for role, label in roles.items() %}<div class="form-check"><input class="form-check-input" type="checkbox" name="roles" value="{{ role }}" id="audience-{{ role }}" {% if role in values.get('roles', []) %}checked{% endif %}><label class="form-check-label" for="audience-{{ role }}">{{ label }}</label></div>{% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="col-md-6"><legend class="fs-6 fw-semibold">Residenciales destinatarios</legend>
+        <label class="form-label visually-hidden" for="announcement-residential-scope">Alcance por residencial</label>
+        <select class="form-select mb-2" id="announcement-residential-scope" name="residential_scope" data-audience-scope="residentials"><option value="all" {% if values.get('residential_scope') == 'all' %}selected{% endif %}>Todos los residenciales</option><option value="selected" {% if values.get('residential_scope') == 'selected' %}selected{% endif %}>Seleccionar residenciales</option></select>
+        <div class="fn-audience" data-audience-options="residentials">
+          {% for residential in residentials %}<div class="form-check"><input class="form-check-input" type="checkbox" name="residential_ids" value="{{ residential.residential_id }}" id="audience-res-{{ residential.residential_id }}" {% if residential.residential_id|string in values.get('residential_ids', []) %}checked{% endif %}><label class="form-check-label" for="audience-res-{{ residential.residential_id }}">{{ residential.name }}</label></div>{% endfor %}
+        </div>
+      </fieldset>
+    </div>
+    <p class="small text-secondary">Se deben cumplir ambos filtros. Los supervisores en contexto global reciben los anuncios de los residenciales disponibles. Cada persona tendrá su propia confirmación de lectura.</p>
+    <button class="btn btn-primary" type="submit"><i class="bi bi-megaphone me-1" aria-hidden="true"></i> Publicar anuncio</button>
+  </form>
+</div></div>
+<h2 class="h5 mb-3">Últimos 50 anuncios</h2>
+<p class="small text-secondary">Para corregir un anuncio, retíralo y publica uno nuevo. Así sus destinatarios podrán reconocer el cambio como una nueva notificación.</p>
+<div class="d-grid gap-3">
+{% for entry in announcements %}{% set item = entry.announcement %}
+  <article class="card border-0 shadow-sm"><div class="card-body p-4">
+    <div class="d-flex justify-content-between gap-2 flex-wrap mb-2"><h3 class="h6 mb-0">{{ item.title }}</h3><span class="badge text-bg-light">{% if not item.is_active %}Retirado{% elif item.starts_on > today %}Programado{% elif item.ends_on and item.ends_on < today %}Finalizado{% else %}Publicado{% endif %}</span></div>
+    <p class="fn-admin-message text-secondary">{{ item.message }}</p>
+    <div class="small mb-1"><strong>Destinatarios:</strong> {{ entry.roles }} · {{ entry.residentials }}</div>
+    <div class="small text-secondary mb-3">Desde {{ item.starts_on.strftime('%d/%m/%Y') }}{% if item.ends_on %} hasta {{ item.ends_on.strftime('%d/%m/%Y') }}{% else %} · Sin fecha final{% endif %}</div>
+    {% if item.is_active %}<form method="post" action="/ui/admin/notifications/{{ item.announcement_id }}/deactivate"><input type="hidden" name="csrf_token" value="{{ notification_token }}"><button class="btn btn-outline-secondary btn-sm" type="submit">Retirar anuncio</button></form>{% endif %}
+  </div></article>
+{% else %}<div class="card card-body text-secondary">Todavía no se han publicado anuncios.</div>{% endfor %}
+</div>
+<script src="/static/js/notification-admin.js" defer></script>
+{% endblock %}

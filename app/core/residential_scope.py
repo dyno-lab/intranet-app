@@ -168,6 +168,11 @@ def _enforce_viewer_read_only(request: Request, user: User) -> None:
     if request.method.upper() == "POST" and path == "/ui/reports/notas/pdf":
         return
 
+    # Personal notification receipts do not change Faro program records.
+    # The endpoint still checks CSRF, audience and the authenticated user.
+    if request.method.upper() == "POST" and path == "/ui/notifications/read":
+        return
+
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="El rol viewer tiene acceso de consulta solamente.",

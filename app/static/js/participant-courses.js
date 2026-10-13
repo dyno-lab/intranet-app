@@ -61,6 +61,7 @@
         select.parentElement.querySelector('[data-retired-course]')?.remove();
       });
       message('Cursos guardados correctamente. Ya puedes descargar el reporte.');
+      document.dispatchEvent(new Event('faro:courses-saved'));
     } catch (error) { message(error.message || 'No se pudieron guardar los cursos.', true); }
     finally {
       saving = false; selects.forEach(select => { select.disabled = false; });

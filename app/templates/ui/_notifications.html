@@ -1,0 +1,20 @@
+<dialog id="faro-notifications" class="faro-notifications" aria-labelledby="faro-notification-title" aria-describedby="faro-notification-description" data-auto-open="{{ 'true' if current_path in ['/ui', '/ui/'] else 'false' }}">
+  <div class="fn-brand">
+    <span><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i> Programa Faro de Esperanza</span>
+    <button type="button" class="fn-close" data-notification-close aria-label="Cerrar notificaciones"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+  </div>
+  <div class="fn-body">
+    <div class="fn-heading"><span class="fn-heading-icon"><i class="bi bi-bell" aria-hidden="true"></i></span><div>
+      <h2 id="faro-notification-title" tabindex="-1">Notificaciones</h2>
+      <p id="faro-notification-description">Pendientes y novedades de tu programa.</p>
+    </div></div>
+    <div class="fn-filters" role="group" aria-label="Filtrar notificaciones">
+      <button type="button" data-notification-filter="all" aria-pressed="true">Todo <span data-notification-total></span></button>
+      <button type="button" data-notification-filter="task" aria-pressed="false">Pendientes</button>
+      <button type="button" data-notification-filter="announcement" aria-pressed="false">Anuncios</button>
+    </div>
+    <p id="faro-notification-status" class="fn-status" role="status" aria-live="polite"></p>
+    <div id="faro-notification-list" class="fn-list"></div>
+  </div>
+  <div class="fn-footer"><span>Los pendientes se resuelven al completar la información.</span><button type="button" class="fn-button" data-notification-close>Revisar después</button></div>
+</dialog>

@@ -31,6 +31,7 @@ from app.api.routes.pregnancy import router as pregnancy_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.full_monthly_report import router as full_monthly_report_router
 from app.api.routes.participant_courses import router as participant_courses_router
+from app.api.routes.notifications import router as notifications_router
 from app.api.routes.automation_reports import router as automation_reports_router
 
 # ✅ API routers (no rompen FASE 1 porque van bajo /api)
@@ -111,6 +112,7 @@ app.include_router(pregnancy_router, prefix="/ui/pregnancy", dependencies=faro_d
 app.include_router(reports_router, prefix="/ui/reports", dependencies=faro_dependencies)
 app.include_router(full_monthly_report_router, prefix="/ui/reports", dependencies=faro_dependencies)
 app.include_router(participant_courses_router, prefix="/ui/reports", dependencies=faro_dependencies)
+app.include_router(notifications_router)
 app.include_router(automation_reports_router, prefix="/api/automation", tags=["automation"])
 
 # ✅ API (para Postman / integraciones)
