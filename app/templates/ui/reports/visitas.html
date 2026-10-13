@@ -225,17 +225,27 @@
       </section>
 
       {% if has_selection %}
-      <section class="visitas-panel visitas-referrals" aria-label="Referidos manuales">
+      <section class="visitas-panel visitas-referrals" id="visit-referrals" aria-label="Referidos manuales">
         <div class="visitas-panel__header">
           <div>
             <h2 class="visitas-section-title">Referidos manuales</h2>
-            <p class="visitas-section-text">La gesti&oacute;n de referidos solo aplica a periodos mensuales.</p>
+            <p class="visitas-section-text">Registra referidos internos, externos o visitas a agencias para la propuesta, residencial y mes seleccionados.</p>
           </div>
           <span class="visitas-count-pill">Formulario mensual</span>
         </div>
 
+        {% if referrals_pending %}
+        <div class="visitas-alert visitas-alert--warning" role="status">
+          <div><strong>Información de referidos pendiente.</strong>
+            <p class="mb-1">Hay asistencia confirmada en actividades que requieren este informe. Guarda al menos un referido con tipo, agencia y número de referido o propósito para resolver la alerta.</p>
+            {% for group in referral_pending_groups %}<span class="small">Actividades: {{ group.activity_codes | join(', ') }}.</span>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
         {% if can_manage_referrals and current_user.role != 'viewer' %}
         <form method="post" action="/ui/reports/visitas/referrals/save" id="visitReferralsForm" class="visitas-referral-form">
+          <input type="hidden" name="csrf_token" value="{{ visit_referral_token }}">
           <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
           <input type="hidden" name="month" value="{{ selected_month or 0 }}">
           <input type="hidden" name="year" value="{{ selected_year or 0 }}">
@@ -245,9 +255,9 @@
           <div class="visitas-referral-controls">
             <div class="visitas-filter-field">
               <label class="form-label" for="referralCountInput">Cantidad de referidos</label>
-              <input class="form-control" type="number" min="0" max="20" id="referralCountInput" name="referral_count" value="{{ referral_count or 0 }}">
+              <input class="form-control" type="number" min="0" max="{{ max_referral_rows | default(20) }}" id="referralCountInput" name="referral_count" value="{{ referral_count or (1 if referrals_pending else 0) }}" required {% if visits_period_locked %}disabled{% endif %}>
             </div>
-            <button class="btn visitas-action visitas-action--print" type="button" id="buildReferralRows">
+            <button class="btn visitas-action visitas-action--print" type="button" id="buildReferralRows" {% if visits_period_locked %}disabled{% endif %}>
               <i class="bi bi-layout-text-window" aria-hidden="true"></i>
               <span>Preparar espacios</span>
             </button>
@@ -259,7 +269,8 @@
             {% endif %}
           </div>
 
-          <div id="referralRowsContainer" class="visitas-referral-rows"></div>
+          <p class="small text-secondary mb-0">Cada espacio debe incluir tipo, agencia y número de referido o propósito. Preparar espacios conserva lo que ya escribiste.</p>
+          <div id="referralRowsContainer" class="visitas-referral-rows" data-locked="{{ 'true' if visits_period_locked else 'false' }}"></div>
         </form>
         {% elif not can_manage_referrals %}
         <div class="visitas-disabled-note">
@@ -276,6 +287,7 @@
             </div>
             {% if can_manage_referrals and current_user.role != 'viewer' and visit_report and not visits_period_locked %}
             <form method="post" action="/ui/reports/visitas/delete" class="visitas-delete-form">
+              <input type="hidden" name="csrf_token" value="{{ visit_referral_token }}">
               <input type="hidden" name="proposal_id" value="{{ selected_proposal_id }}">
               <input type="hidden" name="month" value="{{ selected_month or 0 }}">
               <input type="hidden" name="year" value="{{ selected_year or 0 }}">
@@ -454,6 +466,7 @@
 
   const typeOptions = {{ referral_type_options | tojson }};
   const existingRows = {{ referral_rows | tojson }};
+  const locked = container.dataset.locked === 'true';
 
   function escapeHtml(value) {
     return String(value || '')
@@ -465,10 +478,16 @@
   }
 
   function buildRows() {
-    const total = Math.max(0, parseInt(countInput.value || '0', 10));
+    if (!countInput.checkValidity()) { countInput.reportValidity(); return; }
+    const total = Math.max(0, Math.min(Number(countInput.max), parseInt(countInput.value || '0', 10)));
+    const currentRows = Array.from(container.querySelectorAll('.visitas-referral-row')).map(row => ({
+      referral_type: row.querySelector('select').value,
+      agency: row.querySelector('input[name^="agency_"]').value,
+      reference_or_purpose: row.querySelector('input[name^="reference_or_purpose_"]').value
+    }));
     container.innerHTML = '';
     for (let idx = 0; idx < total; idx++) {
-      const row = existingRows[idx] || { referral_type: '', agency: '', reference_or_purpose: '' };
+      const row = currentRows[idx] || existingRows[idx] || { referral_type: '', agency: '', reference_or_purpose: '' };
       const selectId = `referral_type_${idx}`;
       const agencyId = `agency_${idx}`;
       const purposeId = `reference_or_purpose_${idx}`;
@@ -479,18 +498,18 @@
           <div class="visitas-referral-card__grid">
             <div class="visitas-filter-field">
               <label class="form-label" for="${selectId}">Tipo referido ${idx + 1}</label>
-              <select class="form-select" name="${selectId}" id="${selectId}">
+              <select class="form-select" name="${selectId}" id="${selectId}" required ${locked ? 'disabled' : ''}>
                 <option value="">Selecciona...</option>
                 ${typeOptions.map((option) => `<option value="${escapeHtml(option)}" ${row.referral_type === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
               </select>
             </div>
             <div class="visitas-filter-field">
               <label class="form-label" for="${agencyId}">Agencia</label>
-              <input class="form-control" type="text" name="${agencyId}" id="${agencyId}" value="${escapeHtml(row.agency)}">
+              <input class="form-control" type="text" name="${agencyId}" id="${agencyId}" value="${escapeHtml(row.agency)}" maxlength="255" required ${locked ? 'disabled' : ''}>
             </div>
             <div class="visitas-filter-field">
               <label class="form-label" for="${purposeId}">N&uacute;mero de referido o prop&oacute;sito</label>
-              <input class="form-control" type="text" name="${purposeId}" id="${purposeId}" value="${escapeHtml(row.reference_or_purpose)}">
+              <input class="form-control" type="text" name="${purposeId}" id="${purposeId}" value="${escapeHtml(row.reference_or_purpose)}" maxlength="500" required ${locked ? 'disabled' : ''}>
             </div>
           </div>
         </div>`;

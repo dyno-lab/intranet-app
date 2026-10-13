@@ -17,6 +17,7 @@ from app.models.notification import (
 from app.models.participant_monthly_course import ParticipantMonthlyCourse
 from app.models.residential import Residential
 from app.services.participant_courses import ACTIVITY_CODE, COURSE_EDITOR_ROLES, MONTHS
+from app.services.referral_requirements import pending_referral_groups
 
 ANNOUNCEMENT_ROLES = {"admin": "Administrador", "supervisor": "Supervisor", "user": "Usuario", "viewer": "Consulta"}
 
@@ -87,8 +88,24 @@ def course_notification(db, user, *, today=None):
         details.append(group)
     return {"id": "courses:2.b.5", "type": "task", "title": "Cursos 2.b.5 sin completar",
             "message": "Hay asistencias registradas que necesitan el curso de participación.",
+            "count_label": "asignación mensual" if len(monthly_assignments) == 1 else "asignaciones mensuales",
+            "note": "Selecciona el curso en el reporte y guarda los cambios. Los períodos cerrados conservan sus restricciones.",
             "unread": True, "pending_count": len(monthly_assignments),
             "residential_count": len({key[0] for key in groups}), "groups": details}
+
+
+def referral_notification(db, user, *, today=None):
+    if user.role not in COURSE_EDITOR_ROLES:
+        return None
+    groups = pending_referral_groups(db, residential_id=residential_scope(user), today=today)
+    if not groups:
+        return None
+    return {"id": "referrals:visits", "type": "task", "title": "Referidos y visitas a agencias sin completar",
+            "message": "Hay actividades con asistencia confirmada que requieren información en el reporte de Visitas.",
+            "count_label": "informe mensual pendiente" if len(groups) == 1 else "informes mensuales pendientes",
+            "note": "Guarda al menos un referido completo (interno, externo o visita a agencia) por propuesta, residencial y mes. Los períodos cerrados conservan sus restricciones.",
+            "unread": True, "pending_count": len(groups),
+            "residential_count": len({group['residential_id'] for group in groups}), "groups": groups}
 
 
 def visible_announcements(user, *, today=None):
@@ -122,7 +139,7 @@ def announcement_notifications(db, user, *, today=None):
     return result
 
 
-TASK_PROVIDERS = (course_notification,)
+TASK_PROVIDERS = (course_notification, referral_notification)
 
 
 def notification_feed(db, user, *, today=None):

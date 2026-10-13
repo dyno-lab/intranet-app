@@ -39,6 +39,18 @@ uvicorn app.main:app --reload
   a `2.b.5`, hasta la fecha actual, sin curso guardado para ese mes y año.
   Se deduplican entre asistencias y propuestas. El total global también deduplica
   entre residenciales, por lo que no necesariamente es la suma de sus subtotales.
+- Los referidos generan un pendiente por propuesta, residencial y mes cuando
+  existe asistencia confirmada a una de las 32 actividades definidas en
+  `app/services/referral_requirements.py`. Se usan los códigos con puntos y
+  letras minúsculas, sin duplicar `3.d.21`. Esta lista no cambia la configuración
+  existente del resumen de visitas.
+- **Completar referidos** abre `/ui/reports/visitas` en el período y propuesta
+  correspondientes. El informe deja de estar pendiente al guardar al menos un
+  referido de tipo Interno, Externo o Visita Agencia con agencia y número de
+  referido o propósito. Un informe vacío o un registro antiguo incompleto no
+  resuelve la alerta. Si se eliminan los referidos completos, vuelve a aparecer.
+  La pantalla prepara un espacio inicial y permite hasta 20, conservando los
+  datos escritos al preparar más espacios. Se reutilizan las tablas de visitas.
 - Los usuarios ven su residencial activo; administradores y supervisores en
   contexto global ven los residenciales activos disponibles. Los enlaces abren
   `/ui/reports/cursos` con el mes, residencial y propuestas correspondientes.
@@ -67,4 +79,5 @@ Pruebas aisladas, sin conexión a la base de la aplicación:
 
 ```powershell
 python -B -m unittest tests.test_notifications tests.test_notification_routes tests.test_participant_courses tests.test_participant_courses_routes tests.test_viewer_read_only tests.test_residential_access tests.test_residential_route_scope
+python -B -m unittest tests.test_referral_notifications tests.test_referral_routes tests.test_visits_multi_proposal tests.test_visit_attendance_parameter_limit tests.test_report_multi_proposal_ui
 ```

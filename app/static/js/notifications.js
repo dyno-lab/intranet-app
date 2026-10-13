@@ -62,7 +62,7 @@
                   element('span', '', item.type === 'task' ? 'Pendiente' : item.unread ? 'Sin leer' : 'Leído'));
       card.append(meta, element('h3', '', item.title), element('p', 'fn-message', item.message));
       if (item.type === 'task') {
-        card.append(element('p', 'fn-count', `${item.pending_count} asignaciones mensuales · ${item.residential_count} residencial${item.residential_count === 1 ? '' : 'es'}`));
+        card.append(element('p', 'fn-count', `${item.pending_count} ${item.count_label} · ${item.residential_count} residencial${item.residential_count === 1 ? '' : 'es'}`));
         const details = element('details', 'fn-details');
         details.dataset.id = item.id;
         details.open = expanded.has(item.id) || item.groups.length === 1;
@@ -70,6 +70,7 @@
         item.groups.forEach(group => {
           const row = element('div', 'fn-group');
           row.append(element('strong', '', group.residential), element('p', '', `${group.period} · ${group.pending_count} pendiente${group.pending_count === 1 ? '' : 's'}`));
+          if (group.context) row.append(element('p', '', group.context));
           const actions = element('div', 'fn-actions');
           group.actions.forEach(action => {
             const link = element('a', 'fn-button fn-button--primary', action.label);
@@ -80,7 +81,7 @@
           if (group.needs_proposal) row.append(element('p', 'fn-note', 'Hay asistencias sin propuesta. Solicita revisar esos registros.'));
           details.append(row);
         });
-        card.append(details, element('p', 'fn-note', 'Selecciona el curso en el reporte y guarda los cambios. Los períodos cerrados conservan sus restricciones.'));
+        card.append(details, element('p', 'fn-note', item.note));
       } else if (item.type === 'announcement') {
         card.append(element('p', 'fn-note', `Vigente desde ${item.published_on.split('-').reverse().join('/')}`));
         if (item.unread) {

@@ -6,6 +6,8 @@ from typing import Callable, Any
 from app.helpers.report_context import resolve_reporting_scope
 from app.helpers.report_proposals import proposal_ids, proposal_filter
 from app.models.user import User
+from fastapi import HTTPException
+from app.services.referral_requirements import REFERRAL_TYPES, MAX_REFERRAL_ROWS
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -251,6 +253,20 @@ def get_or_create_visit_report(
 
 
 def replace_visit_report_referrals(db: Session, report_id: int, referral_payloads: list[dict]):
+    # Validate every row before replacing anything. A partial row must neither
+    # resolve the reminder nor erase previously saved information.
+    if len(referral_payloads) > MAX_REFERRAL_ROWS:
+        raise HTTPException(422, f"Puedes guardar hasta {MAX_REFERRAL_ROWS} referidos por informe.")
+    complete_rows = []
+    for idx, payload in enumerate(referral_payloads, 1):
+        values = {key: (payload.get(key) or "").strip() for key in ("referral_type", "agency", "reference_or_purpose")}
+        if not any(values.values()):
+            continue
+        if values["referral_type"] not in REFERRAL_TYPES or not values["agency"] or not values["reference_or_purpose"]:
+            raise HTTPException(422, f"Completa el tipo, la agencia y el número de referido o propósito del espacio {idx}.")
+        if len(values["agency"]) > 255 or len(values["reference_or_purpose"]) > 500:
+            raise HTTPException(422, f"El espacio {idx} supera el límite de agencia (255) o número/propósito (500).")
+        complete_rows.append(values)
     existing_referrals = db.execute(
         select(VisitReportReferral).where(VisitReportReferral.report_id == report_id)
     ).scalars().all()
@@ -258,7 +274,7 @@ def replace_visit_report_referrals(db: Session, report_id: int, referral_payload
         db.delete(referral)
     db.flush()
 
-    for idx, payload in enumerate(referral_payloads):
+    for idx, payload in enumerate(complete_rows):
         referral_type = (payload.get("referral_type") or "").strip()
         agency = (payload.get("agency") or "").strip()
         reference_or_purpose = (payload.get("reference_or_purpose") or "").strip()
@@ -266,7 +282,7 @@ def replace_visit_report_referrals(db: Session, report_id: int, referral_payload
         if not referral_type and not agency and not reference_or_purpose:
             continue
 
-        description = " | ".join(part for part in [agency, reference_or_purpose] if part).strip() or referral_type or "Referido"
+        description = " | ".join([agency, reference_or_purpose])[:500]
         referral = VisitReportReferral(
             report_id=report_id,
             referral_type=referral_type or "Externo",

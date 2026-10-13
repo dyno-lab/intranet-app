@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+import hmac
+import secrets
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, Response
@@ -122,6 +124,7 @@ from app.services.visits import (
     get_visit_report,
     build_visits_report_payload,
 )
+from app.services.referral_requirements import REFERRAL_TYPES, MAX_REFERRAL_ROWS, pending_referral_groups
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -2625,7 +2628,7 @@ def _build_visits_context(
         "visit_report": payload["visit_report"],
         "referral_rows": payload["referral_rows"],
         "referral_count": payload["referral_count"],
-        "referral_type_options": ["Interno", "Externo", "Visita Agencia"],
+        "referral_type_options": list(REFERRAL_TYPES),
         "visits_period_locked": visits_period_locked,
         "visits_period_lock_message": visits_period_lock_message,
     }
@@ -2648,8 +2651,26 @@ def visits_report(
 ):
     proposal_id = _report_proposal_selection(request, proposal_id)
     context = _build_visits_context(db, current_user, proposal_id, month, year, employee_id, authorized_name=authorized_name, period_type=period_type, start_date=start_date, end_date=end_date)
-    context.update({"request": request, "current_user": current_user, "msg": msg})
-    return templates.TemplateResponse("ui/reports/visitas.html", context)
+    pending = []
+    if (current_user.role in {"admin", "supervisor", "user"} and len(context["selected_proposal_ids"]) == 1
+            and context["selected_user"] and not context["is_global"]
+            and context["selected_period_type"] == "monthly" and context["selected_month"] and context["selected_year"]):
+        pending = pending_referral_groups(db, residential_id=context["selected_user"].residential_id,
+            proposal_ids=context["selected_proposal_ids"], month=context["selected_month"], year=context["selected_year"])
+    context.update({"request": request, "current_user": current_user, "msg": msg,
+                    "referrals_pending": bool(pending), "referral_pending_groups": pending,
+                    "max_referral_rows": MAX_REFERRAL_ROWS,
+                    "visit_referral_token": request.session.setdefault("visit_referral_token", secrets.token_urlsafe(32))})
+    return templates.TemplateResponse(request=request, name="ui/reports/visitas.html", context=context,
+                                      headers={"Cache-Control": "no-store"})
+
+
+def _check_visit_referral_write(request, current_user, supplied_token):
+    if current_user.role not in {"admin", "supervisor", "user"}:
+        raise HTTPException(403, "No tienes permiso para modificar referidos.")
+    expected = request.session.get("visit_referral_token", "")
+    if not expected or not hmac.compare_digest(supplied_token.encode(), expected.encode()):
+        raise HTTPException(403, "Vuelve a abrir el reporte de Visitas antes de guardar.")
 
 
 @router.post("/visitas/referrals/save")
@@ -2660,10 +2681,12 @@ async def visits_report_save_referrals(
     year: int = Form(...),
     employee_id: int | None = Form(default=None),
     authorized_name: str | None = Form(default=None),
-    referral_count: int = Form(default=0),
+    referral_count: int = Form(default=0, ge=0, le=MAX_REFERRAL_ROWS),
+    csrf_token: str = Form(default=""),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _check_visit_referral_write(request, current_user, csrf_token)
     period_month = month
     period_year = year
 
@@ -2727,14 +2750,17 @@ async def visits_report_save_referrals(
 
 @router.post("/visitas/delete")
 def visits_report_delete(
+    request: Request,
     proposal_id: int = Form(...),
     month: int = Form(...),
     year: int = Form(...),
     employee_id: int | None = Form(default=None),
     authorized_name: str | None = Form(default=None),
+    csrf_token: str = Form(default=""),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _check_visit_referral_write(request, current_user, csrf_token)
     scope = resolve_report_scope(current_user, employee_id, db)
     selected_user = scope["selected_user"]
     is_global = scope["is_global"]

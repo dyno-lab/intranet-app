@@ -153,7 +153,7 @@ class NotificationTests(unittest.TestCase):
         event.listen(self.source.source.engine, "before_cursor_execute", capture)
         self.addCleanup(event.remove, self.source.source.engine, "before_cursor_execute", capture)
         self.feed()
-        self.assertEqual(len(statements), 2)
+        self.assertEqual(len(statements), 3)  # Courses, referrals and announcements; no per-report queries.
         compiled = str(visible_announcements(self.user).compile(dialect=mssql.dialect()))
         self.assertIn("EXISTS", compiled)
         self.assertEqual(admin_announcements(self.db)[0]["residentials"], "Residencial 1, Residencial 2")
