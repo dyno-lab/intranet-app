@@ -150,18 +150,21 @@ def _participant_sort_key(participant, *field_names: str) -> tuple[str, ...]:
     return tuple(_normalize_text(getattr(participant, field_name)).casefold() for field_name in field_names)
 
 
-def _bonafide_participant_sort_key(participant):
-    building = _normalize_text(participant.edificio).casefold()
-    # Numeric segments keep buildings 2 and A2 before 10 and A10 respectively.
-    building_parts = tuple(
+def _bonafide_address_sort_key(value: str | None):
+    # Compare numeric segments as numbers, including addresses such as A2/A10.
+    return tuple(
         (0, int(part)) if part.isdecimal() else (1, part)
-        for part in re.split(r"(\d+)", building)
+        for part in re.split(r"(\d+)", _normalize_text(value).casefold())
         if part
     )
+
+
+def _bonafide_participant_sort_key(participant):
     return (
-        not building,
-        building_parts,
-        _participant_sort_key(participant, "apart", "apellido_paterno", "nombre"),
+        not _normalize_text(participant.edificio),
+        _bonafide_address_sort_key(participant.edificio),
+        _bonafide_address_sort_key(participant.apart),
+        _participant_sort_key(participant, "apellido_paterno", "nombre"),
     )
 
 
