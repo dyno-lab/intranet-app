@@ -30,6 +30,21 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+## Filtros opcionales de FARO
+
+Los filtros numéricos opcionales de las pantallas y descargas de FARO usan
+`app/helpers/query_filters.py`: una selección vacía o con espacios equivale
+a no enviar el filtro. Los números inválidos siguen rechazándose. Se conserva
+el valor `0` para el alcance Global y los valores negativos de residenciales.
+La selección múltiple de propuestas ignora opciones vacías y valida las demás.
+Los identificadores y campos obligatorios conservan sus validaciones.
+
+Verificación de filtros, consultas y permisos de los listados:
+
+```powershell
+python -B -m unittest tests.test_empty_query_filters tests.test_school_grade_filters tests.test_admin_report_residential_scope tests.test_residential_route_scope tests.test_viewer_read_only
+```
+
 ## Notificaciones de Faro
 
 - La campana del encabezado reúne pendientes y anuncios. En Inicio, el popup

@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 from app.core.auth import require_admin, require_admin_or_supervisor, is_admin_or_supervisor
 from app.core.period_guard import current_reporting_period, proposal_locked_through_label, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
@@ -849,7 +850,7 @@ def admin_edit_residential(
 @router.get("/visits", response_class=HTMLResponse)
 def admin_visits(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -971,7 +972,7 @@ def admin_delete_visit_mapping(
 @router.get("/adm", response_class=HTMLResponse)
 def admin_adm(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -1172,7 +1173,7 @@ def admin_unassign_activity_from_adm_service_type(
 @router.get("/vca", response_class=HTMLResponse)
 def admin_vca(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -1377,7 +1378,7 @@ def admin_unassign_activity_from_vca_column(
 @router.get("/activity-codes", response_class=HTMLResponse)
 def admin_activity_codes(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -1882,7 +1883,7 @@ def admin_proposals(
 @router.get("/proposal-participants", response_class=HTMLResponse)
 def admin_proposal_participants(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     residential_id: str | None = None,
     status_filter: str | None = "active",
     q: str | None = None,
@@ -3257,7 +3258,7 @@ def admin_delete_population_group(
 @router.get("/report-programs", response_class=HTMLResponse)
 def admin_report_programs(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -4234,7 +4235,7 @@ def _report_template_redirect(msg: str, proposal_id: int | None = None):
 @router.get("/report-templates", response_class=HTMLResponse)
 def admin_report_templates(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -4463,7 +4464,7 @@ def _build_word_template_document(template: ReportTemplate, version: ReportTempl
 @router.get("/report-templates/versions/download-word")
 def admin_report_template_versions_download_word(
     report_template_id: int,
-    report_template_version_id: int | None = None,
+    report_template_version_id: OptionalQueryInt = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):

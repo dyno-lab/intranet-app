@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 from app.core.auth import require_admin
 from app.models.catalog_type import CatalogType
 from app.models.catalog_option import CatalogOption
@@ -30,7 +31,7 @@ def _normalize_catalog_key(value: str | None) -> str:
 @router.get("", response_class=HTMLResponse)
 def admin_catalogs(
     request: Request,
-    selected_type_id: int | None = None,
+    selected_type_id: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),

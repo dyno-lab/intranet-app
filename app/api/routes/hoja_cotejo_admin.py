@@ -12,6 +12,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 from app.core.auth import require_admin
 from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.user import User
@@ -130,8 +131,8 @@ def _download_filename(prefix: str, context: dict, extension: str) -> str:
 @router.get("/hoja-cotejo")
 def hoja_cotejo_index(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
@@ -202,8 +203,8 @@ def hoja_cotejo_generar(
 @router.get("/hoja-cotejo/pdf")
 def hoja_cotejo_pdf(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
@@ -284,8 +285,8 @@ def _build_excel_bytes(context: dict) -> bytes:
 @router.get("/hoja-cotejo/excel")
 def hoja_cotejo_excel(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),

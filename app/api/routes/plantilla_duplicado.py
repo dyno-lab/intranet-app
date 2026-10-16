@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 from app.core.auth import require_admin
 from app.core.residential_scope import has_global_residential_access, require_record_residential_id
 from app.models.proposal import Proposal
@@ -156,8 +157,8 @@ def _download_filename(prefix: str, context: dict, extension: str) -> str:
 @router.get("/plantilla-duplicado")
 def plantilla_duplicado_index(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
@@ -219,8 +220,8 @@ def plantilla_duplicado_generar(
 @router.get("/plantilla-duplicado/pdf")
 def plantilla_duplicado_pdf(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
@@ -307,8 +308,8 @@ def _build_excel_bytes(context: dict) -> bytes:
 @router.get("/plantilla-duplicado/excel")
 def plantilla_duplicado_excel(
     request: Request,
-    month: int | None = Query(None),
-    year: int | None = Query(None),
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
     period_type: str = Query("monthly"),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),

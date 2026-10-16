@@ -30,5 +30,6 @@ def proposal_filter(column, value):
 def report_proposal_selection(request, fallback=None):
     params = getattr(request, "query_params", None)
     values = params.getlist("proposal_id") if params is not None else []
-    ids = proposal_ids(values if values else fallback)
+    # Empty options in a GET form are unselected; validate every nonempty ID.
+    ids = proposal_ids([value for value in values if value.strip()] if values else fallback)
     return ids if len(ids) > 1 else (ids[0] if ids else None)

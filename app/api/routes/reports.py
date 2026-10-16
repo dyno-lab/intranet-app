@@ -12,6 +12,7 @@ from sqlalchemy import and_, or_, case, distinct, extract, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 from app.core.auth import get_current_user, is_admin_or_supervisor, require_admin_or_supervisor
 from app.core.period_guard import proposal_locked_through_label, require_proposal_period_open, require_reporting_period_not_future
 from app.core.proposal_guard import is_proposal_finalized
@@ -427,10 +428,10 @@ def _latest_report_proposal_id(proposals: list[Proposal]) -> int | None:
 def reports_home(
     request: Request,
     report_key: str = "bonafide",
-    proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
-    employee_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
+    month: OptionalQueryInt = None,
+    year: OptionalQueryInt = None,
+    employee_id: OptionalQueryInt = None,
     output: str = "screen",
     period_type: str = "monthly",
     authorized_name: str | None = None,
@@ -478,10 +479,10 @@ def reports_home(
 @router.get("/run")
 def reports_run(
     report_key: str,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     output: str = "screen",
     period_type: str = "monthly",
     authorized_name: str | None = None,
@@ -495,6 +496,7 @@ def reports_run(
     month_value = int(month) if (month or "").strip() else None
     year_value = int(year) if (year or "").strip() else None
     authorized_name = report_authorized_name(current_user, authorized_name)
+    employee_id_param = "" if employee_id is None else employee_id
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
 
     if report_key == "cursos":
@@ -521,102 +523,101 @@ def reports_run(
 
     if report_key == "productividad":
         return RedirectResponse(
-            f"/ui/reports/productividad?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
+            f"/ui/reports/productividad?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
         )
 
     if report_key == "bonafide":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/bonafide/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/bonafide/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/bonafide/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/bonafide/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/bonafide?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/bonafide?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "no-duplicado":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/no-duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/no-duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/no-duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/no-duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/no-duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "duplicados":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/duplicado/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/duplicado/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/duplicado?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "vca":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/vca/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/vca/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/vca/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/vca/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/vca?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/vca?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "adm":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/adm/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/adm/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/adm/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/adm/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/adm?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/adm?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     if report_key == "todos":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/todos/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/todos/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/todos/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/todos/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
-        employee_id_param = "" if employee_id is None else employee_id
         return RedirectResponse(
             f"/ui/reports/?report_key=todos&{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
             status_code=303,
@@ -625,91 +626,91 @@ def reports_run(
     if report_key == "por-programa":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/por-programa/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/por-programa/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/por-programa/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+                f"/ui/reports/por-programa/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/por-programa?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}&authorized_name={authorized_name or ''}{period_query}",
+            f"/ui/reports/por-programa?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&authorized_name={authorized_name or ''}{period_query}",
             status_code=303,
         )
 
     if report_key == "hoja-cotejo":
         return RedirectResponse(
-            f"/ui/reports/hoja-cotejo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/hoja-cotejo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "desercion-escolar":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/desercion-escolar/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/desercion-escolar/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/desercion-escolar/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/desercion-escolar/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/desercion-escolar?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/desercion-escolar?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "embarazo":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/embarazo/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/embarazo/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/embarazo/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/embarazo/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/embarazo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/embarazo?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "notas":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/notas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/notas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/notas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+                f"/ui/reports/notas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/notas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}",
+            f"/ui/reports/notas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}",
             status_code=303,
         )
 
     if report_key == "visitas":
         if output == "excel":
             return RedirectResponse(
-                f"/ui/reports/visitas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/visitas/excel?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         if output == "pdf":
             return RedirectResponse(
-                f"/ui/reports/visitas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+                f"/ui/reports/visitas/pdf?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
                 status_code=303,
             )
         return RedirectResponse(
-            f"/ui/reports/visitas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id}{period_query}&authorized_name={authorized_name or ''}",
+            f"/ui/reports/visitas?{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}{period_query}&authorized_name={authorized_name or ''}",
             status_code=303,
         )
 
     return RedirectResponse(
-        f"/ui/reports/?report_key={report_key}&{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id or ''}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
+        f"/ui/reports/?report_key={report_key}&{proposal_query}&month={month_value or ''}&year={year_value or ''}&employee_id={employee_id_param}&output={output}&period_type={period_type}&authorized_name={authorized_name or ''}&start_date={start_date or ''}&end_date={end_date or ''}",
         status_code=303,
     )
 
@@ -1213,7 +1214,7 @@ def _build_productivity_context(
 @router.get("/productividad", response_class=HTMLResponse)
 def productivity_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
     employee_id: str | None = None,
@@ -1654,10 +1655,10 @@ def _build_adm_context(
 @router.get("/adm", response_class=HTMLResponse)
 def adm_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -1674,10 +1675,10 @@ def adm_report(
 @router.get("/adm/pdf", response_class=HTMLResponse)
 def adm_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -1694,10 +1695,10 @@ def adm_report_pdf(
 @router.get("/adm/pdf/download")
 def adm_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -1800,10 +1801,10 @@ def _render_report_pdf_response(
 @router.get("/todos/pdf")
 def all_reports_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -1864,10 +1865,10 @@ def all_reports_pdf(
 
 @router.get("/todos/excel")
 def all_reports_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -1921,10 +1922,10 @@ def all_reports_excel(
 
 @router.get("/adm/excel")
 def adm_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -2640,10 +2641,10 @@ def _build_visits_context(
 @router.get("/visitas", response_class=HTMLResponse)
 def visits_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     msg: str | None = None,
     period_type: str = "monthly",
@@ -2821,10 +2822,10 @@ def visits_report_delete(
 @router.get("/visitas/pdf", response_class=HTMLResponse)
 def visits_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -2841,10 +2842,10 @@ def visits_report_pdf(
 @router.get("/visitas/pdf/download")
 def visits_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -2882,10 +2883,10 @@ def visits_report_pdf_download(
 
 @router.get("/visitas/excel")
 def visits_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3201,10 +3202,10 @@ def _build_no_duplicado_context(
 @router.get("/notas", response_class=HTMLResponse)
 def notes_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3281,10 +3282,10 @@ def notes_report_pdf(
 @router.get("/notas/pdf/download")
 def notes_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3324,10 +3325,10 @@ def notes_report_pdf_download(
 
 @router.get("/notas/excel")
 def notes_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3356,10 +3357,10 @@ def notes_report_excel(
 @router.get("/embarazo", response_class=HTMLResponse)
 def pregnancy_summary_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3375,10 +3376,10 @@ def pregnancy_summary_report(
 @router.get("/embarazo/pdf", response_class=HTMLResponse)
 def pregnancy_summary_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3394,10 +3395,10 @@ def pregnancy_summary_report_pdf(
 @router.get("/embarazo/pdf/download")
 def pregnancy_summary_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3434,10 +3435,10 @@ def pregnancy_summary_report_pdf_download(
 
 @router.get("/embarazo/excel")
 def pregnancy_summary_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3466,10 +3467,10 @@ def pregnancy_summary_report_excel(
 @router.get("/desercion-escolar", response_class=HTMLResponse)
 def school_dropout_summary_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3485,10 +3486,10 @@ def school_dropout_summary_report(
 @router.get("/desercion-escolar/pdf", response_class=HTMLResponse)
 def school_dropout_summary_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3504,10 +3505,10 @@ def school_dropout_summary_report_pdf(
 @router.get("/desercion-escolar/pdf/download")
 def school_dropout_summary_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3544,10 +3545,10 @@ def school_dropout_summary_report_pdf_download(
 
 @router.get("/desercion-escolar/excel")
 def school_dropout_summary_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3576,10 +3577,10 @@ def school_dropout_summary_report_excel(
 @router.get("/duplicado", response_class=HTMLResponse)
 def duplicado_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3596,10 +3597,10 @@ def duplicado_report(
 @router.get("/duplicado/pdf", response_class=HTMLResponse)
 def duplicado_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3616,10 +3617,10 @@ def duplicado_report_pdf(
 @router.get("/duplicado/pdf/download")
 def duplicado_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3641,10 +3642,10 @@ def duplicado_report_pdf_download(
 
 @router.get("/duplicado/excel")
 def duplicado_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3675,10 +3676,10 @@ def duplicado_report_excel(
 @router.get("/no-duplicado", response_class=HTMLResponse)
 def no_duplicado_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3695,10 +3696,10 @@ def no_duplicado_report(
 @router.get("/hoja-cotejo", response_class=HTMLResponse)
 def hoja_cotejo_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3714,10 +3715,10 @@ def hoja_cotejo_report(
 @router.get("/hoja-cotejo/pdf", response_class=HTMLResponse)
 def hoja_cotejo_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3733,10 +3734,10 @@ def hoja_cotejo_report_pdf(
 @router.get("/hoja-cotejo/pdf/download")
 def hoja_cotejo_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3779,10 +3780,10 @@ def hoja_cotejo_report_pdf_download(
 
 @router.get("/hoja-cotejo/excel")
 def hoja_cotejo_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -3812,10 +3813,10 @@ def hoja_cotejo_report_excel(
 @router.get("/por-programa", response_class=HTMLResponse)
 def por_programa_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3832,10 +3833,10 @@ def por_programa_report(
 @router.get("/por-programa/pdf", response_class=HTMLResponse)
 def por_programa_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3852,10 +3853,10 @@ def por_programa_report_pdf(
 @router.get("/por-programa/pdf/download")
 def por_programa_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3877,10 +3878,10 @@ def por_programa_report_pdf_download(
 
 @router.get("/por-programa/excel")
 def por_programa_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3911,10 +3912,10 @@ def por_programa_report_excel(
 @router.get("/no-duplicado/pdf", response_class=HTMLResponse)
 def no_duplicado_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3931,10 +3932,10 @@ def no_duplicado_report_pdf(
 @router.get("/no-duplicado/pdf/download")
 def no_duplicado_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -3956,10 +3957,10 @@ def no_duplicado_report_pdf_download(
 
 @router.get("/no-duplicado/excel")
 def no_duplicado_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     authorized_name: str | None = None,
     period_type: str = "monthly",
     start_date: str | None = None,
@@ -4295,10 +4296,10 @@ def _build_por_programa_context(
 @router.get("/vca", response_class=HTMLResponse)
 def vca_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4314,10 +4315,10 @@ def vca_report(
 @router.get("/vca/pdf", response_class=HTMLResponse)
 def vca_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4333,10 +4334,10 @@ def vca_report_pdf(
 @router.get("/vca/pdf/download")
 def vca_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4373,10 +4374,10 @@ def vca_report_pdf_download(
 
 @router.get("/vca/excel")
 def vca_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4404,10 +4405,10 @@ def vca_report_excel(
 @router.get("/bonafide", response_class=HTMLResponse)
 def bonafide_report(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4423,10 +4424,10 @@ def bonafide_report(
 @router.get("/bonafide/pdf", response_class=HTMLResponse)
 def bonafide_report_pdf(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4442,10 +4443,10 @@ def bonafide_report_pdf(
 @router.get("/bonafide/pdf/download")
 def bonafide_report_pdf_download(
     request: Request,
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,
@@ -4478,10 +4479,10 @@ def bonafide_report_pdf_download(
 
 @router.get("/bonafide/excel")
 def bonafide_report_excel(
-    proposal_id: int | None = None,
+    proposal_id: OptionalQueryInt = None,
     month: str | None = None,
     year: str | None = None,
-    employee_id: int | None = None,
+    employee_id: OptionalQueryInt = None,
     period_type: str = "monthly",
     start_date: str | None = None,
     end_date: str | None = None,

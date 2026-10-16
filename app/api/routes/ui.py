@@ -72,6 +72,7 @@ from app.services.community_identity import (
 from app.services.community_identity_registration import prepare_registration_identity, save_registration_identity
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.api.deps import get_db
+from app.helpers.query_filters import OptionalQueryInt
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -2786,8 +2787,8 @@ def open_session(
     proposal_id: str | None = None,
     month: str | None = None,
     year: str | None = None,
-    page: int | None = None,
-    per_page: int | None = None,
+    page: OptionalQueryInt = None,
+    per_page: OptionalQueryInt = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
