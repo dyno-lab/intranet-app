@@ -21,6 +21,7 @@ from app.core.residential_scope import has_global_residential_access, require_re
 from app.models.participant import Participant
 from app.models.person import Person
 from app.helpers.report_context import MIN_REPORTING_YEAR
+from app.helpers.reports import parse_optional_int
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
@@ -75,13 +76,21 @@ def _ensure_report_editable(proposal: Proposal | None, report: SchoolDropoutRepo
 @router.get("", response_class=HTMLResponse)
 def school_dropout_reports_index(
     request: Request,
-    proposal_id: int | None = None,
-    month: int | None = None,
-    year: int | None = None,
+    proposal_id: str | None = None,
+    month: str | None = None,
+    year: str | None = None,
     msg: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # The filter form sends empty strings for Todas/Todos.
+    try:
+        proposal_id = parse_optional_int(proposal_id)
+        month = parse_optional_int(month)
+        year = parse_optional_int(year)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Los filtros de propuesta, mes y año deben ser números enteros o estar vacíos.") from exc
+
     stmt = (
         select(
             SchoolDropoutReport,
@@ -120,8 +129,9 @@ def school_dropout_reports_index(
     month_lookup = dict(month_options)
 
     return templates.TemplateResponse(
-        "ui/school_dropout/index.html",
-        {
+        request=request,
+        name="ui/school_dropout/index.html",
+        context={
             "request": request,
             "current_user": current_user,
             "reports": reports,

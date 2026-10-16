@@ -17,18 +17,22 @@ os.environ.setdefault("DB_USER", "test-user")
 os.environ.setdefault("DB_PASSWORD", "test-password")
 os.environ.setdefault("SESSION_SECRET", "test-session-secret-at-least-32-characters")
 
-from app.api.routes import school_grades
+from app.api.routes import pregnancy, school_dropout, school_grades
 from app.core.residential_scope import require_faro_access
 from app.models.user_residential import UserResidential
 
 
 class SchoolGradeFilterTests(unittest.TestCase):
+    routes = school_grades
+    report_model = school_grades.SchoolGradeReport
+    base_url = "/ui/school-grades"
+
     def setUp(self):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         self.addCleanup(self.engine.dispose)
         metadata = MetaData()
         models = (school_grades.Proposal, school_grades.Residential, school_grades.User,
-                  school_grades.SchoolGradeReport, UserResidential)
+                  self.report_model, UserResidential)
         tables = {model.__tablename__: Table(model.__tablename__, metadata, *[
             Column(column.name, column.type, primary_key=column.primary_key)
             for column in model.__table__.columns]) for model in models}
@@ -43,7 +47,7 @@ class SchoolGradeFilterTests(unittest.TestCase):
             connection.execute(tables["user_residentials"].insert(), [
                 dict(user_residential_id=i, user_id=90, residential_id=i, is_active=True)
                 for i in (1, 2)])
-            connection.execute(tables["school_grade_reports"].insert(), [
+            connection.execute(tables[self.report_model.__tablename__].insert(), [
                 dict(report_id=i, proposal_id=p, residential_id=r, report_month=m,
                      report_year=y, notes=f"Informe de prueba {i}")
                 for i, p, r, m, y in ((1, 1, 1, 7, 2026), (2, 1, 2, 8, 2026),
@@ -52,12 +56,12 @@ class SchoolGradeFilterTests(unittest.TestCase):
         self.user = SimpleNamespace(user_id=90, role="admin", username="Prueba", residential_id=None)
         app = FastAPI()
         app.add_middleware(SessionMiddleware, secret_key="school-grade-filter-test")
-        app.include_router(school_grades.router, prefix="/ui/school-grades", dependencies=[Depends(require_faro_access)])
+        app.include_router(self.routes.router, prefix=self.base_url, dependencies=[Depends(require_faro_access)])
         def db():
             with Session(self.engine) as session:
                 yield session
-        app.dependency_overrides[school_grades.get_db] = db
-        app.dependency_overrides[school_grades.get_current_user] = lambda: self.user
+        app.dependency_overrides[self.routes.get_db] = db
+        app.dependency_overrides[self.routes.get_current_user] = lambda: self.user
         permission = patch("app.core.residential_scope._FARO_PERMISSION_DEPENDENCY", return_value=self.user)
         permission.start()
         self.addCleanup(permission.stop)
@@ -68,9 +72,9 @@ class SchoolGradeFilterTests(unittest.TestCase):
         self.addCleanup(self.client.close)
 
     def page(self, query=""):
-        response = self.client.get("/ui/school-grades" + query)
+        response = self.client.get(self.base_url + query)
         self.assertEqual(response.status_code, 200, response.text)
-        identifiers = [int(value) for value in re.findall(r'href="/ui/school-grades/(\d+)"', response.text)]
+        identifiers = [int(value) for value in re.findall(rf'href="{re.escape(self.base_url)}/(\d+)"', response.text)]
         return response, identifiers
 
     def test_exact_production_url_shows_all_authorized_reports(self):
@@ -101,7 +105,7 @@ class SchoolGradeFilterTests(unittest.TestCase):
                 response, identifiers = self.page("?proposal_id=&month=&year=")
                 self.assertEqual(identifiers, [3, 5, 2, 1, 6, 4])
                 if role == "viewer":
-                    self.assertNotIn('action="/ui/school-grades/create"', response.text)
+                    self.assertNotIn(f'action="{self.base_url}/create"', response.text)
         self.client.get("/test/residential/1")
         for role in ("admin", "supervisor", "user", "viewer"):
             with self.subTest(scoped_role=role):
@@ -112,9 +116,21 @@ class SchoolGradeFilterTests(unittest.TestCase):
         for name in ("proposal_id", "month", "year"):
             for value in ("abc", "1.5"):
                 with self.subTest(name=name, value=value):
-                    response = self.client.get("/ui/school-grades", params={name: value})
+                    response = self.client.get(self.base_url, params={name: value})
                     self.assertEqual(response.status_code, 422)
         self.assertEqual(self.page()[1], [3, 5, 2, 1, 6, 4])
+
+
+class SchoolDropoutFilterTests(SchoolGradeFilterTests):
+    routes = school_dropout
+    report_model = school_dropout.SchoolDropoutReport
+    base_url = "/ui/school-dropout"
+
+
+class PregnancyFilterTests(SchoolGradeFilterTests):
+    routes = pregnancy
+    report_model = pregnancy.PregnancyReport
+    base_url = "/ui/pregnancy"
 
 
 if __name__ == "__main__":
