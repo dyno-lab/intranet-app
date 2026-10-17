@@ -72,6 +72,23 @@
 .community-participant-actions form { margin: 0; }
 .community-participant-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; width: 100%; min-height: 2.2rem; padding: .35rem .45rem; white-space: nowrap; font-size: .85rem; font-weight: 600; }
 .community-record-programs { flex-wrap: wrap; gap: .35rem; }
+.community-body .participants-form-section--record .participants-form-section__header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .3rem;
+}
+@media (min-width: 768px) {
+  .community-body .participants-expediente__meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767.98px) {
+  .community-body #participant-register-card .participants-form-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .3rem;
+  }
+}
 .community-body .participants-expediente-chart__total { border-color: rgba(18, 100, 67, .16); background: #f1f7f3; }
 .community-body .participants-expediente-pagination { --bs-pagination-active-bg: #126443; --bs-pagination-active-border-color: #126443; }
 @media (min-width: 1200px) {

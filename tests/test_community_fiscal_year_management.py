@@ -128,7 +128,7 @@ class CommunityFiscalYearManagementTests(unittest.TestCase):
     def test_synced_year_keeps_dates_but_allows_code_and_name_without_altering_snapshot(self):
         with Session(self.engine) as db:
             person = create_participant(db, actor_user_id=self.admin_id, exp_year=2024,
-                program_ids=[self.voca_id], fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
+                program_ids=[self.voca_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
             sync_participants(db, self.year_id, [person.participant_id], actor_user_id=self.admin_id)
             db.commit()
             pid = person.participant_id
@@ -218,7 +218,7 @@ class CommunityFiscalYearManagementTests(unittest.TestCase):
             db.add(CPFiscalActivity(activity_id=activity.activity_id, fiscal_year_id=self.year_id,
                 program_id=self.voca_id, goal_type='monthly_fixed', goal_value=10))
             person = create_participant(db, actor_user_id=self.admin_id, exp_year=2024,
-                program_ids=[self.voca_id], fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
+                program_ids=[self.voca_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
             sync_participants(db, self.year_id, [person.participant_id], actor_user_id=self.admin_id)
             db.commit()
             activity_id = activity.activity_id

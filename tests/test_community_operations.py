@@ -99,7 +99,7 @@ class CommunityOperationTests(unittest.TestCase):
         self.temp.cleanup()
 
     def new_participant(self, name, programs, born=None):
-        return create_participant(self.db, actor_user_id=self.actor_id, exp_year=2025, program_ids=programs, fields={
+        return create_participant(self.db, actor_user_id=self.actor_id, exp_year=2025, program_ids=programs, fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido',
             "nombre": name, "apellido_paterno": "Rivera", "genero": "F",
             "fecha_nacimiento": born or date(date.today().year - 10, 1, 1),
         })
@@ -202,7 +202,7 @@ class CommunityOperationTests(unittest.TestCase):
     def test_school_grade_eligibility_uses_current_age_from_fiscal_snapshot(self):
         older = self.new_participant("Mayor", [self.voca_id], date(date.today().year - 22, 1, 1))
         missing = create_participant(self.db, actor_user_id=self.actor_id, exp_year=2025, program_ids=[self.voca_id],
-                                     fields={"nombre": "Sin fecha", "apellido_paterno": "Rivera", "genero": "F"})
+                                     fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', "nombre": "Sin fecha", "apellido_paterno": "Rivera", "genero": "F"})
         sync_participants(self.db, self.fy_id, [older.participant_id, missing.participant_id], actor_user_id=self.actor_id)
         for participant in (older, missing):
             enroll_participant(self.db, participant_id=participant.participant_id, program_id=self.voca_id,

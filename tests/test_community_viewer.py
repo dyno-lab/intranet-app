@@ -20,7 +20,7 @@ class CommunityViewerTests(unittest.TestCase):
     def seed(self):
         with Session(self.engine) as db:
             person = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.voca_id], fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
+                program_ids=[self.voca_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
             db.commit()
             return person.participant_id
 

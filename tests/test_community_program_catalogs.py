@@ -171,7 +171,7 @@ class CommunityProgramCatalogTests(unittest.TestCase):
                 update_program(editor, self.icp_id, 'ICP-NEW', 'ICP', 'Ponce')
                 editor.commit()
             participant = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.icp_id], fields={'nombre': 'Prueba', 'apellido_paterno': 'Prueba', 'genero': 'F'})
+                program_ids=[self.icp_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Prueba', 'apellido_paterno': 'Prueba', 'genero': 'F'})
             number = db.scalar(select(CPParticipantProgram.record_number).where(
                 CPParticipantProgram.participant_id == participant.participant_id))
             self.assertEqual(number, 'CP-2026-ICP-NEW-0001')

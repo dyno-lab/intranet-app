@@ -20,6 +20,8 @@
       </div>
       <dl class="participants-expediente__meta">
         <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Número de expediente</dt><dd class="participants-expediente__meta-value">{{ p.expediente_num }}</dd></div>
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Fecha de solicitud</dt><dd class="participants-expediente__meta-value">{{ day(p.fecha_solicitud) }}</dd></div>
+        <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Procedencia de la solicitud</dt><dd class="participants-expediente__meta-value">{{ value(p.procedencia_solicitud) }}</dd></div>
         <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Programas</dt><dd class="participants-expediente__meta-value community-record-programs">{% for association, program in associations %}<span class="badge community-program-badge">{{ program.code }}</span>{% endfor %}</dd></div>
         <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Estatus</dt><dd class="participants-expediente__meta-value">{{ value(p.estatus) }}</dd></div>
         <div class="participants-expediente__meta-item"><dt class="participants-expediente__meta-label">Jefe de familia</dt><dd class="participants-expediente__meta-value"><span class="badge {{ 'text-bg-primary' if p.is_head_of_household else 'text-bg-light participants-expediente-badge-neutral' }}">{{ 'Sí' if p.is_head_of_household else 'No' }}</span></dd></div>
@@ -57,7 +59,14 @@
   <section class="participants-section participants-expediente-anchor" id="contacto" aria-labelledby="contacto-title">
     <article class="participants-expediente-card">
       <div class="participants-expediente-card__header participants-expediente-card__header--inline"><div><h2 class="participants-card__title" id="contacto-title">Información de contacto</h2><p class="participants-expediente-card__text">Datos actuales del expediente.</p></div>{% if cp.role in ['admin', 'supervisor', 'viewer'] %}<a class="btn btn-sm btn-outline-primary" href="{{ record_url }}/edit#telefono"><i class="bi bi-pencil" aria-hidden="true"></i> Editar contacto</a>{% endif %}</div>
-      <div class="participants-expediente-card__body"><dl class="participants-expediente-fields participants-expediente-fields--full">{{ detail('Teléfono', p.telefono) }}{{ detail('Email', p.email) }}{% for label, item in profile %}{{ detail(label, item) }}{% endfor %}</dl></div>
+      <div class="participants-expediente-card__body">
+        <dl class="participants-expediente-fields participants-expediente-fields--full">{{ detail('Teléfono', p.telefono) }}{{ detail('Email', p.email) }}</dl>
+        <div class="border-top pt-3 mt-3" role="group" aria-labelledby="emergency-detail-title">
+          <h3 class="participants-card__title mb-3" id="emergency-detail-title">Contacto de emergencia</h3>
+          <dl class="participants-expediente-fields participants-expediente-fields--full">{{ detail('Nombre completo', p.emergencia_nombre) }}{{ detail('Relación con el participante', p.emergencia_relacion) }}{{ detail('Teléfono de emergencia', p.emergencia_telefono) }}</dl>
+        </div>
+        {% if profile %}<div class="border-top pt-3 mt-3"><h3 class="participants-card__title mb-3">Campos de perfil</h3><dl class="participants-expediente-fields participants-expediente-fields--full">{% for label, item in profile %}{{ detail(label, item) }}{% endfor %}</dl></div>{% endif %}
+      </div>
     </article>
   </section>
   <section class="participants-section participants-expediente-anchor" id="programas" aria-labelledby="programas-title">

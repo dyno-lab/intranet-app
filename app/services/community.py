@@ -21,12 +21,17 @@ from app.models.community import CPProgram, CPFiscalYear, CPSequence, CPParticip
 _PROGRAM_CODE = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*")
 _PHONE = re.compile(r"\(\d{3}\)-\d{3}-\d{4}")
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+INTAKE_ORIGINS = ('Referido', 'Autoreferido', 'Identificado por personal')
+INTAKE_FIELDS = ('fecha_solicitud', 'procedencia_solicitud', 'emergencia_nombre',
+                 'emergencia_relacion', 'emergencia_telefono')
 _TEXT_LIMITS = {
     "nombre": 150, "inicial": 12, "apellido_paterno": 150, "apellido_materno": 150,
     "genero": 10, "direccion_fisica": 500, "pueblo": 100,
     "primera_vez": 5, "escolaridad_participante": 150, "composicion_familiar": 100,
     "relacion_familiar": 100, "estatus": 50, "grupo_familiar": 20,
     "fuente_ingreso_principal": 100, "rango_ingreso": 30, "telefono": 30, "email": 255,
+    "procedencia_solicitud": 40, "emergencia_nombre": 150,
+    "emergencia_relacion": 100, "emergencia_telefono": 30,
 }
 
 
@@ -202,7 +207,7 @@ def _allocate_sequence(db: Session, exp_year: int) -> int:
 
 
 def _normalized_participant_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
-    unknown = set(fields) - set(_TEXT_LIMITS) - {"fecha_nacimiento", "is_head_of_household"}
+    unknown = set(fields) - set(_TEXT_LIMITS) - {"fecha_nacimiento", "fecha_solicitud", "is_head_of_household"}
     if unknown:
         raise ValueError("El formulario incluye campos de expediente no permitidos.")
     values = {key: _text(fields.get(key), key, limit, required=key in {"nombre", "apellido_paterno", "genero"}) for key, limit in _TEXT_LIMITS.items()}
@@ -213,6 +218,14 @@ def _normalized_participant_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     values["fecha_nacimiento"] = _date(birth_date, "Fecha de nacimiento") if birth_date else None
     if values["fecha_nacimiento"] and values["fecha_nacimiento"] > date.today():
         raise ValueError("La fecha de nacimiento no puede estar en el futuro.")
+    request_date = fields.get('fecha_solicitud')
+    if isinstance(request_date, str):
+        request_date = request_date.strip()
+    values['fecha_solicitud'] = _date(request_date, 'Fecha de solicitud') if request_date else None
+    if values['fecha_solicitud'] and values['fecha_solicitud'] > date.today():
+        raise ValueError('La fecha de solicitud no puede estar en el futuro.')
+    if values['procedencia_solicitud'] and values['procedencia_solicitud'] not in INTAKE_ORIGINS:
+        raise ValueError('Seleccione una procedencia de la solicitud válida.')
     head = fields.get("is_head_of_household", False)
     if not isinstance(head, bool):
         raise ValueError("Jefatura de familia: valor inválido.")
@@ -223,9 +236,20 @@ def _normalized_participant_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError("primera_vez: selecciona Sí o No.")
     if values["telefono"] and not _PHONE.fullmatch(values["telefono"]):
         raise ValueError("El teléfono debe usar el formato (XXX)-XXX-XXXX, como en Faro.")
+    if values['emergencia_telefono'] and not _PHONE.fullmatch(values['emergencia_telefono']):
+        raise ValueError('El teléfono de emergencia debe usar el formato (XXX)-XXX-XXXX.')
     if values["email"] and not _EMAIL.fullmatch(values["email"]):
         raise ValueError("El correo electrónico no es válido.")
     return values
+
+
+def _require_intake_fields(values, current=None):
+    # Existing missing values may be completed gradually; known values cannot
+    # be erased. New records always require both fields.
+    for key, label in (('fecha_solicitud', 'La fecha de solicitud'),
+                       ('procedencia_solicitud', 'La procedencia de la solicitud')):
+        if (current is None or current[key] is not None) and not values[key]:
+            raise ValueError(f'{label} es obligatoria.')
 
 
 def create_participant(
@@ -236,6 +260,7 @@ def create_participant(
         raise ValueError("Selecciona un año de expediente de cuatro dígitos.")
     _validate_actor(actor_user_id)
     values = _normalized_participant_fields(fields)
+    _require_intake_fields(values)
     programs = _active_programs(db, program_ids)
 
     sequence = _allocate_sequence(db, exp_year)
@@ -318,9 +343,10 @@ def update_participant(
     participant = _participant_for_update(db, participant_id)
     current = {
         field: getattr(participant, field)
-        for field in (*_TEXT_LIMITS, "fecha_nacimiento", "is_head_of_household")
+        for field in (*_TEXT_LIMITS, "fecha_nacimiento", "fecha_solicitud", "is_head_of_household")
     }
     values = _normalized_participant_fields({**current, **fields})
+    _require_intake_fields(values, current)
     # Validate the entire submission before changing any mapped attributes.
     for field, value in values.items():
         setattr(participant, field, value)

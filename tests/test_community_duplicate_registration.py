@@ -21,7 +21,8 @@ class CommunityDuplicateRegistrationTests(unittest.TestCase):
     participant_data = fixture.CommunityRouteTests.participant_data
 
     def existing(self, **changes):
-        fields = dict(nombre='Ana', apellido_paterno='Rivera', apellido_materno='Soto',
+        fields = dict(fecha_solicitud='2024-01-15', procedencia_solicitud='Autoreferido',
+                      nombre='Ana', apellido_paterno='Rivera', apellido_materno='Soto',
                       fecha_nacimiento=date(2000, 5, 12), genero='F', telefono='(787)-555-0110',
                       direccion_fisica='Direccion privada', email='privado@example.com')
         fields.update(changes)

@@ -60,7 +60,7 @@ class _FiscalFixture(unittest.TestCase):
         self.year = create_fiscal_year(self.db, "2024", "Año fiscal 2024", date(2024, 1, 15), date(2024, 12, 20))
         self.person = create_participant(self.db, actor_user_id=self.actor.user_id, exp_year=2024,
             program_ids=[self.voca.program_id, self.tanf.program_id],
-            fields={"nombre": "María", "apellido_paterno": "Rivera", "genero": "F",
+            fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', "nombre": "María", "apellido_paterno": "Rivera", "genero": "F",
                     "fecha_nacimiento": "2000-01-01", "pueblo": "Ponce"})
         self.db.commit()
 

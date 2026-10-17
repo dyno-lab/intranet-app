@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgram, CPProgram, _utcnow
 from app.models.community_fiscal import CPFiscalEnrollment, CPFiscalParticipant, CPFiscalState, CPEnrollmentPeriod
-from app.services.community import _date, _text, _validate_actor
+from app.services.community import INTAKE_FIELDS, _date, _text, _validate_actor
 
 
 SNAPSHOT_FIELDS = tuple(column.key for column in CPParticipant.__table__.columns
@@ -133,6 +133,8 @@ def comparable_snapshot(row: CPFiscalParticipant, program_rows) -> dict:
     """Normalize legacy metadata in memory only; never rewrite a historical row."""
     saved = json.loads(row.snapshot_json)
     saved.pop("vca", None)
+    for key in INTAKE_FIELDS:
+        saved.setdefault(key, None)
     if "program_ids" not in saved:
         def utc(value):
             return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
@@ -152,6 +154,9 @@ SNAPSHOT_LABELS = {
     "composicion_familiar": "Composición familiar", "relacion_familiar": "Relación familiar",
     "estatus": "Estatus", "grupo_familiar": "Grupo familiar", "fuente_ingreso_principal": "Fuente de ingreso principal",
     "rango_ingreso": "Rango de ingreso", "is_head_of_household": "Jefe de familia", "telefono": "Teléfono", "email": "Email",
+    "fecha_solicitud": "Fecha de solicitud", "procedencia_solicitud": "Procedencia de la solicitud",
+    "emergencia_nombre": "Contacto de emergencia: nombre", "emergencia_relacion": "Contacto de emergencia: relación",
+    "emergencia_telefono": "Contacto de emergencia: teléfono",
 }
 
 
@@ -169,7 +174,7 @@ def snapshot_changes(row, current, program_rows, program_labels):
     for key, label in SNAPSHOT_LABELS.items():
         if saved.get(key) != current.get(key):
             before, after = saved.get(key), current.get(key)
-            if key == "fecha_nacimiento":
+            if key in ("fecha_nacimiento", "fecha_solicitud"):
                 before = date.fromisoformat(before).strftime('%d/%m/%Y') if before else None
                 after = date.fromisoformat(after).strftime('%d/%m/%Y') if after else None
             changes.append({"label": label, "before": display(before), "after": display(after)})

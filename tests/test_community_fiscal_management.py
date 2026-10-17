@@ -29,7 +29,7 @@ class CommunityFiscalManagementTests(fixture.CommunityFiscalRouteTests):
 
     def test_available_lists_distinguish_selected_year_from_no_year(self):
         other = create_participant(self.db, actor_user_id=self.actor.user_id, exp_year=2024,
-            program_ids=[self.voca.program_id], fields={'nombre': 'Nueva', 'apellido_paterno': 'Prueba', 'genero': 'F'})
+            program_ids=[self.voca.program_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Nueva', 'apellido_paterno': 'Prueba', 'genero': 'F'})
         following = create_fiscal_year(self.db, '2025', 'Siguiente', date(2025, 1, 1), date(2025, 12, 31))
         self.sync(following)
         self.db.commit()
@@ -195,14 +195,14 @@ class CommunityFiscalManagementTests(fixture.CommunityFiscalRouteTests):
         people = [self.person]
         for number in range(51):
             people.append(create_participant(self.db, actor_user_id=self.actor.user_id, exp_year=2024,
-                program_ids=[self.voca.program_id], fields={'nombre': f'Persona {number}',
+                program_ids=[self.voca.program_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': f'Persona {number}',
                     'apellido_paterno': 'Prueba', 'genero': 'F', 'pueblo': 'Ponce'}))
         ids = [person.participant_id for person in people]
         sync_participants(self.db, self.year.fiscal_year_id, ids, actor_user_id=self.actor.user_id)
         for person in people:
             person.pueblo = 'San Juan'
         available = create_participant(self.db, actor_user_id=self.actor.user_id, exp_year=2024,
-            program_ids=[self.voca.program_id], fields={'nombre': 'Disponible', 'apellido_paterno': 'Prueba', 'genero': 'F'})
+            program_ids=[self.voca.program_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Disponible', 'apellido_paterno': 'Prueba', 'genero': 'F'})
         self.db.commit()
         page = self.page(sync_filter='pending', assigned_page=2)
         self.assertEqual(page.context['assigned_total'], 52)

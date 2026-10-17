@@ -23,7 +23,7 @@ class CommunityRecordTests(unittest.TestCase):
         with Session(self.engine) as db:
             p = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
                 program_ids=[self.voca_id] if only_voca else [self.voca_id, self.tanf_id, self.icp_id],
-                fields={'nombre': 'Ana', 'apellido_paterno': 'Prueba', 'genero': 'F',
+                fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Prueba', 'genero': 'F',
                         'direccion_fisica': 'Dirección de prueba', 'pueblo': 'Ponce'})
             year = create_fiscal_year(db, '2025', 'Año de prueba', date(2025, 1, 1), date(2025, 12, 31))
             sync_participants(db, year.fiscal_year_id, [p.participant_id], actor_user_id=self.admin_id)

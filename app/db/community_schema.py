@@ -113,6 +113,18 @@ BEGIN
     );
 END;
 
+-- Historical records remain NULL until staff supply the original paper data.
+IF COL_LENGTH(N'dbo.cp_participants', N'fecha_solicitud') IS NULL
+    ALTER TABLE dbo.cp_participants ADD fecha_solicitud DATE NULL;
+IF COL_LENGTH(N'dbo.cp_participants', N'procedencia_solicitud') IS NULL
+    ALTER TABLE dbo.cp_participants ADD procedencia_solicitud NVARCHAR(40) NULL;
+IF COL_LENGTH(N'dbo.cp_participants', N'emergencia_nombre') IS NULL
+    ALTER TABLE dbo.cp_participants ADD emergencia_nombre NVARCHAR(150) NULL;
+IF COL_LENGTH(N'dbo.cp_participants', N'emergencia_relacion') IS NULL
+    ALTER TABLE dbo.cp_participants ADD emergencia_relacion NVARCHAR(100) NULL;
+IF COL_LENGTH(N'dbo.cp_participants', N'emergencia_telefono') IS NULL
+    ALTER TABLE dbo.cp_participants ADD emergencia_telefono VARCHAR(30) NULL;
+
 IF OBJECT_ID(N'dbo.cp_participant_programs', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.cp_participant_programs (

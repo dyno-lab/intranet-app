@@ -77,7 +77,7 @@ class CommunityParticipantListTests(unittest.TestCase):
         with Session(self.engine) as db:
             year = create_fiscal_year(db, 'TEST', 'Año de prueba', date(2025, 1, 1), date(2025, 12, 31))
             person = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.voca_id], fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
+                program_ids=[self.voca_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F'})
             db.commit()
             self.first_id, self.year_id = person.participant_id, year.fiscal_year_id
         token = self.login()
@@ -121,13 +121,13 @@ class CommunityParticipantListTests(unittest.TestCase):
         with Session(self.engine) as db:
             year = create_fiscal_year(db, 'TEST', 'Año de prueba', date(2025, 1, 1), date(2025, 12, 31))
             first = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.voca_id, self.tanf_id], fields={
+                program_ids=[self.voca_id, self.tanf_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido',
                     'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'genero': 'F',
                     'fecha_nacimiento': '2000-05-12', 'telefono': '(787)-555-0100', 'pueblo': 'Ponce'})
             second = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.tanf_id], fields={'nombre': '=Persona', 'apellido_paterno': 'Prueba', 'genero': 'M'})
+                program_ids=[self.tanf_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': '=Persona', 'apellido_paterno': 'Prueba', 'genero': 'M'})
             hidden = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
-                program_ids=[self.icp_id], fields={'nombre': 'Reservado', 'apellido_paterno': 'ICP', 'genero': 'F'})
+                program_ids=[self.icp_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Reservado', 'apellido_paterno': 'ICP', 'genero': 'F'})
             sync_participants(db, year.fiscal_year_id, [first.participant_id], actor_user_id=self.admin_id)
             update_participant(db, participant_id=first.participant_id, fields={'pueblo': 'Mayagüez'})
             db.commit()
@@ -244,7 +244,7 @@ class CommunityParticipantListTests(unittest.TestCase):
         with Session(self.engine) as db:
             for name, birthday in [('CumpleHoy', '2008-02-28'), ('CumpleMañana', '2008-02-29')]:
                 create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.voca_id],
-                    fields={'nombre': name, 'apellido_paterno': 'Prueba', 'genero': 'F', 'fecha_nacimiento': birthday})
+                    fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': name, 'apellido_paterno': 'Prueba', 'genero': 'F', 'fecha_nacimiento': birthday})
             db.commit()
             context = SimpleNamespace(visible_program_ids={self.voca_id})
             filters = roster_filters({'age_min': '18', 'age_max': '18'}, context)

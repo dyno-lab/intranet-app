@@ -719,6 +719,72 @@ JavaScript ni desbordamiento de página. El esquema se compiló con el dialecto 
 y se comprobaron sus guardas aditivas; su ejecución real y concurrencia en SQL Server
 quedan para la PC de pruebas.
 
+## Solicitud original y contacto de emergencia (17 de octubre de 2026)
+
+El registro y la edición muestran Fecha de solicitud y Procedencia de la solicitud
+junto a la numeración. En registros nuevos ambos son obligatorios y empiezan vacíos.
+La fecha acepta días anteriores, rechaza fechas futuras y no modifica el año ni el
+número de expediente; `created_at` conserva la fecha real de ingreso al sistema.
+Las opciones de procedencia son Referido, Autoreferido e Identificado por personal.
+
+Información de contacto contiene teléfono y email del participante y un apartado
+Contacto de emergencia con nombre, relación libre y teléfono, todos opcionales.
+El teléfono de emergencia usa el formato `(XXX)-XXX-XXXX` cuando se completa.
+Los campos de perfil configurables conservan su propio apartado. La ficha muestra
+la solicitud en la cabecera y el contacto de emergencia en Contacto.
+
+El arranque habitual con `COMMUNITY_ENABLED=true` agrega cinco columnas nullable a
+`dbo.cp_participants` mediante guardas `COL_LENGTH`: `fecha_solicitud` (DATE),
+`procedencia_solicitud` (NVARCHAR(40)), `emergencia_nombre` (NVARCHAR(150)),
+`emergencia_relacion` (NVARCHAR(100)) y `emergencia_telefono` (VARCHAR(30)). No cambia
+los registros existentes: muestran No informado hasta completarlos. Se permite
+editar un registro antiguo sin inventar sus datos de solicitud; una vez informados
+no pueden borrarse. La comparación fiscal trata las claves históricas ausentes
+como NULL sin reescribir snapshots ni generar pendientes falsos.
+
+Verificación local: 271 pruebas de Comunidad aprobadas con SQLite temporal y
+compilación MSSQL de los modelos. Edge comprobó creación, guardado, reapertura,
+edición, formato telefónico y rol Viewer; registro, edición y ficha se revisaron
+a 1440, 1024, 768, 390 y 320 px, sin errores de JavaScript ni desbordamiento
+horizontal. Los assets CDN originales se sirvieron desde una caché solo de QA.
+La ejecución de la migración y la validación de datos en SQL Server real quedan
+para la PC de pruebas, que el usuario actualizará.
+
+### Actualización en la PC de pruebas
+
+En la copia que utiliza la aplicación, confirmar `ui/modernization-v1` y actualizar:
+
+```powershell
+git branch --show-current
+git pull --ff-only origin ui/modernization-v1
+git log -1 --oneline
+```
+
+Conservar el `.env` y las credenciales de esa PC, con Comunidad habilitada.
+Reiniciar completamente la aplicación mediante su mecanismo habitual y confirmar
+que el arranque finaliza sin errores. Este cambio no añade dependencias.
+El push no reinicia la aplicación ni ejecuta SQL en esa PC.
+
+Se puede comprobar el esquema con esta consulta de solo lectura en la base usada
+por la aplicación; debe devolver cinco filas, todas con `is_nullable = 1`:
+
+```sql
+SELECT name, TYPE_NAME(user_type_id) AS tipo, is_nullable
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'dbo.cp_participants')
+  AND name IN (N'fecha_solicitud', N'procedencia_solicitud', N'emergencia_nombre',
+               N'emergencia_relacion', N'emergencia_telefono')
+ORDER BY name;
+```
+
+Validar con un expediente de prueba: guardar una solicitud de fecha anterior con
+los datos de emergencia, volver al listado y reabrir la ficha, editar y reabrir
+nuevamente. Comprobar que las fechas futuras y la falta de fecha/procedencia en
+altas nuevas impiden guardar, que el contacto puede quedar vacío y que un expediente
+anterior sigue consultable. Reiniciar una segunda vez para comprobar la idempotencia
+del arranque. Si se revierte la versión del código, conservar las columnas y sus
+valores; no ejecutar DROP ni borrar datos como parte de la reversión.
+
 ## Habilitación y alcance
 
 `COMMUNITY_ENABLED=false` sigue como valor predeterminado. Con el flag apagado no

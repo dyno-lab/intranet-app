@@ -56,7 +56,7 @@ class CommunityDomainTests(unittest.TestCase):
         self.temp.cleanup()
 
     def fields(self, **changes):
-        values = {"nombre": " Ana María ", "inicial": "L", "apellido_paterno": "Rivera", "apellido_materno": "Soto", "genero": "f", "fecha_nacimiento": "2000-05-12", "telefono": "(787)-555-0100", "email": "ana@example.com", "direccion_fisica": "Calle Uno", "pueblo": "San Juan", "is_head_of_household": True}
+        values = {"fecha_solicitud": "2024-01-15", "procedencia_solicitud": "Autoreferido", "nombre": " Ana María ", "inicial": "L", "apellido_paterno": "Rivera", "apellido_materno": "Soto", "genero": "f", "fecha_nacimiento": "2000-05-12", "telefono": "(787)-555-0100", "email": "ana@example.com", "direccion_fisica": "Calle Uno", "pueblo": "San Juan", "is_head_of_household": True}
         values.update(changes)
         return values
 

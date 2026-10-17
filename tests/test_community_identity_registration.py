@@ -146,7 +146,7 @@ class IdentityRegistrationTests(unittest.TestCase):
         proof = self.confirmation(self.post())
         with Session(self.engine) as db:
             cp = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.voca_id],
-                fields={'nombre': 'Otra', 'apellido_paterno': 'Persona', 'genero': 'F'})
+                fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Otra', 'apellido_paterno': 'Persona', 'genero': 'F'})
             db.add(CPIdentityReview(cp_participant_id=cp.participant_id, faro_participant_id=self.faro_id,
                 is_same_person=True, reviewed_from='faro', reviewed_by_user_id=self.admin_id))
             db.commit()
@@ -189,7 +189,7 @@ class IdentityRegistrationTests(unittest.TestCase):
     def test_local_duplicate_confirmation_survives_cross_module_prompt(self):
         with Session(self.engine) as db:
             create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.voca_id],
-                fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'fecha_nacimiento': '2000-05-12', 'genero': 'F'})
+                fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'fecha_nacimiento': '2000-05-12', 'genero': 'F'})
             db.commit()
         local = self.post()
         duplicate = re.search(r'name="duplicate_confirmation" value="([^"]+)"', local.text).group(1)
@@ -257,7 +257,7 @@ class FaroIdentityRegistrationTests(unittest.TestCase):
             self.residential_id = residential.residential_id
             db.add(UserPlatformPermission(user_id=self.admin_id, permission_id=permission.permission_id))
             cp = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.voca_id],
-                fields={'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'apellido_materno': 'Soto',
+                fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Ana', 'apellido_paterno': 'Rivera', 'apellido_materno': 'Soto',
                         'fecha_nacimiento': '2000-05-12', 'genero': 'F', 'direccion_fisica': 'NO-REVELAR'})
             self.cp_id = cp.participant_id
             db.commit()

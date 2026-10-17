@@ -29,7 +29,7 @@ class CommunityParticipantDeleteTests(unittest.TestCase):
         with Session(self.engine) as db:
             participant = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
                 program_ids=[self.voca_id, self.tanf_id],
-                fields={'nombre': 'Persona', 'apellido_paterno': 'Prueba', 'genero': 'F'})
+                fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', 'nombre': 'Persona', 'apellido_paterno': 'Prueba', 'genero': 'F'})
             field = db.scalar(select(CPProfileField))
             if field is None:
                 field = CPProfileField(field_key='referencia', label='Referencia')

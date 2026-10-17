@@ -121,7 +121,8 @@ class CommunityRouteTests(unittest.TestCase):
         return token
 
     def participant_data(self, token, **changes):
-        values = {"token": token, "exp_year": "2026", "nombre": "Ana", "apellido_paterno": "Rivera",
+        values = {"fecha_solicitud": "2024-01-15", "procedencia_solicitud": "Autoreferido",
+                  "token": token, "exp_year": "2026", "nombre": "Ana", "apellido_paterno": "Rivera",
                   "genero": "F", "fecha_nacimiento": "2000-05-12", "direccion_fisica": "Calle Prueba",
                   "pueblo": "Ponce", "program_ids": [self.voca_id, self.tanf_id]}
         values.update(changes)
@@ -196,7 +197,7 @@ class CommunityRouteTests(unittest.TestCase):
 
     def test_record_outside_user_programs_is_not_readable(self):
         with Session(self.engine) as db:
-            p = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.icp_id], fields={"nombre": "Reservado", "apellido_paterno": "Prueba", "genero": "F"})
+            p = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.icp_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', "nombre": "Reservado", "apellido_paterno": "Prueba", "genero": "F"})
             db.commit()
             participant_id = p.participant_id
         self.login(self.user_id)
@@ -276,7 +277,7 @@ class CommunityRouteTests(unittest.TestCase):
 
     def test_basic_lookup_and_association_preserve_one_record_and_restrict_data(self):
         with Session(self.engine) as db:
-            p = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.icp_id], fields={"nombre": "Existente", "apellido_paterno": "Rivera", "genero": "F", "email": "private@example.com"})
+            p = create_participant(db, actor_user_id=self.admin_id, exp_year=2026, program_ids=[self.icp_id], fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', "nombre": "Existente", "apellido_paterno": "Rivera", "genero": "F", "email": "private@example.com"})
             db.commit()
             pid = p.participant_id
         token = self.login(self.user_id)

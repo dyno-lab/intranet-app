@@ -90,7 +90,7 @@ class _ReportFixture(unittest.TestCase):
     def participant(self, name):
         return create_participant(self.db, actor_user_id=self.actor.user_id, exp_year=2024,
             program_ids=[self.voca.program_id, self.tanf.program_id],
-            fields={"nombre": name, "apellido_paterno": "Rivera", "genero": "F",
+            fields={'fecha_solicitud': '2024-01-15', 'procedencia_solicitud': 'Autoreferido', "nombre": name, "apellido_paterno": "Rivera", "genero": "F",
                     "fecha_nacimiento": "2010-01-01", "pueblo": "Ponce"})
 
     def attend(self, program, on_date):

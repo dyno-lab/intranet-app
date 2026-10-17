@@ -23,6 +23,7 @@ from app.models.community import CPFiscalYear, CPParticipant, CPParticipantProgr
 from app.models.community_catalog import CPProfileField, CPProfileValue
 from app.services.community import associate_participant_programs, create_fiscal_year, create_participant, create_program, update_participant
 from app.services.community import delete_participant, delete_program, next_participant_number, program_usage, update_program
+from app.services.community import INTAKE_FIELDS, INTAKE_ORIGINS
 from app.services.community_catalog import form_catalogs, save_profile_values, validate_categories
 from app.services.community_activity import copy_fiscal_configuration
 from app.services.community_identity import linked_identity, has_identity_review, pending_identity_review
@@ -43,6 +44,7 @@ PERSONAL_FIELDS = (
     "composicion_familiar", "grupo_familiar", "fuente_ingreso_principal",
     "rango_ingreso", "relacion_familiar", "estatus", "direccion_fisica",
     "pueblo", "telefono", "email",
+    "fecha_solicitud", "procedencia_solicitud", "emergencia_nombre", "emergencia_relacion", "emergencia_telefono",
 )
 
 
@@ -62,6 +64,7 @@ def _redirect(path: str, *, message: str | None = None, error: str | None = None
 def _participant_form_response(request, context, db, **values):
     participant = values.get("participant")
     catalogs = form_catalogs(db, participant.participant_id if participant else None)
+    catalogs['intake_origins'] = INTAKE_ORIGINS
     for field in catalogs["profile_fields"]:
         key = f"profile_{field.field_id}"
         if key in values.get("values", {}):
@@ -341,7 +344,7 @@ async def edit_participant(request: Request, participant_id: int, db: Session = 
     participant = db.scalar(_participant_query(context).where(CPParticipant.participant_id == participant_id))
     if participant is None:
         raise HTTPException(404, "Expediente no disponible.")
-    fields = {key: form.get(key) for key in PERSONAL_FIELDS}
+    fields = {key: form.get(key) for key in PERSONAL_FIELDS if key not in INTAKE_FIELDS or key in form}
     fields["is_head_of_household"] = form.get("is_head_of_household") == "on"
     try:
         validate_categories(db, fields, participant)
