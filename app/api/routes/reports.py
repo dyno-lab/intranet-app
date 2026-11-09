@@ -155,21 +155,13 @@ def _participant_sort_key(participant, *field_names: str) -> tuple[str, ...]:
 
 
 def _bonafide_address_sort_key(value: str | None):
-    # Compare numeric segments as numbers, including addresses such as A2/A10.
-    return tuple(
-        (0, int(part)) if part.isdecimal() else (1, part)
-        for part in re.split(r"(\d+)", _normalize_text(value).casefold())
-        if part
-    )
+    from app.helpers.reports import bonafide_address_sort_key
+    return bonafide_address_sort_key(value)
 
 
 def _bonafide_participant_sort_key(participant):
-    return (
-        not _normalize_text(participant.edificio),
-        _bonafide_address_sort_key(participant.edificio),
-        _bonafide_address_sort_key(participant.apart),
-        _participant_sort_key(participant, "apellido_paterno", "nombre"),
-    )
+    from app.helpers.reports import bonafide_participant_sort_key
+    return bonafide_participant_sort_key(participant)
 
 
 def _report_participant_views(pairs, proposal_id):
@@ -383,6 +375,7 @@ def _get_adm_age_bucket(age: int | None) -> str | None:
 
 REPORT_OPTIONS = [
     {"value": "bonafide", "label": "Bonafide"},
+    {"value": "certificacion", "label": "Certificación"},
     {"value": "productividad", "label": "Productividad"},
     {"value": "no-duplicado", "label": "No Duplicado"},
     {"value": "duplicados", "label": "Duplicados"},
@@ -499,6 +492,18 @@ def reports_run(
     authorized_name = report_authorized_name(current_user, authorized_name)
     employee_id_param = "" if employee_id is None else employee_id
     period_query = f"&period_type={period_type}&start_date={start_date or ''}&end_date={end_date or ''}"
+
+    if report_key == "certificacion":
+        from urllib.parse import urlencode
+        suffix = {"screen": "", "pdf": "/pdf", "excel": "/excel"}.get(output)
+        if suffix is None:
+            raise HTTPException(400, "Formato de salida inválido.")
+        params = [("proposal_id", value) for value in _proposal_ids(proposal_id)]
+        params.extend([("month", month_value or ""), ("year", year_value or ""),
+                       ("employee_id", employee_id if employee_id is not None else ""),
+                       ("period_type", period_type), ("start_date", start_date or ""),
+                       ("end_date", end_date or ""), ("authorized_name", authorized_name or "")])
+        return RedirectResponse("/ui/reports/certificacion" + suffix + "?" + urlencode(params), status_code=303)
 
     if report_key == "cursos":
         from urllib.parse import urlencode

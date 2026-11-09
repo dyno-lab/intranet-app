@@ -1,0 +1,243 @@
+{% extends "ui/_base.html" %}
+{% set report_proposal_ids = selected_proposal_ids | default([selected_proposal_id] if selected_proposal_id else []) %}
+{% block title %}Certificación de grupos{% endblock %}
+
+{% block content %}
+
+<style>
+.certification-page .bonafide-table { min-width: 1000px; }
+.certification-page .bonafide-table td:nth-child(2) { white-space: nowrap; }
+.certification-page .bonafide-name-cell { min-width: 210px; }
+</style>
+<div class="bonafide-page certification-page">
+  <a class="bonafide-back-link" href="/ui/reports/">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Centro de reportes</span>
+  </a>
+
+  <section class="bonafide-hero" aria-label="Certificación de grupos">
+    <div class="bonafide-hero__content">
+      <span class="bonafide-eyebrow">Certificación de participación</span>
+      <h1 class="bonafide-hero__title">Certificación de grupos</h1>
+      <p class="bonafide-hero__text">
+        Consulta los datos bonafide y las participaciones confirmadas en los programas 1A, 2B, 3C y 4D.
+      </p>
+    </div>
+    {% if has_selection %}
+    <div class="bonafide-hero__metric" aria-label="Total de participantes en la selección actual">
+      <strong>{{ people_count }}</strong>
+      <span>participantes en la selección actual</span>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="bonafide-layout">
+    <div class="bonafide-side">
+      <section class="bonafide-panel bonafide-panel--filters" aria-label="Filtros del reporte">
+        <div class="bonafide-panel__header">
+          <div>
+            <h2 class="bonafide-section-title">Filtros del reporte</h2>
+            <p class="bonafide-section-text">Define propuesta, periodo y residencial antes de consultar o exportar.</p>
+          </div>
+        </div>
+
+        <form method="get" action="/ui/reports/certificacion" class="bonafide-filter-form" id="bonafide-report-form">
+          <div class="bonafide-filter-field bonafide-filter-field--wide">
+            <label class="form-label" for="bonafide_proposal_id">Propuestas *</label>
+            <select class="form-select" name="proposal_id" id="bonafide_proposal_id" multiple size="3" aria-describedby="report-proposals-help" required>
+              {% for proposal in proposals %}
+              <option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id in report_proposal_ids %}selected{% endif %}>{{ proposal.code }} - {{ proposal.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text" id="report-proposals-help">Selecciona una o varias propuestas. Mantén Ctrl presionado para agregar o quitar opciones.</div>
+          </div>
+
+          <div class="bonafide-filter-field">
+            <label class="form-label" for="bonafide_period_type">Tipo de periodo *</label>
+            <select class="form-select" name="period_type" id="bonafide_period_type" required>
+              <option value="monthly" {% if selected_period_type != 'custom' %}selected{% endif %}>Mensual</option>
+              <option value="custom" {% if selected_period_type == 'custom' %}selected{% endif %}>Personalizado</option>
+            </select>
+          </div>
+
+          <div class="bonafide-filter-row bonafide-monthly-fields {% if selected_period_type == 'custom' %}d-none{% endif %}">
+            <div class="bonafide-filter-field">
+              <label class="form-label" for="bonafide_month">Mes *</label>
+              <select class="form-select" name="month" id="bonafide_month" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for month_value, month_label in month_options %}
+                <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="bonafide-filter-field">
+              <label class="form-label" for="bonafide_year">A&ntilde;o *</label>
+              <select class="form-select" name="year" id="bonafide_year" {% if selected_period_type != 'custom' %}required{% endif %}>
+                <option value="">Selecciona...</option>
+                {% for option_year in year_options %}
+                <option value="{{ option_year }}" {% if selected_year == option_year %}selected{% endif %}>{{ option_year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="bonafide-filter-row bonafide-custom-fields {% if selected_period_type != 'custom' %}d-none{% endif %}">
+            <div class="bonafide-filter-field">
+              <label class="form-label" for="bonafide_start_date">Fecha inicial *</label>
+              <input type="date" class="form-control" name="start_date" id="bonafide_start_date" value="{{ selected_start_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+
+            <div class="bonafide-filter-field">
+              <label class="form-label" for="bonafide_end_date">Fecha final *</label>
+              <input type="date" class="form-control" name="end_date" id="bonafide_end_date" value="{{ selected_end_date or '' }}" {% if selected_period_type == 'custom' %}required{% endif %}>
+            </div>
+          </div>
+
+          <div class="bonafide-filter-field bonafide-filter-field--wide">
+            <label class="form-label" for="bonafide_employee_id">Residencial *</label>
+            {% if can_choose_scope %}
+            <select class="form-select" name="employee_id" id="bonafide_employee_id" required>
+              <option value="">Selecciona...</option>
+              <option value="0" {% if selected_employee_id == 0 %}selected{% endif %}>Global</option>
+              {% for report_user in report_users %}
+              <option value="{{ report_user.user_id }}" {% if selected_employee_id == report_user.user_id %}selected{% endif %}>{{ user_residential_map.get(report_user.user_id, report_user.username) }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input class="form-control" id="bonafide_employee_id" value="{{ residential_name or '' }}" readonly>
+            <input type="hidden" name="employee_id" value="{{ selected_employee_id if selected_employee_id is not none else '' }}">
+            {% endif %}
+          </div>
+
+          <div class="bonafide-filter-field bonafide-filter-field--wide">
+            <label class="form-label" for="certification-authorized">Facilitador de servicios</label>
+            <input class="form-control" id="certification-authorized" name="authorized_name" maxlength="150" value="{{ authorized_name }}" {% if current_user.role == 'viewer' %}readonly{% endif %}>
+          </div>
+          <div class="bonafide-actions" aria-label="Acciones del reporte">
+            <button class="btn btn-primary bonafide-action bonafide-action--primary" type="submit" formaction="/ui/reports/certificacion">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+              <span>Vista previa</span>
+            </button>
+            <button class="btn bonafide-action bonafide-action--pdf" type="submit" {% if issues %}disabled{% endif %} formaction="/ui/reports/certificacion/pdf/download">
+              <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+              <span>Descargar PDF</span>
+            </button>
+            <button class="btn bonafide-action bonafide-action--excel" type="submit" {% if issues %}disabled{% endif %} formaction="/ui/reports/certificacion/excel">
+              <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+              <span>Descargar Excel</span>
+            </button>
+            <button class="btn bonafide-action bonafide-action--print" type="submit" {% if issues %}disabled{% endif %} formaction="/ui/reports/certificacion/pdf" formtarget="_blank">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Versi&oacute;n imprimible</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="bonafide-official-note" aria-label="Nota de documento oficial">
+        <div class="bonafide-official-note__icon" aria-hidden="true">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <p>
+          El PDF conserva el formato de la certificación. El número de expediente aparece en pantalla y Excel.
+        </p>
+      </section>
+    </div>
+
+    <div class="bonafide-main">
+      <section class="bonafide-panel bonafide-summary" aria-label="Resumen del reporte">
+        <div class="bonafide-panel__header"><h2 class="bonafide-section-title">Resumen del reporte</h2></div>
+        <div class="bonafide-summary-grid">
+          {% for label, value in [('Propuestas', proposal_label), ('Período', period_label), ('Residencial', residential_name), ('Municipio', municipality)] %}
+          <div class="bonafide-summary-item"><span>{{ label }}</span><strong>{{ value or 'Pendiente de selección' }}</strong></div>
+          {% endfor %}
+          <div class="bonafide-summary-item"><span>Personas únicas</span><strong>{{ people_count if has_selection else 'Sin consulta' }}</strong></div>
+          <div class="bonafide-summary-item"><span>Participaciones confirmadas</span><strong>{{ totals.total if has_selection else 'Sin consulta' }}</strong></div>
+        </div>
+      </section>
+      {% if has_selection %}
+      <section class="bonafide-panel" aria-label="Participaciones por programa">
+        <div class="bonafide-panel__header"><h2 class="bonafide-section-title">Participaciones por programa</h2></div>
+        <div class="bonafide-summary-grid">
+          {% for program in programs %}
+          <div class="bonafide-summary-item"><span>Programa {{ program }}</span><strong>{{ totals[program] }}</strong></div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+  <div class="bonafide-main">
+      {% if issues %}
+      <section class="alert alert-warning" role="alert">
+        <h2 class="h5">Revisar clasificación de programas</h2>
+        <p>Hay {{ totals.unclassified }} participaciones que necesitan revisión antes de emitir la certificación. Verifica la configuración de programas de estas actividades:</p>
+        <ul class="mb-0">{% for issue in issues %}<li>Propuesta {{ issue.proposal_id }} · {{ issue.activity_code }}: {{ issue.count }} participaciones · {{ 'Asignada a varios programas' if issue.reason == 'multiple' else 'Sin programa 1A, 2B, 3C o 4D' }}.</li>{% endfor %}</ul>
+      </section>
+      {% endif %}
+      {% if has_selection and rows %}
+      <p class="text-muted small">Cada asistencia confirmada cuenta una participación. En un traslado, las participaciones se conservan en el residencial donde ocurrieron. * Participante de primera vez.</p>
+      {% for section in sections %}
+      <section class="bonafide-panel bonafide-results" aria-label="{{ section.residential_name }}">
+        <div class="bonafide-results__header">
+          <div><h2 class="bonafide-section-title">{{ section.residential_name }}</h2><p class="bonafide-section-text">{{ section.municipality }} · {{ period_label }}</p></div>
+          <span class="bonafide-count-pill">{{ section.rows|length }} participantes</span>
+        </div>
+        <div class="bonafide-table-wrap" tabindex="0" aria-label="Tabla de participaciones; desplaza horizontalmente para ver todos los programas">
+          <table class="table table-hover align-middle bonafide-table">
+            <thead><tr>
+              <th scope="col">#</th><th scope="col">Expediente</th><th scope="col">Nombre</th>
+              <th scope="col">F</th><th scope="col">M</th><th scope="col">Edif.</th><th scope="col">Apto.</th><th scope="col">Edad</th><th scope="col">VCA</th>
+              {% for program in programs %}<th scope="col">{{ program }}</th>{% endfor %}<th scope="col">Total</th>
+              {% if issues %}<th scope="col">Por clasificar</th>{% endif %}
+            </tr></thead>
+            <tbody>{% for row in section.rows %}<tr>
+              <td>{{ row.index }}</td><td>{{ row.expediente }}</td><td class="bonafide-name-cell">{{ row.nombre }}</td>
+              <td>{{ row.f }}</td><td>{{ row.m }}</td><td>{{ row.edificio }}</td><td>{{ row.apartamento }}</td><td>{{ row.edad }}</td><td>{{ '✓' if row.vca else '' }}</td>
+              {% for program in programs %}<td>{{ row.counts[program] }}</td>{% endfor %}<td><strong>{{ row.total }}</strong></td>
+              {% if issues %}<td>{{ row.unclassified }}</td>{% endif %}
+            </tr>{% endfor %}</tbody>
+            <tfoot><tr><th scope="row" colspan="8">Total del residencial</th><td>{{ section.totals.vca }}</td>
+              {% for program in programs %}<td>{{ section.totals[program] }}</td>{% endfor %}<td><strong>{{ section.totals.total }}</strong></td>
+              {% if issues %}<td>{{ section.totals.unclassified }}</td>{% endif %}
+            </tr></tfoot>
+          </table>
+        </div>
+      </section>
+      {% endfor %}
+      {% elif has_selection %}
+      <section class="bonafide-empty"><div class="bonafide-empty__icon"><i class="bi bi-search" aria-hidden="true"></i></div><div><h2 class="bonafide-section-title">No hay participaciones confirmadas.</h2><p class="bonafide-section-text">Ajusta la propuesta, el período o el residencial para volver a consultar.</p></div></section>
+      {% else %}
+      <section class="bonafide-empty"><div class="bonafide-empty__icon"><i class="bi bi-funnel" aria-hidden="true"></i></div><div><h2 class="bonafide-section-title">Selecciona los filtros para consultar.</h2><p class="bonafide-section-text">Luego podrás descargar Excel, abrir o imprimir la certificación en PDF.</p></div></section>
+      {% endif %}
+  </div>
+</div>
+<script>
+(() => {
+  const periodType = document.getElementById('bonafide_period_type');
+  const monthlyFields = document.querySelectorAll('.bonafide-monthly-fields');
+  const customFields = document.querySelectorAll('.bonafide-custom-fields');
+  const monthInput = document.getElementById('bonafide_month');
+  const yearInput = document.getElementById('bonafide_year');
+  const startInput = document.getElementById('bonafide_start_date');
+  const endInput = document.getElementById('bonafide_end_date');
+
+  function syncPeriodFields() {
+    const isCustom = periodType && periodType.value === 'custom';
+    monthlyFields.forEach((field) => field.classList.toggle('d-none', isCustom));
+    customFields.forEach((field) => field.classList.toggle('d-none', !isCustom));
+
+    if (monthInput) { monthInput.required = !isCustom; monthInput.disabled = isCustom; }
+    if (yearInput) { yearInput.required = !isCustom; yearInput.disabled = isCustom; }
+    if (startInput) { startInput.required = isCustom; startInput.disabled = !isCustom; }
+    if (endInput) { endInput.required = isCustom; endInput.disabled = !isCustom; }
+  }
+
+  if (periodType) {
+    periodType.addEventListener('change', syncPeriodFields);
+    syncPeriodFields();
+  }
+})();
+</script>
+{% endblock %}

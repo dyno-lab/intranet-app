@@ -160,6 +160,7 @@ class ResidentialAccessTests(unittest.TestCase):
             app_main.school_dropout_router,
             app_main.pregnancy_router,
             app_main.reports_router,
+            app_main.certification_router,
             app_main.sessions_router,
             app_main.participants_router,
             app_main.attendance_router,

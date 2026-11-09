@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 
 AGE_BUCKETS = [
     ("under_5", "0–5 años"),
@@ -178,3 +179,14 @@ def summarize_participants_by_age_and_gender(participants: list):
         "total_m": total_m,
         "total_all": total_all,
     }
+
+
+def bonafide_address_sort_key(value):
+    return tuple((0, int(part)) if part.isdecimal() else (1, part)
+                 for part in re.split(r"(\d+)", normalize_text(value).casefold()) if part)
+
+
+def bonafide_participant_sort_key(participant):
+    return (not normalize_text(participant.edificio), bonafide_address_sort_key(participant.edificio),
+            bonafide_address_sort_key(participant.apart),
+            (normalize_text(participant.apellido_paterno).casefold(), normalize_text(participant.nombre).casefold()))

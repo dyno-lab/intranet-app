@@ -66,6 +66,8 @@
         <span class="reports-selected-summary__text" data-selected-report-description>
           {% if option.value == 'bonafide' %}
           Lista bonafide de participantes del programa.
+          {% elif option.value == 'certificacion' %}
+          Participantes y asistencias por programa 1A, 2B, 3C y 4D.
           {% elif option.value == 'productividad' %}
           Seguimiento de cumplimiento operativo por actividad.
           {% elif option.value == 'no-duplicado' %}
@@ -97,7 +99,7 @@
           {% endif %}
         </span>
         <span class="reports-selected-summary__meta" data-selected-report-meta>
-          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
+          {% if option.value in ['bonafide', 'certificacion', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
           Participantes
           {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
           Operativos
@@ -229,7 +231,7 @@
         <article
           class="reports-card {% if selected_report_key == option.value %}is-selected{% endif %}"
           data-report-card="{{ option.value }}"
-          {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
+          {% if option.value in ['bonafide', 'certificacion', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
           data-report-category="participants"
           {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
           data-report-category="operations"
@@ -242,7 +244,7 @@
           {% endif %}
         >
           <span class="reports-card__icon" aria-hidden="true">
-            {% if option.value == 'bonafide' %}
+            {% if option.value in ['bonafide', 'certificacion'] %}
             <i class="bi bi-shield-check"></i>
             {% elif option.value == 'productividad' %}
             <i class="bi bi-bar-chart-line"></i>
@@ -273,7 +275,7 @@
           <span class="reports-card__body">
             <span class="reports-card__topline">
               <strong class="reports-card__title">{{ option.label }}</strong>
-              {% if option.value in ['bonafide', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
+              {% if option.value in ['bonafide', 'certificacion', 'no-duplicado', 'duplicados', 'por-programa', 'cursos'] %}
               <span class="reports-card__category reports-card__category--participants">Participantes</span>
               {% elif option.value in ['visitas', 'vca', 'adm', 'hoja-cotejo'] %}
               <span class="reports-card__category reports-card__category--operations">Operativos</span>
@@ -288,6 +290,8 @@
             <span class="reports-card__description">
               {% if option.value == 'bonafide' %}
               Lista bonafide de participantes del programa.
+              {% elif option.value == 'certificacion' %}
+              Participantes y asistencias por programa 1A, 2B, 3C y 4D.
               {% elif option.value == 'productividad' %}
               Seguimiento de cumplimiento operativo por actividad.
               {% elif option.value == 'no-duplicado' %}

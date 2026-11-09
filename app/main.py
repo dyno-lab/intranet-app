@@ -29,6 +29,7 @@ from app.api.routes.school_grades import router as school_grades_router
 from app.api.routes.school_dropout import router as school_dropout_router
 from app.api.routes.pregnancy import router as pregnancy_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.certification import router as certification_router
 from app.api.routes.full_monthly_report import router as full_monthly_report_router
 from app.api.routes.participant_courses import router as participant_courses_router
 from app.api.routes.participant_transfers import router as participant_transfers_router
@@ -111,6 +112,7 @@ app.include_router(school_grades_router, prefix="/ui/school-grades", dependencie
 app.include_router(school_dropout_router, prefix="/ui/school-dropout", dependencies=faro_dependencies)
 app.include_router(pregnancy_router, prefix="/ui/pregnancy", dependencies=faro_dependencies)
 app.include_router(reports_router, prefix="/ui/reports", dependencies=faro_dependencies)
+app.include_router(certification_router, prefix="/ui/reports", dependencies=faro_dependencies)
 app.include_router(full_monthly_report_router, prefix="/ui/reports", dependencies=faro_dependencies)
 app.include_router(participant_courses_router, prefix="/ui/reports", dependencies=faro_dependencies)
 app.include_router(participant_transfers_router, dependencies=faro_dependencies)
