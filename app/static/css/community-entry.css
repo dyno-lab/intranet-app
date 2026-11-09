@@ -110,7 +110,6 @@
 .community-login .btn-entry:hover, .community-login .btn-entry:active { color: #fff; background: linear-gradient(135deg, #0b4d32, #126443); }
 .community-login .btn-portal { border: 1px solid #c9dbcf; color: var(--entry-primary); background: #fff; }
 .community-login .btn-portal:hover, .community-login .btn-portal:active { border-color: #8bb49a; color: #0b4d32; background: #f1f7f3; }
-.community-login .login-footer-note { margin-top: 20px; color: #617368; font-size: .88rem; line-height: 1.5; text-align: center; }
 .community-login .logout-form { margin-top: 8px; text-align: center; }
 .community-login .logout-button { min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--entry-primary); font-size: .88rem; text-decoration: underline; text-underline-offset: 3px; }
 .community-login :is(a, button, select):focus-visible { outline: 3px solid #348964; outline-offset: 3px; }
