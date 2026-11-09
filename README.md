@@ -45,6 +45,39 @@ Verificación de filtros, consultas y permisos de los listados:
 python -B -m unittest tests.test_empty_query_filters tests.test_school_grade_filters tests.test_admin_report_residential_scope tests.test_residential_route_scope tests.test_viewer_read_only
 ```
 
+## Conciliación del reporte institucional FARO
+
+`Duplicados` representa todas las asistencias confirmadas del período y las
+propuestas seleccionadas, incluida la primera participación y los registros
+antiguos. `Personas únicas` conserva su deduplicación independiente.
+
+Al iniciar la aplicación, una migración agrega las clasificaciones ADM faltantes
+de `2.a.3`, `3.a.3`, `3.a.11` y `3.a.21` en las propuestas `005` y `006` a
+**Servicios consejería, orientación y trabajo social**. Se identifica cada
+propuesta por su código y cada tipo por su nombre; no se usan IDs fijos.
+Las clasificaciones ya configuradas se conservan. El marcador
+`faro_adm_internal_referrals_005_006_v1` impide repetir la reparación o deshacer
+cambios manuales posteriores. Si falta el tipo activo o está duplicado, el
+arranque informa el conflicto y revierte la transacción; revisar Configuración
+ADM antes de reintentar. Revertir el código no elimina estas asignaciones.
+
+En pruebas, actualizar la rama y reiniciar la aplicación para aplicar la
+migración. Verificar la igualdad Actividades/Servicios y Duplicados en ambos
+bloques, por propuesta y con distintos períodos.
+
+```powershell
+python -B -m unittest tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_institutional_courses tests.test_platform_settings
+```
+
+Las pruebas de migración en SQL Server usan `FARO_MIGRATION_TEST_DSN`, una cadena
+ODBC de una instancia de pruebas con permiso para crear bases. Crean y eliminan
+su propia base temporal con datos sintéticos; se omiten si la variable no está
+definida.
+
+```powershell
+python -B -m unittest tests.test_adm_internal_referrals_migration
+```
+
 ## Notificaciones de Faro
 
 - La campana del encabezado reúne pendientes y anuncios. En Inicio, el popup

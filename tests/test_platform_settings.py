@@ -244,6 +244,14 @@ class PlatformSettingsTests(unittest.TestCase):
         platform_settings_batch_index = executed_batches.index(PLATFORM_SETTINGS_SQL)
 
         self.assertEqual(platform_settings_batch_index, columns_batch_index + 1)
+        self.assertEqual(
+            executed_batches.index(db_schema.ADM_INTERNAL_REFERRALS_SQL),
+            executed_batches.index(db_schema.PHASE10_PROPOSAL_ACTIVITY_CODES_SQL) + 1,
+        )
+        self.assertLess(
+            executed_batches.index(db_schema.STAGE1_RESIDENTIAL_ACCESS_SQL),
+            executed_batches.index(db_schema.ADM_INTERNAL_REFERRALS_SQL),
+        )
 
     def test_home_is_public_without_session_and_offers_authentication(self):
         request = _Request()

@@ -58,7 +58,7 @@ class InstitutionalReportParticipantSnapshotTests(unittest.TestCase):
             [
                 _Result(values=[17]),
                 _Result(scalar=2),
-                _Result(values=[2]),
+                _Result(scalar=2),
                 _Result(
                     values=[
                         (987654, None, None, False, "Arecibo"),

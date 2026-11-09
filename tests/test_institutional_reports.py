@@ -7,6 +7,7 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from sqlalchemy import create_engine
 from sqlalchemy.dialects import mssql
 
 
@@ -78,6 +79,40 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             end_date=end_date,
             db=db or _Database(),
         )
+
+    def test_duplicates_include_first_and_repeated_attendances_in_both_blocks(self):
+        for attendance_count in (1, 3):
+            with self.subTest(attendances=attendance_count):
+                sessions = list(range(1, attendance_count + 1))
+                db = _Database([
+                    _Result(values=[1]),
+                    _Result(scalar=attendance_count),
+                    _Result(values=[attendance_count], scalar=attendance_count),
+                    _Result(values=[(101, date(1990, 1, 1), "Superior", False, "Caguas")]),
+                    _Result(values=[]),
+                    _Result(values=[]),
+                    _Result(values=[SimpleNamespace(
+                        adm_service_type_id=10, proposal_id=1, name="Servicio",
+                        sort_order=1, is_active=True,
+                    )]),
+                    _Result(values=[(session_id, 10) for session_id in sessions]),
+                    _Result(values=[
+                        (session_id, 1, 101, 1, 10,
+                         1, date(1990, 1, 1), "F", "NO", "Nuclear",
+                         1, date(1990, 1, 1), "F", "NO", "Nuclear")
+                        for session_id in sessions
+                    ]),
+                    _Result(values=[]),
+                    _Result(values=[]),
+                ])
+                payload = _payload(self._call(db=db, proposal_ids=[1], year=2026))
+                self.assertEqual(payload["real"]["activities"], attendance_count)
+                self.assertEqual(payload["real"]["adm"]["summary"]["services"], attendance_count)
+                self.assertEqual(payload["real"]["duplicates"], attendance_count)
+                self.assertEqual(
+                    payload["real"]["duplicates"],
+                    payload["real"]["adm"]["summary"]["duplicates"],
+                )
 
     def test_pin_routes_are_removed(self):
         route_paths = {route.path for route in institutional_reports.router.routes}
@@ -196,7 +231,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         db = _Database([
             _Result(values=[1, 2]),
             _Result(scalar=9),
-            _Result(values=[1, 3, 2, 4]),
+            _Result(scalar=10),
             _Result(values=[
                 (90_101, date(2014, 12, 31), "  ", None, None),
                 (90_101, date(2014, 12, 31), " Elemental ", True, " Caguas "),
@@ -307,7 +342,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             "Superior": 2,
             "No informado": 3,
         })
-        self.assertEqual(payload["real"]["duplicates"], 6)
+        self.assertEqual(payload["real"]["duplicates"], 10)
         self.assertEqual(payload["real"]["towns"], 3)
         self.assertEqual(payload["real"]["towns_by_municipality"], {
             "Caguas": 3,
@@ -406,11 +441,12 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
 
         attendance_sql = str(db.statements[2]).lower()
         self.assertIn("count(attendance.attendance_id)", attendance_sql)
-        self.assertIn("group by persons.person_id", attendance_sql)
-        self.assertIn("attendance.proposal_participant_id", attendance_sql)
-        self.assertNotIn("attendance.participant_id", attendance_sql)
+        self.assertNotIn("group by", attendance_sql)
+        self.assertNotIn("join proposal_participants", attendance_sql)
+        self.assertNotIn("join persons", attendance_sql)
         self.assertNotIn("distinct", attendance_sql)
-        self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", attendance_sql)
+        self.assertIn("attendance.attended", attendance_sql)
+        self.assertIn("activity_sessions.proposal_id in", attendance_sql)
 
         people_sql = str(db.statements[3]).lower()
         self.assertIn("select distinct", people_sql)
@@ -690,18 +726,6 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertNotIn("attendance.session_id in", attendance_mssql_sql)
         self.assertLess(len(attendance_mssql.params), 20)
 
-    def test_additional_attendances_returns_zero_for_one_attendance(self):
-        self.assertEqual(institutional_reports._count_additional_attendances([1]), 0)
-
-    def test_additional_attendances_returns_two_for_three_attendances(self):
-        self.assertEqual(institutional_reports._count_additional_attendances([3]), 2)
-
-    def test_additional_attendances_sums_multiple_people(self):
-        self.assertEqual(
-            institutional_reports._count_additional_attendances([1, 3, 2, 4]),
-            6,
-        )
-
     def test_data_endpoint_rejects_unavailable_proposals(self):
         db = _Database([_Result(values=[1])])
 
@@ -710,6 +734,62 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("no están disponibles", _payload(response)["detail"])
         self.assertEqual(len(db.statements), 1)
+
+
+class FaroAttendanceCountTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine("sqlite://")
+        self.db = self.engine.connect()
+        self.db.exec_driver_sql(
+            "CREATE TABLE activity_sessions (session_id INTEGER PRIMARY KEY, "
+            "proposal_id INTEGER, session_date DATE)"
+        )
+        self.db.exec_driver_sql(
+            "CREATE TABLE attendance (attendance_id INTEGER PRIMARY KEY, "
+            "session_id INTEGER, proposal_participant_id INTEGER, "
+            "participant_id INTEGER, attended BOOLEAN)"
+        )
+        self.db.exec_driver_sql(
+            "INSERT INTO activity_sessions VALUES (?, ?, ?)",
+            [(1, 1, "2026-01-01"), (2, 1, "2026-01-15"),
+             (3, 1, "2026-01-31"), (4, 1, "2026-02-01"),
+             (5, 1, "2025-12-31"), (6, 2, "2026-01-01")],
+        )
+        self.db.exec_driver_sql(
+            "INSERT INTO attendance VALUES (?, ?, ?, ?, ?)",
+            [(1, 1, 101, 11, True), (2, 2, 101, 11, True),
+             (3, 3, 101, 11, True), (4, 1, None, 22, True),
+             (5, 1, 102, 12, False), (6, 4, 101, 11, True),
+             (7, 5, 101, 11, True), (8, 6, 201, 11, True)],
+        )
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+
+    def _count(self, **overrides):
+        filters = dict(proposal_ids=[1], year=2026,
+                       start_date=date(2026, 1, 1), end_date=date(2026, 1, 31))
+        filters.update(overrides)
+        return institutional_reports._faro_attendance_count(self.db, **filters)
+
+    def test_includes_first_repeated_and_legacy_attendances_but_not_absences(self):
+        self.assertEqual(self._count(), 4)
+
+    def test_first_attendance_is_one_participation(self):
+        self.assertEqual(self._count(start_date=date(2026, 1, 15),
+                                     end_date=date(2026, 1, 15)), 1)
+
+    def test_proposals_are_filtered_and_repeated_ids_do_not_multiply_rows(self):
+        self.assertEqual(self._count(proposal_ids=[2]), 1)
+        self.assertEqual(self._count(proposal_ids=[1, 2, 1]), 5)
+        self.assertEqual(self._count(proposal_ids=[3]), 0)
+
+    def test_date_boundaries_and_year_use_the_session_date(self):
+        self.assertEqual(self._count(start_date=date(2026, 1, 2),
+                                     end_date=date(2026, 1, 30)), 1)
+        self.assertEqual(self._count(start_date=None, end_date=None), 5)
+        self.assertEqual(self._count(year=2025, start_date=None, end_date=None), 1)
 
 
 if __name__ == "__main__":

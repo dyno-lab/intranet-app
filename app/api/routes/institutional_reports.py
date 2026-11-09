@@ -218,8 +218,27 @@ def _normalize_education(value: str | None) -> str | None:
     return normalized or None
 
 
-def _count_additional_attendances(attendance_counts: Sequence[int]) -> int:
-    return sum(max(int(attendance_count) - 1, 0) for attendance_count in attendance_counts)
+def _faro_attendance_count(
+    db: Session,
+    *,
+    proposal_ids: list[int],
+    year: int | None,
+    start_date: date | None,
+    end_date: date | None,
+) -> int:
+    # Duplicados means all attended participations, including the first one.
+    # Count attendance rows directly so legacy records are included as in ADM.
+    statement = _apply_activity_session_filters(
+        select(func.count(Attendance.attendance_id))
+        .select_from(Attendance)
+        .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
+        .where(Attendance.attended == True),  # noqa: E712
+        proposal_ids=proposal_ids,
+        year=year,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return int(db.execute(statement).scalar_one() or 0)
 
 
 def _aggregate_subject_grades(grade_rows) -> dict[str, int]:
@@ -890,30 +909,12 @@ def faro_institutional_report_data(
     )
     activities_count = int(db.execute(activities_stmt).scalar_one() or 0)
 
-    attendance_counts_stmt = (
-        select(func.count(Attendance.attendance_id))
-        .select_from(Attendance)
-        .join(ActivitySession, Attendance.session_id == ActivitySession.session_id)
-        .join(
-            ProposalParticipant,
-            Attendance.proposal_participant_id == ProposalParticipant.proposal_participant_id,
-        )
-        .join(Person, ProposalParticipant.person_id == Person.person_id)
-        .where(
-            Attendance.attended == True,  # noqa: E712
-            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-        )
-        .group_by(Person.person_id)
-    )
-    attendance_counts_stmt = _apply_activity_session_filters(
-        attendance_counts_stmt,
+    attendances_count = _faro_attendance_count(
+        db,
         proposal_ids=normalized_proposal_ids,
         year=normalized_year,
         start_date=normalized_start_date,
         end_date=normalized_end_date,
-    )
-    additional_attendances_count = _count_additional_attendances(
-        db.execute(attendance_counts_stmt).scalars().all()
     )
 
     unique_people_stmt = (
@@ -1065,7 +1066,7 @@ def faro_institutional_report_data(
             "real": {
                 "activities": activities_count,
                 "people": people_count,
-                "duplicates": additional_attendances_count,
+                "duplicates": attendances_count,
                 "towns": towns_count,
                 "age": age_buckets,
                 "household_heads": household_heads_count,
