@@ -66,6 +66,9 @@ class _Result:
 
 
 class _Database:
+    def scalar(self, statement):
+        return self.execute(statement).scalar_one_or_none()
+
     def __init__(self, *, objects=None, results=None):
         self.objects = objects or {}
         self.results = list(results or [])
@@ -1034,6 +1037,9 @@ class ParticipantEditPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 _Result(scalar=participant),
                 _Result(),
                 _Result(),
+                _Result(scalar=residential),
+                _Result(),  # No historic number reservation.
+                _Result(scalar=1),  # Current residential still matches the edit form.
                 _Result(),
             ],
         )
@@ -1073,7 +1079,7 @@ class ParticipantEditPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 current_user=user,
             )
 
-        update_statement = db.statements[3]
+        update_statement = next(statement for statement in db.statements if getattr(statement, "is_update", False))
         update_sql = str(update_statement)
         update_values = update_statement.compile().params.values()
 

@@ -61,9 +61,12 @@ class _Database:
     def get(self, model, object_id):
         return self.objects.get((model, object_id))
 
+    def scalar(self, statement):
+        return self.execute(statement).scalar_one_or_none()
+
     def execute(self, statement):
         self.statements.append(statement)
-        if getattr(statement, "is_update", False):
+        if getattr(statement, "is_update", False) or getattr(statement, "is_delete", False):
             return _Result()
         if not self.results:
             raise AssertionError("Unexpected database query")
@@ -373,6 +376,7 @@ class ProposalResidentialScopeTests(unittest.TestCase):
                 _Result(values=[participant]),
                 _Result(scalar=person),
                 _Result(),
+                _Result(),  # No previous transfer for this participant.
             ],
         )
 
@@ -665,10 +669,12 @@ class ProposalResidentialScopeTests(unittest.TestCase):
             current_user=_user(12, role="supervisor"),
         )
 
-        self.assertEqual(scoped_db.deleted, [scoped_association])
+        self.assertIn("DELETE FROM proposal_participants", str(scoped_db.statements[-1]))
+        self.assertIn("valid_until IS NULL", str(scoped_db.statements[-1]))
         self.assertEqual(scoped_db.commits, 1)
         self.assertIn("residential_id=1", scoped_response.headers["location"])
-        self.assertEqual(global_db.deleted, [global_association])
+        self.assertIn("DELETE FROM proposal_participants", str(global_db.statements[-1]))
+        self.assertIn("valid_from IS NULL", str(global_db.statements[-1]))
         self.assertEqual(global_db.commits, 1)
         self.assertIn("residential_id=2", global_response.headers["location"])
 

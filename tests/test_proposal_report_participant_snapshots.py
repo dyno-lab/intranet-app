@@ -178,8 +178,8 @@ def _assert_session_snapshot_join(test_case: unittest.TestCase, statement) -> No
 
 
 class ProposalReportParticipantSnapshotTests(unittest.TestCase):
-    def test_proxy_overrides_all_23_fields_and_preserves_snapshot_none(self):
-        self.assertEqual(len(reports._PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS), 23)
+    def test_proxy_overrides_snapshot_fields_including_residence_and_preserves_none(self):
+        self.assertIn("residential_id", reports._PROPOSAL_PARTICIPANT_SNAPSHOT_FIELDS)
         participant = _participant()
         proposal_participant = _proposal_participant(genero=None)
 
@@ -193,7 +193,7 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
                 )
         self.assertIsNone(view.genero)
         self.assertEqual(view.participant_id, participant.participant_id)
-        self.assertEqual(view.residential_id, participant.residential_id)
+        self.assertEqual(view.residential_id, proposal_participant.residential_id)
         self.assertEqual(view.non_snapshot_marker, "kept-from-participant")
         self.assertIs(reports._participant_snapshot_view(participant, None), participant)
 
@@ -228,14 +228,14 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
         activity = SimpleNamespace(activity_code_id=ACTIVITY_CODE_ID)
         mapping = SimpleNamespace()
         participant = _participant(vca="NO")
-        proposal_participant = _proposal_participant(vca="SI")
+        proposal_participant = _proposal_participant(vca="SI", residential_id=9)
         db = _Database(
             objects={(Proposal, PROPOSAL_ID): SimpleNamespace()},
             results=[
                 _Result([column]),
                 _Result([(mapping, activity, column)]),
-                _Result([(participant, proposal_participant)]),
-                _Result([(participant.participant_id, ACTIVITY_CODE_ID)]),
+                _Result([(participant, proposal_participant, 9)]),
+                _Result([(participant.participant_id, ACTIVITY_CODE_ID, 9)]),
                 _Result([(9, "Residencial del participante")]),
                 _Result([(proposal_participant.person_id, 9)]),
             ],
@@ -344,7 +344,10 @@ class ProposalReportParticipantSnapshotTests(unittest.TestCase):
                         sql = _sql(statement)
                         self.assertIn("adm_service_types.is_active", sql)
                         self.assertIn("activity_sessions.proposal_id", sql)
-                        self.assertEqual("activity_sessions.residential_id" in sql, not is_global)
+                        # The historical join uses residence even globally; only the
+                        # WHERE clause should limit the report to one residence.
+                        where_sql = sql.rsplit(" where ", 1)[-1]
+                        self.assertEqual("activity_sessions.residential_id" in where_sql, not is_global)
                         if period_type == "custom":
                             self.assertIn(date(2026, 7, 1), compiled.params.values())
                             self.assertIn(date(2026, 9, 11), compiled.params.values())

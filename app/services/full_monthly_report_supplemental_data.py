@@ -21,6 +21,7 @@ from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import session_snapshot_join
 
 
 def _population_counts(pairs, selected_ids):
@@ -91,10 +92,7 @@ def build_supplemental_data(
             .join(Attendance, Attendance.participant_id == Participant.participant_id)
             .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
-            .outerjoin(ProposalParticipant, and_(
-                ProposalParticipant.person_id == Person.person_id,
-                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-            ))
+            .outerjoin(ProposalParticipant, session_snapshot_join())
             .where(
                 Attendance.attended == True,  # noqa: E712
                 ActivitySession.proposal_id.in_(selected_ids),

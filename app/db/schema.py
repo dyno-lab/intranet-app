@@ -4,6 +4,7 @@ from app.db.session import SessionLocal, engine
 from app.db.participant_courses_schema import PARTICIPANT_COURSES_SQL
 from app.db.notifications_schema import NOTIFICATIONS_SQL
 from app.db.adm_internal_referrals_schema import ADM_INTERNAL_REFERRALS_SQL
+from app.db.participant_transfers_schema import PARTICIPANT_TRANSFERS_SQL
 
 
 PHASE1_PROPOSALS_SQL = """
@@ -1200,6 +1201,7 @@ IF NOT EXISTS (
       AND [name] = 'UQ_proposal_participants_proposal_person'
       AND [parent_object_id] = OBJECT_ID(N'dbo.proposal_participants')
 )
+AND COL_LENGTH(N'dbo.proposal_participants', N'valid_until') IS NULL
 BEGIN
     ALTER TABLE dbo.proposal_participants
     ADD CONSTRAINT UQ_proposal_participants_proposal_person UNIQUE (proposal_id, person_id);
@@ -1567,6 +1569,9 @@ INNER JOIN @ParticipantPersonMap ppm ON ppm.participant_id = p.participant_id
 INNER JOIN dbo.proposal_participants pp
     ON pp.proposal_id = s.proposal_id
    AND pp.person_id = ppm.person_id
+   AND (pp.valid_from IS NULL OR pp.valid_from <= s.session_date)
+   AND (pp.valid_until IS NULL OR s.session_date < pp.valid_until)
+   AND (pp.residential_id IS NULL OR s.residential_id IS NULL OR pp.residential_id = s.residential_id)
 WHERE s.proposal_id IS NOT NULL
   AND a.participant_id IS NOT NULL
   AND a.proposal_participant_id IS NULL;
@@ -2661,6 +2666,7 @@ def ensure_schema_updates() -> None:
 
     with engine.begin() as conn:
         conn.exec_driver_sql(PROPOSAL_PARTICIPANT_SNAPSHOT_COLUMNS_SQL)
+        conn.exec_driver_sql(PARTICIPANT_TRANSFERS_SQL)
         conn.exec_driver_sql(PHASE7_PERSONS_PROPOSAL_PARTICIPANTS_BACKFILL_SQL)
         conn.exec_driver_sql(RECORD_RESIDENTIAL_SNAPSHOT_SQL)
 

@@ -9,7 +9,8 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    UniqueConstraint,
+    Index,
+    text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,12 +22,16 @@ class ProposalParticipant(Base):
     __tablename__ = "proposal_participants"
 
     __table_args__ = (
-        UniqueConstraint("proposal_id", "person_id", name="uq_proposal_participants_proposal_person"),
+        Index("UX_proposal_participants_current_person", "proposal_id", "person_id", unique=True,
+              mssql_where=text("valid_until IS NULL"), sqlite_where=text("valid_until IS NULL")),
     )
 
     proposal_participant_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     proposal_id: Mapped[int] = mapped_column(ForeignKey("proposals.proposal_id"), nullable=False, index=True)
     person_id: Mapped[int] = mapped_column(ForeignKey("persons.person_id"), nullable=False, index=True)
+    # Inclusive arrival, exclusive departure. Closed rows preserve historical snapshots.
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     residential_id: Mapped[int | None] = mapped_column(
         ForeignKey("residentials.residential_id"),
         nullable=True,

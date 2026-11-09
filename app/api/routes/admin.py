@@ -36,6 +36,7 @@ from app.models.activity_session import ActivitySession
 from app.models.employee import Employee
 from app.models.proposal import Proposal
 from app.models.participant import Participant
+from app.models.participant_transfer import ParticipantTransfer
 from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
 from app.models.proposal_activity_code import ProposalActivityCode
@@ -1852,7 +1853,7 @@ def admin_proposals(
     participant_count_stmt = select(
         ProposalParticipant.proposal_id,
         func.count(ProposalParticipant.proposal_participant_id),
-    ).group_by(ProposalParticipant.proposal_id)
+    ).where(ProposalParticipant.valid_until.is_(None)).group_by(ProposalParticipant.proposal_id)
     scope_residential_id = _proposal_residential_scope_id(request, current_user)
     if scope_residential_id is not None:
         participant_count_stmt = participant_count_stmt.where(
@@ -1938,7 +1939,8 @@ def admin_proposal_participants(
             )
             .outerjoin(User, User.user_id == ProposalParticipant.created_by_user_id)
             .outerjoin(Residential, Residential.residential_id == ProposalParticipant.residential_id)
-            .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id)
+            .where(ProposalParticipant.proposal_id == selected_proposal.proposal_id,
+                   ProposalParticipant.valid_until.is_(None))
             .order_by(
                 ProposalParticipant.apellido_paterno,
                 ProposalParticipant.apellido_materno,
@@ -2103,7 +2105,7 @@ def admin_add_participants_to_proposal(
 
     participant_stmt = select(Participant).where(
         Participant.participant_id.in_(participant_ids)
-    )
+    ).with_hint(Participant, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql")
     if scope_residential_id is not None:
         participant_stmt = participant_stmt.where(
             Participant.residential_id == scope_residential_id
@@ -2150,6 +2152,7 @@ def admin_add_participants_to_proposal(
         existing_stmt = select(ProposalParticipant).where(
             ProposalParticipant.proposal_id == proposal_id,
             ProposalParticipant.person_id == person.person_id,
+            ProposalParticipant.valid_until.is_(None),
         )
         if scope_residential_id is not None:
             existing_stmt = existing_stmt.where(
@@ -2165,6 +2168,8 @@ def admin_add_participants_to_proposal(
             person_id=person.person_id,
             residential_id=participant.residential_id,
             created_by_user_id=current_user.user_id,
+            valid_from=db.scalar(select(func.max(ParticipantTransfer.effective_date))
+                                 .where(ParticipantTransfer.participant_id == participant.participant_id)),
             **get_proposal_participant_update_values(participant),
         )
         db.add(proposal_participant)
@@ -2248,6 +2253,8 @@ def admin_sync_proposal_participant(
     )
 
     person = db.get(Person, proposal_participant.person_id)
+    if getattr(proposal_participant, "valid_until", None) is not None:
+        return _redirect_with_msg(redirect_url, "Error: Esta inscripción conserva el historial anterior a un traslado y no se puede sincronizar.")
     if not person or not person.legacy_participant_id:
         return _redirect_with_msg(
             redirect_url,
@@ -2291,6 +2298,7 @@ def admin_sync_proposal_participant(
         .where(
             ProposalParticipant.proposal_participant_id == proposal_participant_id,
             ProposalParticipant.proposal_id == proposal_id,
+            ProposalParticipant.valid_until.is_(None),
         )
         .values(**update_values)
         .execution_options(synchronize_session=False)
@@ -2346,7 +2354,8 @@ def admin_sync_all_proposal_participants(
             Participant,
             _proposal_participant_source_join(scope_residential_id),
         )
-        .where(ProposalParticipant.proposal_id == proposal_id)
+        .where(ProposalParticipant.proposal_id == proposal_id,
+               ProposalParticipant.valid_until.is_(None))
     )
     if residential_id is not None:
         stmt = stmt.where(ProposalParticipant.residential_id == residential_id)
@@ -2402,6 +2411,7 @@ def admin_sync_all_proposal_participants(
                 ProposalParticipant.proposal_participant_id
                 == proposal_participant.proposal_participant_id,
                 ProposalParticipant.proposal_id == proposal_id,
+                ProposalParticipant.valid_until.is_(None),
             )
             .values(**update_values)
             .execution_options(synchronize_session=False)
@@ -2484,6 +2494,10 @@ def admin_remove_participant_from_proposal(
 
     from app.models.attendance import Attendance
 
+    if (getattr(proposal_participant, "valid_until", None) is not None or
+            getattr(proposal_participant, "valid_from", None) is not None):
+        return _redirect_with_msg(redirect_url, "Error: Esta inscripción forma parte de un traslado y no se puede remover.")
+
     used_count = db.execute(
         select(func.count()).select_from(Attendance).where(
             Attendance.proposal_participant_id == proposal_participant_id
@@ -2496,7 +2510,11 @@ def admin_remove_participant_from_proposal(
             "Error: No se puede remover porque ya tiene asistencias registradas en esta propuesta.",
         )
 
-    db.delete(proposal_participant)
+    # Recheck in the write itself if a transfer closed the stay after the read.
+    db.execute(delete(ProposalParticipant).where(
+        ProposalParticipant.proposal_participant_id == proposal_participant_id,
+        ProposalParticipant.valid_from.is_(None), ProposalParticipant.valid_until.is_(None))
+        .execution_options(synchronize_session=False))
     db.commit()
 
     return _redirect_with_msg(

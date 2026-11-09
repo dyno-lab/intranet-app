@@ -78,6 +78,46 @@ definida.
 python -B -m unittest tests.test_adm_internal_referrals_migration
 ```
 
+## Traslados de participantes entre residenciales
+
+En **Participantes → expediente → Trasladar / historial**, un administrador o
+supervisor con acceso general puede registrar una mudanza con fecha efectiva,
+destino, edificio/apartamento y motivo. Primero se muestra el expediente de
+destino y las propuestas vigentes afectadas; luego se confirma la operación.
+Se conserva la misma persona y sus propuestas. Las propuestas finalizadas o
+inactivas no se trasladan. La fecha no puede ser futura, estar en un período
+cerrado ni coincidir/anteceder asistencias ya registradas desde el traslado.
+
+Las asistencias y sesiones existentes conservan sus identificadores y su
+residencial. Las inscripciones anteriores guardan el expediente, dirección y
+perfil original; no pueden sincronizarse con la dirección nueva. Desde la fecha
+efectiva, la persona aparece en el listado de asistencias del destino. Se pueden
+completar asistencias anteriores en el origen, dentro de su estancia y de los
+períodos abiertos. Los informes mensuales usan la estancia de ese residencial
+y mes; los totales de personas únicas mantienen la identidad original. Una
+persona atendida en dos municipios figura una vez en cada municipio.
+
+La numeración conserva la secuencia de cuatro dígitos cuando está disponible
+en el destino; de lo contrario, asigna la primera libre. El expediente anterior
+queda reservado y no puede asignarse a otra persona. Si regresa a un residencial
+anterior, recupera su expediente reservado. El traslado reinicia la jefatura y
+el grupo familiar para que se revisen en la nueva dirección.
+
+El arranque aplica `participant_transfers_schema.py`: agrega vigencias a las
+inscripciones, reservas de expedientes e historial auditado. La unicidad pasa a
+ser **una inscripción actual por persona/propuesta**, con estancias históricas.
+Actualizar y reiniciar todas las instancias de la aplicación juntas en pruebas
+antes de producción. Después de registrar traslados, no ejecutar versiones
+anteriores contra esta estructura: sus consultas asumen una sola inscripción.
+Una reversión completa requiere recuperar código y respaldo de BD anteriores
+al despliegue, o una migración de reversión evaluada según los datos nuevos.
+
+```powershell
+python -B -m unittest tests.test_participant_transfers tests.test_participant_transfer_routes
+# Con FARO_MIGRATION_TEST_DSN apuntando a una instancia de pruebas:
+python -B -m unittest tests.test_participant_transfers_sqlserver
+```
+
 ## Notificaciones de Faro
 
 - La campana del encabezado reúne pendientes y anuncios. En Inicio, el popup

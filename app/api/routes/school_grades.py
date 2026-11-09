@@ -22,6 +22,7 @@ from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import monthly_snapshot_join, monthly_participants
 from app.models.residential import Residential
 from app.helpers.report_context import MIN_REPORTING_YEAR
 from app.helpers.reports import parse_optional_int
@@ -284,15 +285,7 @@ def school_grade_report_detail(
     proposal = db.get(Proposal, report.proposal_id)
     report_is_locked = _report_is_locked(proposal, report)
 
-    participant_stmt = (
-        select(Participant)
-        .where(Participant.is_active == True)  # noqa: E712
-        .order_by(Participant.apellido_paterno, Participant.nombre)
-    )
-    if report.residential_id is not None:
-        participant_stmt = participant_stmt.where(Participant.residential_id == report.residential_id)
-
-    participants = db.execute(participant_stmt).scalars().all()
+    participants = monthly_participants(db, report)
 
     eligible_rows = []
     age_map = {}
@@ -310,10 +303,7 @@ def school_grade_report_detail(
         .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
         .outerjoin(
             ProposalParticipant,
-            and_(
-                ProposalParticipant.person_id == Person.person_id,
-                ProposalParticipant.proposal_id == report.proposal_id,
-            ),
+            monthly_snapshot_join(report.proposal_id, report.residential_id, report.report_year, report.report_month),
         )
         .where(SchoolGradeReportItem.report_id == report_id)
         .order_by(Participant.apellido_paterno, Participant.nombre)
@@ -368,7 +358,8 @@ def add_participant_to_school_grade_report(
     except HTTPException as exc:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg={exc.detail}", status_code=303)
 
-    participant = db.get(Participant, participant_id)
+    eligible = monthly_participants(db, report, participant_id)
+    participant = eligible[0] if eligible else None
     if not participant:
         return RedirectResponse(f"/ui/school-grades/{report_id}?msg=Error: Participante no encontrado.", status_code=303)
 

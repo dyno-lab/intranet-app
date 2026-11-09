@@ -347,7 +347,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertEqual(payload["real"]["towns_by_municipality"], {
             "Caguas": 3,
             "Cayey": 1,
-            "Cidra": 2,
+            "Cidra": 3,  # A person served in Caguas and Cidra belongs in both municipality counts.
             "No informado": 2,
         })
         self.assertEqual(payload["real"]["grades"], {
@@ -422,7 +422,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
             {"label": "No especificado", "count": 1},
         ])
         self.assertEqual(payload["real"]["adm"]["family_total"], 3)
-        self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 8)
+        self.assertEqual(sum(payload["real"]["towns_by_municipality"].values()), 9)
         self.assertNotIn("people", payload["meta"]["demo_metrics"])
         self.assertNotIn("duplicates", payload["meta"]["demo_metrics"])
         self.assertNotIn("towns", payload["meta"]["demo_metrics"])
@@ -458,7 +458,7 @@ class FaroInstitutionalReportDataTests(unittest.TestCase):
         self.assertIn("proposal_participants.is_head_of_household", people_sql)
         self.assertNotIn("join users", people_sql)
         self.assertIn("left outer join residentials", people_sql)
-        self.assertIn("participants.residential_id = residentials.residential_id", people_sql)
+        self.assertIn("activity_sessions.residential_id = residentials.residential_id", people_sql)
         self.assertIn("proposal_participants.proposal_id = activity_sessions.proposal_id", people_sql)
         self.assertIn("extract(year from activity_sessions.session_date)", people_sql)
         self.assertIn("activity_sessions.session_date >=", people_sql)

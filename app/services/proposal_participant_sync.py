@@ -75,6 +75,8 @@ def get_different_proposal_participant_fields(
     participant: Participant,
 ) -> list[str]:
     """Return snapshot fields whose values differ from the Participant source."""
+    if getattr(proposal_participant, "valid_until", None) is not None:
+        return []  # A closed residential stay is an immutable historical snapshot.
     source_values = get_proposal_participant_update_values(participant)
     return [
         field_name

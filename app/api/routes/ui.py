@@ -66,6 +66,11 @@ from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
 from app.services.proposal_participant_sync import get_different_proposal_participant_fields
+from app.services.participant_residency import (
+    stay_on_date, eligible_on_date, session_snapshot_join, lock_residential,
+    require_session_stay_compatibility,
+)
+from app.services.participant_transfers import require_available_number
 from app.services.community_identity import (
     linked_identity, has_identity_review, pending_identity_review, linked_participant_ids,
 )
@@ -291,7 +296,8 @@ def _build_new_list_dashboard(
                     select(ProposalParticipant, Person, Proposal)
                     .join(Person, Person.person_id == ProposalParticipant.person_id)
                     .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
-                    .where(Person.legacy_participant_id.in_(participant_id_batch))
+                    .where(Person.legacy_participant_id.in_(participant_id_batch),
+                           ProposalParticipant.valid_until.is_(None))
                 ).all()
             )
 
@@ -496,7 +502,8 @@ def _load_session_proposal_participants(db: Session, session: ActivitySession, c
 
     stmt = (
         select(ProposalParticipant)
-        .where(ProposalParticipant.proposal_id == session.proposal_id)
+        .where(ProposalParticipant.proposal_id == session.proposal_id,
+               stay_on_date(session.session_date))
         .order_by(
             ProposalParticipant.apellido_paterno,
             ProposalParticipant.apellido_materno,
@@ -1220,6 +1227,11 @@ async def create_participant(
                 registration_error='El número de expediente ya existe. Seleccione otro número; sus datos se conservaron.')
         return _redirect_with_msg("/ui/new-list", "Error: El expediente ya existe.")
 
+    try:
+        require_available_number(db, record_residential_id, exp_seq4, expediente_num=expediente_num)
+    except HTTPException as exc:
+        return _redirect_with_msg("/ui/new-list", str(exc.detail))
+
     initial_error = _participant_initial_error(inicial)
     if initial_error:
         return _redirect_with_msg("/ui/new-list", initial_error)
@@ -1538,6 +1550,7 @@ def participant_expediente(
         "is_head_of_household": bool(getattr(p, "is_head_of_household", False)),
         "return_query": normalized_return_query,
         "back_to_list_url": _build_new_list_url(normalized_return_query),
+        "can_transfer_participant": current_user.role in {"admin", "supervisor"} and has_global_residential_access(current_user),
         "msg": msg,
     }
     if settings.COMMUNITY_ENABLED:
@@ -1668,7 +1681,7 @@ def _build_participant_formal_proposals_stmt(
         select(ProposalParticipant, Proposal)
         .join(Proposal, Proposal.proposal_id == ProposalParticipant.proposal_id)
         .where(ProposalParticipant.person_id == person_id)
-        .order_by(Proposal.code, Proposal.name)
+        .order_by(Proposal.code, Proposal.name, ProposalParticipant.valid_from, ProposalParticipant.proposal_participant_id)
     )
     if scoped_residential_id is not None:
         stmt = stmt.where(ProposalParticipant.residential_id == scoped_residential_id)
@@ -2239,6 +2252,14 @@ async def edit_participant_save(
     if exists:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", "Error: El expediente ya existe.")
 
+    try:
+        require_available_number(db, record_residential_id, exp_seq4, participant_id=participant_id,
+                                 expediente_num=expediente_num_final)
+        if db.scalar(select(Participant.residential_id).where(Participant.participant_id == participant_id)) != record_residential_id:
+            raise HTTPException(409, "El participante fue trasladado. Recargue el expediente antes de editarlo.")
+    except HTTPException as exc:
+        return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", str(exc.detail))
+
     initial_error = _participant_initial_error(inicial)
     if initial_error:
         return _redirect_with_msg(f"/ui/new-list/{participant_id}/edit", initial_error)
@@ -2575,10 +2596,7 @@ def export_attendance_csv(
         .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
         .outerjoin(
             ProposalParticipant,
-            and_(
-                ProposalParticipant.person_id == Person.person_id,
-                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-            ),
+            session_snapshot_join(),
         )
         .join(ActivityCode, ActivitySession.activity_code_id == ActivityCode.activity_code_id)
         .join(Employee, ActivitySession.employee_id == Employee.employee_id)
@@ -2872,6 +2890,8 @@ async def save_attendance(
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
     _check_session_access(s, current_user, request)
+    lock_residential(db, s.residential_id)
+    db.refresh(s)
 
     try:
         require_session_proposal_not_finalized(
@@ -2943,6 +2963,10 @@ async def save_attendance(
                 f"/ui/listado/{session_id}",
                 "Error: Uno o más participantes operativos no pertenecen a la propuesta de esta sesión.",
             )
+
+        if any(not eligible_on_date(record, s.session_date) for record in selected_map.values()):
+            return _redirect_with_msg(f"/ui/listado/{session_id}",
+                                      "Error: El participante no pertenecía a este residencial en la fecha de la sesión.")
 
         inactive_ids = [
             pid for pid, proposal_participant in selected_map.items()
@@ -3142,6 +3166,10 @@ def edit_session(
     if not activity_code_allowed_for_proposal(db, activity_code, selected_proposal_id):
         return _redirect_with_msg(f"/ui/listado/{session_id}", "Error: La actividad no pertenece a la propuesta seleccionada.")
 
+    try:
+        require_session_stay_compatibility(db, s, parsed_session_date, selected_proposal_id)
+    except HTTPException as exc:
+        return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
     record_residential = db.get(Residential, s.residential_id) if s.residential_id else None
     update_session_fields(
         db,

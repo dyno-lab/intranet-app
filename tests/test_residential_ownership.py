@@ -55,6 +55,9 @@ class _Result:
     def scalar_one_or_none(self):
         return self.scalar_value
 
+    def scalar_one(self):
+        return self.scalar_value
+
     def scalars(self):
         return self
 
@@ -84,6 +87,9 @@ class _Database:
 
     def add(self, value):
         self.added.append(value)
+
+    def scalar(self, statement):
+        return self.execute(statement).scalar_one_or_none()
 
     def flush(self):
         self.flushes += 1
@@ -156,7 +162,7 @@ class ResidentialOwnershipTests(unittest.TestCase):
         user = _user(11, residential_id=1)
         db = _Database(
             objects={(Residential, 1): residential},
-            results=[_Result(), _Result()],
+            results=[_Result(), _Result(), _Result(scalar=residential), _Result()],
         )
         payload = ParticipantCreate(
             expediente_num="FE-2026-EMAIL-9999",

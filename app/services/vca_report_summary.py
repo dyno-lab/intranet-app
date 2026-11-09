@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import stay_on_date
 
 
 VCA_AGE_BANDS = ((0, 4, "0 A 4 años"), (5, 8, "5 a 8 años"),
@@ -13,7 +14,7 @@ VCA_AGE_BANDS = ((0, 4, "0 A 4 años"), (5, 8, "5 a 8 años"),
                  (18, 61, "18 A 61 años"), (62, None, "62 años en adelante"))
 
 
-def registered_vca_by_person(db, proposal_ids, residential_id=None):
+def registered_vca_by_person(db, proposal_ids, residential_id=None, *, as_of=None):
     """Active proposal records count even without attendance; one person per selection.
 
     Registration belongs to the proposal snapshot. Legacy ownership only fills a
@@ -33,6 +34,7 @@ def registered_vca_by_person(db, proposal_ids, residential_id=None):
     )
     if residential_id is not None:
         statement = statement.where(location == residential_id)
+    statement = statement.where(stay_on_date(as_of) if as_of is not None else ProposalParticipant.valid_until.is_(None))
     people = {}
     for person_id, registered_residential_id in db.execute(statement).all():
         people.setdefault(person_id, registered_residential_id)
@@ -62,9 +64,12 @@ def build_vca_summary(*, registered_people, rows, columns, participant_details,
         location_row(residential_id)
     for residential_id in registered_people.values():
         location_row(residential_id)["registered"] += 1
-    for row in rows:
-        detail = participant_details[row["participant_id"]]
-        target = location_row(detail["residential_id"])
+    def detail_for(row):
+        key = (row["participant_id"], row["residential_id"]) if "residential_id" in row else row["participant_id"]
+        return participant_details[key]
+
+    def add_profile(target, row):
+        detail = detail_for(row)
         target["served"] += 1
         gender = (row["genero"] or "").strip().lower()
         age = detail["age"]
@@ -78,18 +83,20 @@ def build_vca_summary(*, registered_people, rows, columns, participant_details,
             target["unknown_gender"] += 1
         if age_index is None:
             target["unknown_age"] += 1
+
+    for row in rows:
+        target = location_row(detail_for(row)["residential_id"])
+        add_profile(target, row)
         for column_id in column_ids:
             target["services"][column_id] += row["column_values"].get(column_id) or 0
 
     summary_rows = sorted(locations.values(), key=lambda row: (
         row["residential_name"] == "Sin residencial", row["residential_name"].strip().casefold()))
     total = empty_row(None, "Total")
+    total["registered"] = len(registered_people)
+    for row in {row["participant_id"]: row for row in rows}.values():
+        add_profile(total, row)
     for row in summary_rows:
-        for key in ("registered", "served", "f", "m", "unknown_age", "unknown_gender"):
-            total[key] += row[key]
-        for index in range(len(VCA_AGE_BANDS)):
-            for gender in ("f", "m"):
-                total["ages"][index][gender] += row["ages"][index][gender]
         for column_id in column_ids:
             total["services"][column_id] += row["services"][column_id]
     return {"rows": summary_rows, "total": total, "age_bands": VCA_AGE_BANDS}

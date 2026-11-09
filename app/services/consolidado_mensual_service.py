@@ -15,6 +15,7 @@ from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import session_snapshot_join
 from app.models.proposal_report_program import ProposalReportProgram
 from app.models.residential import Residential
 from app.models.user import User
@@ -270,10 +271,7 @@ def build_consolidado_mensual_global(
         .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
         .outerjoin(
             ProposalParticipant,
-            and_(
-                ProposalParticipant.person_id == Person.person_id,
-                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-            ),
+            session_snapshot_join(),
         )
         .outerjoin(Residential, Residential.residential_id == ActivitySession.residential_id)
         .where(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import calendar
 import re
 import hmac
 import secrets
@@ -24,6 +25,8 @@ from app.models.participant import Participant
 from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import monthly_snapshot_join
+from app.services.participant_residency import session_snapshot_join
 from app.models.user import User
 from app.models.residential import Residential
 from app.models.activity_code import ActivityCode
@@ -171,12 +174,13 @@ def _bonafide_participant_sort_key(participant):
 
 def _report_participant_views(pairs, proposal_id):
     pairs = list(pairs)
-    if len(_proposal_ids(proposal_id)) > 1:
-        # The same legacy participant links to one Person across proposals.
-        # Prefer the most recent proposal snapshot deterministically.
-        pairs.sort(key=lambda pair: getattr(pair[1], "proposal_id", 0) or 0)
-        pairs = list({participant.participant_id: (participant, snapshot)
-                      for participant, snapshot in pairs}.values())
+    # One identity across proposals and residential stays, using the latest
+    # matching snapshot only for presentation; attendance totals stay separate.
+    pairs.sort(key=lambda pair: (getattr(pair[1], "proposal_id", 0) or 0,
+                                 getattr(pair[1], "valid_from", None) or date.min,
+                                 getattr(pair[1], "proposal_participant_id", 0) or 0))
+    pairs = list({participant.participant_id: (participant, snapshot)
+                  for participant, snapshot in pairs}.values())
     return [_participant_snapshot_view(participant, snapshot) for participant, snapshot in pairs]
 
 
@@ -272,10 +276,7 @@ def _build_bonafide_context(
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .outerjoin(
                 ProposalParticipant,
-                and_(
-                    ProposalParticipant.person_id == Person.person_id,
-                    ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                ),
+                session_snapshot_join(),
             )
             .where(
                 Attendance.attended == True,  # noqa: E712
@@ -1298,17 +1299,14 @@ def _build_vca_context(
                 else_=Participant.vca,
             )
             participant_stmt = (
-                select(Participant, ProposalParticipant)
+                select(Participant, ProposalParticipant, ActivitySession.residential_id)
                 .select_from(Participant)
                 .join(Attendance, Attendance.participant_id == Participant.participant_id)
                 .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
                 .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
                 .outerjoin(
                     ProposalParticipant,
-                    and_(
-                        ProposalParticipant.person_id == Person.person_id,
-                        ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                    ),
+                    session_snapshot_join(),
                 )
                 .where(
                     Attendance.attended == True,  # noqa: E712
@@ -1322,11 +1320,19 @@ def _build_vca_context(
             else:
                 participant_stmt = participant_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
                 residential_name = _residential_from_user(selected_user)
-            participant_pairs = db.execute(participant_stmt.distinct()).all()
-            participant_rows = _report_participant_views(participant_pairs, proposal_id)
-            participant_rows.sort(
-                key=lambda participant: _participant_sort_key(
-                    participant,
+            participant_matches = db.execute(participant_stmt.distinct()).all()
+            participant_pairs = [(participant, snapshot) for participant, snapshot, _ in participant_matches]
+            participant_locations = [(view, selected_user.residential_id) for view in
+                                     _report_participant_views(participant_pairs, proposal_id)] if not is_global else []
+            if is_global:
+                pairs_by_residential = {}
+                for participant, snapshot, rid in participant_matches:
+                    pairs_by_residential.setdefault(rid, []).append((participant, snapshot))
+                participant_locations = [(view, rid) for rid, pairs in pairs_by_residential.items()
+                                         for view in _report_participant_views(pairs, proposal_id)]
+            participant_locations.sort(
+                key=lambda item: _participant_sort_key(
+                    item[0],
                     "apellido_paterno",
                     "nombre",
                 )
@@ -1345,23 +1351,27 @@ def _build_vca_context(
                 attendance_stmt = attendance_stmt.where(ActivitySession.residential_id == selected_user.residential_id)
             if multi_proposal:
                 attendance_stmt = attendance_stmt.add_columns(ActivitySession.proposal_id)
+            if is_global:
+                attendance_stmt = attendance_stmt.add_columns(ActivitySession.residential_id)
             attendance_rows = db.execute(attendance_stmt).all()
 
-            counts: dict[int, dict[int, int]] = {}
+            counts = {}
             for attendance_row in attendance_rows:
                 participant_id, activity_code_id = attendance_row[:2]
                 activity_key = (attendance_row[2], activity_code_id) if multi_proposal else activity_code_id
                 column_id = activity_to_column.get(activity_key)
                 if not column_id:
                     continue
-                counts.setdefault(participant_id, {})
-                counts[participant_id][column_id] = counts[participant_id].get(column_id, 0) + 1
+                key = (participant_id, attendance_row[-1]) if is_global else participant_id
+                counts.setdefault(key, {})
+                counts[key][column_id] = counts[key].get(column_id, 0) + 1
 
             residential_names = dict(db.execute(
                 select(Residential.residential_id, Residential.name)
             ).all()) if is_global else {selected_user.residential_id: residential_name}
-            for participant in participant_rows:
-                row_values = {column.vca_column_id: counts.get(participant.participant_id, {}).get(column.vca_column_id, "") for column in columns}
+            for participant, rid in participant_locations:
+                key = (participant.participant_id, rid) if is_global else participant.participant_id
+                row_values = {column.vca_column_id: counts.get(key, {}).get(column.vca_column_id, "") for column in columns}
                 if not any(value != "" for value in row_values.values()):
                     continue
                 rows.append({
@@ -1373,22 +1383,25 @@ def _build_vca_context(
                     "column_values": row_values,
                 })
                 if is_global:
-                    rows[-1]["residential_name"] = residential_names.get(participant.residential_id) or "Sin residencial"
+                    rows[-1]["residential_id"] = rid
+                    rows[-1]["residential_name"] = residential_names.get(rid) or "Sin residencial"
             if is_global:
                 # Stable sorting preserves the existing surname/name order within each residential.
                 rows.sort(key=lambda row: (
                     row["residential_name"] == "Sin residencial",
                     _normalize_text(row["residential_name"]).casefold(),
                 ))
-            total_people = len(rows)
+            total_people = len({row["participant_id"] for row in rows})
             registered_people = registered_vca_by_person(
-                db, _proposal_ids(proposal_id), None if is_global else selected_user.residential_id)
+                db, _proposal_ids(proposal_id), None if is_global else selected_user.residential_id,
+                as_of=period["end_date"] if period["is_custom"] else
+                date(period["year"], period["month"], calendar.monthrange(period["year"], period["month"])[1]))
             vca_summary = build_vca_summary(
                 registered_people=registered_people, rows=rows, columns=columns,
-                participant_details={participant.participant_id: {
-                    "residential_id": participant.residential_id if is_global else selected_user.residential_id,
+                participant_details={(participant.participant_id, rid) if is_global else participant.participant_id: {
+                    "residential_id": rid,
                     "age": _calc_age(participant.fecha_nacimiento),
-                } for participant in participant_rows},
+                } for participant, rid in participant_locations},
                 residential_names=residential_names,
                 residential_ids=([option.residential_id for option in base_context.get("report_residentials", [])]
                                  if is_global else [selected_user.residential_id]),
@@ -1549,10 +1562,7 @@ def _build_adm_context(
                     .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
                     .outerjoin(
                         ProposalParticipant,
-                        and_(
-                            ProposalParticipant.person_id == Person.person_id,
-                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                        ),
+                        session_snapshot_join(),
                     )
                     .where(
                         Attendance.attended == True,  # noqa: E712
@@ -2003,10 +2013,7 @@ def _build_school_dropout_summary_context(
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .outerjoin(
                 ProposalParticipant,
-                and_(
-                    ProposalParticipant.person_id == Person.person_id,
-                    ProposalParticipant.proposal_id == SchoolDropoutReport.proposal_id,
-                ),
+                monthly_snapshot_join(SchoolDropoutReport.proposal_id, SchoolDropoutReport.residential_id, SchoolDropoutReport.report_year, SchoolDropoutReport.report_month),
             )
             .outerjoin(Residential, Residential.residential_id == SchoolDropoutReport.residential_id)
             .where(_proposal_filter(SchoolDropoutReport.proposal_id, proposal_id))
@@ -2213,10 +2220,7 @@ def _build_pregnancy_summary_context(
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .outerjoin(
                 ProposalParticipant,
-                and_(
-                    ProposalParticipant.person_id == Person.person_id,
-                    ProposalParticipant.proposal_id == PregnancyReport.proposal_id,
-                ),
+                monthly_snapshot_join(PregnancyReport.proposal_id, PregnancyReport.residential_id, PregnancyReport.report_year, PregnancyReport.report_month),
             )
             .outerjoin(Residential, Residential.residential_id == PregnancyReport.residential_id)
             .where(_proposal_filter(PregnancyReport.proposal_id, proposal_id))
@@ -2414,10 +2418,7 @@ def _build_notes_context(
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .outerjoin(
                 ProposalParticipant,
-                and_(
-                    ProposalParticipant.person_id == Person.person_id,
-                    ProposalParticipant.proposal_id == SchoolGradeReport.proposal_id,
-                ),
+                monthly_snapshot_join(SchoolGradeReport.proposal_id, SchoolGradeReport.residential_id, SchoolGradeReport.report_year, SchoolGradeReport.report_month),
             )
             .outerjoin(Residential, Residential.residential_id == SchoolGradeReport.residential_id)
             .where(_proposal_filter(SchoolGradeReport.proposal_id, proposal_id))
@@ -2945,10 +2946,7 @@ def _calculate_no_duplicado_metric(
                     .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
                     .outerjoin(
                         ProposalParticipant,
-                        and_(
-                            ProposalParticipant.person_id == Person.person_id,
-                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                        ),
+                        session_snapshot_join(),
                     )
                     .where(
                         Attendance.attended == True,  # noqa: E712
@@ -2996,10 +2994,7 @@ def _calculate_no_duplicado_metric(
                     .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
                     .outerjoin(
                         ProposalParticipant,
-                        and_(
-                            ProposalParticipant.person_id == Person.person_id,
-                            ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                        ),
+                        session_snapshot_join(),
                     )
                     .where(
                         Attendance.attended == True,  # noqa: E712
@@ -4226,10 +4221,7 @@ def _build_por_programa_context(
                 .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
                 .outerjoin(
                     ProposalParticipant,
-                    and_(
-                        ProposalParticipant.person_id == Person.person_id,
-                        ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                    ),
+                    session_snapshot_join(),
                 )
                 .where(
                     Attendance.attended == True,  # noqa: E712

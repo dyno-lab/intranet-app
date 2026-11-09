@@ -20,6 +20,7 @@ from app.models.person import Person
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
+from app.services.participant_residency import stay_on_date
 
 ACTIVITY_CODE = '2.b.5'
 COURSE_EDITOR_ROLES = frozenset({ADMIN_ROLE, SUPERVISOR_ROLE, USER_ROLE})
@@ -89,7 +90,9 @@ def build_course_report(db, user, *, proposal_ids, month=None, year=None, employ
             .join(eligible, eligible.c.participant_id == Participant.participant_id)
             .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
             .outerjoin(ProposalParticipant, and_(ProposalParticipant.person_id == Person.person_id,
-                                                ProposalParticipant.proposal_id == eligible.c.proposal_id)).distinct()).all()
+                                                ProposalParticipant.proposal_id == eligible.c.proposal_id,
+                                                ProposalParticipant.residential_id == eligible.c.residential_id,
+                                                stay_on_date(eligible.c.session_date))).distinct()).all()
         # Reuse the exact identity/snapshot rule used by current consolidated reports.
         participants = {p.participant_id: p for p in _report_participant_views(pairs, ids)}
         saved = db.scalars(select(ParticipantMonthlyCourse).where(

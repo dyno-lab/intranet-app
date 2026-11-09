@@ -23,7 +23,7 @@ class Participant(Base):
 
     participant_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # Propiedad residencial histórica y auditoría del usuario creador.
+    # Residencial actual; las inscripciones y traslados conservan el historial.
     residential_id: Mapped[int | None] = mapped_column(
         ForeignKey("residentials.residential_id"),
         nullable=True,

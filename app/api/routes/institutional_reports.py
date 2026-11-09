@@ -24,6 +24,8 @@ from app.models.pregnancy_report import PregnancyReport
 from app.models.pregnancy_report_item import PregnancyReportItem
 from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
+from app.services.participant_residency import monthly_snapshot_join
+from app.services.participant_residency import session_snapshot_join
 from app.models.residential import Residential
 from app.models.school_grade_report import SchoolGradeReport
 from app.models.school_grade_report_item import SchoolGradeReportItem
@@ -363,7 +365,7 @@ def _aggregate_unique_people(
 ]:
     birth_dates_by_person: dict[int, date | None] = {}
     education_by_person: dict[int, str | None] = {}
-    municipality_by_person: dict[int, str | None] = {}
+    municipalities_by_person: dict[int, set[str]] = {}
     household_head_person_ids: set[int] = set()
     for person_id, birth_date, education, is_head_of_household, municipality in person_rows:
         if person_id is None:
@@ -371,13 +373,14 @@ def _aggregate_unique_people(
         if person_id not in birth_dates_by_person:
             birth_dates_by_person[person_id] = birth_date
             education_by_person[person_id] = None
-            municipality_by_person[person_id] = None
+            municipalities_by_person[person_id] = set()
         if is_head_of_household:
             household_head_person_ids.add(person_id)
         if education_by_person[person_id] is None:
             education_by_person[person_id] = _normalize_education(education)
-        if municipality_by_person[person_id] is None:
-            municipality_by_person[person_id] = _normalize_education(municipality)
+        municipality_label = _normalize_education(municipality)
+        if municipality_label:
+            municipalities_by_person[person_id].add(municipality_label)
 
     age_buckets = {label: 0 for label in _FARO_AGE_BUCKETS}
     for birth_date in birth_dates_by_person.values():
@@ -398,9 +401,9 @@ def _aggregate_unique_people(
     ordered_education_buckets["No informado"] = education_buckets.get("No informado", 0)
 
     municipality_buckets: dict[str, int] = {}
-    for municipality in municipality_by_person.values():
-        label = municipality or "No informado"
-        municipality_buckets[label] = municipality_buckets.get(label, 0) + 1
+    for municipalities in municipalities_by_person.values():
+        for label in municipalities or {"No informado"}:
+            municipality_buckets[label] = municipality_buckets.get(label, 0) + 1
 
     ordered_municipality_buckets = {
         label: municipality_buckets[label]
@@ -594,17 +597,7 @@ def _faro_adm_summary(
         )
         .outerjoin(
             ProposalParticipant,
-            and_(
-                ProposalParticipant.proposal_id == ActivitySession.proposal_id,
-                or_(
-                    Attendance.proposal_participant_id
-                    == ProposalParticipant.proposal_participant_id,
-                    and_(
-                        Attendance.proposal_participant_id.is_(None),
-                        ProposalParticipant.person_id == attendance_person.person_id,
-                    ),
-                ),
-            ),
+            session_snapshot_join(attendance_person.person_id),
         )
         .outerjoin(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(
@@ -934,7 +927,7 @@ def faro_institutional_report_data(
         )
         .join(Person, ProposalParticipant.person_id == Person.person_id)
         .outerjoin(Participant, Person.legacy_participant_id == Participant.participant_id)
-        .outerjoin(Residential, Participant.residential_id == Residential.residential_id)
+        .outerjoin(Residential, ActivitySession.residential_id == Residential.residential_id)
         .where(
             Attendance.attended == True,  # noqa: E712
             ProposalParticipant.proposal_id == ActivitySession.proposal_id,
@@ -1029,10 +1022,7 @@ def faro_institutional_report_data(
         .outerjoin(Person, Person.legacy_participant_id == Participant.participant_id)
         .outerjoin(
             ProposalParticipant,
-            and_(
-                ProposalParticipant.person_id == Person.person_id,
-                ProposalParticipant.proposal_id == PregnancyReport.proposal_id,
-            ),
+            monthly_snapshot_join(PregnancyReport.proposal_id, PregnancyReport.residential_id, PregnancyReport.report_year, PregnancyReport.report_month),
         )
         .where(PregnancyReport.proposal_id.in_(normalized_proposal_ids))
     )

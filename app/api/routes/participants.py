@@ -17,6 +17,7 @@ from app.models.participant import Participant
 from app.models.residential import Residential
 from app.models.user import User
 from app.schemas.participant import ParticipantCreate, ParticipantOut
+from app.services.participant_transfers import require_available_number
 
 router = APIRouter()
 
@@ -78,6 +79,8 @@ def create_participant(
     ).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="expediente_num ya existe")
+    require_available_number(db, record_residential_id, payload.exp_seq4,
+                             expediente_num=payload_data["expediente_num"])
     marked_as_head = bool(payload_data.get("is_head_of_household"))
     if marked_as_head:
         require_head_of_household_allowed(

@@ -233,10 +233,12 @@ class FaroIdentityRegistrationTests(unittest.TestCase):
     confirmation = IdentityRegistrationTests.confirmation
 
     def setUp(self):
+        from app.models.participant_transfer import ParticipantResidentialNumber
         fixture.CommunityRouteTests.setUp(self)
         self.addCleanup(fixture.CommunityRouteTests.tearDown, self)
         Base.metadata.create_all(self.engine, tables=[model.__table__ for model in
-            (CatalogType, CatalogOption, ParticipantProfileField, ParticipantProfileFieldValue)])
+            (CatalogType, CatalogOption, ParticipantProfileField, ParticipantProfileFieldValue,
+             ParticipantResidentialNumber)])
         self.app.include_router(ui.router, prefix='/ui', dependencies=[Depends(require_faro_access)])
         # Only the unrelated proposal dashboard is stubbed; form rendering,
         # access checks, matching and both records use the real database paths.
