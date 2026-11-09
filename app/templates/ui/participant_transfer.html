@@ -1,61 +1,124 @@
 {% extends "ui/_base.html" %}
 {% block title %}Trasladar participante{% endblock %}
 {% block content %}
-<div class="participants-page">
-  <section class="participants-hero participants-hero--edit">
-    <div class="participants-hero__content">
-      <span class="participants-hero__eyebrow">Continuidad de servicios</span>
-      <h1 class="participants-hero__title">Trasladar participante</h1>
-      <p class="participants-hero__subtitle">{{ p.nombre }} {{ p.apellido_paterno }} · {{ p.expediente_num }}</p>
-      <a class="btn btn-outline-primary" href="{{ expediente_url }}">Volver al expediente</a>
+<link rel="stylesheet" href="/static/css/identity-registration.css?v=20261109-1">
+<link rel="stylesheet" href="/static/css/participant-transfer.css?v=20261109-2">
+<div id="participant-transfer-page" data-source="faro">
+  <header class="transfer-card">
+    <div class="identity-dialog__brand">
+      <i class="bi bi-people" aria-hidden="true"></i>
+      <strong>Programa Faro de Esperanza</strong>
+      <small>Continuidad de servicios</small>
     </div>
-  </section>
-  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-  <div class="card border-0 shadow-sm mb-4"><div class="card-body p-4">
-    <h2 class="h5">{{ 'Confirmar traslado' if preview else 'Datos del traslado' }}</h2>
-    <p class="text-muted">Las asistencias y los servicios anteriores conservarán su residencial y expediente. La persona continuará en sus mismas propuestas vigentes.</p>
+    <div class="identity-dialog__body">
+      <span class="identity-dialog__eyebrow">Cambio de residencial</span>
+      <h1>Trasladar participante</h1>
+      <p class="transfer-person">{{ p.nombre }} {{ p.inicial or '' }} {{ p.apellido_paterno }} {{ p.apellido_materno or '' }}</p>
+      <p class="transfer-current-number">{{ p.expediente_num }}</p>
+      <ol class="transfer-steps" aria-label="Pasos del traslado">
+        <li {{ 'aria-current=step' if not preview }} class="{{ 'is-current' if not preview else 'is-complete' }}"><span aria-hidden="true">1</span>Datos del traslado</li>
+        <li {{ 'aria-current=step' if preview }} class="{{ 'is-current' if preview }}"><span aria-hidden="true">2</span>Revisar y confirmar</li>
+      </ol>
+    </div>
+  </header>
+
+  {% if error %}<div class="transfer-notice transfer-notice--error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error }}</span></div>{% endif %}
+
+  <section class="transfer-card identity-dialog__body" aria-labelledby="transfer-details-title">
+    <span class="identity-dialog__eyebrow">{{ 'Revisión del traslado' if preview else 'Residencial de destino' }}</span>
+    <h2 id="transfer-details-title">{{ 'Confirma el cambio de residencial' if preview else '¿A dónde se traslada?' }}</h2>
+    <p class="identity-dialog__intro">Las asistencias y los servicios anteriores conservarán su residencial y expediente. La persona continuará en sus mismas propuestas vigentes.</p>
+
     {% if preview %}
-      <dl class="row mt-4">
-        <dt class="col-sm-4">Residencial anterior</dt><dd class="col-sm-8">{{ source.name }} · {{ p.expediente_num }}</dd>
-        <dt class="col-sm-4">Residencial de destino</dt><dd class="col-sm-8">{{ residential_map[values.destination_id].name }}</dd>
-        <dt class="col-sm-4">Expediente de destino</dt><dd class="col-sm-8"><strong>{{ preview.expediente_num }}</strong></dd>
-        <dt class="col-sm-4">Fecha efectiva</dt><dd class="col-sm-8">{{ values.effective_date }}</dd>
-        <dt class="col-sm-4">Edificio / apartamento</dt><dd class="col-sm-8">{{ values.edificio or 'No informado' }} / {{ values.apart or 'No informado' }}</dd>
-        <dt class="col-sm-4">Propuestas que conserva</dt><dd class="col-sm-8">{% for proposal in preview.proposals %}{{ proposal.code }} · {{ proposal.name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>
-        <dt class="col-sm-4">Motivo</dt><dd class="col-sm-8">{{ values.reason }}</dd>
+      {% set destination = residential_map[values.destination_id] %}
+      {% set effective_parts = values.effective_date.split('-') %}
+      {% set effective_label = effective_parts[2] ~ '/' ~ effective_parts[1] ~ '/' ~ effective_parts[0] %}
+      <div class="identity-dialog__comparison">
+        <section class="identity-dialog__record" data-module="faro" aria-labelledby="transfer-source-title">
+          <h3 id="transfer-source-title">Residencial actual</h3>
+          <div class="identity-dialog__number">Historial que se conserva</div>
+          <dl class="identity-dialog__data">
+            <div><dt>Residencial</dt><dd>{{ source.code }} · {{ source.name }}</dd></div>
+            <div><dt>Expediente anterior</dt><dd>{{ p.expediente_num }}</dd></div>
+            <div><dt>Edificio / apartamento</dt><dd>{{ p.edificio or 'No informado' }} / {{ p.apart or 'No informado' }}</dd></div>
+          </dl>
+        </section>
+        <section class="identity-dialog__record transfer-destination" aria-labelledby="transfer-destination-title">
+          <h3 id="transfer-destination-title">Residencial de destino</h3>
+          <div class="identity-dialog__number">A partir del {{ effective_label }}</div>
+          <dl class="identity-dialog__data">
+            <div><dt>Residencial</dt><dd>{{ destination.code }} · {{ destination.name }}</dd></div>
+            <div><dt>Expediente de destino</dt><dd>{{ preview.expediente_num }}</dd></div>
+            <div><dt>Nuevo edificio / apartamento</dt><dd>{{ values.edificio or 'No informado' }} / {{ values.apart or 'No informado' }}</dd></div>
+          </dl>
+        </section>
+      </div>
+      <p class="identity-dialog__rule"><i class="bi bi-shield-check" aria-hidden="true"></i>El expediente anterior queda reservado a esta persona.</p>
+      <div class="transfer-date-note"><i class="bi bi-calendar-check" aria-hidden="true"></i><div><strong>Fecha efectiva: {{ effective_label }}</strong><p>Las asistencias en {{ destination.name }} comienzan en esta fecha, inclusive. Las anteriores permanecen en {{ source.name }}.</p></div></div>
+      <dl class="transfer-review-details">
+        <div><dt>Propuestas que conserva</dt><dd>{% for proposal in preview.proposals %}<span class="transfer-proposal">{{ proposal.code }} · {{ proposal.name }}</span>{% endfor %}</dd></div>
+        <div><dt>Motivo del traslado</dt><dd>{{ values.reason }}</dd></div>
       </dl>
-      <div class="alert alert-info">El expediente anterior queda reservado a esta persona. En el destino deberá revisar el grupo familiar y la condición de jefe de familia para su nueva dirección.</div>
+      <p class="identity-dialog__contact">En el destino deberá revisar el grupo familiar y la condición de jefe de familia para su nueva dirección.</p>
       <form method="post">
         <input type="hidden" name="token" value="{{ csrf_token }}">
         <input type="hidden" name="expected_expediente_num" value="{{ preview.expediente_num }}">
         {% for key, value in values.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-primary" name="mode" value="confirm" type="submit">Confirmar traslado</button>
-          <button class="btn btn-outline-secondary" name="mode" value="edit" type="submit">Volver a editar</button>
+        <div class="identity-dialog__actions">
+          <button class="identity-dialog__button identity-dialog__primary" name="mode" value="confirm" type="submit">Confirmar traslado</button>
+          <button class="identity-dialog__button" name="mode" value="edit" type="submit">Volver a editar</button>
         </div>
       </form>
     {% else %}
       <form method="post">
         <input type="hidden" name="token" value="{{ csrf_token }}">
         <input type="hidden" name="expected_residential_id" value="{{ values.expected_residential_id }}">
-        <div class="row g-3">
-          <div class="col-md-6"><label class="form-label" for="source">Residencial actual</label><input class="form-control" id="source" value="{{ source.name if source else 'Sin residencial' }}" readonly></div>
-          <div class="col-md-6"><label class="form-label" for="destination">Residencial de destino</label><select class="form-select" id="destination" name="destination_id" required><option value="">Seleccione un residencial</option>{% for r in destinations %}<option value="{{ r.residential_id }}" {{ 'selected' if values.destination_id == r.residential_id }}>{{ r.code }} · {{ r.name }}</option>{% endfor %}</select></div>
-          <div class="col-md-4"><label class="form-label" for="effective-date">Fecha efectiva</label><input class="form-control" id="effective-date" type="date" name="effective_date" value="{{ values.effective_date }}" min="2000-01-01" max="{{ today }}" required><div class="form-text">Las nuevas asistencias en el destino comienzan en esta fecha.</div></div>
-          <div class="col-md-4"><label class="form-label" for="building">Nuevo edificio</label><input class="form-control" id="building" name="edificio" value="{{ values.edificio or '' }}" maxlength="50"></div>
-          <div class="col-md-4"><label class="form-label" for="apartment">Nuevo apartamento</label><input class="form-control" id="apartment" name="apart" value="{{ values.apart or '' }}" maxlength="50"></div>
-          <div class="col-12"><label class="form-label" for="reason">Motivo del traslado</label><textarea class="form-control" id="reason" name="reason" rows="3" maxlength="500" required>{{ values.reason or '' }}</textarea></div>
+        <div class="identity-dialog__comparison">
+          <section class="identity-dialog__record" data-module="faro" aria-labelledby="transfer-source-title">
+            <h3 id="transfer-source-title">Residencial actual</h3>
+            <div class="identity-dialog__number">Historial que se conserva</div>
+            <dl class="identity-dialog__data">
+              <div><dt>Residencial</dt><dd>{{ source.code ~ ' · ' ~ source.name if source else 'Sin residencial' }}</dd></div>
+              <div><dt>Expediente actual</dt><dd>{{ p.expediente_num }}</dd></div>
+            </dl>
+          </section>
+          <section class="identity-dialog__record transfer-destination" aria-labelledby="transfer-destination-title">
+            <h3 id="transfer-destination-title">Residencial de destino</h3>
+            <div class="identity-dialog__number">Donde continuará recibiendo servicios</div>
+            <label class="form-label" for="destination">Selecciona el residencial</label>
+            <select class="form-select" id="destination" name="destination_id" required><option value="">Seleccione un residencial</option>{% for r in destinations %}<option value="{{ r.residential_id }}" {{ 'selected' if values.destination_id == r.residential_id }}>{{ r.code }} · {{ r.name }}</option>{% endfor %}</select>
+          </section>
         </div>
-        <p class="form-text mt-3">El sistema conserva la secuencia si está libre en el destino. Si está ocupada, asigna una disponible. Podrá revisar el expediente antes de confirmar.</p>
-        <button class="btn btn-primary" type="submit" name="mode" value="preview">Revisar traslado</button>
+        <div class="transfer-fields">
+          <div class="transfer-effective-field"><label class="form-label" for="effective-date">Fecha efectiva</label><input class="form-control" id="effective-date" type="date" name="effective_date" value="{{ values.effective_date }}" min="2000-01-01" max="{{ today }}" aria-describedby="effective-date-help" required><div class="form-text" id="effective-date-help">Desde este día podrá registrar asistencias en el destino. Las fechas anteriores corresponden al residencial de origen.</div></div>
+          <div><label class="form-label" for="building">Nuevo edificio</label><input class="form-control" id="building" name="edificio" value="{{ values.edificio or '' }}" maxlength="50"></div>
+          <div><label class="form-label" for="apartment">Nuevo apartamento</label><input class="form-control" id="apartment" name="apart" value="{{ values.apart or '' }}" maxlength="50"></div>
+          <div class="transfer-reason-field"><label class="form-label" for="reason">Motivo del traslado</label><textarea class="form-control" id="reason" name="reason" rows="3" maxlength="500" required>{{ values.reason or '' }}</textarea></div>
+        </div>
+        <p class="identity-dialog__contact">El sistema conserva la secuencia si está libre en el destino. Si está ocupada, asigna una disponible. Podrá revisar el expediente antes de confirmar.</p>
+        <div class="identity-dialog__actions"><button class="identity-dialog__button identity-dialog__primary" type="submit" name="mode" value="preview">Revisar traslado</button></div>
       </form>
     {% endif %}
-  </div></div>
-  <section class="card border-0 shadow-sm"><div class="card-body p-4">
-    <h2 class="h5">Historial de traslados</h2>
-    {% if history %}<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Fecha efectiva</th><th>Origen</th><th>Destino</th><th>Motivo / registrado por</th></tr></thead><tbody>
-      {% for move, username in history %}<tr><td>{{ move.effective_date.strftime('%d/%m/%Y') }}</td><td>{{ residential_map[move.from_residential_id].name }}<br><small>{{ move.old_expediente_num }}</small></td><td>{{ residential_map[move.to_residential_id].name }}<br><small>{{ move.new_expediente_num }}</small></td><td>{{ move.reason }}<br><small class="text-muted">{{ username }} · {{ move.created_at.strftime('%d/%m/%Y') }}</small></td></tr>{% endfor %}
-    </tbody></table></div>{% else %}<p class="text-muted mb-0">No hay traslados registrados.</p>{% endif %}
-  </div></section>
+  </section>
+
+  <section class="transfer-card identity-dialog__body transfer-history" aria-labelledby="transfer-history-title">
+    <span class="identity-dialog__eyebrow">Seguimiento del participante</span>
+    <h2 id="transfer-history-title">Historial de traslados</h2>
+    {% if history %}
+      <ol class="transfer-history-list">
+        {% for move, username in history %}
+        <li>
+          <div class="transfer-history-heading"><i class="bi bi-arrow-left-right" aria-hidden="true"></i><strong>{{ residential_map[move.from_residential_id].code }} <span aria-label="hacia">→</span> {{ residential_map[move.to_residential_id].code }}</strong><time datetime="{{ move.effective_date }}">{{ move.effective_date.strftime('%d/%m/%Y') }}</time></div>
+          <div class="transfer-history-route"><div><span>Origen</span><strong>{{ residential_map[move.from_residential_id].name }}</strong><small>{{ move.old_expediente_num }}</small></div><div><span>Destino</span><strong>{{ residential_map[move.to_residential_id].name }}</strong><small>{{ move.new_expediente_num }}</small></div></div>
+          <p class="transfer-history-reason">{{ move.reason }}</p>
+          <p class="transfer-history-author">Registrado por {{ username }} · {{ move.created_at.strftime('%d/%m/%Y') }}</p>
+        </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <div class="transfer-empty"><i class="bi bi-clock-history" aria-hidden="true"></i><p>No hay traslados registrados.</p></div>
+    {% endif %}
+  </section>
+  <div class="transfer-back"><a class="identity-dialog__button" href="{{ expediente_url }}">Volver al expediente</a></div>
 </div>
 {% endblock %}

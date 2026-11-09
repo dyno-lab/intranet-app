@@ -1,0 +1,71 @@
+/* Page layout using the same comparison components as Faro/Community identity review. */
+#participant-transfer-page {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  max-width: 100%;
+  max-height: none;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+#participant-transfer-page .transfer-card { min-width: 0; border: 1px solid var(--identity-line); border-radius: 18px; background: #fff; }
+#participant-transfer-page h1 { margin: 8px 0 12px; font-size: 26px; line-height: 1.25; font-weight: 700; color: var(--identity-ink); }
+#participant-transfer-page .transfer-person { margin: 0; font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
+#participant-transfer-page .transfer-current-number { margin: 3px 0 18px; font-size: 13px; color: var(--identity-muted); overflow-wrap: anywhere; }
+#participant-transfer-page .transfer-steps { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; padding: 16px 0 0; border-top: 1px solid var(--identity-line); list-style: none; }
+#participant-transfer-page .transfer-steps li { display: flex; align-items: center; gap: 8px; color: var(--identity-muted); font-size: 12px; }
+#participant-transfer-page .transfer-steps span { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid var(--identity-line); border-radius: 50%; font-weight: 700; }
+#participant-transfer-page .transfer-steps .is-current { color: var(--identity-accent); font-weight: 650; }
+#participant-transfer-page .is-current span { background: var(--identity-primary); border-color: var(--identity-primary); color: #fff; }
+#participant-transfer-page .is-complete span { background: var(--identity-tint); color: var(--identity-accent); }
+#participant-transfer-page .transfer-destination { background: #eef7f2; border-color: #d8e5de; }
+#participant-transfer-page .transfer-destination h3 { color: #116545; }
+#participant-transfer-page .transfer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+#participant-transfer-page .transfer-fields > div { min-width: 0; }
+#participant-transfer-page .transfer-effective-field,
+#participant-transfer-page .transfer-reason-field { grid-column: 1 / -1; }
+#participant-transfer-page .transfer-effective-field input { max-width: 250px; }
+#participant-transfer-page .form-label { margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--identity-ink); }
+#participant-transfer-page :is(.form-control, .form-select) { min-height: 44px; border-color: var(--identity-line); border-radius: 8px; font-size: 14px; }
+#participant-transfer-page .form-text { margin-top: 7px; font-size: 12px; color: var(--identity-muted); }
+#participant-transfer-page .identity-dialog__button { text-decoration: none; }
+#participant-transfer-page .identity-dialog__contact { margin-bottom: 0; }
+#participant-transfer-page .transfer-notice { display: flex; align-items: baseline; gap: 10px; padding: 16px; border: 1px solid #e5c1c5; border-radius: 12px; background: #fff1f2; color: #8e2635; overflow-wrap: anywhere; }
+#participant-transfer-page .transfer-date-note { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid var(--identity-line); border-radius: 10px; background: var(--identity-tint); }
+#participant-transfer-page .transfer-date-note > i { color: var(--identity-accent); font-size: 18px; }
+#participant-transfer-page .transfer-date-note p { margin: 5px 0 0; color: var(--identity-muted); font-size: 13px; }
+#participant-transfer-page .transfer-review-details { display: grid; gap: 14px; margin: 20px 0; }
+#participant-transfer-page .transfer-proposal { display: block; margin-top: 3px; }
+#participant-transfer-page .transfer-history h2 { font-size: 19px; }
+#participant-transfer-page .transfer-empty { display: flex; align-items: center; gap: 10px; padding: 12px 0 0; color: var(--identity-muted); }
+#participant-transfer-page .transfer-empty > i { color: var(--identity-accent); font-size: 20px; }
+#participant-transfer-page .transfer-empty p { margin: 0; font-size: 13px; }
+#participant-transfer-page .transfer-history-list { display: grid; gap: 12px; list-style: none; margin: 16px 0 0; padding: 0; }
+#participant-transfer-page .transfer-history-list li { min-width: 0; padding: 16px; border: 1px solid var(--identity-line); border-radius: 12px; overflow-wrap: anywhere; }
+#participant-transfer-page .transfer-history-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--identity-line); color: var(--identity-accent); }
+#participant-transfer-page .transfer-history-heading time { margin-left: auto; color: var(--identity-muted); font-size: 12px; }
+#participant-transfer-page .transfer-history-route { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+#participant-transfer-page .transfer-history-route > div { display: grid; gap: 3px; }
+#participant-transfer-page .transfer-history-route :is(span, small) { font-size: 12px; color: var(--identity-muted); }
+#participant-transfer-page .transfer-history-reason { margin: 0 0 5px; font-size: 13px; white-space: pre-line; }
+#participant-transfer-page .transfer-history-author { margin: 0; font-size: 12px; color: var(--identity-muted); }
+#participant-transfer-page .transfer-back { padding-bottom: 8px; }
+@media (max-width: 560px) {
+  #participant-transfer-page h1 { font-size: 23px; }
+  #participant-transfer-page .identity-dialog__brand { padding: 14px 16px; }
+  #participant-transfer-page .identity-dialog__brand small { flex-basis: 100%; margin-left: 24px; }
+  #participant-transfer-page .transfer-steps { gap: 12px; }
+  #participant-transfer-page .transfer-fields,
+  #participant-transfer-page .transfer-history-route { grid-template-columns: 1fr; }
+  #participant-transfer-page .transfer-effective-field input { max-width: none; }
+  #participant-transfer-page .transfer-back .identity-dialog__button { width: 100%; }
+}
+/* This stylesheet is loaded only by Traslados; keep its shell usable on narrow phones. */
+@media (max-width: 359.98px) {
+  .ui-topbar { flex-wrap: wrap; gap: .5rem; }
+  .ui-topbar__right { margin-left: auto; }
+}
