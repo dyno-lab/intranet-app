@@ -35,8 +35,12 @@ from app.services.participant_residency import session_snapshot_join, eligible_o
 from app.services.participant_transfers import transfer_participant, require_available_number
 
 
+from app.models.participant_profile_field import ParticipantProfileField
+from app.models.participant_profile_field_value import ParticipantProfileFieldValue
+
+
 class ParticipantTransferTests(unittest.TestCase):
-    models = (Residential, User, Participant, Person, Proposal, ProposalParticipant, Employee,
+    models = (ParticipantProfileField, ParticipantProfileFieldValue, Residential, User, Participant, Person, Proposal, ProposalParticipant, Employee,
               ActivityCode, ActivitySession, Attendance, ParticipantTransfer, ParticipantResidentialNumber,
               ADMServiceType, ADMServiceTypeActivityCode, CatalogType, CatalogOption,
               VCAColumn, VCAColumnActivityCode)

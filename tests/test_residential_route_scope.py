@@ -388,6 +388,7 @@ class ParticipantExpedienteBackendTests(unittest.TestCase):
             results=[
                 _Result(scalar=51),
                 _Result(values=[participant]),
+                _Result(scalar=0),
             ],
         )
         dashboard = {

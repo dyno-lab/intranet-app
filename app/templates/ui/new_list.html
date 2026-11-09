@@ -4,6 +4,7 @@
 
 {% block content %}
 {{ identity.assets() }}
+<link rel="stylesheet" href="/static/css/participant-history.css?v=20261109-1">
 <div class="participants-page">
   <section class="participants-hero">
     <div class="participants-hero__content">
@@ -20,6 +21,9 @@
           <i class="bi bi-table" aria-hidden="true"></i>
           <span>Ver participantes</span>
         </a>
+        {% if participant_history and participant_history.total %}
+        <a class="btn btn-outline-warning" href="#participants-history-card"><i class="bi bi-clock-history" aria-hidden="true"></i> Trasladados · {{ participant_history.total }}</a>
+        {% endif %}
       </div>
     </div>
   </section>
@@ -559,6 +563,7 @@
       </ul>
     </nav>
     {% endif %}
+    {% include "ui/_participant_history_list.html" %}
   </section>
 </div>
 

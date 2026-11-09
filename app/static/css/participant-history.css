@@ -1,0 +1,15 @@
+/* Scoped historical consultation; current participant styles remain unchanged. */
+.participants-history-card { margin-top: 1.5rem; border: 1px solid #e8ca81; background: #fffdf7; border-radius: 1rem; }
+.history-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .65rem; border: 1px solid #e4c174; border-radius: 999px; color: #74500d; background: #fff2ce; font-size: .8rem; font-weight: 700; }
+.participants-history-table { min-width: 760px; }
+.participants-history-table tbody td { background: #fffaf0; }
+.participant-history-page .participants-hero { border-color: #e8ca81; background: linear-gradient(110deg, #fff8e7, #fff); }
+.participant-history-page .participants-expediente-card__body { overflow-wrap: anywhere; }
+.participant-history-page .participants-hero__content { min-width: 0; }
+.history-stays, .history-pagination { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+.history-pagination { justify-content: center; padding-top: 1rem; }
+.history-participations-table { min-width: 650px; }
+@media (max-width: 575px) {
+  .participant-history-page .participants-hero__title { font-size: 1.65rem; overflow-wrap: anywhere; }
+  .participants-history-card .participants-card__header { flex-wrap: wrap; }
+}

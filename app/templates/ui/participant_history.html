@@ -1,0 +1,72 @@
+{% extends "ui/_base.html" %}
+{% block title %}Historial {{ p.expediente_num }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/participant-history.css?v=20261109-1">
+<div class="participants-page participants-expediente-page participant-history-page">
+  <section class="participants-hero participants-hero--expediente">
+    <div class="participants-hero__content participants-hero__content--expediente">
+      <span class="history-badge"><i class="bi bi-lock" aria-hidden="true"></i> Trasladado · Solo lectura</span>
+      <h1 class="participants-hero__title">{{ p.nombre or '' }} {{ p.inicial or '' }} {{ p.apellido_paterno or '' }} {{ p.apellido_materno or '' }}</h1>
+      <p class="participants-expediente__subtitle">Expediente histórico {{ p.expediente_num }} · {{ source.name }}</p>
+      <p class="mb-0">Traslado a {{ destination.name if destination else 'otro residencial' }} efectivo el <strong>{{ audit.effective_date.strftime('%d/%m/%Y') }}</strong>.</p>
+      <div class="participants-hero__actions mt-3"><a class="btn btn-outline-secondary" href="{{ back_to_list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a Participantes</a></div>
+    </div>
+    <aside class="participants-expediente-summary" aria-label="Período del historial">
+      <span class="participants-expediente-summary__eyebrow">Consulta de {{ source.code }}</span>
+      <h2 class="participants-card__title mt-2">Estancia en el residencial</h2>
+      <p class="mt-2 mb-1">Desde {{ stay_start.strftime('%d/%m/%Y') if stay_start else 'su registro en el residencial' }}</p>
+      <p>Hasta el {{ cutoff.strftime('%d/%m/%Y') }}</p>
+      <small>Incluye únicamente la información conservada de esta estancia.</small>
+    </aside>
+  </section>
+  {% if stays|length > 1 %}
+  <nav class="history-stays" aria-label="Estancias anteriores en este residencial">
+    <strong>Otras estancias en {{ source.code }}:</strong>
+    {% for stay in stays %}<a class="btn btn-sm {{ 'btn-warning' if stay.transfer_id == audit.transfer_id else 'btn-outline-secondary' }}" href="/ui/new-list/{{ p.participant_id }}/history/{{ stay.transfer_id }}?{{ {'return_query':return_query}|urlencode }}">Salida {{ stay.effective_date.strftime('%d/%m/%Y') }}</a>{% endfor %}
+  </nav>
+  {% endif %}
+  <section class="participants-expediente-grid" aria-label="Datos históricos del participante">
+    <article class="participants-expediente-card">
+      <div class="participants-expediente-card__header"><h2 class="participants-card__title">Datos generales conservados</h2></div>
+      <div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
+        {% for label,value in [('Fecha de nacimiento', p.fecha_nacimiento.strftime('%d/%m/%Y') if p.fecha_nacimiento else ''), ('Edad al finalizar la estancia',age), ('Género',p.genero), ('VCA',p.vca), ('Primera vez',p.primera_vez), ('Estatus',p.estatus), ('Escolaridad',p.escolaridad_participante), ('Relación familiar',p.relacion_familiar)] %}
+        <div class="participants-expediente-field"><dt class="participants-expediente-field__label">{{ label }}</dt><dd class="participants-expediente-field__value">{{ value if value is not none and value != '' else 'No informado' }}</dd></div>
+        {% endfor %}
+      </dl></div>
+    </article>
+    <article class="participants-expediente-card">
+      <div class="participants-expediente-card__header"><h2 class="participants-card__title">Expediente y dirección en {{ source.code }}</h2></div>
+      <div class="participants-expediente-card__body"><dl class="participants-expediente-fields">
+        {% for label,value in [('Expediente',p.expediente_num),('Edificio',p.edificio),('Apartamento',p.apart),('Grupo familiar',p.grupo_familiar),('Composición familiar',p.composicion_familiar),('Fuente de ingreso principal',p.fuente_ingreso_principal),('Rango de ingreso',p.rango_ingreso),('Jefe de familia','Sí' if p.is_head_of_household else 'No')] %}
+        <div class="participants-expediente-field"><dt class="participants-expediente-field__label">{{ label }}</dt><dd class="participants-expediente-field__value">{{ value if value is not none and value != '' else 'No informado' }}</dd></div>
+        {% endfor %}
+      </dl></div>
+    </article>
+  </section>
+  <section class="participants-expediente-card">
+    <div class="participants-expediente-card__header"><h2 class="participants-card__title">Datos adicionales conservados</h2>{% if has_profile_snapshot %}<p class="participants-section__text mb-0">Copia guardada al registrar el traslado.</p>{% endif %}</div>
+    <div class="participants-expediente-card__body">
+      {% if not has_profile_snapshot %}<p class="text-muted mb-0">Este traslado no tiene una copia histórica de los datos adicionales. Los datos actuales del otro residencial no se muestran aquí.</p>
+      {% elif not profile_fields %}<p class="text-muted mb-0">No había datos adicionales registrados al realizar el traslado.</p>
+      {% else %}<dl class="participants-expediente-fields">{% for field in profile_fields %}<div class="participants-expediente-field"><dt class="participants-expediente-field__label">{{ field.label }}</dt><dd class="participants-expediente-field__value">{{ field.value or 'No informado' }}</dd></div>{% endfor %}</dl>{% endif %}
+    </div>
+  </section>
+  <section class="participants-expediente-card" id="history-participations">
+    <div class="participants-expediente-card__header"><h2 class="participants-card__title">Asistencias y servicios en {{ source.code }}</h2><p class="participants-section__text mb-0">{{ total }} {{ 'participación confirmada' if total == 1 else 'participaciones confirmadas' }} con los filtros seleccionados.</p></div>
+    <div class="participants-expediente-card__body">
+      <form method="get" action="{{ history_path }}" class="row g-3 align-items-end mb-3">
+        <input type="hidden" name="return_query" value="{{ return_query }}">
+        <div class="col-md-3"><label class="form-label" for="history-from">Desde</label><input type="date" class="form-control" id="history-from" name="participation_from_date" value="{{ from_date or '' }}" max="{{ cutoff }}" {% if stay_start %}min="{{ stay_start }}"{% endif %}></div>
+        <div class="col-md-3"><label class="form-label" for="history-to">Hasta</label><input type="date" class="form-control" id="history-to" name="participation_to_date" value="{{ to_date or '' }}" max="{{ cutoff }}" {% if stay_start %}min="{{ stay_start }}"{% endif %}></div>
+        <div class="col-md-4"><label class="form-label" for="history-proposal">Propuesta</label><select class="form-select" id="history-proposal" name="participation_proposal_id"><option value="">Todas las de esta estancia</option>{% for proposal in proposal_options %}<option value="{{ proposal.proposal_id }}" {% if proposal.proposal_id == selected_proposal_id %}selected{% endif %}>{{ proposal.code }} · {{ proposal.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Consultar</button></div>
+      </form>
+      <div class="table-responsive"><table class="table align-middle history-participations-table">
+        <thead><tr><th>Fecha</th><th>Propuesta</th><th>Actividad / servicio</th><th>Facilitador</th><th>Horas</th></tr></thead>
+        <tbody>{% for attendance,session,activity,employee,proposal in entries %}<tr><td>{{ session.session_date.strftime('%d/%m/%Y') }}</td><td>{{ proposal.code }}</td><td><strong>{{ activity.code if activity else 'Sin código' }}</strong><br>{{ activity.description or '' if activity else '' }}</td><td>{{ employee.full_name if employee else 'No informado' }}</td><td>{{ session.hours if session.hours is not none else '—' }}</td></tr>{% else %}<tr><td colspan="5" class="text-muted">No hay participaciones confirmadas para esta consulta.</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% if pages > 1 %}<nav class="history-pagination" aria-label="Paginación del historial">{% if page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ previous_url }}">Anterior</a>{% endif %}<span>Página {{ page }} de {{ pages }}</span>{% if page < pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ next_url }}">Siguiente</a>{% endif %}</nav>{% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

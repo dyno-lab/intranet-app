@@ -71,6 +71,7 @@ from app.services.participant_residency import (
     require_session_stay_compatibility,
 )
 from app.services.participant_transfers import require_available_number
+from app.services.participant_history import residential_history_page, participant_history_context
 from app.services.community_identity import (
     linked_identity, has_identity_review, pending_identity_review, linked_participant_ids,
 )
@@ -732,6 +733,7 @@ def _paginate(total_items: int, page: int, per_page: int):
 
 _NEW_LIST_RETURN_QUERY_KEYS = (
     "page",
+    "history_page",
     "per_page",
     "age_range",
     "age_min",
@@ -749,7 +751,7 @@ def _normalize_new_list_return_query(return_query: str | None) -> str:
     }
 
     normalized_values: dict[str, str | int] = {}
-    for key in ("page", "per_page"):
+    for key in ("page", "per_page", "history_page"):
         parsed = _parse_optional_int(parsed_values.get(key))
         if parsed is not None:
             normalized_values[key] = max(1, parsed)
@@ -985,6 +987,7 @@ def new_list(
     request: Request,
     page: int = 1,
     per_page: int = 25,
+    history_page: OptionalQueryInt = 1,
     age_range: str | None = None,
     age_min: str | None = None,
     age_max: str | None = None,
@@ -1084,6 +1087,18 @@ def new_list(
         for p in participants
     ]
 
+    history = residential_history_page(db, selected_residential_id, page=history_page,
+        per_page=pagination["per_page"], expediente=selected_expediente_num,
+        born_before=_subtract_years(date.today(), selected_age_min) if selected_age_min is not None else None,
+        born_after=_subtract_years(date.today(), selected_age_max + 1) if selected_age_max is not None else None)
+    history_return_query = _normalize_new_list_return_query(urlencode({"page": pagination["page"],
+        **query_params, "history_page": history["page"]}))
+    for row in history["rows"]:
+        row["url"] = f"/ui/new-list/{row['audit'].participant_id}/history/{row['audit'].transfer_id}?" + urlencode({"return_query": history_return_query})
+    for direction, value in (("previous", history["page"] - 1), ("next", history["page"] + 1)):
+        history[direction + "_url"] = "/ui/new-list?" + urlencode({"page": pagination["page"], **query_params,
+            "history_page": value}) + "#participants-history-card"
+
     context = {
         "request": request,
         "rows": rows,
@@ -1103,6 +1118,7 @@ def new_list(
         "new_list_query_string": query_string,
         "new_list_return_query": current_return_query,
         "new_list_dashboard": new_list_dashboard,
+        "participant_history": history,
         "msg": msg,
     }
     context.update(_participant_form_catalogs(db))
@@ -1516,6 +1532,32 @@ def export_participants_csv(
 # ============================================================
 # PARTICIPANT EXPEDIENTE / AUDIT PROFILE
 # ============================================================
+
+@router.get("/new-list/{participant_id}/history/{transfer_id}", response_class=HTMLResponse)
+def participant_historical_expediente(
+    participant_id: int, transfer_id: int, request: Request,
+    return_query: str | None = None, participation_page: OptionalQueryInt = 1,
+    participation_proposal_id: OptionalQueryInt = None,
+    participation_from_date: str | None = None, participation_to_date: str | None = None,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    context = participant_history_context(db, request, current_user, participant_id, transfer_id,
+        page=participation_page, proposal_id=participation_proposal_id,
+        from_date=_parse_optional_filter_date(participation_from_date),
+        to_date=_parse_optional_filter_date(participation_to_date))
+    return_query = _normalize_new_list_return_query(return_query)
+    if not return_query and has_global_residential_access(current_user):
+        return_query = urlencode({"residential_id": context["audit"].from_residential_id})
+    path = f"/ui/new-list/{participant_id}/history/{transfer_id}"
+    filters = {"return_query": return_query, "participation_proposal_id": participation_proposal_id or "",
+               "participation_from_date": participation_from_date or "", "participation_to_date": participation_to_date or ""}
+    context.update(request=request, current_user=current_user, return_query=return_query, history_path=path,
+        back_to_list_url=_build_new_list_url(return_query) + "#participants-history-card",
+        previous_url=path + "?" + urlencode({**filters, "participation_page": context["page"] - 1}) + "#history-participations",
+        next_url=path + "?" + urlencode({**filters, "participation_page": context["page"] + 1}) + "#history-participations")
+    return templates.TemplateResponse(request=request, name="ui/participant_history.html", context=context,
+                                      headers={"Cache-Control": "no-store"})
+
 
 @router.get("/new-list/{participant_id}/expediente", response_class=HTMLResponse)
 def participant_expediente(

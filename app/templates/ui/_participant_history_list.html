@@ -1,0 +1,36 @@
+{% if participant_history and participant_history.total %}
+<section class="card participants-history-card" id="participants-history-card" aria-labelledby="participants-history-title">
+  <div class="card-body">
+    <div class="participants-card__header">
+      <div>
+        <span class="history-badge"><i class="bi bi-lock" aria-hidden="true"></i> Solo lectura</span>
+        <h2 class="participants-section__title mt-2" id="participants-history-title">Participantes trasladados</h2>
+        <p class="participants-section__text">Historial de {{ participant_history.residential.name }}. Estos expedientes no forman parte de los participantes actuales del residencial.</p>
+      </div>
+      <span class="text-muted">{{ participant_history.total }} {{ 'expediente' if participant_history.total == 1 else 'expedientes' }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle participants-table participants-history-table mb-0">
+        <thead><tr><th>Expediente anterior</th><th>Participante</th><th>Edif. / Apto.</th><th>Traslado efectivo</th><th>Estado</th><th>Consulta</th></tr></thead>
+        <tbody>{% for row in participant_history.rows %}
+          <tr>
+            <td><strong>{{ row.audit.old_expediente_num }}</strong></td>
+            <td>{{ row.p.nombre or '' }} {{ row.p.inicial or '' }} {{ row.p.apellido_paterno or '' }} {{ row.p.apellido_materno or '' }}</td>
+            <td>{{ row.p.edificio or '—' }} / {{ row.p.apart or '—' }}</td>
+            <td>{{ row.audit.effective_date.strftime('%d/%m/%Y') }}</td>
+            <td><span class="history-badge">Trasladado a {{ row.destination.code if row.destination else 'otro residencial' }}</span><small class="d-block mt-1">Solo lectura</small></td>
+            <td><a class="btn btn-sm btn-outline-secondary" href="{{ row.url }}"><i class="bi bi-eye" aria-hidden="true"></i> Ver historial</a></td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+    {% if participant_history.pages > 1 %}
+    <nav class="history-pagination" aria-label="Paginación de trasladados">
+      {% if participant_history.page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ participant_history.previous_url }}">Anterior</a>{% endif %}
+      <span>Página {{ participant_history.page }} de {{ participant_history.pages }}</span>
+      {% if participant_history.page < participant_history.pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ participant_history.next_url }}">Siguiente</a>{% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

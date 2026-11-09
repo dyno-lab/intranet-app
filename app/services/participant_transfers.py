@@ -17,6 +17,7 @@ from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.services.proposal_participant_sync import get_proposal_participant_update_values
+from app.services.participant_history import capture_transfer_snapshot
 
 
 def _locked(statement, model):
@@ -156,6 +157,7 @@ def transfer_participant(db, *, expected_expediente_num=None, **values):
     new_number = _destination_number(db, participant, destination, effective_date)
     if expected_expediente_num is not None and expected_expediente_num != new_number.expediente_num:
         raise HTTPException(409, "La numeración disponible cambió. Revise y confirme el nuevo expediente.")
+    profile_snapshot = capture_transfer_snapshot(db, participant)
     old_number = participant.expediente_num
     reserved = db.scalar(select(ParticipantResidentialNumber)
                           .where(ParticipantResidentialNumber.expediente_num == old_number))
@@ -192,7 +194,7 @@ def transfer_participant(db, *, expected_expediente_num=None, **values):
     audit = ParticipantTransfer(participant_id=participant_id, from_residential_id=expected_residential_id,
                                 to_residential_id=destination_id, effective_date=effective_date,
                                 old_expediente_num=old_number, new_expediente_num=new_number.expediente_num,
-                                reason=reason, created_by_user_id=actor.user_id,
+                                reason=reason, profile_snapshot_json=profile_snapshot, created_by_user_id=actor.user_id,
                                 proposal_codes=", ".join(proposal.code for _, proposal in enrollments))
     db.add(audit); db.flush()
     return audit

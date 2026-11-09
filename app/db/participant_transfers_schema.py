@@ -48,4 +48,6 @@ BEGIN
     );
     CREATE INDEX IX_participant_transfers_participant_id ON dbo.participant_transfers(participant_id);
 END;
+IF COL_LENGTH(N'dbo.participant_transfers', N'profile_snapshot_json') IS NULL
+    ALTER TABLE dbo.participant_transfers ADD profile_snapshot_json NVARCHAR(MAX) NULL;
 """

@@ -108,3 +108,23 @@ class SQLServerTransferTests(fixtures.ParticipantTransferTests):
         with ThreadPoolExecutor(max_workers=2) as executor:
             numbers = list(executor.map(move, ids))
         self.assertEqual(set(numbers), {"FE-2026-B-0002", "FE-2026-B-0003"})
+
+    def test_history_query_and_snapshot_migration_on_existing_transfers(self):
+        from types import SimpleNamespace
+        from app.services.participant_history import residential_history_page, participant_history_context
+        audit=self.move();self.db.commit()
+        data=residential_history_page(self.db,self.a.residential_id)
+        self.assertEqual(data['total'],1)
+        context=participant_history_context(self.db,SimpleNamespace(),self.actor,self.participant.participant_id,audit.transfer_id)
+        self.assertEqual(context['total'],1)
+        self.assertTrue(context['has_profile_snapshot'])
+        self.db.commit()
+        with self.engine.begin() as connection:
+            connection.exec_driver_sql('ALTER TABLE dbo.participant_transfers DROP COLUMN profile_snapshot_json')
+            connection.exec_driver_sql(PARTICIPANT_TRANSFERS_SQL)
+            connection.exec_driver_sql(PARTICIPANT_TRANSFERS_SQL)
+            self.assertIsNone(connection.exec_driver_sql('SELECT profile_snapshot_json FROM dbo.participant_transfers').scalar())
+        self.db.expire_all()
+        context=participant_history_context(self.db,SimpleNamespace(),self.actor,self.participant.participant_id,audit.transfer_id)
+        self.assertEqual(context['p'].expediente_num,'FE-2026-A-0001')
+        self.assertFalse(context['has_profile_snapshot'])

@@ -1,7 +1,7 @@
 """Residential transfers retain identity, local record numbers and audit history."""
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Index, func, text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, UnicodeText, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -31,6 +31,7 @@ class ParticipantTransfer(Base):
     old_expediente_num: Mapped[str] = mapped_column(String(50))
     new_expediente_num: Mapped[str] = mapped_column(String(50))
     proposal_codes: Mapped[str] = mapped_column(String(1000))
+    profile_snapshot_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
     reason: Mapped[str] = mapped_column(String(500))
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.sysutcdatetime())
