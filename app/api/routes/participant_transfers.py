@@ -39,6 +39,7 @@ def _render(request, db, user, participant_id, *, values=None, preview=None, err
                          .order_by(ParticipantTransfer.effective_date.desc(), ParticipantTransfer.transfer_id.desc())).all()
     return templates.TemplateResponse(request=request, name="ui/participant_transfer.html", status_code=status_code,
         context={"request": request, "current_user": user, "p": participant,
+                 "expediente_url": request.app.url_path_for("participant_expediente", participant_id=participant_id),
                  "source": residential_map.get(participant.residential_id), "residential_map": residential_map,
                  "destinations": [r for r in residentials if r.is_active and r.residential_id != participant.residential_id],
                  "values": values or {"effective_date": date.today().isoformat(),
@@ -84,5 +85,6 @@ def transfer_submit(participant_id: int, request: Request, destination_id: int =
         db.rollback()
         return _render(request, db, current_user, participant_id, values=values,
                        error="La inscripción o numeración cambió. Revise nuevamente el traslado.", status_code=409)
-    return RedirectResponse(f"/ui/new-list/{participant_id}?" + urlencode({
+    expediente_url = request.app.url_path_for("participant_expediente", participant_id=participant_id)
+    return RedirectResponse(f"{expediente_url}?" + urlencode({
         "msg": f"Traslado completado. Nuevo expediente: {new_number}. El historial anterior se conserva."}), status_code=303)

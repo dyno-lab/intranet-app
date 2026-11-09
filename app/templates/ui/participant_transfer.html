@@ -7,7 +7,7 @@
       <span class="participants-hero__eyebrow">Continuidad de servicios</span>
       <h1 class="participants-hero__title">Trasladar participante</h1>
       <p class="participants-hero__subtitle">{{ p.nombre }} {{ p.apellido_paterno }} · {{ p.expediente_num }}</p>
-      <a class="btn btn-outline-primary" href="/ui/new-list/{{ p.participant_id }}">Volver al expediente</a>
+      <a class="btn btn-outline-primary" href="{{ expediente_url }}">Volver al expediente</a>
     </div>
   </section>
   {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
