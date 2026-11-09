@@ -203,16 +203,21 @@
       border-radius: 50%;
       color: #fff;
       background: linear-gradient(135deg, var(--faro-primary), var(--faro-accent));
+      font-size: 0.9rem;
       font-weight: 700;
     }
 
-    .faro-entry-user strong,
-    .faro-entry-user span {
+    .faro-entry-user__details {
+      min-width: 0;
+    }
+
+    .faro-entry-user__details strong,
+    .faro-entry-user__details span {
       display: block;
       overflow-wrap: anywhere;
     }
 
-    .faro-entry-user span {
+    .faro-entry-user__details span {
       color: #657b8f;
       font-size: 0.86rem;
       margin-top: 2px;
@@ -346,7 +351,7 @@
 
             <div class="faro-entry-user" aria-label="Cuenta institucional activa">
               <span class="faro-entry-user__icon">{{ (current_user.username or 'US')[:2]|upper }}</span>
-              <div>
+              <div class="faro-entry-user__details">
                 <strong>{{ current_user.email or current_user.username }}</strong>
                 <span>Rol: {{ current_user.role }}</span>
               </div>
