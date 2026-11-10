@@ -9,7 +9,48 @@
     body { margin: 0; background: light-dark(#f3f6fb, #101b2b); color: light-dark(#19344f, #edf3fc); font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
     .automation-preview-shell { max-width: 1400px; margin: 0 auto; padding: 16px; }
     .automation-preview-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
-    .automation-preview-nav a { color: light-dark(#2459ca, #96baff); padding: 6px 0; }
+    /* Faro's outlined navigation style, scoped to the three prototype controls. */
+    .automation-preview-nav a,
+    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"] {
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      max-width: 100%;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid light-dark(#0d6efd, #96baff);
+      border-radius: 6px;
+      color: light-dark(#0d6efd, #96baff);
+      background: transparent;
+      font: 500 14px/1.4 "Segoe UI", Arial, sans-serif;
+      text-align: center;
+      text-decoration: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+      transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+    }
+    .automation-preview-nav a:hover,
+    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"]:hover {
+      color: light-dark(#fff, #101b2b);
+      background: light-dark(#0d6efd, #96baff);
+    }
+    .automation-preview-nav a:focus-visible,
+    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"]:focus-visible {
+      outline: 3px solid light-dark(rgba(13, 110, 253, .35), rgba(150, 186, 255, .6));
+      outline-offset: 3px;
+    }
+    @media (max-width: 600px) {
+      .automation-preview-nav { display: grid; grid-template-columns: minmax(0, 1fr); }
+      .automation-preview-nav a,
+      #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"] { min-height: 44px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .automation-preview-nav a,
+      #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"] { transition: none; }
+    }
     .automation-preview-notice { padding: 12px 16px; margin: 0 0 16px; border: 1px solid light-dark(#e6ce99, #776340); border-radius: 10px; background: light-dark(#fff4de, #413621); }
     .automation-preview-notice p { margin: 4px 0 0; }
     #faro-budget-design button:not(:disabled), #faro-budget-design summary { cursor: pointer; }
