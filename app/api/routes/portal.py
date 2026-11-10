@@ -20,6 +20,7 @@ from app.core.platform_permissions import (
     MANAGE_PLATFORM_SETTINGS,
     get_optional_current_user,
     user_permission_keys,
+    require_platform_permission,
 )
 from app.core.roles import is_viewer
 
@@ -85,4 +86,19 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
             "can_access_automation": ACCESS_AUTOMATION in permission_keys,
             "can_access_new_programs": ACCESS_NEW_PROGRAMS in permission_keys,
         },
+    )
+
+
+@router.get(
+    "/automatizaciones",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_platform_permission(ACCESS_AUTOMATION))],
+)
+def automation_mockup(request: Request):
+    """Serve the in-memory budget prototype without reading or writing program data."""
+    return templates.TemplateResponse(
+        request=request,
+        name="automation/index.html",
+        context={"request": request},
+        headers={"Cache-Control": "no-store"},
     )
