@@ -6,11 +6,23 @@
   <title>Automatizaciones · Mockup de presupuesto | Centros Sor Isolina Ferré</title>
   <style>
     :root { color-scheme: light dark; }
-    body { margin: 0; background: light-dark(#f3f6fb, #101b2b); color: light-dark(#19344f, #edf3fc); font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
-    .automation-preview-shell { max-width: 1400px; margin: 0 auto; padding: 16px; }
-    .automation-preview-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, light-dark(#2563eb12, #2563eb0a), transparent 30%), light-dark(#f4f7fb, #101b2b); color: light-dark(#0f172a, #edf3fc); font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
+    .automation-preview-shell { max-width: 1440px; margin: 0 auto; padding: 22px 24px 32px; }
+    .automation-topbar { position: sticky; top: 0; z-index: 30; display: flex; justify-content: space-between; align-items: center; gap: 20px; box-sizing: border-box; min-height: 76px; padding: 14px 20px; background: light-dark(#ffffffeb, #19293deb); border-bottom: 1px solid light-dark(#0f172a14, #33475f); backdrop-filter: blur(18px); }
+    .automation-topbar-brand, .automation-topbar-actions, .automation-session { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .automation-topbar-brand { font-size: 18px; font-weight: 700; }
+    .automation-brand-mark { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 auto; color: light-dark(#0d6efd, #96baff); border: 1px solid light-dark(#dfe7f1, #33475f); border-radius: 14px; background: light-dark(#fff, #19293d); }
+    .automation-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .automation-topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
+    .automation-topbar-actions form { margin: 0; }
+    .automation-session-copy { display: flex; flex-direction: column; line-height: 1.3; max-width: 320px; min-width: 0; }
+    .automation-session-copy>span { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: light-dark(#5f6f86, #aebed1); }
+    .automation-session-copy strong { font-size: 14px; overflow-wrap: anywhere; }
+    .automation-session-role { padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 650; white-space: nowrap; background: light-dark(#e9f1ff, #223b60); color: light-dark(#2455d6, #96baff); }
+    .automation-session-role[data-session-role="admin"] { background: #ffc107; color: #171300; }
+    .automation-session-role[data-session-role="viewer"] { background: light-dark(#dff5fb, #173b49); color: light-dark(#13556a, #a0e2f7); }
     /* Faro button styling shared by navigation, budget actions and dialogs. */
-    .automation-preview-nav a,
+    .automation-action,
     #faro-budget-design button[type][class] {
       box-sizing: border-box;
       display: inline-flex;
@@ -32,14 +44,14 @@
       cursor: pointer;
       transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
     }
-    .automation-preview-nav a:hover,
+    .automation-action:hover,
     #faro-budget-design button[type][class]:not(:disabled):hover,
     #faro-budget-design button.fb-primary[type],
     #faro-budget-design .fb-tabs button[data-tab][aria-pressed="true"] {
       color: light-dark(#fff, #101b2b);
       background: light-dark(#0d6efd, #96baff);
     }
-    .automation-preview-nav a:focus-visible,
+    .automation-action:focus-visible,
     #faro-budget-design button[type][class]:focus-visible {
       outline: 3px solid light-dark(rgba(13, 110, 253, .35), rgba(150, 186, 255, .6));
       outline-offset: 3px;
@@ -49,32 +61,71 @@
     #faro-budget-design .fb-tabs button[data-tab][aria-pressed="true"] { font-weight: 600; }
     #faro-budget-design .fb-edit-action { display: grid; gap: 6px; min-width: 116px; }
     #faro-budget-design .fb-payment-history { margin-top: 0; }
+    .automation-topbar .automation-action { min-height: 34px; font-size: 13px; padding: 5px 10px; }
+    .automation-topbar .automation-logout { color: light-dark(#6c757d, #bac8d8); border-color: light-dark(#6c757d, #8397ae); }
+    .automation-topbar .automation-logout:hover { background: light-dark(#6c757d, #bac8d8); color: light-dark(#fff, #101b2b); }
+    .automation-preview-utility { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .automation-preview-notice { min-width: 0; flex: 1; padding: 10px 14px; border: 1px solid light-dark(#e6ce99, #776340); border-radius: 10px; background: light-dark(#fff9eb, #332e20); font-size: 12px; }
+    .automation-preview-notice summary { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; cursor: pointer; list-style: none; }
+    .automation-preview-notice summary::-webkit-details-marker { display: none; }
+    .automation-preview-notice summary:after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); margin-left: auto; flex: 0 0 auto; }
+    .automation-preview-notice[open] summary:after { transform: rotate(225deg); }
+    .automation-preview-notice summary:focus-visible { outline: 3px solid light-dark(#0d6efd, #96baff); outline-offset: 5px; border-radius: 3px; }
+    .automation-preview-notice p { margin: 10px 0 0; line-height: 1.6; }
+    .automation-preview-utility>.automation-action { font-size: 12px; flex: 0 0 auto; }
+    #faro-budget-design section.fb-window { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+    #faro-budget-design .fb-window>.fb-main[data-screen] { padding: 0; }
+    @media (max-width: 1000px) {
+      .automation-topbar { position: static; align-items: flex-start; flex-direction: column; gap: 12px; }
+      .automation-topbar-actions { width: 100%; justify-content: flex-start; }
+      .automation-session { margin-right: auto; }
+    }
     @media (max-width: 600px) {
-      .automation-preview-nav { display: grid; grid-template-columns: minmax(0, 1fr); }
+      .automation-preview-shell { padding: 16px 14px 24px; }
+      .automation-topbar { padding: 12px 14px; }
+      .automation-topbar-brand { font-size: 16px; gap: 10px; }
+      .automation-topbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .automation-session { grid-column: 1/-1; justify-content: space-between; margin: 0; width: 100%; }
+      .automation-session-copy { max-width: 100%; }
+      .automation-topbar .automation-action { width: 100%; min-height: 44px; }
+      .automation-preview-utility { flex-direction: column; gap: 10px; }
+      .automation-preview-notice { width: 100%; box-sizing: border-box; }
+      .automation-preview-notice summary { position: relative; padding-right: 16px; }
+      .automation-preview-notice summary>span { flex-basis: 100%; }
+      .automation-preview-notice summary:after { position: absolute; right: 2px; top: 7px; }
+      .automation-preview-utility>.automation-action { align-self: flex-end; }
       #faro-budget-design nav.fb-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .automation-preview-nav a,
+      .automation-action,
       #faro-budget-design button[type][class] { min-height: 44px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .automation-preview-nav a,
+      .automation-action,
       #faro-budget-design button[type][class] { transition: none; }
     }
-    .automation-preview-notice { padding: 12px 16px; margin: 0 0 16px; border: 1px solid light-dark(#e6ce99, #776340); border-radius: 10px; background: light-dark(#fff4de, #413621); }
-    .automation-preview-notice p { margin: 4px 0 0; }
     #faro-budget-design button:not(:disabled), #faro-budget-design summary { cursor: pointer; }
   </style>
 </head>
 <body>
+  <header class="automation-topbar" aria-label="Encabezado de la plataforma">
+    <div class="automation-topbar-brand"><span class="automation-brand-mark" aria-hidden="true"><svg class="automation-icon" viewBox="0 0 24 24" focusable="false"><path d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z"/></svg></span><strong data-automation-title>Automatizaciones</strong></div>
+    <div class="automation-topbar-actions">
+      <div class="automation-session" aria-label="Cuenta de la sesión">
+        <div class="automation-session-copy"><span>Usuario</span><strong>{{ current_user.username }}</strong></div>
+        <span class="automation-session-role" data-session-role="{{ current_user.role }}" title="Rol de la cuenta autenticada">{{ {'admin': 'admin', 'supervisor': 'supervisor', 'viewer': 'solo consulta'}.get(current_user.role, current_user.role) }}</span>
+      </div>
+      <a class="automation-action" href="/home"><svg class="automation-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>Volver a Home</a>
+      <form method="post" action="/logout"><button class="automation-action automation-logout" type="submit"><svg class="automation-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4H4v16h6m4-13 5 5-5 5M8 12h11"/></svg>Cerrar sesión</button></form>
+    </div>
+  </header>
   <div class="automation-preview-shell">
-    <nav class="automation-preview-nav" aria-label="Navegación de automatizaciones">
-      <a href="/home">← Portal de programas</a>
-      <a href="/api/automation/reports">Catálogo de reportes de automatización</a>
-    </nav>
-    <aside class="automation-preview-notice" aria-label="Alcance de la demostración">
-      <strong>Mockup · Datos de prueba</strong>
-      <p>Los gastos, recibos y cambios solo duran en esta página y se reinician al recargar. No se guardan en la plataforma.</p>
-      <p>Fecha simulada: 10 de noviembre de 2026. El selector de roles permite probar los permisos del diseño.</p>
-    </aside>
+    <div class="automation-preview-utility">
+      <details class="automation-preview-notice" aria-label="Alcance de la demostración">
+        <summary><strong>Mockup · Datos de prueba</strong><span>Los datos se reinician al recargar.</span></summary>
+        <p>Los gastos, recibos y cambios solo duran en esta página y se reinician al recargar. No se guardan en la plataforma.</p>
+        <p>Fecha simulada: 10 de noviembre de 2026. El selector de roles permite probar los permisos del diseño y no modifica el rol de tu cuenta.</p>
+      </details>
+      <a class="automation-action" href="/api/automation/reports">Catálogo de reportes de automatización</a>
+    </div>
     <noscript>Activa JavaScript para probar el mockup de presupuesto.</noscript>
     {% include "automation/_budget_mockup.html" %}
   </div>

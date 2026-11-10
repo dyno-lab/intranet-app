@@ -87,7 +87,10 @@ selector de propuesta.
   usar septiembre u octubre para probar cierres.
 - Todo se mantiene en memoria de la página; **recargar reinicia los datos**.
   Los recibos elegidos permanecen en el navegador y no se envían al servidor.
-- Los roles del selector son simulados. No modifican la cuenta autenticada.
+- La barra superior muestra el usuario y el rol de la cuenta autenticada. Los
+  roles del selector **Simular rol en el mockup** son simulados y no modifican
+  esa cuenta. **Volver a Home** abre el portal y **Cerrar sesión** utiliza el
+  cierre de sesión habitual de la plataforma.
 - Comunidad muestra la etapa pendiente de diseño.
 - No agrega tablas, migraciones ni endpoints de escritura financiera; no usa
   propuestas ni presupuestos reales. No es una implementación contable definitiva.

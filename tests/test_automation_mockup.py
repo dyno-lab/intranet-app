@@ -63,11 +63,26 @@ class AutomationMockupTests(unittest.TestCase):
         self.assertIn("se reinician al recargar", response.text)
         self.assertIn("Revisión por categoría", response.text)
         self.assertIn('href="/home"', response.text)
+        self.assertIn(self.user.username, response.text)
+        self.assertIn('data-session-role="supervisor"', response.text)
+        self.assertIn('method="post" action="/logout"', response.text)
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(self.db.commits, 0)
         self.assertEqual(self.db.added, [])
         self.assertEqual(self.db.deleted, [])
         self.assertEqual(len(self.db.statements), 1, "Only permission lookup is expected.")
+
+    def test_topbar_uses_authorized_identity_and_escapes_user_text(self):
+        self.user.username = "Prueba <script>alert(1)</script>"
+        self.user.role = "viewer"
+        self.login()
+        response = self.client.get("/automatizaciones")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Prueba &lt;script&gt;alert(1)&lt;/script&gt;", response.text)
+        self.assertNotIn(self.user.username, response.text)
+        self.assertIn('data-session-role="viewer"', response.text)
+        self.assertEqual(len(self.db.statements), 1)
+        self.assertEqual(self.db.commits, 0)
 
     def test_no_server_mutation_endpoint(self):
         self.login()

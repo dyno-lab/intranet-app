@@ -23,6 +23,7 @@ from app.core.platform_permissions import (
     require_platform_permission,
 )
 from app.core.roles import is_viewer
+from app.models.user import User
 
 
 router = APIRouter()
@@ -92,13 +93,15 @@ def portal_home(request: Request, db: Session = Depends(get_db)):
 @router.get(
     "/automatizaciones",
     response_class=HTMLResponse,
-    dependencies=[Depends(require_platform_permission(ACCESS_AUTOMATION))],
 )
-def automation_mockup(request: Request):
+def automation_mockup(
+    request: Request,
+    current_user: User = Depends(require_platform_permission(ACCESS_AUTOMATION)),
+):
     """Serve the in-memory budget prototype without reading or writing program data."""
     return templates.TemplateResponse(
         request=request,
         name="automation/index.html",
-        context={"request": request},
+        context={"request": request, "current_user": current_user},
         headers={"Cache-Control": "no-store"},
     )
