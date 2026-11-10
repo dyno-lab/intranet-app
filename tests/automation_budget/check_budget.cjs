@@ -14,7 +14,7 @@ ctx.record(p,{id:'test',category:'transport',item:'trips',kind:'commitment',amou
 const available=ctx.totals(p).available;ctx.pay(p,'test',2000,'payment-test');assert.equal(ctx.totals(p).available,available);assert.equal(p.movements.find(m=>m.id==='test').pending,3000);
 assert.throws(()=>ctx.pay(p,'test',3001,'payment-excess'));
 assert(!/\bimport\s*\(/.test(src),'Startup must not depend on a deferred chart module.');
-assert(!/\bsrc\s*=/.test(src),'The mockup should not need external resources.');
+assert(!/\bsrc\s*=/.test(src.replace('src="/static/img/logo-faro-esperanza.png"','')),'Only the bundled Faro logo may have a source; the mockup must not need external resources.');
 for(const c of p.categories){const u=ctx.used(p,c.id);assert(u.paid+u.committed<=c.budget);assert(c.budget<=p.total);}
 const clone=()=>JSON.parse(JSON.stringify(ctx.p));
 const tx={id:'tx',from:'salary',to:'transport',fromItem:'',toItem:'trips',amount:10000,reason:'Más actividades',at:'2026-11-10T15:00:00Z'};

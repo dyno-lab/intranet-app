@@ -11,7 +11,8 @@ en la pantalla del mockup.
 1. Actualizar la rama `ui/modernization-v1` con `git pull --ff-only origin ui/modernization-v1`.
 2. Reiniciar la aplicación con el procedimiento habitual de esa PC.
 3. Entrar con una cuenta que tenga acceso a Automatizaciones.
-4. Abrir Faro y probar configuración de propuestas, categorías y partidas;
+4. Abrir Faro y entrar a **Configuración → Años fiscales y propuestas → Crear
+   año / propuesta**. Probar configuración de propuestas, categorías y partidas;
    entradas de gastos y compromisos; pagos parciales; transferencias con motivo;
    filtros por mes/categoría; gráficas; recibos; cierre y reapertura mensual.
 5. En el escenario de $1,000,000, seleccionar octubre de 2026 y pulsar **Cerrar
@@ -21,6 +22,24 @@ en la pantalla del mockup.
 6. Intentar reabrir sin motivo y luego con un motivo. Revisar el historial.
 7. Editar un pago de noviembre y una partida siguiendo los pasos de abajo.
    Confirmar que un pago de octubre cerrado no se puede editar hasta reabrirlo.
+
+## Configuración y ventanas de edición
+
+**Crear año / propuesta** está dentro de **Configuración → Años fiscales y
+propuestas**. El selector superior sirve para cambiar entre las propuestas
+creadas. En esa misma sección se puede editar el fondo y año fiscal de la
+propuesta seleccionada.
+
+Las ventanas de propuestas, categorías, transferencias, pagos y partidas usan
+el encabezado claro de Faro. Muestran el contexto de la propuesta, las
+indicaciones del formulario y sus acciones al final. **Cancelar**, la **X** y
+la tecla **Esc** cierran la ventana sin guardar. En pantallas pequeñas, el
+formulario se desplaza y los botones permanecen accesibles.
+
+Para transferir, entrar a **Configuración → Transferir fondos**, seleccionar
+el origen y destino, indicar el monto y escribir el motivo. La vista previa
+muestra la asignación antes y después de cada categoría y el fondo general,
+que se mantiene igual. Guardar y revisar el historial de transferencias.
 
 ## Editar pagos y partidas
 
