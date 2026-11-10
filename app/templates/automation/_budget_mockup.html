@@ -116,7 +116,43 @@
     </div>
     <p class="fb-programs-footnote">Puedes regresar a esta pantalla para cambiar de programa.</p>
   </div>
-  <div class="fb-main" data-screen="faro" hidden><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button><div><p class="fb-kicker">Faro de Esperanza</p><h1>Herramientas de gestión</h1></div><article class="fb-card"><div class="fb-row fb-between"><div><h2>Gestión de presupuesto</h2><p class="fb-lead">Fondos, categorías propias, partidas y movimientos.</p></div><button class="fb-button fb-primary" type="button" data-go="budget">Abrir presupuesto</button></div></article></div>
+  <style>
+  #faro-budget-design .fb-main.fb-faro-tools{padding:28px;gap:24px}
+  #faro-budget-design .fb-faro-tools>*{min-width:0}
+  #faro-budget-design .fb-tool-card{position:relative;padding:28px;border:1px solid var(--fb-line);border-radius:20px;background:var(--fb-panel);box-shadow:0 8px 24px #10243f06;overflow:hidden}
+  #faro-budget-design .fb-tool-card:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--fb-blue)}
+  #faro-budget-design .fb-tool-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+  #faro-budget-design .fb-tool-title{display:flex;align-items:center;gap:16px;min-width:0}
+  #faro-budget-design .fb-tool-mark{display:flex;align-items:center;justify-content:center;width:56px;height:56px;flex:0 0 auto;border-radius:16px;background:var(--fb-soft);color:var(--fb-blue)}
+  #faro-budget-design .fb-tool-mark .fb-ui-icon{width:27px;height:27px}
+  #faro-budget-design .fb-tool-title .fb-kicker{font-size:10px;font-weight:650;letter-spacing:1.2px;margin-bottom:5px}
+  #faro-budget-design .fb-tool-title h2{font-size:25px;font-weight:700;letter-spacing:-.5px}
+  #faro-budget-design .fb-tool-description{max-width:720px;margin-top:18px;color:var(--fb-muted);font-size:14px;line-height:1.7}
+  #faro-budget-design .fb-tool-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0;margin:24px 0;list-style:none}
+  #faro-budget-design .fb-tool-features li{min-width:0;padding:20px;border:1px solid var(--fb-line);border-radius:13px;background:var(--fb-bg)}
+  #faro-budget-design .fb-tool-feature-heading{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+  #faro-budget-design .fb-tool-feature-heading .fb-ui-icon{color:var(--fb-blue)}
+  #faro-budget-design .fb-tool-feature-heading strong{font-size:14px;font-weight:650}
+  #faro-budget-design .fb-tool-features p{font-size:13px;line-height:1.7;color:var(--fb-muted)}
+  #faro-budget-design .fb-tool-card-footer{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;padding-top:22px;border-top:1px solid var(--fb-line)}
+  #faro-budget-design .fb-tool-card-footer p{font-size:12px;color:var(--fb-muted)}
+  #faro-budget-design .fb-tool-card-footer button.fb-button{min-width:230px;min-height:46px;padding:10px 16px;justify-content:space-between;font-weight:600}
+  @media(max-width:760px){#faro-budget-design .fb-main.fb-faro-tools{padding:20px;gap:20px}#faro-budget-design .fb-tool-card{padding:24px}#faro-budget-design .fb-tool-features{grid-template-columns:1fr;gap:12px}#faro-budget-design .fb-tool-features li{padding:16px}#faro-budget-design .fb-tool-title h2{font-size:23px}}
+  @media(max-width:480px){#faro-budget-design .fb-main.fb-faro-tools{padding:14px;gap:16px}#faro-budget-design .fb-tool-card{padding:20px}#faro-budget-design .fb-tool-title{align-items:flex-start;gap:12px}#faro-budget-design .fb-tool-title h2{font-size:22px}#faro-budget-design .fb-tool-mark{width:44px;height:44px;border-radius:12px}#faro-budget-design .fb-tool-mark .fb-ui-icon{width:23px;height:23px}#faro-budget-design .fb-tool-card-footer button.fb-button{width:100%;min-width:0}}
+  </style>
+  <div class="fb-main fb-faro-tools" data-screen="faro" hidden>
+    <header class="fb-budget-hero"><div><p class="fb-kicker">Automatizaciones / Faro</p><h1>Herramientas de gestión</h1><p class="fb-budget-intro">Selecciona una herramienta para comenzar a trabajar con tu programa.</p></div><div class="fb-budget-hero-actions"><span class="fb-budget-program">Faro de Esperanza</span><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button></div></header>
+    <article class="fb-tool-card" aria-labelledby="fb-budget-tool-title">
+      <div class="fb-tool-card-head"><div class="fb-tool-title"><span class="fb-tool-mark"><svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v13H3zM3 7V4h15v3M16 11h5v5h-5z"/></svg></span><div><p class="fb-kicker">Gestión financiera</p><h2 id="fb-budget-tool-title">Gestión de presupuesto</h2></div></div><span class="fb-program-state"><span aria-hidden="true"></span>Disponible en el mockup</span></div>
+      <p class="fb-tool-description">Administra el fondo de cada propuesta, desde la asignación del presupuesto hasta el cierre mensual.</p>
+      <ul class="fb-tool-features" aria-label="Funciones de gestión de presupuesto">
+        <li><div class="fb-tool-feature-heading"><svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg><strong>Fondos y partidas</strong></div><p>Asigna presupuestos y transfiere fondos entre categorías.</p></li>
+        <li><div class="fb-tool-feature-heading"><svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zm4 5h4m-4 4h4"/></svg><strong>Gastos y recibos</strong></div><p>Registra pagos, compromisos y sus documentos de respaldo.</p></li>
+        <li><div class="fb-tool-feature-heading"><svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3v17h17M8 15v-4m5 4V7m5 8V4"/></svg><strong>Balances e historial</strong></div><p>Consulta gráficas Pie, revisa cambios y controla los cierres mensuales.</p></li>
+      </ul>
+      <div class="fb-tool-card-footer"><p>Organizado por año fiscal y propuesta.</p><button class="fb-button fb-primary" type="button" data-go="budget">Abrir presupuesto <svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></div>
+    </article>
+  </div>
   <div class="fb-main" data-screen="community" hidden><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button><h1>Comunidad y Prevención</h1><div class="fb-card"><h2>Próxima etapa</h2><p class="fb-lead">Las herramientas de Comunidad están pendientes de diseño.</p></div></div>
   <style>
   /* Budget presentation; all amounts and histories keep their existing data hooks. */
