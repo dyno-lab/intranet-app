@@ -14,16 +14,36 @@ en la pantalla del mockup.
 4. Abrir Faro y probar configuración de propuestas, categorías y partidas;
    entradas de gastos y compromisos; pagos parciales; transferencias con motivo;
    filtros por mes/categoría; gráficas; recibos; cierre y reapertura mensual.
-5. Seleccionar septiembre de 2026 y pulsar **Cerrar mes**: el resumen muestra un
-   gasto de Transportación por $150 sin recibo. Revisar el detalle, volver a
-   gastos para adjuntarlo, o cancelar. Confirmar cierre debe bloquear ese mes.
+5. En el escenario de $1,000,000, seleccionar octubre de 2026 y pulsar **Cerrar
+   mes**: el resumen muestra tres gastos sin recibo por $19,200 en Transporte,
+   Materiales y Luz. Revisar el detalle, volver a gastos para adjuntarlos, o
+   cancelar. Confirmar cierre debe bloquear ese mes.
 6. Intentar reabrir sin motivo y luego con un motivo. Revisar el historial.
 
-La propuesta de ejemplo 006 tiene $2,000 generales, $1,900 distribuidos en
-categorías, $100 sin distribuir, $250 pagados y $100 comprometidos. El saldo
-actual es $1,650. Al cierre de octubre el saldo es $1,750 porque el compromiso
-de $100 corresponde a noviembre. Las transferencias no cambian el fondo general
-ni descuentan gastos nuevamente.
+El escenario inicial **006 · Fondo $1,000,000** tiene esta asignación vigente:
+
+| Categoría | Asignación | Pagado | Comprometido | Disponible |
+| --- | ---: | ---: | ---: | ---: |
+| Salarios | $600,000 | $150,000 | $50,000 | $400,000 |
+| Transporte | $100,000 | $25,000 | $10,000 | $65,000 |
+| Materiales | $80,000 | $18,000 | $12,000 | $50,000 |
+| Agua | $20,000 | $4,000 | $1,000 | $15,000 |
+| Luz | $40,000 | $9,000 | $3,000 | $28,000 |
+| Renta de vehículo | $60,000 | $15,000 | $5,000 | $40,000 |
+| Renta de local | $100,000 | $24,000 | $8,000 | $68,000 |
+| **Total** | **$1,000,000** | **$245,000** | **$89,000** | **$666,000** |
+
+Los movimientos abarcan septiembre, octubre y noviembre de 2026. Al cierre de
+septiembre hay $912,800 disponibles; al cierre de octubre, $729,300, con
+$170,700 pagados y $100,000 comprometidos. El 6 de noviembre se transfirieron
+$10,000 de beneficios salariales a combustible, con motivo e historial, sin
+cambiar el fondo general. El pago parcial de nómina de $50,000 del 10 de
+noviembre reduce el compromiso registrado en octubre sin descontarlo dos veces.
+
+La opción **006** conserva el ejemplo anterior de $2,000: $1,900
+asignados, $100 sin distribuir, $250 pagados, $100 comprometidos y $1,650
+disponibles. Los escenarios son independientes y se pueden alternar en el
+selector de propuesta.
 
 ## Alcance
 

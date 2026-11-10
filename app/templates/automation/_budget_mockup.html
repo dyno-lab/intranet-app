@@ -7,7 +7,7 @@
 @media(max-width:760px){#faro-budget-design .fb-main{padding:20px}#faro-budget-design .fb-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#faro-budget-design .fb-split{grid-template-columns:1fr}#faro-budget-design .fb-context{grid-template-columns:1fr 1fr}#faro-budget-design .fb-context>button{grid-column:1/-1;justify-self:start}}
 @media(max-width:480px){#faro-budget-design .fb-header{padding:17px;padding-right:80px}#faro-budget-design .fb-main{padding:18px 14px}#faro-budget-design .fb-pair,#faro-budget-design .fb-context,#faro-budget-design .fb-fields{grid-template-columns:1fr}#faro-budget-design .fb-stat{padding:13px}#faro-budget-design .fb-stat strong{font-size:22px}#faro-budget-design .fb-demo{margin-left:0}#faro-budget-design .fb-card{padding:15px}#faro-budget-design h1{font-size:24px}#faro-budget-design .fb-dialog{padding:18px}#faro-budget-design .fb-input{font-size:16px}#faro-budget-design .fb-row>.fb-button{min-height:44px}}
 @media(prefers-reduced-motion:reduce){#faro-budget-design .fb-track span{transition:none}}
-#faro-budget-design{--fb-c0:light-dark(#3464cb,#88afff);--fb-c1:light-dark(#8b5fb5,#c4a2e4);--fb-c2:light-dark(#b48121,#e2be70);--fb-c3:light-dark(#26826b,#75cfb6);--fb-c4:light-dark(#bb5b71,#e99bae);--fb-c5:light-dark(#488299,#87bdce)}
+#faro-budget-design{--fb-c0:light-dark(#3464cb,#88afff);--fb-c1:light-dark(#8b5fb5,#c4a2e4);--fb-c2:light-dark(#b48121,#e2be70);--fb-c3:light-dark(#26826b,#75cfb6);--fb-c4:light-dark(#bb5b71,#e99bae);--fb-c5:light-dark(#488299,#87bdce);--fb-c6:light-dark(#676c30,#c5cf8b)}
 #faro-budget-design .fb-pie-layout{display:grid;grid-template-columns:minmax(130px,180px) minmax(0,1fr);gap:18px;align-items:center;margin-top:18px}#faro-budget-design .fb-pie{width:100%;max-width:180px;height:auto;justify-self:center}#faro-budget-design .fb-pie-legend{display:grid;gap:9px;list-style:none;margin:0;padding:0;font-size:12px}#faro-budget-design .fb-pie-legend li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:7px;align-items:start}#faro-budget-design .fb-pie-legend i{width:9px;height:9px;border-radius:50%;margin-top:5px}#faro-budget-design .fb-pie-legend strong{font-weight:600;display:block;font-variant-numeric:tabular-nums}#faro-budget-design .fb-history-svg{width:100%;height:240px;display:block;margin-top:16px;overflow:visible}#faro-budget-design .fb-history-svg text{font:12px "Segoe UI",Arial,sans-serif;fill:var(--fb-muted)}#faro-budget-design .fb-history-svg .fb-grid{stroke:var(--fb-line);stroke-width:1}#faro-budget-design .fb-history-svg .fb-line{fill:none;stroke:var(--fb-blue);stroke-width:2.5}#faro-budget-design .fb-history-svg circle{fill:var(--fb-blue)}#faro-budget-design .fb-entry-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:14px}#faro-budget-design .fb-entry-fields:disabled{opacity:.65}#faro-budget-design .fb-transfer-preview{display:grid;gap:8px}#faro-budget-design .fb-transfer-preview .fb-fund{padding:7px 0}#faro-budget-design .fb-form textarea{font:inherit;resize:vertical}#faro-budget-design .fb-chart-detail{margin-top:14px}#faro-budget-design .fb-transfer-reason{max-width:250px;overflow-wrap:anywhere}#faro-budget-design .fb-action-group{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:960px){#faro-budget-design .fb-pie-layout{grid-template-columns:1fr}#faro-budget-design .fb-pie-legend{grid-template-columns:1fr 1fr}}
 @media(max-width:580px){#faro-budget-design .fb-chart-pair{grid-template-columns:1fr}#faro-budget-design .fb-pie-legend{grid-template-columns:1fr}#faro-budget-design .fb-action-group{width:100%}#faro-budget-design .fb-action-group .fb-button{flex:1 1 140px}}
@@ -209,13 +209,71 @@
     proposals[0].movements.find(m=>m.id==='m2').receipt={name:'Recibo de materiales · ejemplo',type:'application/pdf',size:0,demo:true};
     proposals[0].createdOn='2026-09-01';proposals[0].categories.forEach(c=>c.createdOn='2026-09-01');
     proposals[0].budgetHistory=[{date:'2026-09-01',total:200000,categories:{transport:50000,salary:90000,purchase:30000,materials:20000}}];captureBudget(proposals[0],'2026-11-06');
-    const state={screen:'programs',tab:'charts',proposal:'p006',role:'supervisor',compact:false,month:'',category:''};
+    const millionProposal={id:'p1000000',name:'006 · Fondo $1,000,000',year:'2026–2027',total:100000000,createdOn:'2026-09-01',categories:[
+      {id:'salary',name:'Salarios',budget:61000000,items:[{id:'staff',name:'Personal del programa',budget:40000000},{id:'benefits',name:'Beneficios y cargas patronales',budget:21000000}]},
+      {id:'transport',name:'Transporte',budget:9000000,items:[{id:'trips',name:'Traslados y actividades',budget:6000000},{id:'fuel',name:'Combustible',budget:3000000}]},
+      {id:'materials',name:'Materiales',budget:8000000,items:[{id:'office',name:'Material de oficina',budget:3000000},{id:'activities',name:'Material para actividades',budget:5000000}]},
+      {id:'water',name:'Agua',budget:2000000,items:[]},
+      {id:'electricity',name:'Luz',budget:4000000,items:[]},
+      {id:'vehicle-rent',name:'Renta de vehículo',budget:6000000,items:[]},
+      {id:'rent',name:'Renta de local',budget:10000000,items:[]}
+    ],movements:[],transfers:[],history:['Simulación de fondo general de $1,000,000.00, totalmente distribuido entre siete categorías.']};
+    millionProposal.categories.forEach(c=>c.createdOn='2026-09-01');
+    captureBudget(millionProposal,'2026-09-01');
+    const millionExpenses=[
+      ['salary','staff','2026-09-30',50000,'Nómina de septiembre',true],
+      ['salary','staff','2026-10-30',50000,'Nómina de octubre',true],
+      ['transport','trips','2026-09-18',12000,'Traslados de participantes · septiembre',true],
+      ['transport','trips','2026-10-18',9000,'Traslados de participantes · octubre',false],
+      ['transport','fuel','2026-11-05',4000,'Combustible para visitas · noviembre',true],
+      ['materials','activities','2026-09-12',8000,'Materiales para talleres · septiembre',true],
+      ['materials','office','2026-10-12',7000,'Material de oficina · octubre',false],
+      ['materials','activities','2026-11-04',3000,'Materiales para actividades · noviembre',false],
+      ['water','','2026-09-20',1200,'Servicio de agua · septiembre',true],
+      ['water','','2026-10-20',1300,'Servicio de agua · octubre',true],
+      ['water','','2026-11-06',1500,'Servicio de agua · noviembre',true],
+      ['electricity','','2026-09-22',3000,'Servicio de energía eléctrica · septiembre',true],
+      ['electricity','','2026-10-22',3200,'Servicio de energía eléctrica · octubre',false],
+      ['electricity','','2026-11-07',2800,'Servicio de energía eléctrica · noviembre',true],
+      ['vehicle-rent','','2026-09-05',5000,'Renta de vehículo · septiembre',true],
+      ['vehicle-rent','','2026-10-05',5000,'Renta de vehículo · octubre',true],
+      ['vehicle-rent','','2026-11-05',5000,'Renta de vehículo · noviembre',true],
+      ['rent','','2026-09-01',8000,'Renta de local · septiembre',true],
+      ['rent','','2026-10-01',8000,'Renta de local · octubre',true],
+      ['rent','','2026-11-02',8000,'Renta de local · noviembre',true]
+    ];
+    millionExpenses.forEach(([category,item,date,dollars,concept,hasReceipt],index)=>{
+      const entry={id:'million-expense-'+index,category,item,kind:'expense',amount:dollars*100,date,concept};
+      if(hasReceipt)entry.receipt={name:'Comprobante simulado · '+concept,type:'application/pdf',size:0,demo:true};
+      record(millionProposal,entry);
+    });
+    record(millionProposal,{id:'million-payroll',category:'salary',item:'staff',kind:'commitment',amount:10000000,date:'2026-10-25',concept:'Nómina de noviembre · compromiso por $100,000'});
+    pay(millionProposal,'million-payroll',5000000,'million-payroll-partial','2026-11-10');
+    millionProposal.movements.find(m=>m.id==='million-payroll-partial').receipt={name:'Comprobante simulado · anticipo de nómina',type:'application/pdf',size:0,demo:true};
+    const millionCommitments=[
+      ['transport','trips',10000,'2026-11-08','Traslados programados para noviembre'],
+      ['materials','activities',12000,'2026-11-06','Orden de materiales pendiente de pago'],
+      ['water','',1000,'2026-11-08','Servicio de agua pendiente de pago'],
+      ['electricity','',3000,'2026-11-08','Servicio eléctrico pendiente de pago'],
+      ['vehicle-rent','',5000,'2026-11-09','Próximo período de renta de vehículo'],
+      ['rent','',8000,'2026-11-09','Próximo período de renta de local']
+    ];
+    millionCommitments.forEach(([category,item,dollars,date,concept],index)=>record(millionProposal,{id:'million-commitment-'+index,category,item,kind:'commitment',amount:dollars*100,date,concept}));
+    // Historical redistribution: $10,000 from salary benefits to transportation fuel.
+    millionProposal.categories.find(c=>c.id==='salary').budget-=1000000;
+    millionProposal.categories.find(c=>c.id==='salary').items.find(i=>i.id==='benefits').budget-=1000000;
+    millionProposal.categories.find(c=>c.id==='transport').budget+=1000000;
+    millionProposal.categories.find(c=>c.id==='transport').items.find(i=>i.id==='fuel').budget+=1000000;
+    millionProposal.transfers.push({id:'million-transfer',at:'2026-11-06T14:00:00Z',role:'supervisor',reason:'Reforzar combustible para visitas de campo en noviembre.',amount:1000000,fromId:'salary',toId:'transport',from:'Salarios',to:'Transporte',fromItem:'Beneficios y cargas patronales',toItem:'Combustible',fromBefore:61000000,fromAfter:60000000,toBefore:9000000,toAfter:10000000,total:100000000});
+    captureBudget(millionProposal,'2026-11-06');
+    proposals.push(millionProposal);
+    const state={screen:'programs',tab:'charts',proposal:'p1000000',role:'supervisor',compact:false,month:'',category:''};
     const active=()=>proposals.find(p=>p.id===state.proposal)||proposals[0];
     const canManage=()=>state.role==='supervisor'||state.role==='admin';
     let editor=null;
     function toast(text){q('[data-toast]').textContent=text;q('[data-toast]').hidden=false;}
-    function save(){try{const r=window.openai?.setWidgetState?.({modelContent:{programa:'Faro',propuesta:active().name,anoFiscal:active().year,vista:state.tab,rol:state.role,fondo:active().total/100,mes:state.month||'Todos',categoriaFiltrada:active().categories.find(c=>c.id===state.category)?.name||'Todas',categorias:active().categories.map(c=>({nombre:c.name,asignado:c.budget/100}))},privateContent:{version:3,screen:state.screen,tab:state.tab,role:state.role,compact:state.compact,month:state.month,category:state.category}});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(_){}}
-    function restore(value){const s=value?.privateContent;if(s?.version!==3)return;if(['programs','faro','community','budget'].includes(s.screen))state.screen=s.screen;if(['summary','charts','configuration','movements'].includes(s.tab))state.tab=s.tab;if(['supervisor','admin','viewer'].includes(s.role))state.role=s.role;state.compact=s.compact===true;state.month=typeof s.month==='string'?s.month:'';state.category=typeof s.category==='string'?s.category:'';}
+    function save(){try{const r=window.openai?.setWidgetState?.({modelContent:{programa:'Faro',propuesta:active().name,anoFiscal:active().year,vista:state.tab,rol:state.role,fondo:active().total/100,mes:state.month||'Todos',categoriaFiltrada:active().categories.find(c=>c.id===state.category)?.name||'Todas',categorias:active().categories.map(c=>({nombre:c.name,asignado:c.budget/100}))},privateContent:{version:4,proposal:state.proposal,screen:state.screen,tab:state.tab,role:state.role,compact:state.compact,month:state.month,category:state.category}});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(_){}}
+    function restore(value){const s=value?.privateContent;if(s?.version!==4)return;if(proposals.some(p=>p.id===s.proposal))state.proposal=s.proposal;if(['programs','faro','community','budget'].includes(s.screen))state.screen=s.screen;if(['summary','charts','configuration','movements'].includes(s.tab))state.tab=s.tab;if(['supervisor','admin','viewer'].includes(s.role))state.role=s.role;state.compact=s.compact===true;state.month=typeof s.month==='string'?s.month:'';state.category=typeof s.category==='string'?s.category:'';}
     const dateLabel=date=>date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4);
     const stamp=value=>new Intl.DateTimeFormat('es-PR',{dateStyle:'short',timeStyle:'short',timeZone:'America/La_Paz'}).format(new Date(value));
     const roleLabel=role=>role==='admin'?'Administrador':'Supervisor';
@@ -257,7 +315,7 @@
       q('[data-closing-note]').textContent=(lock?.closed?'Cierre confirmado · versión '+lock.version+'. Es necesario reabrir el mes con un motivo para realizar correcciones.':cut.closed?'Mes abierto: los saldos se recalculan con las entradas retroactivas. Confirma el cierre para protegerlos.':'Mes en curso: este corte es provisional hasta el 10/11/2026, fecha de la demostración.')+' El saldo general incluye el fondo sin distribuir.';
     }
     function renderFilters(){const p=active(),months=monthOptions(p);if(state.category&&!p.categories.some(c=>c.id===state.category))state.category='';if(state.month&&!months.includes(state.month))state.month='';q('[data-filter-bar]').hidden=state.tab==='summary';q('[data-filter-month]').innerHTML='<option value="">Todos los meses</option>'+months.map(m=>'<option value="'+m+'">'+monthLabel(m)+'</option>').join('');q('[data-filter-month]').value=state.month;q('[data-filter-category]').innerHTML='<option value="">Todas las categorías</option>'+p.categories.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');q('[data-filter-category]').value=state.category;const t=scopeTotals(p,state);q('[data-filter-paid]').textContent=fmt(t.paidPeriod);q('[data-filter-available]').textContent=fmt(t.available);q('[data-filter-budget]').textContent=fmt(t.budget);q('[data-filter-period]').textContent=monthLabel(state.month);q('[data-filter-scope]').textContent=state.category?p.categories.find(c=>c.id===state.category).name:'Toda la propuesta · incluye fondo sin distribuir';q('[data-filter-commitment]').textContent='Comprometido actual: '+fmt(t.committed);}
-    function color(id){if(id==='unallocated'||id==='__available')return 'var(--fb-free)';if(id==='__paid')return 'var(--fb-paid)';if(id==='__committed')return 'var(--fb-commit)';return 'var(--fb-c'+Math.max(0,active().categories.findIndex(c=>c.id===id))%6+')';}
+    function color(id){if(id==='unallocated'||id==='__available')return 'var(--fb-free)';if(id==='__paid')return 'var(--fb-paid)';if(id==='__committed')return 'var(--fb-commit)';return 'var(--fb-c'+Math.max(0,active().categories.findIndex(c=>c.id===id))%7+')';}
     function pieMarkup(rows,label){
       const total=rows.reduce((n,r)=>n+r.value,0);if(!total)return '<p class="fb-empty">Sin gastos pagados para graficar.</p>';
       let angle=-Math.PI/2;const radius=84,center=90,parts=[];
@@ -299,7 +357,7 @@
     const receiptMeta=file=>({name:file.name,type:file.type,size:file.size,demo:false});
     function saveEntry(){if(!canManage())return;const f=q('[data-entry-form]');if(!f.reportValidity())return;const v=Object.fromEntries(new FormData(f));try{const file=v.kind==='expense'?f.elements.receiptFile.files[0]:null;validateReceipt(file);const id=uid(),entry={id,category:v.category,item:v.item,kind:v.kind,amount:Math.round(Number(v.amount)*100),date:v.date,concept:v.concept.trim()};if(file)entry.receipt=receiptMeta(file);record(active(),entry);if(file)receiptFiles.set(id,file);f.elements.amount.value='';f.elements.concept.value='';f.elements.receiptFile.value='';q('[data-entry-error]').hidden=true;render();save();toast(matchesFilter(entry,state)?'Movimiento guardado. Los balances y las gráficas se actualizaron.':'Movimiento guardado. No aparece en el historial con los filtros actuales.');}catch(error){q('[data-entry-error]').textContent=error.message;q('[data-entry-error]').hidden=false;}}
     function openReceipt(id){const p=active(),m=p.movements.find(m=>m.id===id);if(!m||m.kind!=='expense')return;receiptContext={proposal:p.id,movement:id};const c=p.categories.find(c=>c.id===m.category),form=q('[data-receipt-form]'),locked=!!p.monthLocks?.[m.date.slice(0,7)]?.closed;form.reset();q('[data-receipt-context]').textContent='Propuesta '+p.name+' · '+c.name+' · '+dateLabel(m.date)+' · '+fmt(m.amount)+(locked?' · Mes cerrado: solo consulta':'');q('[data-receipt-error]').hidden=true;q('[data-receipt-upload]').hidden=!canManage()||locked;q('[data-save-receipt]').hidden=!canManage()||locked;q('[data-save-receipt]').disabled=true;renderReceipt(m);q('#fb-receipt').showModal();}
-    function renderReceipt(m){const host=q('[data-receipt-preview]'),r=m.receipt;host.replaceChildren();if(!r){host.textContent='Este gasto todavía no tiene recibo.';return;}const name=document.createElement('strong');name.textContent=r.name;host.append(name);if(r.demo){const paper=document.createElement('div');paper.className='fb-receipt-paper';paper.innerHTML='<span class="fb-badge">Ejemplo ficticio · sin valor fiscal</span><h3>Recibo de materiales</h3><span>Proveedor de ejemplo</span><span>Fecha: '+dateLabel(m.date)+'</span><span>'+esc(m.concept)+'</span><strong>Total pagado: '+fmt(m.amount)+'</strong>';host.append(paper);return;}const info=document.createElement('p');info.className='fb-note';info.textContent=(r.type==='application/pdf'?'PDF':'Imagen')+' · '+Math.max(1,Math.round(r.size/1024))+' KB · Vinculado solo durante esta demostración.';host.append(info);const file=receiptFiles.get(m.id);if(file&&r.type.startsWith('image/')){const img=document.createElement('img');img.className='fb-receipt-image';img.alt='Recibo adjunto: '+r.name;const reader=new FileReader();reader.onload=()=>{if(host.isConnected&&receiptContext?.movement===m.id){img.setAttribute('src',reader.result);host.append(img);}};reader.onerror=()=>{info.textContent+=' No se pudo mostrar la imagen.';};reader.readAsDataURL(file);}else{const note=document.createElement('p');note.className='fb-note';note.textContent='PDF vinculado. La vista de su contenido no está incluida en este mockup.';host.append(note);}}
+    function renderReceipt(m){const host=q('[data-receipt-preview]'),r=m.receipt;host.replaceChildren();if(!r){host.textContent='Este gasto todavía no tiene recibo.';return;}const name=document.createElement('strong');name.textContent=r.name;host.append(name);if(r.demo){const paper=document.createElement('div');paper.className='fb-receipt-paper';paper.innerHTML='<span class="fb-badge">Ejemplo ficticio · sin valor fiscal</span><h3>Comprobante de pago</h3><span>Proveedor de ejemplo</span><span>Fecha: '+dateLabel(m.date)+'</span><span>'+esc(m.concept)+'</span><strong>Total pagado: '+fmt(m.amount)+'</strong>';host.append(paper);return;}const info=document.createElement('p');info.className='fb-note';info.textContent=(r.type==='application/pdf'?'PDF':'Imagen')+' · '+Math.max(1,Math.round(r.size/1024))+' KB · Vinculado solo durante esta demostración.';host.append(info);const file=receiptFiles.get(m.id);if(file&&r.type.startsWith('image/')){const img=document.createElement('img');img.className='fb-receipt-image';img.alt='Recibo adjunto: '+r.name;const reader=new FileReader();reader.onload=()=>{if(host.isConnected&&receiptContext?.movement===m.id){img.setAttribute('src',reader.result);host.append(img);}};reader.onerror=()=>{info.textContent+=' No se pudo mostrar la imagen.';};reader.readAsDataURL(file);}else{const note=document.createElement('p');note.className='fb-note';note.textContent='PDF vinculado. La vista de su contenido no está incluida en este mockup.';host.append(note);}}
     function saveReceipt(){if(!canManage()||!receiptContext)return;const p=proposals.find(p=>p.id===receiptContext.proposal),m=p?.movements.find(m=>m.id===receiptContext.movement),file=q('[data-receipt-form]').elements.receiptFile.files[0];if(!m||!file)return;try{attachReceipt(p,m.id,file,state.role);receiptFiles.set(m.id,file);q('[data-receipt-form]').reset();q('[data-save-receipt]').disabled=true;q('[data-receipt-error]').hidden=true;renderReceipt(m);render();toast('Recibo vinculado al gasto durante esta demostración.');}catch(error){q('[data-receipt-error]').textContent=error.message;q('[data-receipt-error]').hidden=false;}}
     function render(){
       const p=active(),t=totals(p);

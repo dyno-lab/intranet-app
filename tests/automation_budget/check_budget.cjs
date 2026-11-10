@@ -38,3 +38,26 @@ assert.equal(JSON.stringify(ctx.chartData(blank).history),JSON.stringify([{date:
 assert.equal(ctx.chartData(blank).expenses[0].value,1000);
 const prev=ctx.totals(blank).available;ctx.pay(blank,'reserve',2500,'partial','2026-11-10');assert.equal(ctx.totals(blank).available,prev);assert.equal(ctx.chartData(blank).history.at(-1).cumulative,3500);
 console.log('PASS: startup syntax, offline startup, allocations, spending limits, partial payments, transfer permissions and atomicity, category/sub-item balances, required reasons, date validation, sorted daily aggregation, charts exclude pending commitments.');
+
+const large=vm.runInContext("proposals.find(p=>p.id==='p1000000')",ctx);
+assert(large,'The million-dollar scenario must be selectable.');
+assert.deepEqual(JSON.parse(JSON.stringify(ctx.totals(large))),{total:100000000,paid:24500000,committed:8900000,allocated:100000000,unallocated:0,available:66600000,categoryAvailable:66600000});
+const expectedLarge=[['salary',600000,150000,50000,400000],['transport',100000,25000,10000,65000],['materials',80000,18000,12000,50000],['water',20000,4000,1000,15000],['electricity',40000,9000,3000,28000],['vehicle-rent',60000,15000,5000,40000],['rent',100000,24000,8000,68000]];
+for(const [id,budget,paid,committed,available] of expectedLarge){
+  const c=large.categories.find(c=>c.id===id),u=ctx.used(large,id);
+  assert.equal(c.budget,budget*100);assert.equal(u.paid,paid*100);assert.equal(u.committed,committed*100);assert.equal(c.budget-u.paid-u.committed,available*100);
+  assert(c.items.reduce((n,i)=>n+i.budget,0)<=c.budget);
+  for(const i of c.items)assert(ctx.room(large,c,i.id)>=0);
+}
+assert.equal(ctx.balanceAt(large,'2026-09-30').available,91280000);
+const octoberLarge=ctx.monthReview(large,'2026-10');
+assert.equal(octoberLarge.total.paidMonth,8350000);assert.equal(octoberLarge.total.paidCumulative,17070000);assert.equal(octoberLarge.total.committed,10000000);assert.equal(octoberLarge.total.available,72930000);assert.equal(octoberLarge.total.missingCount,3);assert.equal(octoberLarge.total.missingAmount,1920000);
+assert.equal(ctx.monthReview(large,'2026-11').total.paidMonth,7430000);
+assert.equal(ctx.monthReview(large,'2026-11').total.missingAmount,300000);
+assert.equal(ctx.chartData(large).allocation.reduce((n,r)=>n+r.value,0),100000000);
+assert.equal(ctx.chartData(large).expenses.reduce((n,r)=>n+r.value,0),24500000);
+const currentLarge=ctx.totals(large).available;
+ctx.pay(large,'million-payroll',100000,'million-next-payment','2026-11-10');
+assert.equal(ctx.totals(large).available,currentLarge,'Partial payroll payments must not reduce availability twice.');
+assert.equal(ctx.balanceAt(large,'2026-10-31').available,72930000,'Later payments must preserve the October cutoff.');
+console.log('PASS: $1,000,000 assigned to seven categories, 21 payments, 7 pending commitments, monthly balances and missing receipts, historical transfer and payroll partial payment.');
