@@ -62,7 +62,7 @@ def monthly_notification(db, user, *, today=None):
                     continue
                 details.append({"residential_id": residence, "residential": residential.name,
                     "year": year, "month": month, "period": format_reporting_period(month, year),
-                    "pending_count": 1, "context": f"Propuesta {proposal.code} · Fecha límite {due.strftime('%d/%m/%Y')}"
+                    "pending_count": 1, "context": f"Propuesta {proposal.name} · Fecha límite {due.strftime('%d/%m/%Y')}"
                         + (" · Plazo vencido" if today > due else "")
                         + (" · Requiere nueva confirmación" if record and record.confirmed_at else ""),
                     "actions": [{"label": "Revisar confirmación mensual", "url": month_url(proposal.proposal_id, year, month)}]})

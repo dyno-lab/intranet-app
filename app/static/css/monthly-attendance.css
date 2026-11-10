@@ -9,6 +9,7 @@
 .monthly-eyebrow{font-size:.75rem;font-weight:750;text-transform:uppercase;letter-spacing:.1em;color:#245cc5}
 .monthly-panel{padding:26px;border:1px solid #dce6f0;border-radius:20px;background:#fff;box-shadow:0 8px 24px #17345105;min-width:0}
 .monthly-filters{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:16px;align-items:end}
+.monthly-filters>div{min-width:0}
 .monthly-progress{display:grid;grid-template-columns:1fr auto;gap:35px;border-left:5px solid #3267d0}
 .monthly-progress--done{border-left-color:#167254;background:#f6fcf9}
 .monthly-progress p,.monthly-muted{color:var(--monthly-muted)}.monthly-muted{display:block;font-size:.85rem;margin-top:5px;overflow-wrap:anywhere}

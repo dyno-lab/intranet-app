@@ -228,7 +228,7 @@ def _check_all_done(db, user, period, *, today=None):
         proposal = db.get(Proposal, period.proposal_id)
         label = format_reporting_period(period.report_month, period.report_year)
         announcement_id = _notice(db, user, period, f'Asistencias confirmadas · {label}',
-            f'Los {len(included)} residenciales incluidos en la propuesta {proposal.code} confirmaron sus asistencias. '
+            f'Los {len(included)} residenciales incluidos en la propuesta {proposal.name} confirmaron sus asistencias. '
             'Continúa con la revisión de cursos, referidos y demás datos antes de emitir el informe.',
             [r.residential_id for r in included], today=today)
         _set(db, period, all_announcement_id=announcement_id)
@@ -266,7 +266,7 @@ def confirm_month(db, user, *, proposal_id, year, month, fingerprint, declared, 
     residential = db.get(Residential, rid)
     label = format_reporting_period(month, year)
     announcement_id = _notice(db, user, period, f'{residential.code} completó {label}',
-        f'{user.username} confirmó las asistencias de {residential.name}, propuesta {proposal.code}: '
+        f'{user.username} confirmó las asistencias de {residential.name}, propuesta {proposal.name}: '
         f"{snapshot['sessions']} actividades y {snapshot['participations']} participaciones."
         + (' Sin actividad: ' + note if no_activity else ''), [rid], today=today)
     _set(db, record, confirmed_at=utcnow(), confirmed_by_user_id=user.user_id,
@@ -307,7 +307,7 @@ def change_months(db, user, keys, *, reason, today=None):
             residential = db.get(Residential, rid)
             proposal = db.get(Proposal, pid)
             aid = _notice(db, user, period, f'{residential.code}: confirmar nuevamente {format_reporting_period(month, year)}',
-                f'Las asistencias de {residential.name}, propuesta {proposal.code}, cambiaron después de la confirmación. '
+                f'Las asistencias de {residential.name}, propuesta {proposal.name}, cambiaron después de la confirmación. '
                 f'{reason}. Revisa el período y vuelve a confirmar.', [rid], roles=('admin', 'supervisor', 'user'), today=today)
             _retire(db, record.reminder_announcement_id)
             _set(db, record, reminder_announcement_id=aid)
@@ -340,7 +340,7 @@ def remind_month(db, user, *, proposal_id, year, month, residential_ids=None, me
         record = waiting[rid]['record']
         _retire(db, record.reminder_announcement_id)
         announcement_id = _notice(db, user, period,
-            f'Confirma las asistencias de {view["label"]}', f'Propuesta {view["proposal"].code}. {message}',
+            f'Confirma las asistencias de {view["label"]}', f'Propuesta {view["proposal"].name}. {message}',
             [rid], roles=('admin', 'supervisor', 'user'), today=today)
         _set(db, record, reminder_announcement_id=announcement_id, last_reminded_at=now)
         _event(db, user, period, 'reminder', message, rid, record.reminder_announcement_id)

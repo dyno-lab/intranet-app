@@ -21,7 +21,7 @@
   {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
   <form method="get" class="monthly-filters monthly-panel">
     <div><label for="monthly-proposal">Propuesta</label><select class="form-select" id="monthly-proposal" name="proposal_id" required>
-      {% for p in proposals %}<option value="{{ p.proposal_id }}" {{ 'selected' if p.proposal_id == selected_proposal_id else '' }}>{{ p.code }}{{ ' · Inactiva' if not p.is_active else '' }}</option>{% endfor %}
+      {% for p in proposals %}<option value="{{ p.proposal_id }}" {{ 'selected' if p.proposal_id == selected_proposal_id else '' }}>{{ p.name }}{{ ' · Inactiva' if not p.is_active else '' }}</option>{% endfor %}
     </select></div>
     <div><label for="monthly-month">Mes</label><select class="form-select" id="monthly-month" name="month">
       {% for number, name in months %}<option value="{{ number }}" {{ 'selected' if number == selected_month else '' }}>{{ name }}</option>{% endfor %}
@@ -34,7 +34,7 @@
   {% else %}
   {% if not view.writable %}<div class="alert alert-info" role="status">Período de consulta. Las propuestas inactivas, finalizadas, los meses cerrados y los meses futuros no admiten confirmaciones ni cambios.</div>{% endif %}
   <section class="monthly-progress monthly-panel {{ 'monthly-progress--done' if view.all_done else '' }}" aria-labelledby="progress-title">
-    <div><span class="monthly-eyebrow">{{ view.label }} · Propuesta {{ view.proposal.code }}</span>
+    <div><span class="monthly-eyebrow">{{ view.label }} · Propuesta {{ view.proposal.name }}</span>
       <h2 id="progress-title">{{ ('Todas las asistencias confirmadas' if view.is_global else 'Mes confirmado') if view.all_done else 'Seguimiento de confirmaciones' }}</h2>
       <p>{{ 'Continúa con la revisión de cursos, referidos y demás datos del informe.' if view.all_done else 'La confirmación es una declaración del residencial de que terminó de registrar el mes.' }}</p>
       <div class="monthly-bar" role="progressbar" aria-label="Residenciales completados" aria-valuemin="0" aria-valuemax="{{ view.total or 1 }}" aria-valuenow="{{ view.completed }}"><span style="width: {{ (100 * view.completed / view.total)|round if view.total else 0 }}%"></span></div>
@@ -86,7 +86,7 @@
     <dialog class="monthly-dialog" id="confirm-month" aria-labelledby="confirm-title">
       <form method="post" action="/ui/monthly-attendance/confirm">{{ fields() }}<input type="hidden" name="fingerprint" value="{{ row.fingerprint }}">
         <span class="monthly-eyebrow">{{ row.residential.name }} · {{ view.label }}</span><h2 id="confirm-title">Confirmar asistencias del mes</h2>
-        <p>Se notificará a administración y supervisión que terminaste de registrar las asistencias de la propuesta {{ view.proposal.code }}.</p>
+        <p>Se notificará a administración y supervisión que terminaste de registrar las asistencias de la propuesta {{ view.proposal.name }}.</p>
         {% if not row.sessions %}<label class="monthly-check"><input type="checkbox" name="no_activity" required> Declaro que este residencial no tuvo actividades en este período.</label>{% endif %}
         <label for="confirm-note">{{ 'Justificación de mes sin actividad (obligatoria)' if not row.sessions else 'Observación (opcional)' }}</label>
         <textarea class="form-control" name="note" id="confirm-note" rows="3" maxlength="1000" {{ 'required' if not row.sessions else '' }}></textarea>
