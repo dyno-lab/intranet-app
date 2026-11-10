@@ -16,6 +16,7 @@ class FaroAnnouncement(Base):
     announcement_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Unicode(160))
     message: Mapped[str] = mapped_column(Unicode(4000))
+    action_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     starts_on: Mapped[date] = mapped_column(Date)
     ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

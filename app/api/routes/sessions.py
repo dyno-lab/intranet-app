@@ -21,6 +21,7 @@ from app.models.residential import Residential
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut
 from app.services.session_control_numbers import persist_session_control_number
+from app.services.monthly_attendance import change_months
 
 router = APIRouter()
 
@@ -93,6 +94,7 @@ def create_session(
         residential_id=record_residential_id,
         created_by_user_id=current_user.user_id,
     )
+    change_months(db, current_user, [(obj.proposal_id, obj.residential_id, obj.session_date)], reason="Se creó una actividad")
     db.add(obj)
     db.flush()
     persist_session_control_number(db, obj, residential_code)

@@ -18,6 +18,7 @@ from app.models.participant_monthly_course import ParticipantMonthlyCourse
 from app.models.residential import Residential
 from app.services.participant_courses import ACTIVITY_CODE, COURSE_EDITOR_ROLES, MONTHS
 from app.services.referral_requirements import pending_referral_groups
+from app.services.monthly_attendance_notifications import monthly_notification
 
 ANNOUNCEMENT_ROLES = {"admin": "Administrador", "supervisor": "Supervisor", "user": "Usuario", "viewer": "Consulta"}
 
@@ -135,11 +136,13 @@ def announcement_notifications(db, user, *, today=None):
     for announcement, read_at in db.execute(statement.order_by(FaroAnnouncement.starts_on.desc(), FaroAnnouncement.announcement_id.desc())):
         result.append({"id": f"announcement:{announcement.announcement_id}", "announcement_id": announcement.announcement_id,
                        "type": "announcement", "title": announcement.title, "message": announcement.message,
-                       "published_on": announcement.starts_on.isoformat(), "unread": read_at is None})
+                       "published_on": announcement.starts_on.isoformat(), "unread": read_at is None,
+                       "actions": [{"label": "Ver confirmación mensual", "url": announcement.action_url}]
+                           if announcement.action_url and announcement.action_url.startswith("/ui/monthly-attendance?") else []})
     return result
 
 
-TASK_PROVIDERS = (course_notification, referral_notification)
+TASK_PROVIDERS = (course_notification, referral_notification, monthly_notification)
 
 
 def notification_feed(db, user, *, today=None):

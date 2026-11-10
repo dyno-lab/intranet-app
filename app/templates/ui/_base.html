@@ -50,6 +50,10 @@
         <i class="bi bi-calendar-check" aria-hidden="true"></i>
         <span>Asistencias</span>
       </a>
+      <a class="ui-nav-link {% if current_path.startswith('/ui/monthly-attendance') %}is-active{% endif %}" href="/ui/monthly-attendance">
+        <i class="bi bi-check2-circle" aria-hidden="true"></i>
+        <span>Confirmación mensual</span>
+      </a>
       <a class="ui-nav-link {% if current_path.startswith('/ui/school-grades') %}is-active{% endif %}" href="/ui/school-grades">
         <i class="bi bi-journal-text" aria-hidden="true"></i>
         <span>Notas escolares</span>
@@ -217,6 +221,10 @@
       <a class="ui-nav-link {% if current_path.startswith('/ui/listado') %}is-active{% endif %}" href="/ui/listado">
         <i class="bi bi-calendar-check" aria-hidden="true"></i>
         <span>Asistencias</span>
+      </a>
+      <a class="ui-nav-link {% if current_path.startswith('/ui/monthly-attendance') %}is-active{% endif %}" href="/ui/monthly-attendance">
+        <i class="bi bi-check2-circle" aria-hidden="true"></i>
+        <span>Confirmación mensual</span>
       </a>
       <a class="ui-nav-link {% if current_path.startswith('/ui/school-grades') %}is-active{% endif %}" href="/ui/school-grades">
         <i class="bi bi-journal-text" aria-hidden="true"></i>

@@ -1,0 +1,29 @@
+.monthly-page{--monthly-ink:#173451;--monthly-muted:#526b82;display:grid;gap:22px;color:var(--monthly-ink)}
+.monthly-page h1{font-size:clamp(1.8rem,3vw,2.5rem);font-weight:750;margin:8px 0}
+.monthly-page h2{font-size:1.35rem;font-weight:700;margin:4px 0 12px}
+.monthly-page p{line-height:1.6;margin-bottom:14px}
+.monthly-page label{font-weight:600;margin-bottom:8px}
+.monthly-hero,.monthly-section-heading,.monthly-actions{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.monthly-hero{padding:28px;border:1px solid #dce6f3;border-radius:24px;background:linear-gradient(120deg,#fff,#edf4ff)}
+.monthly-hero>div{flex:1 1 480px}.monthly-hero p{max-width:720px;color:var(--monthly-muted);margin:0}
+.monthly-eyebrow{font-size:.75rem;font-weight:750;text-transform:uppercase;letter-spacing:.1em;color:#245cc5}
+.monthly-panel{padding:26px;border:1px solid #dce6f0;border-radius:20px;background:#fff;box-shadow:0 8px 24px #17345105;min-width:0}
+.monthly-filters{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:16px;align-items:end}
+.monthly-progress{display:grid;grid-template-columns:1fr auto;gap:35px;border-left:5px solid #3267d0}
+.monthly-progress--done{border-left-color:#167254;background:#f6fcf9}
+.monthly-progress p,.monthly-muted{color:var(--monthly-muted)}.monthly-muted{display:block;font-size:.85rem;margin-top:5px;overflow-wrap:anywhere}
+.monthly-bar{height:10px;border-radius:8px;background:#e9eff7;margin:20px 0 12px;overflow:hidden}.monthly-bar span{display:block;height:100%;background:#3267d0;border-radius:8px}.monthly-progress--done .monthly-bar span{background:#167254}
+.monthly-deadline{display:flex;flex-direction:column;gap:7px;align-items:center;justify-content:center;padding:18px 26px;border-left:1px solid #e3eaf3;font-size:.9rem}.monthly-deadline>strong{font-size:1.3rem}.monthly-deadline>.bi{font-size:1.7rem;color:#3267d0}
+.monthly-state{display:inline-block;font-weight:650;font-size:.8rem;line-height:1.4;border-radius:8px;padding:7px 10px}.monthly-state--pending{color:#88520a;background:#fff2d5}.monthly-state--review{color:#a63722;background:#ffebe5}.monthly-state--done{color:#106546;background:#e2f5eb}
+.monthly-section-heading{margin-bottom:18px}.monthly-section-heading p{margin:0;color:var(--monthly-muted)}
+.monthly-table-wrap{overflow:auto}.monthly-table{width:100%;font-size:.9rem;border-collapse:collapse}.monthly-table th{text-align:left;font-size:.74rem;letter-spacing:.03em;text-transform:uppercase;color:var(--monthly-muted);background:#f5f8fc;padding:15px 12px;white-space:nowrap}.monthly-table td{padding:20px 12px;border-bottom:1px solid #e6edf4;vertical-align:top}.monthly-table td:first-child{min-width:140px}.monthly-table tr:last-child td{border-bottom:0}.monthly-table td:nth-child(5){min-width:160px}
+.monthly-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;background:#f3f7fc;padding:14px;border-radius:10px;margin-top:10px}
+.monthly-volumes{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin:22px 0}.monthly-volumes>div{display:flex;flex-direction:column;gap:5px;background:#f3f7fd;border-radius:14px;padding:22px}.monthly-volumes strong{font-size:2rem}.monthly-volumes span{color:var(--monthly-muted)}
+.monthly-actions{justify-content:flex-end;margin-top:24px}.monthly-page details>summary{font-weight:650;cursor:pointer}.monthly-roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:5px 20px;margin:22px 0}.monthly-roster legend{font-size:1rem;font-weight:650}.monthly-date-input{max-width:250px}
+.monthly-check{display:flex;align-items:flex-start;gap:10px;font-size:.95rem;line-height:1.5;margin:18px 0}.monthly-check input{margin-top:5px;width:17px;height:17px;flex-shrink:0;accent-color:#285ed0}
+.monthly-dialog{color:var(--monthly-ink);border:1px solid #dce6f3;border-radius:22px;padding:30px;width:min(590px,calc(100vw - 32px));max-height:90vh;overflow:auto;box-shadow:0 24px 90px #102c4b40}.monthly-dialog::backdrop{background:#10263c90;backdrop-filter:blur(3px)}.monthly-dialog h2{margin:12px 0 18px}.monthly-dialog textarea{margin-bottom:20px}
+.monthly-history{list-style:none;padding:0;margin:15px 0}.monthly-history li{border-left:3px solid #cbdcf8;padding:5px 0 5px 18px;margin-bottom:18px}.monthly-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:.9rem}
+.monthly-footnote{font-size:.85rem;color:var(--monthly-muted);padding:0 8px}
+@media(max-width:700px){body:has(.monthly-page) .ui-topbar{flex-wrap:wrap}body:has(.monthly-page) .ui-topbar__right{flex:1 1 100%;justify-content:flex-end}}
+@media(max-width:1200px){.monthly-filters{grid-template-columns:2fr 1fr 1fr}.monthly-filters>.btn{grid-column:1/-1}.monthly-progress{gap:15px}.monthly-panel{padding:20px}}
+@media(max-width:700px){.monthly-filters{grid-template-columns:1fr 1fr}.monthly-filters>div:first-child{grid-column:1/-1}.monthly-hero{padding:22px}.monthly-progress{grid-template-columns:1fr}.monthly-deadline{border-left:0;border-top:1px solid #e3eaf3;align-items:flex-start;padding:18px 0 0}.monthly-deadline>.bi{display:none}.monthly-table thead{display:none}.monthly-table,.monthly-table tbody,.monthly-table tr{display:block}.monthly-table tr{border:1px solid #dce6f0;border-radius:14px;padding:12px;margin-bottom:14px}.monthly-table td{display:grid;grid-template-columns:105px 1fr;padding:10px 0;gap:7px;border:0}.monthly-table td:before{content:attr(data-label);color:var(--monthly-muted);font-size:.8rem}.monthly-table td>*{grid-column:2}.monthly-table td:before{grid-column:1;grid-row:1/4}.monthly-volumes{gap:12px}.monthly-volumes>div{padding:16px}.monthly-volumes span{font-size:.85rem}.monthly-actions{justify-content:stretch}.monthly-actions>*{flex:1 1 190px}.monthly-dialog{padding:22px}}

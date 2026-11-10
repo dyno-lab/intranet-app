@@ -84,6 +84,11 @@
         card.append(details, element('p', 'fn-note', item.note));
       } else if (item.type === 'announcement') {
         card.append(element('p', 'fn-note', `Vigente desde ${item.published_on.split('-').reverse().join('/')}`));
+        (item.actions || []).forEach(action => {
+          const link = element('a', 'fn-button fn-button--primary', action.label);
+          link.href = action.url;
+          card.append(link);
+        });
         if (item.unread) {
           const read = element('button', 'fn-button', 'Marcar como leído');
           read.type = 'button';

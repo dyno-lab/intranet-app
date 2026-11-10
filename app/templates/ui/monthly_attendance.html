@@ -1,0 +1,131 @@
+{% extends "ui/_base.html" %}
+{% block title %}Confirmación mensual de asistencias · Faro{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/monthly-attendance.css">
+<script src="/static/js/monthly-attendance.js" defer></script>
+{% macro fields() %}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="proposal_id" value="{{ view.proposal.proposal_id }}">
+  <input type="hidden" name="year" value="{{ view.year }}">
+  <input type="hidden" name="month" value="{{ view.month }}">
+{% endmacro %}
+{% set labels = {'pending': 'Pendiente', 'review': 'Requiere nueva confirmación', 'done': 'Completado'} %}
+<div class="monthly-page">
+  <header class="monthly-hero">
+    <div><span class="monthly-eyebrow">{{ 'Supervisión de asistencias' if view and view.is_global else 'Seguimiento del residencial' }}</span>
+      <h1>Confirmación mensual</h1>
+      <p>{{ 'Consulta quién terminó y a qué residenciales dar seguimiento antes de preparar el informe.' if view and view.is_global else 'Cuando termines de registrar todas las asistencias, confirma el mes para informar a supervisión.' }}</p>
+    </div>
+    <a class="btn btn-outline-primary" href="/ui/listado"><i class="bi bi-calendar-check" aria-hidden="true"></i> Ir a asistencias</a>
+  </header>
+  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+  <form method="get" class="monthly-filters monthly-panel">
+    <div><label for="monthly-proposal">Propuesta</label><select class="form-select" id="monthly-proposal" name="proposal_id" required>
+      {% for p in proposals %}<option value="{{ p.proposal_id }}" {{ 'selected' if p.proposal_id == selected_proposal_id else '' }}>{{ p.code }}{{ ' · Inactiva' if not p.is_active else '' }}</option>{% endfor %}
+    </select></div>
+    <div><label for="monthly-month">Mes</label><select class="form-select" id="monthly-month" name="month">
+      {% for number, name in months %}<option value="{{ number }}" {{ 'selected' if number == selected_month else '' }}>{{ name }}</option>{% endfor %}
+    </select></div>
+    <div><label for="monthly-year">Año</label><input class="form-control" id="monthly-year" name="year" type="number" min="2000" max="2100" value="{{ selected_year }}" required></div>
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Consultar período</button>
+  </form>
+  {% if not view %}
+    <div class="monthly-panel">No hay propuestas disponibles.</div>
+  {% else %}
+  {% if not view.writable %}<div class="alert alert-info" role="status">Período de consulta. Las propuestas inactivas, finalizadas, los meses cerrados y los meses futuros no admiten confirmaciones ni cambios.</div>{% endif %}
+  <section class="monthly-progress monthly-panel {{ 'monthly-progress--done' if view.all_done else '' }}" aria-labelledby="progress-title">
+    <div><span class="monthly-eyebrow">{{ view.label }} · Propuesta {{ view.proposal.code }}</span>
+      <h2 id="progress-title">{{ ('Todas las asistencias confirmadas' if view.is_global else 'Mes confirmado') if view.all_done else 'Seguimiento de confirmaciones' }}</h2>
+      <p>{{ 'Continúa con la revisión de cursos, referidos y demás datos del informe.' if view.all_done else 'La confirmación es una declaración del residencial de que terminó de registrar el mes.' }}</p>
+      <div class="monthly-bar" role="progressbar" aria-label="Residenciales completados" aria-valuemin="0" aria-valuemax="{{ view.total or 1 }}" aria-valuenow="{{ view.completed }}"><span style="width: {{ (100 * view.completed / view.total)|round if view.total else 0 }}%"></span></div>
+      <strong>{{ view.completed }} de {{ view.total }} confirmaciones recibidas</strong>
+    </div>
+    <div class="monthly-deadline"><i class="bi bi-calendar-event" aria-hidden="true"></i><span>Fecha límite</span><strong>{{ view.due_on.strftime('%d/%m/%Y') }}</strong>
+      {% if view.today > view.due_on and not view.all_done and view.total %}<span class="monthly-state monthly-state--review">Plazo vencido</span>
+      {% elif view.today == view.due_on and not view.all_done %}<span class="monthly-state monthly-state--pending">Vence hoy</span>{% endif %}
+    </div>
+  </section>
+  {% if view.is_global %}
+  <section class="monthly-panel" aria-labelledby="residentials-title">
+    <div class="monthly-section-heading"><div><h2 id="residentials-title">Estado por residencial</h2><p>{{ view.total - view.completed }} pendientes de confirmar · {{ view.label }}</p></div>
+      {% if view.can_supervise and view.writable and not view.all_done and view.total %}
+      <button type="button" class="btn btn-primary" data-monthly-open="remind-month"><i class="bi bi-bell" aria-hidden="true"></i> Recordar a pendientes</button>
+      {% endif %}
+    </div>
+    <div class="monthly-table-wrap"><table class="monthly-table"><thead><tr><th>Residencial</th><th>Estado</th><th>Actividades</th><th>Participaciones</th><th>Última confirmación</th><th>Seguimiento</th></tr></thead><tbody>
+    {% for row in view.rows %}
+      <tr><td data-label="Residencial"><strong>{{ row.residential.code }}</strong><span class="monthly-muted">{{ row.residential.name }}</span></td>
+        <td data-label="Estado"><span class="monthly-state monthly-state--{{ row.status }}">{{ labels[row.status] }}</span>
+          {% if row.status == 'done' and row.record.no_activity %}<small class="monthly-muted">Sin actividad declarada</small>{% endif %}</td>
+        <td data-label="Actividades">{{ row.sessions }}{% if row.empty_sessions %}<small class="monthly-muted">{{ row.empty_sessions }} sin asistencias</small>{% endif %}</td>
+        <td data-label="Participaciones">{{ row.participations }}</td>
+        <td data-label="Última confirmación">{% if row.record and row.record.confirmed_at %}{{ row.record.confirmed_at|monthly_stamp }}<small class="monthly-muted">{{ row.record.confirmed_by_name }}</small>
+          {% if row.record.note %}<details><summary>Observación</summary><p class="monthly-note">{{ row.record.note }}</p></details>{% endif %}
+          {% else %}<span class="monthly-muted">Por confirmar</span>{% endif %}</td>
+        <td data-label="Seguimiento"><a class="btn btn-sm btn-outline-primary" href="/ui/listado?proposal_id={{ view.proposal.proposal_id }}&residential_id={{ row.residential.residential_id }}&year={{ view.year }}&month={{ view.month }}">Ver asistencias</a>
+          {% if view.can_supervise and view.writable and row.status != 'done' %}
+          <form method="post" action="/ui/monthly-attendance/remind" class="mt-2">{{ fields() }}<input type="hidden" name="residential_ids" value="{{ row.residential.residential_id }}"><button type="submit" class="btn btn-sm btn-outline-secondary">Enviar recordatorio</button></form>
+          {% endif %}
+          {% if row.record and row.record.last_reminded_at %}<small class="monthly-muted">Último aviso: {{ row.record.last_reminded_at|monthly_stamp }}</small>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="6">No hay residenciales incluidos en este período.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% else %}
+    {% for row in view.rows %}
+    <section class="monthly-panel" aria-labelledby="my-residential-title">
+      <div class="monthly-section-heading"><div><span class="monthly-eyebrow">Mi residencial</span><h2 id="my-residential-title">{{ row.residential.name }}</h2></div><span class="monthly-state monthly-state--{{ row.status }}">{{ labels[row.status] }}</span></div>
+      <div class="monthly-volumes"><div><strong>{{ row.sessions }}</strong><span>Actividades registradas</span></div><div><strong>{{ row.participations }}</strong><span>Participaciones registradas</span></div></div>
+      {% if row.status == 'review' %}<div class="alert alert-warning">Se modificaron registros después de la última confirmación. Revisa las asistencias y confirma nuevamente.</div>{% endif %}
+      {% if row.empty_sessions %}<p class="monthly-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Hay {{ row.empty_sessions }} actividades sin asistencias. Revísalas antes de confirmar.</p>{% endif %}
+      {% if row.record and row.record.confirmed_at %}<p class="monthly-muted">Última confirmación: {{ row.record.confirmed_at|monthly_stamp }} · {{ row.record.confirmed_by_name }}</p>{% if row.record.note %}<p class="monthly-note">{{ row.record.note }}</p>{% endif %}{% endif %}
+      <div class="monthly-actions"><a class="btn btn-outline-primary" href="/ui/listado?proposal_id={{ view.proposal.proposal_id }}&year={{ view.year }}&month={{ view.month }}">Revisar asistencias del mes</a>
+      {% if view.can_confirm and row.status != 'done' %}<button class="btn btn-primary" type="button" data-monthly-open="confirm-month"><i class="bi bi-check2-circle" aria-hidden="true"></i> {{ 'Confirmar nuevamente' if row.status == 'review' else 'Marcar mes completado' }}</button>{% endif %}</div>
+    </section>
+    {% if view.can_confirm and row.status != 'done' %}
+    <dialog class="monthly-dialog" id="confirm-month" aria-labelledby="confirm-title">
+      <form method="post" action="/ui/monthly-attendance/confirm">{{ fields() }}<input type="hidden" name="fingerprint" value="{{ row.fingerprint }}">
+        <span class="monthly-eyebrow">{{ row.residential.name }} · {{ view.label }}</span><h2 id="confirm-title">Confirmar asistencias del mes</h2>
+        <p>Se notificará a administración y supervisión que terminaste de registrar las asistencias de la propuesta {{ view.proposal.code }}.</p>
+        {% if not row.sessions %}<label class="monthly-check"><input type="checkbox" name="no_activity" required> Declaro que este residencial no tuvo actividades en este período.</label>{% endif %}
+        <label for="confirm-note">{{ 'Justificación de mes sin actividad (obligatoria)' if not row.sessions else 'Observación (opcional)' }}</label>
+        <textarea class="form-control" name="note" id="confirm-note" rows="3" maxlength="1000" {{ 'required' if not row.sessions else '' }}></textarea>
+        <label class="monthly-check"><input type="checkbox" name="declared" required> Confirmo que todas las asistencias correspondientes a este mes están registradas y revisadas.</label>
+        <p class="monthly-muted">Si luego cambias actividades o asistencias, será necesario confirmar nuevamente.</p>
+        <div class="monthly-actions"><button class="btn btn-outline-secondary" type="button" data-monthly-close>Cancelar</button><button class="btn btn-primary" type="submit">Confirmar mes completado</button></div>
+      </form>
+    </dialog>
+    {% endif %}
+    {% else %}<div class="monthly-panel">Tu residencial no está incluido en este período. Consulta con administración si corresponde añadirlo.</div>{% endfor %}
+  {% endif %}
+  {% if view.can_supervise and view.writable and not view.all_done and view.total %}
+  <dialog class="monthly-dialog" id="remind-month" aria-labelledby="remind-title">
+    <form method="post" action="/ui/monthly-attendance/remind">{{ fields() }}<h2 id="remind-title">Recordar a pendientes</h2>
+      <p>El aviso aparecerá en la campana de los {{ view.total - view.completed }} residenciales pendientes de esta propuesta y mes.</p>
+      <label for="remind-message">Mensaje (opcional)</label><textarea class="form-control" name="message" id="remind-message" maxlength="1000" rows="3" placeholder="Completa y confirma las asistencias del mes para preparar el informe."></textarea>
+      <div class="monthly-actions"><button class="btn btn-outline-secondary" type="button" data-monthly-close>Cancelar</button><button class="btn btn-primary" type="submit">Enviar recordatorios</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+  {% if view.can_configure and view.writable %}
+  <details class="monthly-panel"><summary>Configurar período y residenciales incluidos</summary>
+    <p class="monthly-muted mt-3">Inicialmente se incluyen todos los residenciales activos. Revisa cuáles corresponden a esta propuesta. Los cambios se conservan en el historial.</p>
+    <form method="post" action="/ui/monthly-attendance/configure">{{ fields() }}<input type="hidden" name="revision" value="{{ view.period.revision if view.period else 0 }}">
+      <label for="due-on">Fecha límite</label><input class="form-control monthly-date-input" type="date" name="due_on" id="due-on" value="{{ view.due_on.isoformat() }}" required>
+      <fieldset class="monthly-roster"><legend>Residenciales incluidos</legend>
+      {% for r in residentials %}<label class="monthly-check"><input type="checkbox" name="residential_ids" value="{{ r.residential_id }}" {{ 'checked' if r.residential_id in included else '' }}>{{ r.code }} · {{ r.name }}{{ ' (inactivo)' if not r.is_active else '' }}</label>{% endfor %}
+      </fieldset>
+      <label for="config-reason">Motivo del ajuste</label><textarea class="form-control" id="config-reason" name="reason" rows="2" maxlength="1000" required></textarea>
+      <button class="btn btn-outline-primary mt-3" type="submit">Guardar configuración</button>
+    </form>
+  </details>
+  {% endif %}
+  <details class="monthly-panel"><summary>Historial de seguimiento</summary>
+    <p class="monthly-muted mt-3">Confirmaciones, cambios y recordatorios de {{ view.label }}. Horas de Puerto Rico.</p>
+    <ol class="monthly-history">{% for event in events %}<li><strong>{{ event.created_at|monthly_stamp }} · {{ event.actor_name }}</strong>{% if event.residential_id %}<span class="monthly-muted">{{ event_names.get(event.residential_id, '') }}</span>{% endif %}<p>{{ event.message }}</p></li>{% else %}<li>Todavía no hay movimientos para este período.</li>{% endfor %}</ol>
+    {% if older_events %}<a href="{{ view.url }}&before_event={{ older_events }}">Ver movimientos anteriores</a>{% endif %}
+  </details>
+  <p class="monthly-footnote"><i class="bi bi-shield-check" aria-hidden="true"></i> Esta confirmación informa que terminó el registro de asistencias. El cierre administrativo del mes y las validaciones de cursos y referidos se gestionan por separado.</p>
+  {% endif %}
+</div>
+{% endblock %}

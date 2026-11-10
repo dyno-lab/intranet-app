@@ -65,6 +65,7 @@ from app.core.period_guard import (
 from app.core.session_rules import activity_code_allowed_for_proposal
 from app.services.activity_proposals import attach_activity_assigned_proposal_ids, load_activity_codes_for_proposal
 from app.services.session_control_numbers import persist_session_control_number, update_session_fields
+from app.services.monthly_attendance import change_months
 from app.services.proposal_participant_sync import get_different_proposal_participant_fields
 from app.services.participant_residency import (
     stay_on_date, eligible_on_date, session_snapshot_join, lock_residential,
@@ -2823,6 +2824,7 @@ def create_session_ui(
         created_by_user_id=current_user.user_id,
     )
 
+    change_months(db, current_user, [(s.proposal_id, s.residential_id, s.session_date)], reason="Se creó una actividad")
     db.add(s)
     db.flush()
     persist_session_control_number(db, s, record_residential.code)
@@ -3024,6 +3026,7 @@ async def save_attendance(
                 "Error: No se puede registrar asistencia para participantes operativos inactivos.",
             )
 
+    change_months(db, current_user, [(s.proposal_id, s.residential_id, s.session_date)], reason="Se guardaron asistencias")
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
@@ -3070,6 +3073,8 @@ def clear_attendance(
         raise HTTPException(status_code=403, detail="Acceso denegado.")
 
     _check_session_access(s, current_user, request)
+    lock_residential(db, s.residential_id)
+    db.refresh(s)
 
     try:
         require_session_proposal_not_finalized(
@@ -3086,6 +3091,7 @@ def clear_attendance(
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
 
+    change_months(db, current_user, [(s.proposal_id, s.residential_id, s.session_date)], reason="Se eliminaron asistencias")
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )
@@ -3130,6 +3136,8 @@ def edit_session(
 
     assert parsed_session_date is not None
     _check_session_access(s, current_user, request)
+    lock_residential(db, s.residential_id)
+    db.refresh(s)
 
     try:
         require_session_proposal_not_finalized(
@@ -3213,6 +3221,10 @@ def edit_session(
     except HTTPException as exc:
         return _redirect_with_msg(f"/ui/listado/{session_id}", str(exc.detail))
     record_residential = db.get(Residential, s.residential_id) if s.residential_id else None
+    change_months(db, current_user, [
+        (s.proposal_id, s.residential_id, s.session_date),
+        (selected_proposal_id, s.residential_id, parsed_session_date),
+    ], reason="Se modificó una actividad")
     update_session_fields(
         db,
         s,
@@ -3243,6 +3255,8 @@ def delete_session(
         raise HTTPException(status_code=404, detail="Sesión no encontrada.")
 
     _check_session_access(s, current_user, request)
+    lock_residential(db, s.residential_id)
+    db.refresh(s)
 
     try:
         require_session_proposal_not_finalized(
@@ -3259,6 +3273,7 @@ def delete_session(
     except HTTPException as exc:
         return _redirect_with_msg("/ui/listado", str(exc.detail))
 
+    change_months(db, current_user, [(s.proposal_id, s.residential_id, s.session_date)], reason="Se eliminó una actividad")
     db.execute(
         delete(Attendance).where(Attendance.session_id == session_id)
     )

@@ -2963,6 +2963,13 @@ def admin_delete_proposal(
             "Error: La contraseÃ±a de administrador no es correcta.",
         )
 
+    # Preserve the audit trail even when the month explicitly had no activity.
+    from app.models.monthly_attendance import AttendanceMonth
+    if db.scalar(select(AttendanceMonth.proposal_id).where(AttendanceMonth.proposal_id == proposal_id).limit(1)) is not None:
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: La propuesta tiene seguimiento mensual de asistencias. Desactívela o finalícela para conservar el historial.",
+        )
     blockers: list[str] = []
 
     session_count = db.execute(

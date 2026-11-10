@@ -32,6 +32,7 @@
       </div>
 
       <div class="attendance-hero__actions">
+        <a class="btn btn-primary" href="/ui/monthly-attendance?proposal_id={{ selected_proposal_id or '' }}&month={{ selected_month or '' }}&year={{ selected_year or '' }}"><i class="bi bi-check2-circle" aria-hidden="true"></i> Confirmación mensual</a>
         {% if selected_proposal_id and current_user and current_user.role in ["admin", "supervisor"] %}
         <a class="btn btn-outline-secondary" href="/ui/admin/proposal-participants?proposal_id={{ selected_proposal_id }}">Participantes de esta propuesta</a>
         {% endif %}
