@@ -57,8 +57,8 @@
     </section>
     <section class="fb-stack" data-panel="charts" hidden aria-label="Gráficas del presupuesto">
       <div class="fb-row fb-between"><div><h2>Gráficas del presupuesto</h2><p class="fb-note" data-charts-status aria-live="polite"></p></div><button class="fb-button fb-primary" type="button" data-tab="movements">Ingresar un gasto</button></div>
-      <div class="fb-pair fb-chart-pair"><section class="fb-card"><h3 data-allocation-title>Distribución vigente del fondo · Pie</h3><p class="fb-note" data-allocation-note>Asignación actual, independiente del mes.</p><div data-allocation-pie class="fb-pie-layout"></div></section><section class="fb-card"><h3>Gastos del período por categoría · Pie</h3><p class="fb-note">Participación en el gasto del período seleccionado.</p><div data-expense-pie class="fb-pie-layout"></div></section></div>
-      <section class="fb-card"><div class="fb-row fb-between"><div><h3>Historial de gastos acumulados</h3><p class="fb-note">Por fecha del gasto o pago · USD</p></div><strong data-history-total></strong></div><div data-history-chart></div><details class="fb-chart-detail"><summary>Ver importes por fecha</summary><div class="fb-table-wrap"><table><thead><tr><th>Fecha</th><th class="fb-num">Pagado ese día</th><th class="fb-num">Acumulado</th></tr></thead><tbody data-daily-rows></tbody></table></div></details></section>
+      <div class="fb-pair fb-chart-pair"><section class="fb-card"><h3 data-allocation-title>Distribución del presupuesto · Pie</h3><p class="fb-note" data-allocation-note>Asignación actual, independiente del mes.</p><div data-allocation-pie class="fb-pie-layout"></div></section><section class="fb-card"><h3>Gastos por categoría · Pie</h3><p class="fb-note">Participación en el gasto del período seleccionado.</p><div data-expense-pie class="fb-pie-layout"></div></section></div>
+      <section class="fb-card"><div class="fb-row fb-between"><div><h3>Historial de gastos acumulados</h3><p class="fb-note">Por fecha del gasto o pago · USD</p></div><strong data-history-total></strong></div><div data-history-chart></div><details class="fb-chart-detail"><summary>Ver montos por fecha</summary><div class="fb-table-wrap"><table><thead><tr><th>Fecha</th><th class="fb-num">Pagado ese día</th><th class="fb-num">Acumulado</th></tr></thead><tbody data-daily-rows></tbody></table></div></details></section>
       <p class="fb-note">Las transferencias cambian la distribución del fondo. Los gastos y pagos actualizan la gráfica de gastos y su historial; los compromisos pendientes aún no son pagos.</p>
     </section>
     <section class="fb-stack" data-panel="configuration" hidden aria-label="Configuración de supervisores y administradores">
@@ -67,17 +67,18 @@
       <div class="fb-card"><div class="fb-row fb-between"><div><h3 data-fund-label></h3><p class="fb-note">Fondo general: <strong data-value="total"></strong> · Sin distribuir: <strong data-value="unallocated"></strong></p></div><button class="fb-button" type="button" data-action="fund" data-manage>Editar fondo y año fiscal</button></div></div>
       <div class="fb-card"><div class="fb-row fb-between"><h3>Categorías y partidas</h3><span class="fb-note" data-category-count></span></div><div data-config-categories></div></div>
       <section class="fb-card"><div class="fb-row fb-between fb-section-head"><h3>Historial de transferencias</h3><span class="fb-note">Fondo general sin cambios</span></div><div class="fb-table-wrap"><table><thead><tr><th>Fecha / responsable</th><th>Origen → destino</th><th class="fb-num">Monto</th><th>Asignación antes → después</th><th>Motivo</th></tr></thead><tbody data-transfer-rows></tbody></table></div></section>
+      <details class="fb-card"><summary>Historial de cambios en partidas</summary><div class="fb-table-wrap"><table><thead><tr><th>Fecha / responsable</th><th>Antes</th><th>Después</th><th>Motivo</th></tr></thead><tbody data-item-history></tbody></table></div></details>
       <details class="fb-card"><summary>Historial de cambios de la demostración</summary><ul class="fb-history" data-history></ul></details>
     </section>
     <section class="fb-stack" data-panel="movements" hidden><div class="fb-row fb-between"><div><h2>Entrada de gastos y compromisos</h2><p class="fb-note">Registra fecha, motivo y categoría; los balances y las gráficas se actualizan.</p></div><button type="button" class="fb-text-button" data-tab="charts">Ver gráficas →</button></div>
       <form class="fb-card fb-form" data-entry-form aria-label="Entrada de gastos"><fieldset class="fb-entry-fields" data-entry-fieldset><legend class="fb-section-head">Nuevo movimiento</legend><div class="fb-fields"><label><span class="fb-label">Fecha del movimiento</span><input class="fb-input" type="date" name="date" required></label><label><span class="fb-label">Tipo de movimiento</span><select class="fb-input" name="kind"><option value="expense">Gasto pagado</option><option value="commitment">Compromiso pendiente</option></select></label><label><span class="fb-label">Categoría</span><select class="fb-input" name="category" required></select></label><label><span class="fb-label">Partida (opcional)</span><select class="fb-input" name="item"></select></label><label class="fb-full"><span class="fb-label">Motivo / descripción del gasto</span><textarea class="fb-input" name="concept" rows="2" maxlength="300" required placeholder="Ej. Transportación de participantes a taller"></textarea></label><label><span class="fb-label">Monto · USD</span><input class="fb-input" type="number" name="amount" min="0.01" step="0.01" required placeholder="0.00"></label><div class="fb-info"><span class="fb-label">Disponible en esta selección</span><strong data-entry-available></strong></div></div>
         <label><span class="fb-label">Recibo del gasto (opcional)</span><input class="fb-input" type="file" name="receiptFile" accept="application/pdf,image/jpeg,image/png"><span class="fb-note fb-file-note" data-entry-receipt-note>PDF, JPG o PNG · máximo 10 MB · temporal, se pierde al recargar.</span></label>
         <p class="fb-entry-lock" data-entry-lock role="status" hidden></p><div class="fb-error" data-entry-error role="alert" hidden></div><div class="fb-row fb-between"><span class="fb-note">Propuesta <strong data-entry-proposal></strong> · Datos de ejemplo</span><button class="fb-button fb-primary" type="button" data-save-entry>Guardar gasto</button></div></fieldset></form>
-      <div class="fb-card"><h3>Movimientos registrados</h3><p class="fb-note fb-history-count" data-movement-count aria-live="polite"></p><div class="fb-table-wrap"><table><thead><tr><th>Fecha / motivo</th><th>Categoría / partida</th><th class="fb-num">Monto</th><th>Estado</th><th>Recibo</th><th>Acción</th></tr></thead><tbody data-movement-rows></tbody></table></div><p class="fb-note" style="margin-top:12px">Un pago vinculado reduce el compromiso pendiente y aumenta lo pagado; no vuelve a descontarse del disponible.</p></div></section>
+      <div class="fb-card"><h3>Movimientos registrados</h3><p class="fb-note fb-history-count" data-movement-count aria-live="polite"></p><div class="fb-table-wrap"><table><thead><tr><th>Fecha / motivo</th><th>Categoría / partida</th><th class="fb-num">Monto</th><th>Estado</th><th>Recibo</th><th>Acción</th></tr></thead><tbody data-movement-rows></tbody></table></div><p class="fb-note" style="margin-top:12px">Un pago vinculado reduce el compromiso pendiente y aumenta lo pagado; no vuelve a descontarse del disponible.</p></div><details class="fb-card fb-payment-history"><summary>Historial de cambios en pagos</summary><p class="fb-note">Incluye cambios en pagos que estaban o quedaron dentro del mes y la categoría seleccionados.</p><div class="fb-table-wrap"><table><thead><tr><th>Fecha / responsable</th><th>Antes</th><th>Después</th><th>Motivo</th></tr></thead><tbody data-payment-history></tbody></table></div></details></section>
     <footer class="fb-footer">Propuesta de diseño pendiente de aprobación · Los cambios solo afectan esta demostración.</footer>
   </main>
 </section>
-<dialog class="fb-dialog" id="fb-editor" aria-labelledby="fb-editor-title"><h2 id="fb-editor-title"></h2><form class="fb-form" data-editor-form><div class="fb-fields" data-editor-fields></div><div class="fb-info" data-editor-hint></div><div class="fb-error" data-editor-error role="alert" hidden></div><div class="fb-row" style="justify-content:flex-end"><button class="fb-button" type="button" data-close>Cancelar</button><button class="fb-button fb-primary" type="button" data-save>Guardar en demostración</button></div></form></dialog>
+<dialog class="fb-dialog" id="fb-editor" aria-labelledby="fb-editor-title"><h2 id="fb-editor-title"></h2><form class="fb-form" data-editor-form><div class="fb-fields" data-editor-fields></div><div class="fb-info" data-editor-hint></div><div class="fb-error" data-editor-error role="alert" hidden></div><div class="fb-row" style="justify-content:flex-end"><button class="fb-button" type="button" data-close>Cancelar</button><button class="fb-button fb-primary" type="button" data-save>Guardar cambios</button></div></form></dialog>
 <dialog class="fb-dialog fb-receipt-dialog" id="fb-receipt" aria-labelledby="fb-receipt-title"><div class="fb-row fb-between"><h2 id="fb-receipt-title">Recibo del gasto</h2><button type="button" class="fb-button" data-close-receipt>Cerrar</button></div><p class="fb-note" data-receipt-context></p><div class="fb-receipt-preview" data-receipt-preview></div><form class="fb-form" data-receipt-form><label data-receipt-upload><span class="fb-label">Adjuntar o reemplazar recibo · PDF, JPG o PNG · máximo 10 MB</span><input class="fb-input" type="file" name="receiptFile" accept="application/pdf,image/jpeg,image/png"><span class="fb-note fb-file-note">Solo en esta demostración; el archivo se pierde al recargar.</span></label><div class="fb-error" role="alert" data-receipt-error hidden></div><button type="submit" class="fb-button fb-primary" data-save-receipt>Vincular recibo al gasto</button></form></dialog>
 <dialog class="fb-dialog" id="fb-period-dialog" aria-labelledby="fb-period-title">
   <h2 id="fb-period-title" data-period-title></h2>
@@ -162,7 +163,7 @@
       const fromItem=from.items.find(i=>i.id===entry.fromItem),toItem=to.items.find(i=>i.id===entry.toItem);
       if((entry.fromItem&&!fromItem)||(entry.toItem&&!toItem))throw Error('Revisa las partidas de origen y destino.');
       if(amount>room(p,from,entry.fromItem))throw Error('El monto supera lo transferible del origen; lo pagado o comprometido no se puede mover.');
-      const log={id:entry.id,at:entry.at,role,reason:entry.reason.trim(),amount,fromId:from.id,toId:to.id,from:from.name,to:to.name,fromItem:fromItem?.name||'Sin partida específica',toItem:toItem?.name||'Sin partida específica',fromBefore:from.budget,fromAfter:from.budget-amount,toBefore:to.budget,toAfter:to.budget+amount,total:p.total};
+      const log={id:entry.id,at:entry.at,role,reason:entry.reason.trim(),amount,fromId:from.id,toId:to.id,from:from.name,to:to.name,fromItem:fromItem?.name||'Sin partida',toItem:toItem?.name||'Sin partida',fromBefore:from.budget,fromAfter:from.budget-amount,toBefore:to.budget,toAfter:to.budget+amount,total:p.total};
       from.budget-=amount;to.budget+=amount;if(fromItem)fromItem.budget-=amount;if(toItem)toItem.budget+=amount;
       (p.transfers||(p.transfers=[])).unshift(log);captureBudget(p,TODAY);return log;
     }
@@ -200,11 +201,85 @@
       let cumulative=0;const history=Array.from(daily).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,amount])=>({date,amount,cumulative:(cumulative+=amount)}));
       return {allocation,expenses,history};
     }
+    function editReason(role,reason,at){
+      if(!['supervisor','admin'].includes(role))throw Error('Solo supervisores y administradores pueden editar pagos y partidas.');
+      const note=typeof reason==='string'?reason.trim():'';
+      if(!note||note.length>300)throw Error('Escribe el motivo del cambio, hasta 300 caracteres.');
+      if(!Number.isFinite(Date.parse(at)))throw Error('La fecha del historial no es válida.');
+      return note;
+    }
+    function paymentSnapshot(p,m){
+      const c=p.categories.find(c=>c.id===m.category),item=c?.items.find(i=>i.id===m.item);
+      return {date:m.date,amount:m.amount,concept:m.concept,categoryId:m.category,category:c?.name||'',itemId:m.item||'',item:item?.name||'Sin partida',source:m.source||''};
+    }
+    function filteredPaymentEdits(p,filters={}){
+      return (p.paymentHistory||[]).filter(event=>[event.before,event.after].some(s=>matchesFilter({date:s.date,category:s.categoryId},filters)));
+    }
+    function editPayment(p,id,changes,role,reason,at){
+      const note=editReason(role,reason,at),original=p.movements.find(m=>m.id===id);
+      if(!original||original.kind!=='expense')throw Error('Selecciona un gasto o pago registrado.');
+      const next={date:changes.date??original.date,amount:changes.amount??original.amount,concept:changes.concept??original.concept,category:changes.category??original.category,item:changes.item??original.item??''};
+      if(!Number.isSafeInteger(next.amount)||next.amount<=0)throw Error('El monto pagado debe ser mayor que cero.');
+      if(!validDate(next.date))throw Error('Indica una fecha válida, hasta el 10/11/2026 en este mockup.');
+      if(typeof next.concept!=='string'||!next.concept.trim()||next.concept.trim().length>300)throw Error('Escribe una descripción del pago, hasta 300 caracteres.');
+      next.concept=next.concept.trim();
+      assertFinancialOpen(p,original.date);assertFinancialOpen(p,next.date);
+      const category=p.categories.find(c=>c.id===next.category),item=category?.items.find(i=>i.id===next.item);
+      if(!category||(next.item&&!item))throw Error('Selecciona una categoría y una partida válidas.');
+      if((category.createdOn&&next.date<category.createdOn)||(item?.createdOn&&next.date<item.createdOn)||!balanceAt(p,next.date,next.category).exists)throw Error('La fecha no puede ser anterior a la asignación de la categoría o partida.');
+      const source=original.source?p.movements.find(m=>m.id===original.source):null;
+      if(original.source){
+        if(!source||source.kind!=='commitment')throw Error('No se encontró el compromiso de este pago.');
+        if(next.category!==source.category||next.item!==(source.item||''))throw Error('Este pago conserva la categoría y partida de su compromiso.');
+        if(next.date<source.date)throw Error('La fecha del pago no puede ser anterior al compromiso.');
+      }
+      const before=paymentSnapshot(p,original),after=paymentSnapshot(p,{...original,...next});
+      if(JSON.stringify(before)===JSON.stringify(after))throw Error('No hay cambios para guardar.');
+      // Validate a detached copy before changing any movement, pending amount or audit record.
+      const draft=JSON.parse(JSON.stringify(p)),draftPayment=draft.movements.find(m=>m.id===id);
+      Object.assign(draftPayment,next);
+      let pending;
+      if(source){
+        const totalPaid=draft.movements.filter(m=>m.kind==='expense'&&m.source===source.id).reduce((n,m)=>n+m.amount,0);
+        if(totalPaid>source.amount)throw Error('Los pagos no pueden superar el monto del compromiso.');
+        pending=source.amount-totalPaid;draft.movements.find(m=>m.id===source.id).pending=pending;
+      }
+      const affected=[...new Set([original.category,next.category])];
+      for(const id of affected){
+        const c=draft.categories.find(c=>c.id===id),u=used(draft,id);
+        if(u.paid+u.committed>c.budget||room(draft,c,'')<0||c.items.some(i=>room(draft,c,i.id)<0))throw Error('El cambio supera el disponible de la categoría o partida.');
+      }
+      const earliest=original.date<next.date?original.date:next.date;
+      const dates=new Set([next.date,original.date,TODAY,...draft.movements.map(m=>m.date),...(draft.budgetHistory||[]).map(s=>s.date)]);
+      for(const date of [...dates].filter(d=>d>=earliest&&d<=TODAY))for(const id of affected){
+        const balance=balanceAt(draft,date,id);
+        if(balance.available<0)throw Error('El cambio dejaría un saldo negativo en '+date+'. Revisa la fecha y la asignación de esa categoría.');
+      }
+      const event={movementId:id,role,reason:note,at,before,after};
+      Object.assign(original,next);if(source)source.pending=pending;
+      (p.paymentHistory||(p.paymentHistory=[])).unshift(event);
+      return event;
+    }
+    function editItem(p,categoryId,itemId,changes,role,reason,at){
+      const note=editReason(role,reason,at);assertFinancialOpen(p,TODAY);
+      const c=p.categories.find(c=>c.id===categoryId),item=c?.items.find(i=>i.id===itemId);
+      if(!item)throw Error('Selecciona una partida existente.');
+      const name=(changes.name??item.name).trim(),budget=changes.budget??item.budget;
+      if(!name||name.length>80)throw Error('Escribe un nombre de partida, hasta 80 caracteres.');
+      if(!Number.isSafeInteger(budget)||budget<0)throw Error('Indica un presupuesto válido para la partida.');
+      if(c.items.some(i=>i.id!==itemId&&i.name.toLocaleLowerCase()===name.toLocaleLowerCase()))throw Error('Ya existe una partida con ese nombre.');
+      const u=used(p,c.id,itemId),direct=used(p,c.id,''),other=c.items.filter(i=>i.id!==itemId).reduce((n,i)=>n+i.budget,0);
+      if(budget<u.paid+u.committed)throw Error('La partida no puede quedar por debajo de lo pagado y comprometido.');
+      if(budget+other+direct.paid+direct.committed>c.budget)throw Error('Las partidas y los gastos sin partida superan el presupuesto de la categoría.');
+      if(item.name===name&&item.budget===budget)throw Error('No hay cambios para guardar.');
+      const event={categoryId:c.id,category:c.name,itemId,role,reason:note,at,before:{name:item.name,budget:item.budget},after:{name,budget}};
+      item.name=name;item.budget=budget;(p.itemHistory||(p.itemHistory=[])).unshift(event);return event;
+    }
     /* FB_MODEL_END */
     const proposals=[{id:'p006',name:'006',year:'2026–2027',total:200000,categories:[
       {id:'transport',name:'Transportación',budget:60000,items:[{id:'trips',name:'Viajes a actividades',budget:40000},{id:'fuel',name:'Combustible',budget:20000}]},
       {id:'salary',name:'Salarios',budget:80000,items:[]},{id:'purchase',name:'Compras',budget:30000,items:[]},{id:'materials',name:'Materiales',budget:20000,items:[]}
-    ],movements:[{id:'m1',category:'transport',item:'trips',kind:'expense',amount:15000,pending:0,date:'2026-09-18',concept:'Viaje de ejemplo'},{id:'m2',category:'materials',item:'',kind:'expense',amount:10000,pending:0,date:'2026-10-12',concept:'Materiales de ejemplo'},{id:'m3',category:'transport',item:'trips',kind:'commitment',amount:10000,pending:10000,date:'2026-11-03',concept:'Próxima actividad'}],transfers:[{id:'tr-demo',at:'2026-11-06T14:00:00Z',role:'supervisor',reason:'Reforzar transportación para actividades de noviembre.',amount:10000,from:'Salarios',to:'Transportación',fromItem:'Sin partida específica',toItem:'Viajes a actividades',fromBefore:90000,fromAfter:80000,toBefore:50000,toAfter:60000,total:200000}],history:['Ejemplo inicial: fondo de $2,000.00 y $1,900.00 distribuidos entre categorías.']}];
+    ],movements:[{id:'m1',category:'transport',item:'trips',kind:'expense',amount:15000,pending:0,date:'2026-09-18',concept:'Viaje de ejemplo'},{id:'m2',category:'materials',item:'',kind:'expense',amount:10000,pending:0,date:'2026-10-12',concept:'Materiales de ejemplo'},{id:'m3',category:'transport',item:'trips',kind:'commitment',amount:10000,pending:10000,date:'2026-11-03',concept:'Próxima actividad'}],transfers:[{id:'tr-demo',at:'2026-11-06T14:00:00Z',role:'supervisor',reason:'Reforzar transportación para actividades de noviembre.',amount:10000,from:'Salarios',to:'Transportación',fromItem:'Sin partida',toItem:'Viajes a actividades',fromBefore:90000,fromAfter:80000,toBefore:50000,toAfter:60000,total:200000}],history:['Ejemplo inicial: fondo de $2,000.00 y $1,900.00 distribuidos entre categorías.']}];
     proposals[0].transfers[0].fromId='salary';proposals[0].transfers[0].toId='transport';
     proposals[0].movements.find(m=>m.id==='m2').receipt={name:'Recibo de materiales · ejemplo',type:'application/pdf',size:0,demo:true};
     proposals[0].createdOn='2026-09-01';proposals[0].categories.forEach(c=>c.createdOn='2026-09-01');
@@ -340,13 +415,13 @@
       const firstDate=new Date(start).toISOString().slice(0,10);
       host.innerHTML='<svg class="fb-history-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Gastos acumulados del período '+dateLabel(firstDate)+' al '+dateLabel(endDate)+': '+fmt(rows[rows.length-1].cumulative)+'"><title>Historial de gastos acumulados en USD</title>'+grid+'<path class="fb-line" d="'+path+'"/>'+dots+'<text x="'+left+'" y="'+(height-13)+'">'+dateLabel(firstDate)+'</text><text x="'+(width-right)+'" y="'+(height-13)+'" text-anchor="end">'+dateLabel(endDate)+'</text></svg>';
     }
-    function renderCharts(){if(state.screen!=='budget'||state.tab!=='charts')return;const p=active(),d=chartData(p,state),t=scopeTotals(p,state),c=p.categories.find(c=>c.id===state.category);const allocation=c?[{id:'__paid',name:'Pagado hasta hoy',value:t.paidCurrent},{id:'__committed',name:'Comprometido actual',value:t.committed},{id:'__available',name:'Disponible actual',value:t.available}]:d.allocation;const title=c?'Estado actual de '+c.name+' · Pie':'Distribución vigente del fondo · Pie';q('[data-allocation-title]').textContent=title;q('[data-allocation-note]').textContent=c?'Uso de la asignación vigente, con todos sus movimientos.':'Asignación actual, independiente del mes.';q('[data-allocation-pie]').innerHTML=pieMarkup(allocation,title);q('[data-expense-pie]').innerHTML=pieMarkup(d.expenses,'Gastos del período por categoría');q('[data-charts-status]').textContent='Propuesta '+p.name+' · '+monthLabel(state.month)+' · '+(c?c.name:'Todas las categorías');q('[data-history-total]').textContent=fmt(t.paidPeriod)+' acumulados en el período';renderHistory(d.history);q('[data-daily-rows]').innerHTML=d.history.length?d.history.map(r=>'<tr><td>'+dateLabel(r.date)+'</td><td class="fb-num">'+fmt(r.amount)+'</td><td class="fb-num">'+fmt(r.cumulative)+'</td></tr>').join(''):'<tr><td colspan="3">Sin gastos pagados con estos filtros.</td></tr>';}
+    function renderCharts(){if(state.screen!=='budget'||state.tab!=='charts')return;const p=active(),d=chartData(p,state),t=scopeTotals(p,state),c=p.categories.find(c=>c.id===state.category);const allocation=c?[{id:'__paid',name:'Pagado hasta hoy',value:t.paidCurrent},{id:'__committed',name:'Comprometido actual',value:t.committed},{id:'__available',name:'Disponible actual',value:t.available}]:d.allocation;const title=c?'Estado actual de '+c.name+' · Pie':'Distribución del presupuesto · Pie';q('[data-allocation-title]').textContent=title;q('[data-allocation-note]').textContent=c?'Uso de la asignación vigente, con todos sus movimientos.':'Asignación actual, independiente del mes.';q('[data-allocation-pie]').innerHTML=pieMarkup(allocation,title);q('[data-expense-pie]').innerHTML=pieMarkup(d.expenses,'Gastos del período por categoría');q('[data-charts-status]').textContent='Propuesta '+p.name+' · '+monthLabel(state.month)+' · '+(c?c.name:'Todas las categorías');q('[data-history-total]').textContent=fmt(t.paidPeriod)+' acumulados en el período';renderHistory(d.history);q('[data-daily-rows]').innerHTML=d.history.length?d.history.map(r=>'<tr><td>'+dateLabel(r.date)+'</td><td class="fb-num">'+fmt(r.amount)+'</td><td class="fb-num">'+fmt(r.cumulative)+'</td></tr>').join(''):'<tr><td colspan="3">Sin gastos pagados con estos filtros.</td></tr>';}
     function updateEntry(resetItems=false){
       const f=q('[data-entry-form]'),p=active(),c=p.categories.find(c=>c.id===f.elements.category.value);
       const itemSelect=f.elements.namedItem('item');
       if(!c){itemSelect.innerHTML='<option value="">Sin partidas</option>';q('[data-entry-available]').textContent=fmt(0);return;}
       const previous=itemSelect.value,changed=f.dataset.category!==c.id;f.dataset.category=c.id;
-      itemSelect.innerHTML='<option value="">Sin partida específica</option>'+c.items.map(i=>'<option value="'+i.id+'">'+esc(i.name)+'</option>').join('');
+      itemSelect.innerHTML='<option value="">Sin partida</option>'+c.items.map(i=>'<option value="'+i.id+'">'+esc(i.name)+'</option>').join('');
       itemSelect.value=!resetItems&&!changed&&(!previous||c.items.some(i=>i.id===previous))?previous:(c.items[0]?.id||'');
       q('[data-entry-available]').textContent=fmt(room(p,c,itemSelect.value));q('[data-save-entry]').textContent=f.elements.kind.value==='expense'?'Guardar gasto':'Guardar compromiso';
       const blocked=validDate(f.elements.date.value)?blockingMonth(p,f.elements.date.value):'';q('[data-entry-lock]').hidden=!blocked;q('[data-entry-lock]').textContent=blocked?'Esta fecha afecta el cierre de '+monthLabel(blocked)+'. Reabre ese mes para registrar el movimiento.':'';q('[data-save-entry]').disabled=!canManage()||!!blocked;
@@ -376,32 +451,68 @@
       q('[data-category-count]').textContent=p.categories.length+' categorías';
       q('[data-summary-rows]').innerHTML=p.categories.length?p.categories.map(c=>{const u=used(p,c.id);return '<tr><td>'+esc(c.name)+'</td><td class="fb-num">'+fmt(c.budget)+'</td><td class="fb-num">'+fmt(u.paid)+'</td><td class="fb-num">'+fmt(u.committed)+'</td><td class="fb-num">'+fmt(c.budget-u.paid-u.committed)+'</td></tr>';}).join(''):'<tr><td colspan="5" class="fb-empty">Esta propuesta aún no tiene categorías.</td></tr>';
       q('[data-fallback]').innerHTML=p.categories.map(c=>{const u=used(p,c.id);return '<div role="img" aria-label="'+esc(c.name)+': pagado '+fmt(u.paid)+', comprometido '+fmt(u.committed)+', disponible '+fmt(c.budget-u.paid-u.committed)+'"><div class="fb-bar-label"><span>'+esc(c.name)+'</span><strong>'+fmt(c.budget)+'</strong></div><div class="fb-bar-line" style="width:'+100*c.budget/p.total+'%"><span class="fb-paid" style="width:'+(c.budget?100*u.paid/c.budget:0)+'%"></span><span class="fb-committed" style="width:'+(c.budget?100*u.committed/c.budget:0)+'%"></span><span class="fb-free" style="width:'+(c.budget?100*(c.budget-u.paid-u.committed)/c.budget:0)+'%"></span></div></div>';}).join('')+'<div class="fb-axis"><span>$0</span><span>'+fmt(p.total)+' USD</span></div><div class="fb-legend"><span><i class="fb-dot fb-paid"></i>Pagado</span><span><i class="fb-dot fb-committed"></i>Comprometido</span><span><i class="fb-dot fb-free"></i>Disponible</span></div>';
-      q('[data-config-categories]').innerHTML=p.categories.length?p.categories.map(c=>{const u=used(p,c.id),assigned=c.items.reduce((s,i)=>s+i.budget,0);return '<details class="fb-category"><summary><span><strong>'+esc(c.name)+'</strong><span class="fb-note"> · '+c.items.length+' partidas</span></span><strong>'+fmt(c.budget)+'</strong></summary><div class="fb-category-content"><div class="fb-row fb-between"><p class="fb-note">Disponible: '+fmt(c.budget-u.paid-u.committed)+' · Sin distribuir a partidas: '+fmt(c.budget-assigned)+'</p><button class="fb-button" type="button" data-action="category" data-id="'+c.id+'" data-manage>Editar categoría</button></div>'+c.items.map(i=>{const x=used(p,c.id,i.id);return '<div class="fb-subline"><div>'+esc(i.name)+'<div class="fb-note">Asignado '+fmt(i.budget)+' · Disponible '+fmt(i.budget-x.paid-x.committed)+'</div></div><button type="button" class="fb-text-button" data-action="item" data-category="'+c.id+'" data-id="'+i.id+'" data-manage>Editar partida</button></div>';}).join('')+'<button class="fb-text-button" type="button" data-action="item" data-category="'+c.id+'" data-manage>+ Añadir partida a '+esc(c.name)+'</button></div></details>';}).join(''):'<div class="fb-empty">Crea la primera categoría y asígnale parte del fondo.</div>';
+      q('[data-config-categories]').innerHTML=p.categories.length?p.categories.map(c=>{const u=used(p,c.id),assigned=c.items.reduce((s,i)=>s+i.budget,0);return '<details class="fb-category"><summary><span><strong>'+esc(c.name)+'</strong><span class="fb-note"> · '+c.items.length+' partidas</span></span><strong>'+fmt(c.budget)+'</strong></summary><div class="fb-category-content"><div class="fb-row fb-between"><p class="fb-note">Disponible: '+fmt(c.budget-u.paid-u.committed)+' · Sin distribuir a partidas: '+fmt(c.budget-assigned)+'</p><button class="fb-button" type="button" data-action="category" data-id="'+c.id+'" data-manage>Editar categoría</button></div>'+c.items.map(i=>{const x=used(p,c.id,i.id);return '<div class="fb-subline"><div>'+esc(i.name)+'<div class="fb-note">Asignado '+fmt(i.budget)+' · Disponible '+fmt(i.budget-x.paid-x.committed)+'</div></div><button type="button" class="fb-text-button" data-action="item" data-category="'+c.id+'" data-id="'+i.id+'" data-manage>Editar partida</button></div>';}).join('')+'<button class="fb-text-button" type="button" data-action="item" data-category="'+c.id+'" data-manage>+ Agregar partida a '+esc(c.name)+'</button></div></details>';}).join(''):'<div class="fb-empty">Crea la primera categoría y asígnale parte del fondo.</div>';
       q('[data-history]').innerHTML=p.history.map(x=>'<li>'+esc(x)+'</li>').join('');
       const movements=filteredMovements(p,state),transfers=filteredTransfers(p,state);q('[data-movement-count]').textContent=movements.length+' movimientos · '+monthLabel(state.month)+' · '+(p.categories.find(c=>c.id===state.category)?.name||'Todas las categorías');
-      q('[data-movement-rows]').innerHTML=movements.length?movements.map(m=>{const c=p.categories.find(c=>c.id===m.category),i=c.items.find(i=>i.id===m.item),locked=!!p.monthLocks?.[m.date.slice(0,7)]?.closed;const receipt=m.kind==='expense'?(locked&&!m.receipt?'Sin recibo · mes cerrado':'<button class="fb-text-button" type="button" data-receipt="'+m.id+'" '+(!m.receipt?'data-manage':'')+'>'+(m.receipt?'Ver recibo':'Adjuntar recibo')+'</button>'):'Al registrar el pago';return '<tr><td>'+dateLabel(m.date)+'<small>'+esc(m.concept)+(locked?' · Mes cerrado':'')+'</small></td><td>'+esc(c.name)+'<small>'+esc(i?.name||'Sin partida específica')+'</small></td><td class="fb-num">'+fmt(m.amount)+(m.kind==='commitment'?'<small>Pendiente actual '+fmt(m.pending)+'</small>':'')+'</td><td><span class="fb-status '+(m.pending?'fb-pending':'')+'">'+(m.kind==='expense'?'Pagado':m.pending===0?'Saldado':m.pending<m.amount?'Pago parcial':'Comprometido')+'</span></td><td>'+receipt+'</td><td>'+(m.pending?'<button class="fb-text-button" type="button" data-action="payment" data-id="'+m.id+'" data-manage>Registrar pago</button>':'—')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="fb-empty">No hay movimientos con estos filtros.</td></tr>';
+      q('[data-movement-rows]').innerHTML=movements.length?movements.map(m=>{
+        const c=p.categories.find(c=>c.id===m.category),i=c.items.find(i=>i.id===m.item),locked=!!p.monthLocks?.[m.date.slice(0,7)]?.closed,blocked=blockingMonth(p,m.date);
+        const receipt=m.kind==='expense'?(locked&&!m.receipt?'Sin recibo · mes cerrado':'<button class="fb-text-button" type="button" data-receipt="'+m.id+'" '+(!m.receipt?'data-manage':'')+'>'+(m.receipt?'Ver recibo':'Adjuntar recibo')+'</button>'):'Al registrar el pago';
+        const action=m.kind==='expense'?'<div class="fb-edit-action"><button class="fb-button" type="button" data-action="edit-payment" data-id="'+m.id+'" data-manage'+(blocked?' data-locked="true"':'')+'>Editar pago</button>'+(blocked?'<small>Reabre '+monthLabel(blocked)+' para editar.</small>':'')+'</div>':m.pending?'<button class="fb-text-button" type="button" data-action="payment" data-id="'+m.id+'" data-manage>Registrar pago</button>':'—';
+        return '<tr><td>'+dateLabel(m.date)+'<small>'+esc(m.concept)+(locked?' · Mes cerrado':'')+'</small></td><td>'+esc(c.name)+'<small>'+esc(i?.name||'Sin partida')+'</small></td><td class="fb-num">'+fmt(m.amount)+(m.kind==='commitment'?'<small>Pendiente actual '+fmt(m.pending)+'</small>':'')+'</td><td><span class="fb-status '+(m.pending?'fb-pending':'')+'">'+(m.kind==='expense'?'Pagado':m.pending===0?'Pagado completo':m.pending<m.amount?'Pago parcial':'Comprometido')+'</span></td><td>'+receipt+'</td><td>'+action+'</td></tr>';
+      }).join(''):'<tr><td colspan="6" class="fb-empty">No hay movimientos con estos filtros.</td></tr>';
+      renderEditHistory(p);
       q('[data-transfer-rows]').innerHTML=transfers.length?transfers.map(t=>'<tr><td>'+stamp(t.at)+'<small>'+roleLabel(t.role)+' · demostración</small></td><td>'+esc(t.from)+' → '+esc(t.to)+'<small>'+esc(t.fromItem)+' → '+esc(t.toItem)+'</small></td><td class="fb-num">'+fmt(t.amount)+'</td><td>'+esc(t.from)+': '+fmt(t.fromBefore)+' → '+fmt(t.fromAfter)+'<small>'+esc(t.to)+': '+fmt(t.toBefore)+' → '+fmt(t.toAfter)+'</small><small>Fondo general: '+fmt(t.total)+'</small></td><td class="fb-transfer-reason">'+esc(t.reason)+'</td></tr>').join(''):'<tr><td colspan="5" class="fb-empty">No hay transferencias con estos filtros.</td></tr>';
-      qa('[data-manage]').forEach(el=>el.disabled=!canManage());
+      qa('[data-manage]').forEach(el=>el.disabled=!canManage()||!!el.dataset.locked);
       q('[data-action="transfer"]').disabled=!canManage()||p.categories.length<2;
       q('[data-fallback]').hidden=p.categories.length===0;
       renderEntry();renderCharts();
     }
     const field=(label,name,value='',type='text',extra='')=>'<label class="'+(type==='text'?'fb-full':'')+'"><span class="fb-label">'+label+'</span><input class="fb-input" name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+extra+' required></label>';
     const amountField=(label,value)=>field(label,'amount',(value/100).toFixed(2),'number','min="0" step="0.01"');
+    function paymentEditorFields(p,m){
+      const locked=m.source?' disabled':'',options=p.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
+      return field('Fecha del pago','date',m.date,'date','max="'+TODAY+'"')+amountField('Monto pagado · USD',m.amount).replace('min="0"','min="0.01"')+
+        '<label><span class="fb-label">Categoría</span><select class="fb-input" name="category"'+locked+'>'+options+'</select></label><label><span class="fb-label">Partida</span><select class="fb-input" name="item"'+locked+'></select></label>'+
+        '<label class="fb-full"><span class="fb-label">Descripción del pago</span><textarea class="fb-input" name="concept" rows="2" maxlength="300" required>'+esc(m.concept)+'</textarea></label>'+
+        '<label class="fb-full"><span class="fb-label">Motivo del cambio</span><textarea class="fb-input" name="reason" rows="2" maxlength="300" required placeholder="Ej. Corregir el monto según el recibo"></textarea></label>';
+    }
+    function updatePaymentEditor(categoryChanged=false){
+      if(editor?.action!=='edit-payment')return;
+      const p=active(),m=p.movements.find(m=>m.id===editor.id),f=q('[data-editor-form]'),c=p.categories.find(c=>c.id===f.elements.category.value);
+      if(!m||!c)return;
+      const select=f.elements.namedItem('item'),previous=categoryChanged?'':select.dataset.populated?select.value:(m.item||'');
+      select.innerHTML='<option value="">Sin partida</option>'+c.items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+'</option>').join('');
+      select.value=c.items.some(i=>i.id===previous)?previous:'';select.dataset.populated='true';
+      if(m.source){
+        const source=p.movements.find(x=>x.id===m.source),limit=source.pending+m.amount,amount=Math.round(Number(f.elements.amount.value||0)*100);
+        q('[data-editor-hint]').textContent='Pago de un compromiso: la categoría y partida se mantienen. Máximo para este pago: '+fmt(limit)+'. Pendiente luego del cambio: '+fmt(limit-amount)+'. El disponible general se mantiene.';
+      }else{
+        const available=room(p,c,select.value)+(m.category===c.id&&(m.item||'')===select.value?m.amount:0);
+        q('[data-editor-hint]').textContent='Disponible para este pago: '+fmt(available)+'. El recibo adjunto se conserva. El cambio actualizará los balances y las gráficas.';
+      }
+    }
+    function renderEditHistory(p){
+      const edits=filteredPaymentEdits(p,state),detail=s=>'<strong>'+fmt(s.amount)+'</strong><small>'+dateLabel(s.date)+' · '+esc(s.category)+' · '+esc(s.item)+'</small><small>'+esc(s.concept)+'</small>';
+      q('[data-payment-history]').innerHTML=edits.length?edits.map(e=>'<tr><td>'+stamp(e.at)+'<small>'+roleLabel(e.role)+'</small></td><td>'+detail(e.before)+'</td><td>'+detail(e.after)+'</td><td class="fb-transfer-reason">'+esc(e.reason)+'</td></tr>').join(''):'<tr><td colspan="4">No hay cambios en pagos con estos filtros.</td></tr>';
+      const items=(p.itemHistory||[]).filter(e=>(!state.category||e.categoryId===state.category)&&(!state.month||transferDate(e).slice(0,7)===state.month));
+      q('[data-item-history]').innerHTML=items.length?items.map(e=>'<tr><td>'+stamp(e.at)+'<small>'+roleLabel(e.role)+' · '+esc(e.category)+'</small></td><td>'+esc(e.before.name)+'<small>'+fmt(e.before.budget)+'</small></td><td>'+esc(e.after.name)+'<small>'+fmt(e.after.budget)+'</small></td><td class="fb-transfer-reason">'+esc(e.reason)+'</td></tr>').join(''):'<tr><td colspan="4">No hay cambios en partidas con estos filtros.</td></tr>';
+    }
     function openEditor(action,id,categoryId){
       if(!canManage())return;
       const p=active(),c=p.categories.find(c=>c.id===(categoryId||id));editor={action,id,categoryId};
       let title='',fields='',hint='';
       if(action==='proposal'||action==='fund'){title=action==='proposal'?'Crear año fiscal / propuesta':'Editar fondo general';fields=field('Año fiscal','year',action==='fund'?p.year:'','text','maxlength="30" placeholder="Ej. 2027–2028"')+field('Nombre o número de propuesta','name',action==='fund'?p.name:'','text','maxlength="80" placeholder="Ej. 007"')+amountField('Fondo general · USD',action==='fund'?p.total:0);hint=action==='proposal'?'La propuesta comenzará sin categorías ni partidas.':'El fondo no puede ser menor que el total distribuido entre categorías.';}
       if(action==='category'){title=c?'Editar categoría':'Crear categoría';fields=field('Nombre de la categoría','name',c?.name||'','text','maxlength="80" placeholder="Escribe el nombre que necesites"')+amountField('Presupuesto de la categoría · USD',c?.budget||0)+(c?field('Motivo del cambio','reason','','text','maxlength="300"'):'');hint='Fondo disponible para esta asignación: '+fmt(totals(p).unallocated+(c?.budget||0))+'.';}
-      if(action==='item'){const item=c.items.find(i=>i.id===id);title=item?'Editar partida':'Crear partida en '+c.name;fields=field('Nombre de la partida','name',item?.name||'','text','maxlength="80"')+amountField('Presupuesto de la partida · USD',item?.budget||0);hint='Categoría: '+c.name+'. Las partidas se distribuyen dentro de sus '+fmt(c.budget)+'.';}
+      if(action==='item'){const item=c.items.find(i=>i.id===id);title=item?'Editar partida':'Crear partida en '+c.name;fields=field('Nombre de la partida','name',item?.name||'','text','maxlength="80"')+amountField('Presupuesto de la partida · USD',item?.budget||0)+(item?field('Motivo del cambio','reason','','text','maxlength="300"'):'');hint='Categoría: '+c.name+'. Las partidas se distribuyen dentro de sus '+fmt(c.budget)+'.';}
+      if(action==='edit-payment'){const m=p.movements.find(m=>m.id===id);if(!m||m.kind!=='expense')return;if(blockingMonth(p,m.date)){toast('Reabre el mes que afecta este pago antes de editarlo.');return;}title='Editar pago registrado';fields=paymentEditorFields(p,m);}
       if(action==='transfer'){title='Transferir fondos entre categorías';const options=p.categories.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');fields='<label><span class="fb-label">Categoría de origen</span><select class="fb-input" name="from">'+options+'</select></label><label><span class="fb-label">Categoría de destino</span><select class="fb-input" name="to">'+options+'</select></label><label><span class="fb-label">Partida de origen (opcional)</span><select class="fb-input" name="fromItem"></select></label><label><span class="fb-label">Partida de destino (opcional)</span><select class="fb-input" name="toItem"></select></label>'+amountField('Monto a transferir · USD',0)+'<label class="fb-full"><span class="fb-label">Motivo de la transferencia</span><textarea class="fb-input" name="reason" rows="2" maxlength="300" required placeholder="Explica por qué se redistribuyen estos fondos"></textarea></label>';hint='';}
       if(action==='payment'){const m=p.movements.find(m=>m.id===id);title='Registrar pago del compromiso';fields=field('Compromiso','concept',m.concept,'text','readonly')+field('Fecha del pago','date',TODAY,'date','min="'+m.date+'" max="'+TODAY+'"')+amountField('Monto pagado · USD',m.pending);hint='Pendiente: '+fmt(m.pending)+'. Admite pagos parciales sin descontar dos veces del disponible.';}
       q('#fb-editor-title').textContent=title;q('[data-editor-fields]').innerHTML=fields;q('[data-editor-hint]').textContent=hint;q('[data-editor-error]').hidden=true;
       if(action==='transfer'){const f=q('[data-editor-form]');f.elements.to.value=p.categories[1].id;updateTransfer('all');}
+      if(action==='edit-payment'){q('[data-editor-form]').elements.category.value=p.movements.find(m=>m.id===id).category;updatePaymentEditor();}
       q('#fb-editor').showModal();
     }
-    function updateTransfer(changed){if(editor?.action!=='transfer')return;const f=q('[data-editor-form]'),p=active(),from=p.categories.find(c=>c.id===f.elements.from.value),to=p.categories.find(c=>c.id===f.elements.to.value);if(!from||!to)return;for(const side of ['from','to']){const c=side==='from'?from:to,select=f.elements[side+'Item'];if(changed==='all'||changed===side){select.innerHTML='<option value="">Sin partida específica</option>'+c.items.map(i=>'<option value="'+i.id+'">'+esc(i.name)+'</option>').join('');select.value=side==='from'&&room(p,c,'')===0?(c.items.find(i=>room(p,c,i.id)>0)?.id||''):'';}}
+    function updateTransfer(changed){if(editor?.action!=='transfer')return;const f=q('[data-editor-form]'),p=active(),from=p.categories.find(c=>c.id===f.elements.from.value),to=p.categories.find(c=>c.id===f.elements.to.value);if(!from||!to)return;for(const side of ['from','to']){const c=side==='from'?from:to,select=f.elements[side+'Item'];if(changed==='all'||changed===side){select.innerHTML='<option value="">Sin partida</option>'+c.items.map(i=>'<option value="'+i.id+'">'+esc(i.name)+'</option>').join('');select.value=side==='from'&&room(p,c,'')===0?(c.items.find(i=>room(p,c,i.id)>0)?.id||''):'';}}
       const amount=Math.max(0,Math.round(Number(f.elements.amount.value||0)*100)),available=room(p,from,f.elements.fromItem.value);
       q('[data-editor-hint]').innerHTML='<div class="fb-transfer-preview"><strong>Fondo general: '+fmt(p.total)+' → '+fmt(p.total)+'</strong><span>Transferible desde esta selección: '+fmt(available)+'</span><div class="fb-fund"><span>'+esc(from.name)+'</span><strong>'+fmt(from.budget)+' → '+fmt(from.budget-amount)+'</strong></div><div class="fb-fund"><span>'+esc(to.name)+'</span><strong>'+fmt(to.budget)+' → '+fmt(to.budget+amount)+'</strong></div></div>';
     }
@@ -426,15 +537,22 @@
         }
         if(action==='item'){
           const c=p.categories.find(c=>c.id===categoryId),item=c.items.find(i=>i.id===id);
-          if(c.items.some(i=>i.id!==id&&i.name.toLowerCase()===name.toLowerCase()))throw Error('Ya existe una partida con ese nombre.');
-          const direct=used(p,c.id,''),other=c.items.filter(i=>i.id!==id).reduce((n,i)=>n+i.budget,0);
-          if(amount+other+direct.paid+direct.committed>c.budget)throw Error('Las partidas y los movimientos sin partida superan el presupuesto de la categoría.');
-          if(item){const u=used(p,c.id,id);if(amount<u.paid+u.committed)throw Error('La partida no puede quedar por debajo de lo pagado y comprometido.');item.name=name;item.budget=amount;}else c.items.push({id:uid(),name,budget:amount});
-          p.history.unshift('Partida '+name+' en '+c.name+': '+fmt(amount)+'.');
+          if(item){editItem(p,c.id,id,{name,budget:amount},state.role,v.reason,new Date().toISOString());}
+          else{
+            if(c.items.some(i=>i.name.toLowerCase()===name.toLowerCase()))throw Error('Ya existe una partida con ese nombre.');
+            const direct=used(p,c.id,''),assigned=c.items.reduce((n,i)=>n+i.budget,0);
+            if(amount+assigned+direct.paid+direct.committed>c.budget)throw Error('Las partidas y los movimientos sin partida superan el presupuesto de la categoría.');
+            c.items.push({id:uid(),name,budget:amount,createdOn:TODAY});
+          }
+          p.history.unshift('Partida '+name+' en '+c.name+': '+fmt(amount)+'.'+(item?' Motivo: '+v.reason.trim():''));
+        }
+        if(action==='edit-payment'){
+          const m=p.movements.find(m=>m.id===id);
+          editPayment(p,id,{date:v.date,amount,concept:v.concept,category:v.category??m.category,item:v.item??m.item??''},state.role,v.reason,new Date().toISOString());
         }
         if(action==='transfer')transfer(p,{id:uid(),from:v.from,to:v.to,fromItem:v.fromItem,toItem:v.toItem,amount,reason:v.reason,at:new Date().toISOString()},state.role);
         if(action==='payment')pay(p,id,amount,uid(),v.date);
-        q('#fb-editor').close();editor=null;render();save();toast(action==='transfer'?'Transferencia registrada con su motivo. El fondo general y el disponible general se mantienen.':action==='payment'?'Pago aplicado: el disponible general se mantiene.':'Cambio guardado en la demostración.');
+        q('#fb-editor').close();editor=null;render();save();toast(action==='edit-payment'?'Pago actualizado. El cambio quedó registrado en el historial.':action==='transfer'?'Transferencia registrada con su motivo. El fondo general y el disponible general se mantienen.':action==='payment'?'Pago aplicado: el disponible general se mantiene.':'Cambio guardado en la demostración.');
       }catch(error){q('[data-editor-error]').textContent=error.message;q('[data-editor-error]').hidden=false;}
     }
     root.addEventListener('click',event=>{const button=event.target.closest('button');if(!button||button.disabled)return;if(button.dataset.go){state.screen=button.dataset.go;render();save();}else if(button.dataset.tab){state.tab=button.dataset.tab;q('[data-toast]').hidden=true;render();save();}else if(button.hasAttribute('data-period-action'))openPeriod();else if(button.hasAttribute('data-cancel-period'))q('#fb-period-dialog').close();else if(button.dataset.receipt)openReceipt(button.dataset.receipt);else if(button.hasAttribute('data-close-receipt'))q('#fb-receipt').close();else if(button.dataset.action)openEditor(button.dataset.action,button.dataset.id,button.dataset.category);else if(button.hasAttribute('data-close'))q('#fb-editor').close();else if(button.hasAttribute('data-save'))saveEditor();else if(button.hasAttribute('data-save-entry'))saveEntry();});
@@ -450,8 +568,8 @@
     q('#fb-receipt').addEventListener('close',()=>{if(!q('#fb-receipt').open){receiptContext=null;q('[data-receipt-preview]').replaceChildren();}});
     q('[data-role]').addEventListener('change',event=>{state.role=event.target.value;render();save();});
     q('[data-editor-form]').addEventListener('submit',event=>{event.preventDefault();saveEditor();});
-    q('[data-editor-form]').addEventListener('change',event=>updateTransfer(event.target.name));
-    q('[data-editor-form]').addEventListener('input',event=>{if(event.target.name==='amount')updateTransfer('amount');});
+    q('[data-editor-form]').addEventListener('change',event=>{updateTransfer(event.target.name);updatePaymentEditor(event.target.name==='category');});
+    q('[data-editor-form]').addEventListener('input',event=>{if(event.target.name==='amount'){updateTransfer('amount');updatePaymentEditor();}});
     q('[data-entry-form]').addEventListener('change',event=>updateEntry(event.target.name==='category'));
     q('[data-entry-form]').addEventListener('submit',event=>{event.preventDefault();saveEntry();});
     let chartWidth=0;const resizeObserver=new ResizeObserver(entries=>{const width=Math.round(entries[0].contentRect.width);if(width>0&&width!==chartWidth){chartWidth=width;if(state.screen==='budget'&&state.tab==='charts')renderHistory(chartData(active(),state).history);}});resizeObserver.observe(q('[data-history-chart]'));

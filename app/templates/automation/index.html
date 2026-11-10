@@ -9,10 +9,9 @@
     body { margin: 0; background: light-dark(#f3f6fb, #101b2b); color: light-dark(#19344f, #edf3fc); font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
     .automation-preview-shell { max-width: 1400px; margin: 0 auto; padding: 16px; }
     .automation-preview-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
-    /* Faro's outlined navigation style, shared by prototype navigation and section controls. */
+    /* Faro button styling shared by navigation, budget actions and dialogs. */
     .automation-preview-nav a,
-    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"],
-    #faro-budget-design .fb-tabs button[data-tab] {
+    #faro-budget-design button[type][class] {
       box-sizing: border-box;
       display: inline-flex;
       align-items: center;
@@ -34,31 +33,31 @@
       transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
     }
     .automation-preview-nav a:hover,
-    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"]:hover,
-    #faro-budget-design .fb-tabs button[data-tab]:hover,
+    #faro-budget-design button[type][class]:not(:disabled):hover,
+    #faro-budget-design button.fb-primary[type],
     #faro-budget-design .fb-tabs button[data-tab][aria-pressed="true"] {
       color: light-dark(#fff, #101b2b);
       background: light-dark(#0d6efd, #96baff);
     }
     .automation-preview-nav a:focus-visible,
-    #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"]:focus-visible,
-    #faro-budget-design .fb-tabs button[data-tab]:focus-visible {
+    #faro-budget-design button[type][class]:focus-visible {
       outline: 3px solid light-dark(rgba(13, 110, 253, .35), rgba(150, 186, 255, .6));
       outline-offset: 3px;
     }
+    #faro-budget-design button[type][class]:disabled { opacity: .5; cursor: not-allowed; }
     #faro-budget-design nav.fb-tabs { gap: 8px; }
     #faro-budget-design .fb-tabs button[data-tab][aria-pressed="true"] { font-weight: 600; }
+    #faro-budget-design .fb-edit-action { display: grid; gap: 6px; min-width: 116px; }
+    #faro-budget-design .fb-payment-history { margin-top: 0; }
     @media (max-width: 600px) {
       .automation-preview-nav { display: grid; grid-template-columns: minmax(0, 1fr); }
       #faro-budget-design nav.fb-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .automation-preview-nav a,
-      #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"],
-      #faro-budget-design .fb-tabs button[data-tab] { min-height: 44px; }
+      #faro-budget-design button[type][class] { min-height: 44px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .automation-preview-nav a,
-      #faro-budget-design [data-screen="budget"] > .fb-row button[data-go="programs"],
-      #faro-budget-design .fb-tabs button[data-tab] { transition: none; }
+      #faro-budget-design button[type][class] { transition: none; }
     }
     .automation-preview-notice { padding: 12px 16px; margin: 0 0 16px; border: 1px solid light-dark(#e6ce99, #776340); border-radius: 10px; background: light-dark(#fff4de, #413621); }
     .automation-preview-notice p { margin: 4px 0 0; }

@@ -19,6 +19,42 @@ en la pantalla del mockup.
    Materiales y Luz. Revisar el detalle, volver a gastos para adjuntarlos, o
    cancelar. Confirmar cierre debe bloquear ese mes.
 6. Intentar reabrir sin motivo y luego con un motivo. Revisar el historial.
+7. Editar un pago de noviembre y una partida siguiendo los pasos de abajo.
+   Confirmar que un pago de octubre cerrado no se puede editar hasta reabrirlo.
+
+## Editar pagos y partidas
+
+Seleccionar el rol simulado **Supervisor** o **Administrador**. El rol de
+consulta no puede guardar estos cambios.
+
+En **Entrada de gastos → Movimientos registrados → Editar pago**, corregir
+la fecha, el monto o la descripción. En gastos directos también se puede cambiar
+la categoría y la partida. Escribir el **Motivo del cambio** y pulsar
+**Guardar cambios**. El recibo adjunto se conserva y los balances y las gráficas
+se actualizan. El **Historial de cambios en pagos** muestra el antes, el después,
+el rol responsable y el motivo; al filtrar incluye la categoría y el mes que
+tenía el pago antes del cambio y los que tiene después.
+
+Si el pago corresponde a un compromiso, conserva su categoría y partida. Al
+corregir el monto se recalcula lo pendiente sin descontar dos veces del
+disponible general. Por ejemplo, cambiar el pago parcial de nómina de $50,000
+a $40,000 deja $60,000 pendientes del compromiso de $100,000; el disponible
+general continúa en $666,000 si no se han hecho otros cambios.
+
+La fecha original y la nueva deben permitir cambios. Para corregir un pago que
+afecta un mes cerrado, primero reabrir el mes con un motivo; si hay cierres
+posteriores que dependen de ese balance, reabrirlos primero. El formulario
+tampoco permite un cambio que exceda el presupuesto disponible.
+
+En **Configuración → Categorías y partidas**, abrir la categoría y seleccionar
+**Editar partida**. Cambiar el nombre o el presupuesto asignado, indicar el
+motivo y guardar. La asignación no puede bajar de lo pagado y comprometido ni
+exceder los fondos de la categoría. Este cambio mantiene el presupuesto general
+y el presupuesto de la categoría. Revisar el antes y el después en
+**Historial de cambios en partidas**.
+
+Los controles usan el diseño de botones de Faro. Los textos siguen el uso de
+español de Puerto Rico y conservan términos habituales como **Pie** y **mockup**.
 
 El escenario inicial **006 · Fondo $1,000,000** tiene esta asignación vigente:
 
@@ -66,6 +102,7 @@ python -B -m unittest tests.test_automation_mockup tests.test_platform_settings
 node tests/automation_budget/check_budget.cjs
 node tests/automation_budget/check_month_lock.cjs
 node tests/automation_budget/check_month_review.cjs
+node tests/automation_budget/check_payment_edits.cjs
 ```
 
 Los checks de Node usan exclusivamente datos sintéticos del fragmento HTML.
