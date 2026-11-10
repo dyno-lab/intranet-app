@@ -16,6 +16,54 @@
 #faro-budget-design .fb-filter-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}#faro-budget-design .fb-filter-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}#faro-budget-design .fb-filter-stats strong{display:block;font-size:22px;font-variant-numeric:tabular-nums}#faro-budget-design .fb-filter-stats small{display:block;color:var(--fb-muted);font-size:11px}#faro-budget-design .fb-filter-note{margin-top:12px}#faro-budget-design .fb-receipt-preview{display:grid;gap:12px;margin:16px 0;overflow-wrap:anywhere}#faro-budget-design .fb-receipt-image{width:100%;max-height:380px;object-fit:contain;border:1px solid var(--fb-line);border-radius:8px}#faro-budget-design .fb-receipt-paper{border:1px solid var(--fb-line);padding:20px;background:var(--fb-bg);display:grid;gap:12px}#faro-budget-design .fb-file-note{margin-top:6px}#faro-budget-design .fb-pie-legend span{overflow-wrap:anywhere}#faro-budget-design .fb-receipt-dialog{max-width:620px}#faro-budget-design .fb-history-count{margin:7px 0 14px}#faro-budget-design input[type=file]{font-size:12px}
 @media(max-width:580px){#faro-budget-design .fb-filter-fields{grid-template-columns:1fr}#faro-budget-design .fb-filter-stats{grid-template-columns:1fr 1fr}#faro-budget-design .fb-filter-stats>div:last-child{grid-column:1/-1}}
 </style>
+<style>
+/* Program selection follows the portal's blue / green program identity. */
+#faro-budget-design .fb-main.fb-programs{gap:24px;padding:28px}
+#faro-budget-design .fb-programs-hero{display:grid;grid-template-columns:minmax(0,1fr) 240px;align-items:center;gap:24px;padding:24px 32px;border-radius:16px;background:linear-gradient(115deg,#163958,#185391);color:#fff;overflow:hidden}
+#faro-budget-design .fb-programs-intro{max-width:700px}
+#faro-budget-design .fb-programs-intro .fb-kicker{color:#c0daf6;font-size:11px;font-weight:600;letter-spacing:1.5px;margin-bottom:10px}
+#faro-budget-design .fb-programs-intro h1{font-size:38px;font-weight:750;letter-spacing:-1px}
+#faro-budget-design .fb-programs-intro>p:last-child{color:#d9e8f7;font-size:15px;line-height:1.65;margin-top:10px;max-width:580px}
+#faro-budget-design .fb-programs-art{width:100%;height:130px}
+#faro-budget-design .fb-programs-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px 24px;flex-wrap:wrap}
+#faro-budget-design .fb-programs-heading h2{font-size:18px}
+#faro-budget-design .fb-programs-heading p{font-size:13px;color:var(--fb-muted)}
+#faro-budget-design .fb-programs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+#faro-budget-design .fb-program-card{--program-accent:light-dark(#2455d6,#96baff);--program-soft:light-dark(#edf3ff,#223b60);position:relative;display:flex;flex-direction:column;gap:18px;min-width:0;padding:24px;border:1px solid var(--fb-line);border-radius:20px;background:var(--fb-panel);box-shadow:0 8px 24px #10243f06;overflow:hidden;transition:border-color 180ms ease,box-shadow 180ms ease}
+#faro-budget-design .fb-program-card:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--program-accent)}
+#faro-budget-design .fb-program-card:hover,#faro-budget-design .fb-program-card:focus-within{border-color:var(--program-accent);box-shadow:0 12px 30px #10243f10}
+#faro-budget-design .fb-program-card--community{--program-accent:light-dark(#147653,#91ddc1);--program-soft:light-dark(#e9f6ef,#203d33)}
+#faro-budget-design .fb-program-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-height:26px}
+#faro-budget-design .fb-program-eyebrow{font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--program-accent)}
+#faro-budget-design .fb-program-state{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid light-dark(#cde6d9,#365b4e);border-radius:20px;background:var(--fb-good-bg);color:var(--fb-good);font-size:11px;font-weight:600}
+#faro-budget-design .fb-program-state>span{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+#faro-budget-design .fb-program-state--planned{border-color:var(--fb-line);color:var(--fb-muted);background:var(--fb-bg)}
+#faro-budget-design .fb-program-state--planned>span{background:transparent;border:1px solid currentColor}
+#faro-budget-design .fb-program-identity{display:flex;align-items:center;gap:16px;min-height:80px}
+#faro-budget-design .fb-program-logo{width:300px;max-width:100%;border-radius:10px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;height:80px}
+#faro-budget-design .fb-program-logo img{display:block;width:100%;height:auto;flex-shrink:0}
+#faro-budget-design .fb-community-symbol{display:flex;align-items:center;justify-content:center;width:66px;height:66px;flex:0 0 auto;border-radius:18px;background:var(--program-soft);color:var(--program-accent)}
+#faro-budget-design .fb-community-symbol svg{width:50px;height:50px;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+#faro-budget-design .fb-community-wordmark{color:var(--program-accent);font-size:21px;line-height:1.25;letter-spacing:-.4px}
+#faro-budget-design .fb-community-wordmark strong{font-weight:700}
+#faro-budget-design .fb-program-copy h3{font-size:23px;line-height:1.3;font-weight:700;letter-spacing:-.5px;margin-bottom:8px}
+#faro-budget-design .fb-program-copy p{color:var(--fb-muted);font-size:14px;line-height:1.65;max-width:480px}
+#faro-budget-design .fb-program-features{list-style:none;padding:0;margin:0;display:grid;gap:12px;color:var(--fb-ink);font-size:13px}
+#faro-budget-design .fb-program-features li{display:flex;gap:10px;align-items:center}
+#faro-budget-design .fb-program-features svg,#faro-budget-design .fb-program-upcoming svg,#faro-budget-design .fb-program-card-footer svg{width:20px;height:20px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#faro-budget-design .fb-program-features svg{color:var(--program-accent)}
+#faro-budget-design .fb-program-upcoming{display:flex;gap:12px;padding:16px;border-radius:12px;background:var(--program-soft);color:var(--program-accent)}
+#faro-budget-design .fb-upcoming-icon{padding-top:2px}
+#faro-budget-design .fb-program-upcoming strong{font-size:13px;font-weight:600}
+#faro-budget-design .fb-program-upcoming p{font-size:12px;line-height:1.7;margin-top:5px;color:var(--fb-muted)}
+#faro-budget-design .fb-program-card-footer{padding-top:18px;border-top:1px solid var(--fb-line);margin-top:auto}
+#faro-budget-design .fb-program-card-footer button.fb-button{width:100%;min-height:46px;padding:10px 16px;justify-content:space-between;font-weight:600}
+#faro-budget-design .fb-programs-footnote{color:var(--fb-muted);font-size:12px;text-align:center}
+@media(max-width:900px){#faro-budget-design .fb-programs-hero{grid-template-columns:minmax(0,1fr) 170px;padding:24px}#faro-budget-design .fb-programs-intro h1{font-size:32px}#faro-budget-design .fb-program-card{padding:20px}#faro-budget-design .fb-programs-grid{gap:18px}}
+@media(max-width:700px){#faro-budget-design .fb-main.fb-programs{padding:20px;gap:20px}#faro-budget-design .fb-programs-grid{grid-template-columns:1fr}#faro-budget-design .fb-programs-hero{grid-template-columns:1fr;padding:24px}#faro-budget-design .fb-programs-art{display:none}#faro-budget-design .fb-programs-heading{gap:5px}#faro-budget-design .fb-programs-heading h2{font-size:17px}}
+@media(max-width:400px){#faro-budget-design .fb-main.fb-programs{padding:14px}#faro-budget-design .fb-programs-hero{padding:20px}#faro-budget-design .fb-programs-intro h1{font-size:27px;letter-spacing:-.6px}#faro-budget-design .fb-programs-intro>p:last-child{font-size:14px}#faro-budget-design .fb-program-card{padding:18px}#faro-budget-design .fb-program-copy h3{font-size:21px}#faro-budget-design .fb-community-wordmark{font-size:19px}#faro-budget-design .fb-community-symbol{width:54px;height:54px}#faro-budget-design .fb-program-identity{gap:10px}}
+@media(prefers-reduced-motion:reduce){#faro-budget-design .fb-program-card{transition:none}}
+</style>
 <section class="fb-window">
   <style>
   #faro-budget-design .fb-dialog.fb-period-review-dialog{width:min(960px,calc(100% - 24px))}#faro-budget-design .fb-review-section{display:grid;gap:12px;min-width:0}#faro-budget-design .fb-review-table th{white-space:normal}#faro-budget-design .fb-review-total td{font-weight:600;background:var(--fb-soft)}#faro-budget-design .fb-review-missing{color:var(--fb-warn);font-weight:600}#faro-budget-design .fb-review-status{padding:12px 14px;border-radius:8px;background:var(--fb-good-bg);color:var(--fb-good);font-size:13px}#faro-budget-design .fb-review-status[data-missing=true]{background:var(--fb-warn-bg);color:var(--fb-warn)}#faro-budget-design .fb-review-missing-list{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}#faro-budget-design .fb-review-missing-list li{padding-bottom:10px;border-bottom:1px solid var(--fb-line);overflow-wrap:anywhere}#faro-budget-design .fb-review-missing-list small{display:block;color:var(--fb-muted);font-size:12px}#faro-budget-design .fb-review-help{font-size:12px;color:var(--fb-muted)}
@@ -31,9 +79,42 @@
   @media(max-width:580px){#faro-budget-design .fb-closing-comparison table,#faro-budget-design .fb-closing-comparison tbody{display:block}#faro-budget-design .fb-closing-comparison thead{display:none}#faro-budget-design .fb-closing-comparison tr{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--fb-line);padding:8px 0}#faro-budget-design .fb-closing-comparison td{display:block;min-width:0;text-align:left;white-space:normal;border:0;padding:8px 7px;overflow-wrap:anywhere}#faro-budget-design .fb-closing-comparison td:first-child{grid-column:1/-1;font-weight:600}#faro-budget-design .fb-closing-comparison td:nth-child(4){grid-column:1;grid-row:2;font-weight:600}#faro-budget-design .fb-closing-comparison td:nth-child(5){grid-column:2;grid-row:2;font-weight:600}#faro-budget-design .fb-closing-comparison td[data-label]:before{content:attr(data-label);display:block;color:var(--fb-muted);font-size:11px;font-weight:400;margin-bottom:4px}}
   </style>
   <header class="fb-header"><div class="fb-brand">Centros Sor Isolina Ferré<small>Portal de programas</small></div><span class="fb-demo">Prototipo · Datos de ejemplo</span></header>
-  <div class="fb-main" data-screen="programs">
-    <div><p class="fb-kicker">Servicios institucionales</p><h1>Automatizaciones</h1><p class="fb-lead">Selecciona el programa para acceder a sus herramientas de gestión.</p></div>
-    <div class="fb-pair"><article class="fb-card fb-program"><span class="fb-badge">Faro</span><h2>Faro de Esperanza</h2><p>Gestión de presupuesto por año fiscal y propuesta.</p><button class="fb-button fb-primary" type="button" data-go="faro">Ingresar a Faro</button></article><article class="fb-card fb-program"><span class="fb-badge">Comunidad</span><h2>Comunidad y Prevención</h2><p>Un espacio independiente para las herramientas del programa.</p><button class="fb-button" type="button" data-go="community">Ver Comunidad</button></article></div>
+  <div class="fb-main fb-programs" data-screen="programs">
+    <section class="fb-programs-hero" aria-labelledby="fb-programs-title">
+      <div class="fb-programs-intro"><p class="fb-kicker">Servicios institucionales</p><h1 id="fb-programs-title">Automatizaciones</h1><p>Herramientas para organizar el presupuesto y dar seguimiento a la gestión de cada programa.</p></div>
+      <svg class="fb-programs-art" viewBox="0 0 240 130" fill="none" aria-hidden="true" focusable="false">
+        <path d="M44 65h152M120 25v80" stroke="#88b8ef" stroke-dasharray="4 6" opacity=".6"/>
+        <rect x="5" y="37" width="60" height="60" rx="16" fill="#ffffff" fill-opacity=".1" stroke="#ffffff" stroke-opacity=".25"/>
+        <path d="M23 55h24v22H23zM23 61h24M29 49v10m12-10v10M29 67h5m4 0h3m-12 5h5" stroke="#d7e8ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="83" y="20" width="74" height="90" rx="18" fill="#ffffff" fill-opacity=".16" stroke="#ffffff" stroke-opacity=".35"/>
+        <path d="M104 85V66m16 19V53m16 32V42" stroke="#bdebdc" stroke-width="7" stroke-linecap="round"/>
+        <rect x="175" y="37" width="60" height="60" rx="16" fill="#ffffff" fill-opacity=".1" stroke="#ffffff" stroke-opacity=".25"/>
+        <path d="M194 53h17v27l-4-3-4 3-4-3-5 3V53zm5 8h7m-7 7h7" stroke="#d7e8ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="157" cy="23" r="10" fill="#bdebdc"/><path d="m153 23 3 3 5-6" stroke="#174f43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </section>
+    <div class="fb-programs-heading"><h2>Selecciona tu programa</h2><p>Cada programa tiene su propio espacio de trabajo.</p></div>
+    <div class="fb-programs-grid">
+      <article class="fb-program-card fb-program-card--faro" aria-labelledby="fb-faro-title">
+        <div class="fb-program-card-top"><span class="fb-program-eyebrow">Programa Faro</span><span class="fb-program-state"><span aria-hidden="true"></span>Disponible en el mockup</span></div>
+        <div class="fb-program-identity"><div class="fb-program-logo"><img src="/static/img/logo-faro-esperanza.png" alt="Faro de Esperanza · Centros Sor Isolina Ferré" width="280" height="116"></div></div>
+        <div class="fb-program-copy"><h3 id="fb-faro-title">Faro de Esperanza</h3><p>Administra los fondos de tus propuestas y mantén cada movimiento al día.</p></div>
+        <ul class="fb-program-features" aria-label="Herramientas disponibles en Faro">
+          <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v13H3zM3 7V4h15v3M16 11h5v5h-5z"/></svg>Presupuesto, categorías y partidas</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zm4 5h4m-4 4h4"/></svg>Gastos, compromisos y recibos</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3v17h17M8 15v-4m5 4V7m5 8V4"/></svg>Gráficas, historial y cierre mensual</li>
+        </ul>
+        <div class="fb-program-card-footer"><button class="fb-button fb-primary" type="button" data-go="faro">Ingresar a Faro <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></div>
+      </article>
+      <article class="fb-program-card fb-program-card--community" aria-labelledby="fb-community-title">
+        <div class="fb-program-card-top"><span class="fb-program-eyebrow">Programa Comunidad</span><span class="fb-program-state fb-program-state--planned"><span aria-hidden="true"></span>En diseño</span></div>
+        <div class="fb-program-identity"><span class="fb-community-symbol" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" focusable="false"><circle cx="32" cy="22" r="8"/><path d="M18 48v-5c0-7 6-12 14-12s14 5 14 12v5H18zM13 19a6 6 0 1 0 0 12M10 36c-4 1-6 4-6 9v3h8m39-29a6 6 0 1 1 0 12m3 5c4 1 6 4 6 9v3h-8"/></svg></span><span class="fb-community-wordmark">Comunidad<br><strong>y Prevención</strong></span></div>
+        <div class="fb-program-copy"><h3 id="fb-community-title">Comunidad y Prevención</h3><p>Un espacio propio para las herramientas y procesos de tu programa.</p></div>
+        <div class="fb-program-upcoming"><span class="fb-upcoming-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14v6z"/></svg></span><div><strong>Próxima etapa del diseño</strong><p>Este espacio aún no tiene herramientas habilitadas. Puedes entrar para consultar su estado.</p></div></div>
+        <div class="fb-program-card-footer"><button class="fb-button" type="button" data-go="community">Ver Comunidad <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></div>
+      </article>
+    </div>
+    <p class="fb-programs-footnote">Puedes regresar a esta pantalla para cambiar de programa.</p>
   </div>
   <div class="fb-main" data-screen="faro" hidden><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button><div><p class="fb-kicker">Faro de Esperanza</p><h1>Herramientas de gestión</h1></div><article class="fb-card"><div class="fb-row fb-between"><div><h2>Gestión de presupuesto</h2><p class="fb-lead">Fondos, categorías propias, partidas y movimientos.</p></div><button class="fb-button fb-primary" type="button" data-go="budget">Abrir presupuesto</button></div></article></div>
   <div class="fb-main" data-screen="community" hidden><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button><h1>Comunidad y Prevención</h1><div class="fb-card"><h2>Próxima etapa</h2><p class="fb-lead">Las herramientas de Comunidad están pendientes de diseño.</p></div></div>
