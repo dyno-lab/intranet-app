@@ -1,22 +1,11 @@
 /* Community alerts share the approved green palette and card contrast. */
-.cp-alert-summary { background: #fff; border: 1px solid var(--cp-line); border-radius: 18px; padding: 22px; box-shadow: 0 5px 18px #102e2409; }
 .cp-alert-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 .cp-alert-heading h2 { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 650; margin: 0; }
 .cp-alert-heading h2 .bi { color: var(--cp-green); }
-.cp-alert-summary .cp-alert-heading p { font-size: 13px; color: var(--cp-muted); margin: 6px 0 0; }
-.cp-alert-link { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; color: var(--cp-green); text-decoration: none; font-size: 13px; font-weight: 600; }
-.cp-alert-link:hover { color: var(--cp-deep); text-decoration: underline; }
-.cp-alert-preview-list { margin-top: 16px; display: grid; gap: 10px; }
-.cp-alert-preview { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #f4f8f5; border: 1px solid #d6e5dc; border-radius: 12px; color: var(--cp-deep); text-decoration: none; min-width: 0; }
-.cp-alert-preview:hover { border-color: #85b498; background: #eaf4ee; color: var(--cp-deep); }
 .cp-alert-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: var(--cp-mint); color: var(--cp-green); font-size: 21px; }
-.cp-alert-preview__copy { flex: 1; min-width: 0; }
-.cp-alert-preview__copy strong { display: block; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
-.cp-alert-preview__copy small { display: block; margin-top: 4px; color: var(--cp-muted); font-size: 12px; }
 .cp-alert-pill { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 8px; color: var(--cp-green); background: var(--cp-mint); font-size: 12px; font-weight: 650; white-space: nowrap; }
 .cp-alert-pill--quiet { background: #f1f4f2; color: var(--cp-muted); }
 .cp-alert-empty { display: flex; align-items: center; gap: 10px; padding: 20px; border: 1px solid var(--cp-line); border-radius: 14px; background: #fff; color: var(--cp-muted); margin: 0; }
-.cp-alert-summary .cp-alert-empty { margin: 16px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid #e2ebe5; border-radius: 0; font-size: 14px; }
 .cp-alert-empty .bi { color: var(--cp-green); font-size: 21px; }
 .cp-alert-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .cp-alert-tabs a { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 18px; min-height: 44px; border: 1px solid var(--cp-line); border-radius: 10px; background: #fff; color: var(--cp-green); text-decoration: none; font-weight: 600; }
@@ -45,16 +34,38 @@
 .cp-alert-targets[hidden] { display: none; }
 .cp-alert-targets label { display: flex; gap: 10px; align-items: flex-start; min-height: 32px; overflow-wrap: anywhere; }
 .cp-alert-targets input { flex: none; }
-.cp-alert-nav-count { margin-left: auto; padding: 2px 7px; background: var(--cp-mint); color: var(--cp-deep); border-radius: 7px; font-size: 11px; font-weight: 700; }
-.cp-shell-nav [aria-current="page"] .cp-alert-nav-count { color: #fff; background: var(--cp-green); }
-.cp-alert-nav-count[hidden] { display: none; }
 @media (max-width: 575.98px) {
-  .cp-alert-summary, .cp-alert-card { padding: 18px; }
-  .cp-alert-preview { gap: 10px; padding: 12px; flex-wrap: wrap; }
-  .cp-alert-preview__copy { flex-basis: calc(100% - 50px); }
-  .cp-alert-preview>.cp-alert-pill { margin-left: 50px; }
-  .cp-alert-preview>.bi { margin-left: auto; }
+  .cp-alert-card { padding: 18px; }
   .cp-alert-heading h2 { font-size: 18px; }
   .cp-alert-tabs a { padding: 10px 14px; }
   .cp-alert-filters>div { flex-basis: 100%; }
 }
+/* Reuse Faro's exact dialog geometry, controls and responsive layout. */
+#community-notification-bell { color: var(--cp-green); border-color: var(--cp-line); }
+#community-notifications { color: var(--cp-deep); border-color: var(--cp-line); }
+#community-notifications::backdrop { background: #102e2480; }
+#community-notifications .fn-brand { color: var(--cp-green); background: #f4f8f5; border-color: var(--cp-line); }
+#community-notifications .fn-close { color: var(--cp-muted); }
+#community-notifications .fn-close:hover { background: var(--cp-mint); }
+#community-notifications .fn-heading-icon { color: var(--cp-green); background: var(--cp-mint); }
+#community-notifications .fn-filters { background: #f4f8f5; border-color: var(--cp-line); }
+#community-notifications .fn-filters button { color: var(--cp-muted); }
+#community-notifications .fn-filters button[aria-pressed="true"],
+#community-notifications .fn-meta, #community-notifications .fn-details summary,
+#community-notifications .fn-note a { color: var(--cp-green); }
+#community-notifications .fn-card, #community-notifications .fn-group { border-color: var(--cp-line); }
+#community-notifications .fn-card--task { background: #f4f8f5; border-left-color: var(--cp-green); }
+#community-notifications .fn-card--unread { border-left-color: var(--cp-green); }
+#community-notifications .fn-heading p, #community-notifications .fn-message,
+#community-notifications .fn-note, #community-notifications .fn-status,
+#community-notifications .fn-group p, #community-notifications .fn-footer span { color: var(--cp-muted); }
+#community-notifications .fn-count { color: var(--cp-deep); }
+#community-notifications .fn-button { color: var(--cp-green); border-color: var(--cp-line); }
+#community-notifications .fn-button--primary { background: var(--cp-green); border-color: var(--cp-green); color: #fff; }
+#community-notifications .fn-button--primary:hover { background: var(--cp-deep); color: #fff; }
+#community-notifications .fn-actions { margin-top: 12px; }
+#community-notifications .fn-status:not(:empty) { background: var(--cp-mint); }
+#community-notifications .fn-status[data-error="true"] { color: #8f2721; background: #fff0ee; }
+#community-notifications .fn-footer { background: #f4f8f5; border-color: var(--cp-line); }
+#community-notifications :focus-visible, #community-notification-bell:focus-visible { outline-color: var(--cp-green); }
+@media (max-width: 575.98px) { .cp-shell-tools { gap: 10px; } }

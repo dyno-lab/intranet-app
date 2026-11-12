@@ -8,8 +8,9 @@
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community.css') }}?v=20261017-intake" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community-shell.css') }}?v=20261112-sidebar" rel="stylesheet">
-  <link href="{{ request.url_for('static', path='css/community-alerts.css') }}?v=20261112" rel="stylesheet">
-  <script src="{{ request.url_for('static', path='js/community-alerts.js') }}?v=20261112" defer></script>
+  <link href="{{ request.url_for('static', path='css/notifications.css') }}" rel="stylesheet">
+  <link href="{{ request.url_for('static', path='css/community-alerts.css') }}?v=20261112-dialog" rel="stylesheet">
+  <script src="{{ request.url_for('static', path='js/community-alerts.js') }}?v=20261112-dialog" defer></script>
   {% block page_styles %}{% endblock %}
 </head>
 <body class="ui-shell-body community-body {% block page_class %}{% endblock %}">
@@ -39,9 +40,9 @@
   <div class="offcanvas-body">
     <p class="cp-shell-sidebar__label">Espacio de trabajo</p>
     <nav class="cp-shell-nav" aria-label="Secciones de Comunidad">
-      {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart'), ('/community/alerts', 'Alertas', 'bell')] %}
+      {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart')] %}
       {% set active = current_path == href or (href != '/community' and current_path.startswith(href + '/')) %}
-      <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}{% if href == '/community/alerts' %} id="community-alert-link" aria-label="Alertas{% if alert_count is defined and alert_count %}: {{ alert_count }} pendientes{% endif %}"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>{% if href == '/community/alerts' %}<span class="cp-alert-nav-count" id="community-alert-count" aria-hidden="true"{% if alert_count is defined %} data-count="{{ alert_count }}"{% endif %}{% if alert_count is not defined or not alert_count %} hidden{% endif %}>{{ '99+' if alert_count is defined and alert_count > 99 else alert_count|default('') }}</span>{% endif %}</a>
+      <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
       {% endfor %}
     </nav>
     {% if cp.role in ['admin', 'supervisor'] %}
@@ -71,6 +72,9 @@
       <button class="cp-shell-menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#communitySidebar" aria-controls="communitySidebar" aria-label="Abrir menú de Comunidad"><i class="bi bi-list" aria-hidden="true"></i></button>
       <a class="cp-shell-heading" href="/community">Comunidad <span>y Prevención</span></a>
       <div class="cp-shell-tools">
+        <button id="community-notification-bell" class="fn-bell" type="button" aria-label="Notificaciones" aria-haspopup="dialog" aria-controls="community-notifications" aria-expanded="false">
+          <i class="bi bi-bell" aria-hidden="true"></i><span id="community-notification-badge" class="fn-badge" hidden aria-hidden="true"></span>
+        </button>
         <a class="cp-shell-context" href="/community/login" title="Cambiar programa: {{ cp.label }}">
           <span><small>Programa de trabajo</small><strong>{{ cp.label }}</strong></span>
           <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
@@ -105,6 +109,7 @@
     <a href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
   </footer>
 </div>
+{% include 'community/_notifications.html' %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (() => {

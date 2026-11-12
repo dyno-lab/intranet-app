@@ -122,7 +122,7 @@ class CommunityHomeTests(unittest.TestCase):
 
     def test_sections_keep_the_same_navigation_and_mark_the_current_section(self):
         sections = ['/community', '/community/participants', '/community/attendance',
-                    '/community/school-grades', '/community/reports', '/community/alerts']
+                    '/community/school-grades', '/community/reports']
         for role, user_id in [('admin', self.admin_id), ('supervisor', self.admin_id),
                               ('user', self.user_id), ('viewer', self.viewer_id)]:
             with Session(self.engine) as db:
@@ -130,6 +130,7 @@ class CommunityHomeTests(unittest.TestCase):
                 db.commit()
             self.login(user_id)
             pages = [(path, path) for path in sections]
+            pages.append(('/community/alerts', None))
             if role != 'viewer':
                 pages.append(('/community/participants/new', '/community/participants'))
             if role in ('admin', 'supervisor'):
@@ -149,6 +150,8 @@ class CommunityHomeTests(unittest.TestCase):
                                      role in ('admin', 'supervisor'))
                     self.assertIn('#community-main', parsed.links)
                     self.assertIn('community-main', parsed.ids)
+                    self.assertIn('community-notification-bell', parsed.ids)
+                    self.assertIn('community-notifications', parsed.ids)
 
 
 if __name__ == '__main__':

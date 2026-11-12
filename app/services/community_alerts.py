@@ -93,24 +93,39 @@ def alert_feed(db, context):
     tasks = pending_groups(db, context)
     notices = announcements(db, context)
     unread = [row for row in notices if row["unread"]]
-    task_items = [{"type": "task", **task} for task in tasks]
-    notice_items = [{"type": "notice", **row} for row in unread]
-    # Keep each available category represented in the compact home summary.
-    preview = []
-    for kind in ("sync", "unassigned"):
-        first = next((item for item in task_items if item["kind"] == kind), None)
-        if first is not None:
-            preview.append(first)
-    if notice_items:
-        preview.append(notice_items[0])
-    for item in task_items + notice_items:
-        if len(preview) >= 3:
-            break
-        if item not in preview:
-            preview.append(item)
     return {"tasks": tasks, "notices": notices, "unread_count": len(unread),
-            "attention_count": len(tasks) + len(unread),
-            "preview": preview}
+            "attention_count": len({task['kind'] for task in tasks}) + len(unread)}
+
+
+def dialog_feed(db, context):
+    """Faro's notification presentation, backed only by Community permissions/data."""
+    feed = alert_feed(db, context)
+    items = []
+    for kind in ("sync", "unassigned"):
+        groups = [group for group in feed['tasks'] if group['kind'] == kind]
+        if not groups:
+            continue
+        participants = set().union(*(group['participant_ids'] for group in groups))
+        items.append({
+            'id': f'task:{kind}', 'type': 'task', 'unread': True,
+            'title': groups[0]['title'], 'message': groups[0]['description'],
+            'pending_count': len(participants),
+            'program_count': len({group['program'].program_id for group in groups}),
+            'groups': [{'id': f"{group['program'].program_id}:{group['fiscal_year_id'] or 'none'}",
+                        'program': f"{group['program'].code} · {group['program'].name}",
+                        'period': group['fiscal_label'] or 'Sin año fiscal asociado',
+                        'pending_count': group['count'], 'url': group['url']} for group in groups],
+            'note': 'Un expediente puede figurar en varios programas o años fiscales. El pendiente desaparece al actualizar la información.'
+        })
+    for row in feed['notices']:
+        notice = row['announcement']
+        items.append({'id': f'notice:{notice.announcement_id}', 'type': 'announcement',
+                      'announcement_id': notice.announcement_id, 'unread': row['unread'],
+                      'title': notice.title, 'message': notice.message,
+                      'published_on': notice.starts_on.isoformat(),
+                      'ends_on': notice.ends_on.isoformat() if notice.ends_on else None,
+                      'url': row['url']})
+    return {'items': items, 'attention_count': feed['attention_count']}
 
 
 def get_announcement(db, context, announcement_id):

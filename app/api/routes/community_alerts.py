@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.routes.community import _render
 from app.core.community_access import (
-    CommunityContext, require_community_context, require_community_admin, validate_csrf,
+    CommunityContext, require_community_context, require_community_admin, validate_csrf, csrf_token,
 )
 from app.models.community import CPParticipant, CPFiscalYear
 from app.models.community_alerts import CPAnnouncementRead
 from app.services.community_alerts import (
     ROLE_LABELS, alert_feed, create_announcement, get_announcement, managed_announcements,
-    mark_read, pending_groups, withdraw_announcement,
+    mark_read, pending_groups, withdraw_announcement, dialog_feed,
 )
 from app.services.community_participants import participant_query, _integer
 
@@ -37,6 +37,16 @@ def filtered_context(context, program_id):
 def summary(db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_context)):
     feed = alert_feed(db, context)
     return JSONResponse({"attention_count": feed["attention_count"]}, headers=HEADERS)
+
+
+@router.get("/feed")
+def notification_feed(request: Request, db: Session = Depends(get_db),
+                      context: CommunityContext = Depends(require_community_context)):
+    data = dialog_feed(db, context)
+    data['csrf_token'] = csrf_token(request)
+    scope = ','.join(str(pid) for pid in sorted(context.visible_program_ids))
+    data['context_key'] = f"{context.user.user_id}:{context.role}:{context.selected_program_id or 'all'}:{scope}:{data['csrf_token']}"
+    return JSONResponse(data, headers=HEADERS)
 
 
 @router.get("")
@@ -110,6 +120,8 @@ def read_notice(request: Request, announcement_id: int, token: str = Form(...),
                 db: Session = Depends(get_db), context: CommunityContext = Depends(require_community_context)):
     validate_csrf(request, token)
     mark_read(db, context, announcement_id)
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({'read': True}, headers=HEADERS)
     return RedirectResponse(f"/community/alerts/notices/{announcement_id}?msg=Aviso+marcado+como+leído", status_code=303)
 
 

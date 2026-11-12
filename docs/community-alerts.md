@@ -9,12 +9,27 @@
 - **Avisos de Administración:** texto con vigencia, destinatarios por rol de
   Comunidad y programa, retiro y lectura individual persistente.
 
-El menú izquierdo incorpora Alertas. Su contador suma grupos de pendientes y
-avisos sin leer; no es un total de participantes únicos. Un expediente en dos
-programas puede aparecer en ambos grupos. El inicio muestra hasta tres elementos,
-representando cada categoría disponible. Los pendientes se recalculan al consultar
-los datos y desaparecen al resolver su causa. Leer un aviso no resuelve pendientes.
-El contador se actualiza cada minuto mientras la pestaña esté visible.
+Las notificaciones usan la misma ubicación y composición de Faro: campana en la
+parte superior derecha y ventana central con las pestañas Todo, Pendientes y
+Anuncios, cierre y «Revisar después». Se comparte el CSS de Faro con la paleta verde
+de Comunidad. No hay bloque de alertas en el inicio ni enlace de alertas en el menú
+lateral. La lista completa y sus filtros siguen accesibles desde la ventana.
+
+Al entrar al inicio, la ventana aparece si hay pendientes o avisos sin leer todavía
+no mostrados en esa sesión y selección de programa, igual que en Faro. No interrumpe
+formularios ni otras ventanas abiertas. Cerrar o usar «Revisar después» no marca
+avisos como leídos; se pueden volver a abrir desde la campana en cualquier pantalla.
+La memoria de lo mostrado está separada de Faro por usuario, rol, programas y sesión.
+Si el navegador no permite almacenamiento de sesión, la campana sigue funcionando.
+
+El contador suma las categorías automáticas que requieren atención (hasta dos) y
+los avisos sin leer, como los elementos del panel de Faro; no cuenta participantes.
+Cada categoría muestra expedientes únicos y permite desplegar sus programas y años
+fiscales. Un expediente puede figurar en varios grupos. Los pendientes se recalculan
+al consultar los datos y desaparecen al resolver su causa. Leer un aviso no resuelve
+pendientes. El panel se actualiza al abrirlo, después de marcar lectura y cada cinco
+minutos con la pestaña visible y la ventana cerrada; también al recuperar visibilidad
+si pasó más de un minuto, siguiendo el comportamiento de Faro.
 
 Solo el administrador de **Comunidad** publica o retira avisos. Supervisor, usuario
 y consulta pueden leer los que les correspondan. El rol de Faro no concede permisos
@@ -64,7 +79,7 @@ ORDER BY name;
 1. Con un administrador de Comunidad, publicar un aviso de prueba para un programa
    y rol acordados. Usar texto con acentos, inicio hoy y una fecha final.
 2. Reabrir Administración y comprobar título, mensaje, vigencia y destinatarios.
-3. Entrar con un usuario destinatario: el aviso aparece en Avisos y en el contador.
+3. Entrar con un usuario destinatario: el aviso aparece en Anuncios y en el contador.
    Entrar con un usuario fuera del alcance: no aparece y su URL devuelve 404.
 4. Marcarlo como leído, salir y entrar nuevamente: continúa leído. Otro destinatario
    conserva su lectura independiente. Probar también con el rol consulta.
@@ -74,7 +89,9 @@ ORDER BY name;
 6. En un expediente de prueba autorizado, modificar un dato con snapshot editable:
    aparece el pendiente. Sincronizarlo desde la pantalla fiscal: desaparece. Añadir
    un expediente sin asociación fiscal a un año: desaparece su aviso de incorporación.
-7. Repetir navegación, filtros y lectura en computadora y móvil.
+7. Repetir navegación, filtros y lectura en computadora y móvil. Comprobar apertura
+   al entrar al inicio, cierre con Escape o «Revisar después», reapertura con la
+   campana y que el aviso no vuelva a interrumpir al recargar durante la misma sesión.
 
 Para comprobar los datos del aviso creado, sustituir únicamente el identificador
 obtenido de su URL:
@@ -97,16 +114,23 @@ CSRF, alcance por programa/rol, vigencia, retiro, lectura idempotente y personal
 contenido escapado, filtros, enlaces, paginación y resolución de pendientes.
 Se revisa la interfaz en navegador con datos sintéticos, sin usar expedientes reales.
 
-Resultado local: 47 pruebas enfocadas aprobadas (16 nuevas de alertas y 31 de
-navegación, rutas y permisos). La suite amplia ejecutada antes del último ajuste
-del resumen pasó 288 de 291 pruebas, con los tres errores previos indicados abajo.
-Inicio, lista de alertas, detalle de aviso y detalle de pendiente se comprobaron
-a 320, 390, 768, 1024 y 1366 px, sin desbordamiento horizontal. El formulario
-administrativo se revisó en escritorio y a 390 px. Publicación con destinatarios,
-filtros, menú móvil y lectura persistente del rol consulta funcionaron en navegador,
-sin errores de consola en esos flujos. La comprobación adicional del botón fiscal
-se interrumpió por un diálogo del navegador; su resolución automática sí está
-cubierta por las pruebas de integración.
+Resultado del ajuste al formato de Faro: **49 pruebas enfocadas aprobadas**
+(18 de alertas y 31 de navegación, rutas y permisos). Se verificó el nuevo feed,
+la separación por programa/rol, el contador por categoría, la lectura JSON con
+CSRF y la permanencia del botón en el encabezado de las pantallas de Comunidad.
+La comprobación de sintaxis `node --check app/static/js/community-alerts.js` pasó.
+
+En navegador se comprobaron apertura automática, ausencia de reapertura al
+recargar, cierre con Escape y «Revisar después», retorno del foco a la campana,
+filtros, enlaces a expedientes y lectura individual desde el panel para administrador
+y consulta. El diálogo se revisó a 320, 390, 768, 1024 y 1366 px, sin desbordamiento
+horizontal ni recortes fuera del alto de pantalla. La campana cabe en el encabezado
+de 320 px. No se registraron errores de consola en esos flujos.
+
+En la entrega inicial se verificaron publicación con destinatarios y el formulario
+administrativo en escritorio y móvil. La suite amplia de esa entrega pasó 288 de
+291 pruebas, con los tres errores previos indicados abajo. La resolución fiscal
+automática está cubierta por las pruebas de integración.
 
 La ejecución real de esta migración y el guardado en SQL Server **no se han
 validado en esta PC**: el controlador configurado no está instalado; al probar

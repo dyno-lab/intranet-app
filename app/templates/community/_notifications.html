@@ -1,0 +1,21 @@
+<dialog id="community-notifications" class="faro-notifications" aria-labelledby="community-notification-title" aria-describedby="community-notification-description" data-auto-open="{{ 'true' if current_path in ['/community', '/community/'] else 'false' }}">
+  <div class="fn-brand">
+    <span><i class="bi bi-people-fill" aria-hidden="true"></i> Comunidad y Prevención</span>
+    <button type="button" class="fn-close" data-notification-close aria-label="Cerrar notificaciones"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+  </div>
+  <div class="fn-body">
+    <div class="fn-heading"><span class="fn-heading-icon"><i class="bi bi-bell" aria-hidden="true"></i></span><div>
+      <h2 id="community-notification-title" tabindex="-1">Notificaciones</h2>
+      <p id="community-notification-description">Pendientes y novedades de tu programa.</p>
+    </div></div>
+    <div class="fn-filters" role="group" aria-label="Filtrar notificaciones">
+      <button type="button" data-notification-filter="all" aria-pressed="true">Todo <span data-notification-total></span></button>
+      <button type="button" data-notification-filter="task" aria-pressed="false">Pendientes</button>
+      <button type="button" data-notification-filter="announcement" aria-pressed="false">Anuncios</button>
+    </div>
+    <p id="community-notification-status" class="fn-status" role="status" aria-live="polite"></p>
+    <div id="community-notification-list" class="fn-list"></div>
+    <p class="fn-note"><a href="/community/alerts">Ver todas las alertas y filtros</a></p>
+  </div>
+  <div class="fn-footer"><span>Los pendientes se resuelven al completar la información.</span><button type="button" class="fn-button" data-notification-close>Revisar después</button></div>
+</dialog>
