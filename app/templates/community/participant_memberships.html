@@ -21,6 +21,6 @@
   <div class="col-12"><button class="btn {{ 'btn-outline-danger' if action == 'discharge' else 'btn-primary' }}" {{ 'disabled' if cp.role == 'viewer' }}>{{ 'Dar de alta' if action == 'enroll' else ('Dar de baja' if action == 'discharge' else 'Reactivar') }}</button></div>
 </form>{% endif %}
 </div></section>
-{% else %}<div class="alert alert-info">No hay asociaciones a programas disponibles en su contexto.</div>{% endfor %}
+{% else %}<div class="alert alert-info">No hay asociaciones para los programas seleccionados.</div>{% endfor %}
 {% else %}<div class="alert alert-info">Primero debe existir un año fiscal.</div>{% endif %}
 {% endblock %}

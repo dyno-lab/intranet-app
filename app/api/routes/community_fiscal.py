@@ -93,7 +93,7 @@ def synchronize(request: Request, fiscal_year_id: int = Form(...), participant_i
     allowed = set(db.scalars(_participant_query(context).with_only_columns(CPParticipant.participant_id)
                             .where(CPParticipant.participant_id.in_(participant_ids))).all())
     if set(participant_ids) != allowed:
-        raise HTTPException(403, "Uno o más expedientes no están disponibles en su contexto.")
+        raise HTTPException(403, "Uno o más expedientes no están disponibles para los programas seleccionados.")
     try:
         count = sync_participants(db, fiscal_year_id, participant_ids, actor_user_id=context.user.user_id, mode=mode)
         db.commit()

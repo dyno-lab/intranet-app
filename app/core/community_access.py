@@ -121,4 +121,4 @@ def validate_csrf(request: Request, submitted: str) -> None:
 
 def require_programs(context: CommunityContext, program_ids: list[int]) -> None:
     if not program_ids or not set(program_ids).issubset(context.visible_program_ids):
-        raise HTTPException(403, "Seleccione únicamente programas disponibles en su contexto de Comunidad.")
+        raise HTTPException(403, "Seleccione únicamente los programas disponibles.")

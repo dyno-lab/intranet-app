@@ -54,7 +54,7 @@
     {% endif %}
     <div class="cp-shell-sidebar__footer">
       <a class="cp-shell-sidebar__context" href="/community/login">
-        <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
+        <span><small>Programa de trabajo</small><strong>{{ cp.label }}</strong></span>
         <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
       </a>
       <p>Centros Sor Isolina Ferré</p>
@@ -68,8 +68,8 @@
       <button class="cp-shell-menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#communitySidebar" aria-controls="communitySidebar" aria-label="Abrir menú de Comunidad"><i class="bi bi-list" aria-hidden="true"></i></button>
       <a class="cp-shell-heading" href="/community">Comunidad <span>y Prevención</span></a>
       <div class="cp-shell-tools">
-        <a class="cp-shell-context" href="/community/login" title="Cambiar contexto: {{ cp.label }}">
-          <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
+        <a class="cp-shell-context" href="/community/login" title="Cambiar programa: {{ cp.label }}">
+          <span><small>Programa de trabajo</small><strong>{{ cp.label }}</strong></span>
           <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
         </a>
         <details class="cp-shell-menu cp-shell-account" name="community-header-menu">
@@ -83,7 +83,7 @@
               <span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span>
               <span>{{ cp.label }}</span>
             </div>
-            <a href="/community/login">Seleccionar contexto</a>
+            <a href="/community/login">Seleccionar programa</a>
             <a href="/home">Volver al portal</a>
             <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
           </div>

@@ -48,7 +48,7 @@ def participant_record(db, context, participant_id, params):
     if year_id is not None and selected_year is None:
         raise HTTPException(404, 'Año fiscal no asociado al expediente.')
     if program_id is not None and program_id not in context.visible_program_ids:
-        raise HTTPException(403, 'Programa no autorizado en este contexto de Comunidad.')
+        raise HTTPException(403, 'Programa no autorizado para la selección actual de Comunidad.')
     from_date, to_date = _date(params, 'from_date'), _date(params, 'to_date')
     if from_date and to_date and from_date > to_date:
         raise HTTPException(422, 'La fecha desde no puede ser posterior a la fecha hasta.')

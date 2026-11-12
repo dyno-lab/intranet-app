@@ -9,7 +9,7 @@
     </div></fieldset>
     <button class="btn btn-primary mt-3" type="submit" {{ 'disabled' if cp.role == 'viewer' }}><i class="bi bi-plus-circle" aria-hidden="true"></i> Asociar programas seleccionados</button>
   </form>
-  {% else %}<p class="participants-expediente-card__text">El expediente ya está asociado a todos los programas disponibles en este contexto.</p>{% endif %}
-  {% if cp.selected_program_id is not none %}<p class="participants-expediente-card__text mt-2">Para asociar otros programas autorizados, <a href="/community/login">cambie al contexto de todos sus programas</a>.</p>{% endif %}
+  {% else %}<p class="participants-expediente-card__text">El expediente ya está asociado a todos los programas disponibles en la selección actual.</p>{% endif %}
+  {% if cp.selected_program_id is not none %}<p class="participants-expediente-card__text mt-2">Para asociar otros programas autorizados, <a href="/community/login">seleccione todos sus programas</a>.</p>{% endif %}
   <p class="participants-expediente-card__text mt-3">Después de asociar el programa, <a href="{{ record_url }}/memberships">gestione el alta por año fiscal</a>. El expediente debe estar sincronizado con ese año.</p>
 </div>

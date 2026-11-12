@@ -56,7 +56,7 @@ def _integer(params, key, default=None, minimum=0, maximum=130):
 def roster_filters(params, context):
     program_id = _integer(params, "program_id", minimum=1, maximum=2147483647)
     if program_id is not None and program_id not in context.visible_program_ids:
-        raise HTTPException(403, "Programa no autorizado en este contexto de Comunidad.")
+        raise HTTPException(403, "Programa no autorizado para la selección actual de Comunidad.")
     age_range = params.get("age_range", "").strip()
     selected = next((row for row in AGE_RANGES if row["value"] == age_range), None)
     if age_range and selected is None:

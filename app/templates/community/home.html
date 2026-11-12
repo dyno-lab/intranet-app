@@ -27,7 +27,7 @@
   <div class="cp-home-work">
     <section class="cp-home-feature" aria-labelledby="home-records-title">
       <div class="cp-home-feature__heading"><h2 id="home-records-title">Expedientes</h2><i class="bi bi-folder2-open" aria-hidden="true"></i></div>
-      <div class="cp-home-feature__count"><strong>{{ participant_count }}</strong><span>{{ 'persona registrada' if participant_count == 1 else 'personas registradas' }} en el contexto</span></div>
+      <div class="cp-home-feature__count"><strong>{{ participant_count }}</strong><span>{{ 'persona registrada' if participant_count == 1 else 'personas registradas' }}</span></div>
       <div class="cp-home-feature__actions">
         {% if cp.role != 'viewer' %}
         <a class="cp-home-primary" href="/community/participants/new#participant-register-card"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nuevo expediente</a>

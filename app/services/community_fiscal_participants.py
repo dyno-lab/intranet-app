@@ -15,7 +15,7 @@ from app.services.community_participants import _integer, participant_query, par
 def fiscal_participant_lists(db, context, fiscal_year_id, params):
     program_id = _integer(params, 'program_id', minimum=1, maximum=2147483647)
     if program_id is not None and program_id not in context.visible_program_ids:
-        raise HTTPException(403, 'Programa no autorizado en este contexto de Comunidad.')
+        raise HTTPException(403, 'Programa no autorizado para la selección actual de Comunidad.')
     filters = {'q': params.get('q', '').strip()[:150], 'program_id': program_id,
                'available_filter': params.get('available_filter', 'pending'),
                'sync_filter': params.get('sync_filter', 'pending')}
