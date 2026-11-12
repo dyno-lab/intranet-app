@@ -32,7 +32,7 @@ uvicorn app.main:app --reload
 
 ## Inicio de Comunidad
 
-`/community` usa el diseño **Portal abierto** con navegación horizontal,
+`/community` usa el diseño **Portal abierto** con navegación lateral izquierda,
 accesos a Expedientes, Asistencias, Notas escolares y Reportes, y adaptación
 a computadora y móvil. Conserva los verdes institucionales de Comunidad.
 
@@ -41,7 +41,8 @@ programa muestra solo programas activos autorizados; una misma persona puede
 figurar en varios programas. El selector usa el cambio de contexto existente
 con protección CSRF. La creación de expedientes y la administración se muestran
 según el rol. Todas las pantallas de trabajo comparten la misma cabecera y
-navegación horizontal, con la sección actual resaltada. El fondo verde grisáceo
+navegación lateral izquierda, con la sección actual resaltada. En móvil, el menú
+se abre desde la izquierda mediante el botón de la cabecera. El fondo verde grisáceo
 y las tarjetas blancas delimitan las áreas de trabajo en computadora y móvil.
 
 No requiere cambios de esquema ni incorpora el sistema de alertas. Pruebas

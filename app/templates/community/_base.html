@@ -7,7 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community.css') }}?v=20261017-intake" rel="stylesheet">
-  <link href="{{ request.url_for('static', path='css/community-shell.css') }}?v=20261112" rel="stylesheet">
+  <link href="{{ request.url_for('static', path='css/community-shell.css') }}?v=20261112-sidebar" rel="stylesheet">
   {% block page_styles %}{% endblock %}
 </head>
 <body class="ui-shell-body community-body {% block page_class %}{% endblock %}">
@@ -25,65 +25,83 @@
   {% if current_path == href or current_path.startswith(href + '/') %}{% set admin.active = true %}{% endif %}
 {% endfor %}
 <a class="cp-shell-skip" href="#community-main">Ir al contenido</a>
-<header class="cp-shell-header">
-  <div class="cp-shell-masthead">
+<aside class="cp-shell-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="communitySidebar" aria-labelledby="communitySidebarTitle">
+  <div class="offcanvas-header">
     <a class="cp-shell-brand" href="/community" aria-label="Comunidad y Prevención · Inicio">
       <span class="cp-shell-brand__mark"><i class="bi bi-people" aria-hidden="true"></i></span>
-      <span><strong>Comunidad</strong><small>y Prevención</small></span>
+      <span id="communitySidebarTitle"><strong>Comunidad</strong><small>y Prevención</small></span>
     </a>
-    <div class="cp-shell-tools">
-      <a class="cp-shell-context" href="/community/login" title="Cambiar contexto: {{ cp.label }}">
-        <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
-        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-      </a>
-      {% if cp.role in ['admin', 'supervisor'] %}
-      <details class="cp-shell-menu {{ 'is-active' if admin.active }}" name="community-header-menu">
-        <summary aria-label="Administración"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-        <nav class="cp-shell-menu__panel" aria-label="Administración de Comunidad">
-          {% for href, label, roles in admin_links if cp.role in roles %}
-          {% set active = current_path == href or current_path.startswith(href + '/') %}
-          <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
-          {% endfor %}
-        </nav>
-      </details>
-      {% endif %}
-      <details class="cp-shell-menu cp-shell-account" name="community-header-menu">
-        <summary aria-label="Cuenta de {{ current_user.username }}">
-          <span class="cp-shell-avatar" aria-hidden="true">{{ (current_user.username or 'US')[:2]|upper }}</span>
-          <i class="bi bi-chevron-down" aria-hidden="true"></i>
-        </summary>
-        <div class="cp-shell-menu__panel">
-          <div class="cp-shell-account__identity">
-            <strong>{{ current_user.username }}</strong>
-            <span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span>
-            <span>{{ cp.label }}</span>
-          </div>
-          <a href="/community/login">Seleccionar contexto</a>
-          <a href="/home">Volver al portal</a>
-          <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
-        </div>
-      </details>
-    </div>
+    <button class="btn-close btn-close-white d-lg-none" type="button" data-bs-dismiss="offcanvas" data-bs-target="#communitySidebar" aria-label="Cerrar menú"></button>
   </div>
-  <div class="cp-shell-nav-band">
+  <div class="offcanvas-body">
+    <p class="cp-shell-sidebar__label">Espacio de trabajo</p>
     <nav class="cp-shell-nav" aria-label="Secciones de Comunidad">
       {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart')] %}
       {% set active = current_path == href or (href != '/community' and current_path.startswith(href + '/')) %}
       <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
       {% endfor %}
     </nav>
+    {% if cp.role in ['admin', 'supervisor'] %}
+    <details class="cp-shell-admin {{ 'is-active' if admin.active }}"{% if admin.active %} open{% endif %}>
+      <summary><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+      <nav class="cp-shell-admin__links" aria-label="Administración de Comunidad">
+        {% for href, label, roles in admin_links if cp.role in roles %}
+        {% set active = current_path == href or current_path.startswith(href + '/') %}
+        <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </details>
+    {% endif %}
+    <div class="cp-shell-sidebar__footer">
+      <a class="cp-shell-sidebar__context" href="/community/login">
+        <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
+        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+      </a>
+      <p>Centros Sor Isolina Ferré</p>
+      <a class="cp-shell-portal" href="/home"><i class="bi bi-grid" aria-hidden="true"></i>Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+    </div>
   </div>
-</header>
-<main class="cp-shell-content" id="community-main" tabindex="-1">
-  {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
-  {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
-  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-  {% block content %}{% endblock %}
-</main>
-<footer class="cp-shell-footer">
-  <span>Centros Sor Isolina Ferré · Comunidad y Prevención</span>
-  <a href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
-</footer>
+</aside>
+<div class="cp-shell-main">
+  <header class="cp-shell-header">
+    <div class="cp-shell-masthead">
+      <button class="cp-shell-menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#communitySidebar" aria-controls="communitySidebar" aria-label="Abrir menú de Comunidad"><i class="bi bi-list" aria-hidden="true"></i></button>
+      <a class="cp-shell-heading" href="/community">Comunidad <span>y Prevención</span></a>
+      <div class="cp-shell-tools">
+        <a class="cp-shell-context" href="/community/login" title="Cambiar contexto: {{ cp.label }}">
+          <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
+          <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+        </a>
+        <details class="cp-shell-menu cp-shell-account" name="community-header-menu">
+          <summary aria-label="Cuenta de {{ current_user.username }}">
+            <span class="cp-shell-avatar" aria-hidden="true">{{ (current_user.username or 'US')[:2]|upper }}</span>
+            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+          </summary>
+          <div class="cp-shell-menu__panel">
+            <div class="cp-shell-account__identity">
+              <strong>{{ current_user.username }}</strong>
+              <span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span>
+              <span>{{ cp.label }}</span>
+            </div>
+            <a href="/community/login">Seleccionar contexto</a>
+            <a href="/home">Volver al portal</a>
+            <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
+          </div>
+        </details>
+      </div>
+    </div>
+  </header>
+  <main class="cp-shell-content" id="community-main" tabindex="-1">
+    {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
+    {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="cp-shell-footer">
+    <span>Centros Sor Isolina Ferré · Comunidad y Prevención</span>
+    <a href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+  </footer>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (() => {
