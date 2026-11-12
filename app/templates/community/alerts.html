@@ -1,0 +1,29 @@
+{% extends "community/_base.html" %}
+{% block title %}Alertas · Comunidad{% endblock %}
+{% block content %}
+<section class="community-hero cp-alert-heading"><div><span class="community-eyebrow">Comunidad y Prevención</span><h1>Alertas</h1><p class="mb-0">Pendientes de sus programas y avisos de Administración.</p></div>{% if cp.role == 'admin' %}<a class="btn btn-primary" href="/community/alerts/manage">Administrar avisos</a>{% endif %}</section>
+<nav class="cp-alert-tabs" aria-label="Tipos de alertas">
+  <a href="/community/alerts" {% if view == 'pending' %}aria-current="page"{% endif %}>Pendientes <span>{{ feed.tasks|length }}</span></a>
+  <a href="/community/alerts?view=notices" {% if view == 'notices' %}aria-current="page"{% endif %}>Avisos <span>{{ feed.unread_count }} sin leer</span></a>
+</nav>
+<form method="get" class="cp-alert-filters card card-body mb-4">
+  <input type="hidden" name="view" value="{{ view }}">
+  <div><label class="form-label" for="alert-program">Programa</label><select class="form-select" id="alert-program" name="program_id"><option value="">Todos los programas seleccionados</option>{% for program in cp.visible_programs %}<option value="{{ program.program_id }}" {{ 'selected' if selected_program == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}</select></div>
+  {% if view == 'pending' %}<div><label class="form-label" for="alert-year">Año fiscal</label><select class="form-select" id="alert-year" name="fiscal_year_id"><option value="">Todos / sin año fiscal</option>{% for year in years %}<option value="{{ year.fiscal_year_id }}" {{ 'selected' if selected_fiscal == year.fiscal_year_id }}>{{ year.code }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+</form>
+<p class="text-muted small">{{ total }} {% if view == 'pending' %}{{ 'grupo de pendientes' if total == 1 else 'grupos de pendientes' }}{% else %}{{ 'aviso' if total == 1 else 'avisos' }}{% endif %}{% if view == 'pending' %} · Agrupados por programa y año fiscal.{% endif %}</p>
+<div class="cp-alert-grid">
+{% for item in items %}
+  {% if view == 'pending' %}{% include "community/_alert_task.html" %}
+  {% else %}
+  <article class="cp-alert-card">
+    <div class="cp-alert-card__top"><span class="cp-alert-icon"><i class="bi bi-megaphone" aria-hidden="true"></i></span><span class="cp-alert-pill {{ 'cp-alert-pill--quiet' if not item.unread }}">{{ 'Sin leer' if item.unread else 'Leído' }}</span></div>
+    <h2>{{ item.announcement.title }}</h2><p class="cp-alert-excerpt">{{ item.announcement.message }}</p>
+    <div class="cp-alert-card__bottom"><span class="small text-muted">Desde {{ item.announcement.starts_on.strftime('%d/%m/%Y') }}{% if item.announcement.ends_on %}<br>Hasta {{ item.announcement.ends_on.strftime('%d/%m/%Y') }}{% endif %}</span><a class="btn btn-outline-primary" href="{{ item.url }}">Ver aviso</a></div>
+  </article>
+  {% endif %}
+{% else %}<p class="cp-alert-empty"><i class="bi bi-check2-circle" aria-hidden="true"></i>{{ 'No hay pendientes para esta selección.' if view == 'pending' else 'No hay avisos vigentes para esta selección.' }}</p>{% endfor %}
+</div>
+{% if pages > 1 %}<nav class="cp-alert-pagination" aria-label="Páginas de alertas">{% if page > 1 %}<a class="btn btn-outline-primary" href="/community/alerts?{{ pagination_query }}&amp;page={{ page - 1 }}">Anterior</a>{% endif %}<span>Página {{ page }} de {{ pages }}</span>{% if page < pages %}<a class="btn btn-outline-primary" href="/community/alerts?{{ pagination_query }}&amp;page={{ page + 1 }}">Siguiente</a>{% endif %}</nav>{% endif %}
+{% endblock %}

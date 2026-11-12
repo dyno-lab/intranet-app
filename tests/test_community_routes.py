@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.deps import get_db
+from app.api.routes import community_alerts
 from app.api.routes import community, community_settings, community_catalogs, community_activities, community_fiscal, community_operations, community_reports, community_identity, platform_settings, portal
 from app.core.config import settings
 from app.models.base import Base
@@ -84,6 +85,7 @@ class CommunityRouteTests(unittest.TestCase):
         self.app.include_router(community_operations.router)
         self.app.include_router(community_reports.router)
         self.app.include_router(community_identity.router)
+        self.app.include_router(community_alerts.router)
         self.app.include_router(platform_settings.router)
         self.app.include_router(portal.router)
 

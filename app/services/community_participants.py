@@ -142,7 +142,7 @@ def _participant_sync_state(db, context, participant_ids=None):
         historical = comparable_snapshot(snapshot, associations[pid])
         if historical != current[pid]:
             pending.add(pid)
-            pending_years[pid].append({'label': year.code,
+            pending_years[pid].append({'label': year.code, 'fiscal_year_id': year.fiscal_year_id,
                 'url': '/community/fiscal-participants?' + urlencode({
                     'fiscal_year_id': year.fiscal_year_id, 'q': people[pid].expediente_num,
                     'sync_filter': 'pending'}) + '#assigned-participants'})
@@ -158,7 +158,7 @@ def _participant_sync_state(db, context, participant_ids=None):
     return people, assigned, pending, notices
 
 
-def participant_sync_notices(db, context, participant_ids):
+def participant_sync_notices(db, context, participant_ids=None):
     """Distinguish missing fiscal association from changed writable snapshots."""
     return _participant_sync_state(db, context, participant_ids)[3]
 

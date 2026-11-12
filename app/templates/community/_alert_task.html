@@ -1,0 +1,6 @@
+<article class="cp-alert-card">
+  <div class="cp-alert-card__top"><span class="cp-alert-icon"><i class="bi bi-{{ 'arrow-repeat' if item.kind == 'sync' else 'folder-plus' }}" aria-hidden="true"></i></span><span class="cp-alert-pill">Pendiente</span></div>
+  <h2>{{ item.title }}</h2><p>{{ item.description }}</p>
+  <div class="cp-alert-meta"><strong>{{ item.program.code }} · {{ item.program.name }}</strong>{% if item.fiscal_label %}<span>Año fiscal {{ item.fiscal_label }}</span>{% endif %}</div>
+  <div class="cp-alert-card__bottom"><span><strong class="cp-alert-count">{{ item.count }}</strong> {{ 'expediente' if item.count == 1 else 'expedientes' }}</span><a class="btn btn-outline-primary" href="{{ item.url }}">Ver expedientes <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+</article>

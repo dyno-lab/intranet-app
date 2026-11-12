@@ -8,6 +8,8 @@
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community.css') }}?v=20261017-intake" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community-shell.css') }}?v=20261112-sidebar" rel="stylesheet">
+  <link href="{{ request.url_for('static', path='css/community-alerts.css') }}?v=20261112" rel="stylesheet">
+  <script src="{{ request.url_for('static', path='js/community-alerts.js') }}?v=20261112" defer></script>
   {% block page_styles %}{% endblock %}
 </head>
 <body class="ui-shell-body community-body {% block page_class %}{% endblock %}">
@@ -18,7 +20,8 @@
   ('/community/fiscal-participants', 'Sincronización y períodos', ['admin', 'supervisor']),
   ('/community/activities', 'Actividades', ['admin']),
   ('/community/adm', 'Configuración ADM', ['admin']),
-  ('/community/catalogs', 'Catálogos y perfil', ['admin'])
+  ('/community/catalogs', 'Catálogos y perfil', ['admin']),
+  ('/community/alerts/manage', 'Avisos de Comunidad', ['admin'])
 ] %}
 {% set admin = namespace(active=false) %}
 {% for href, label, roles in admin_links if cp.role in roles %}
@@ -36,9 +39,9 @@
   <div class="offcanvas-body">
     <p class="cp-shell-sidebar__label">Espacio de trabajo</p>
     <nav class="cp-shell-nav" aria-label="Secciones de Comunidad">
-      {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart')] %}
+      {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart'), ('/community/alerts', 'Alertas', 'bell')] %}
       {% set active = current_path == href or (href != '/community' and current_path.startswith(href + '/')) %}
-      <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
+      <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}{% if href == '/community/alerts' %} id="community-alert-link" aria-label="Alertas{% if alert_count is defined and alert_count %}: {{ alert_count }} pendientes{% endif %}"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>{% if href == '/community/alerts' %}<span class="cp-alert-nav-count" id="community-alert-count" aria-hidden="true"{% if alert_count is defined %} data-count="{{ alert_count }}"{% endif %}{% if alert_count is not defined or not alert_count %} hidden{% endif %}>{{ '99+' if alert_count is defined and alert_count > 99 else alert_count|default('') }}</span>{% endif %}</a>
       {% endfor %}
     </nav>
     {% if cp.role in ['admin', 'supervisor'] %}
@@ -92,7 +95,7 @@
     </div>
   </header>
   <main class="cp-shell-content" id="community-main" tabindex="-1">
-    {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
+    {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> {% if current_path.startswith('/community/alerts') %}Puede consultar los pendientes y marcar sus avisos como leídos. La edición de expedientes y la administración de avisos están bloqueadas.{% else %}Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.{% endif %}</div>{% endif %}
     {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
     {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
     {% block content %}{% endblock %}
@@ -117,6 +120,6 @@
   });
 })();
 </script>
-{% if cp.role == 'viewer' %}<script src="{{ request.url_for('static', path='js/community-viewer.js') }}?v=20261005"></script>{% endif %}
+{% if cp.role == 'viewer' %}<script src="{{ request.url_for('static', path='js/community-viewer.js') }}?v=20261112-alerts"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body></html>

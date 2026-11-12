@@ -2653,6 +2653,8 @@ def ensure_schema_updates() -> None:
             conn.exec_driver_sql(COMMUNITY_OPERATIONS_SCHEMA_SQL)
             from app.db.community_identity_schema import COMMUNITY_IDENTITY_SCHEMA_SQL
             conn.exec_driver_sql(COMMUNITY_IDENTITY_SCHEMA_SQL)
+            from app.db.community_alerts_schema import COMMUNITY_ALERTS_SCHEMA_SQL
+            conn.exec_driver_sql(COMMUNITY_ALERTS_SCHEMA_SQL)
             from sqlalchemy.orm import Session
             from app.services.community_catalog import seed_community_catalogs
             with Session(bind=conn) as community_db:

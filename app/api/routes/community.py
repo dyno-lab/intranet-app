@@ -35,6 +35,7 @@ from app.services.community_participants import (
 )
 from app.services.community_record import participant_record
 from app.services.community_years import fiscal_year_management
+from app.services.community_alerts import alert_feed
 
 router = APIRouter(prefix="/community", tags=["community"])
 templates = Jinja2Templates(directory="app/templates")
@@ -118,7 +119,9 @@ def home(request: Request, db: Session = Depends(get_db),
     ).where(CPParticipantProgram.program_id.in_(context.visible_program_ids)).group_by(
         CPParticipantProgram.program_id
     )).all())
-    return _render(request, "home", context, participant_count=count, program_counts=program_counts)
+    alerts = alert_feed(db, context)
+    return _render(request, "home", context, participant_count=count, program_counts=program_counts,
+                   alerts=alerts, alert_count=alerts['attention_count'])
 
 
 @router.get("/programs")

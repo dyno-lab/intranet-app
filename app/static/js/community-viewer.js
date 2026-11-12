@@ -3,10 +3,13 @@
 (() => {
   const main = document.querySelector('main');
   if (!main) return;
+  const personalRead = form => /^\/community\/alerts\/notices\/\d+\/read$/.test(
+    new URL(form.getAttribute('action') || location.href, location.href).pathname);
   const blocked = form => form && (
     form.hasAttribute('data-viewer-block-submit') ||
     (form.method.toLowerCase() !== 'get' &&
-      new URL(form.getAttribute('action') || location.href, location.href).pathname !== '/community/context')
+      new URL(form.getAttribute('action') || location.href, location.href).pathname !== '/community/context' &&
+      !personalRead(form))
   );
   const lock = () => {
     main.querySelectorAll('input, textarea, button').forEach(control => {

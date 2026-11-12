@@ -122,7 +122,7 @@ class CommunityHomeTests(unittest.TestCase):
 
     def test_sections_keep_the_same_navigation_and_mark_the_current_section(self):
         sections = ['/community', '/community/participants', '/community/attendance',
-                    '/community/school-grades', '/community/reports']
+                    '/community/school-grades', '/community/reports', '/community/alerts']
         for role, user_id in [('admin', self.admin_id), ('supervisor', self.admin_id),
                               ('user', self.user_id), ('viewer', self.viewer_id)]:
             with Session(self.engine) as db:

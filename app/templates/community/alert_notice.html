@@ -1,0 +1,6 @@
+{% extends "community/_base.html" %}
+{% block title %}Aviso · Comunidad{% endblock %}
+{% block content %}
+<section class="community-hero"><span class="community-eyebrow">Aviso de Administración</span><h1 class="cp-alert-title">{{ announcement.title }}</h1><p class="mb-0">Desde {{ announcement.starts_on.strftime('%d/%m/%Y') }}{% if announcement.ends_on %} · Hasta {{ announcement.ends_on.strftime('%d/%m/%Y') }}{% endif %}</p></section>
+<article class="card"><div class="card-body"><p class="cp-alert-message">{{ announcement.message }}</p><div class="cp-alert-actions"><a class="btn btn-outline-primary" href="/community/alerts?view=notices">Volver a Avisos</a>{% if read %}<span class="cp-alert-pill">Leído el {{ read.read_at.strftime('%d/%m/%Y') }}</span>{% else %}<form method="post" action="/community/alerts/notices/{{ announcement.announcement_id }}/read"><input type="hidden" name="token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">Marcar como leído</button></form>{% endif %}</div></div></article>
+{% endblock %}

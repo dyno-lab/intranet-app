@@ -19,6 +19,7 @@ from app.api.routes.community_fiscal import router as community_fiscal_router
 from app.api.routes.community_operations import router as community_operations_router
 from app.api.routes.community_reports import router as community_reports_router
 from app.api.routes.community_identity import router as community_identity_router
+from app.api.routes.community_alerts import router as community_alerts_router
 from app.api.routes.ui import router as ui_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.catalogs import router as catalogs_router
@@ -97,6 +98,7 @@ app.include_router(community_fiscal_router)
 app.include_router(community_operations_router)
 app.include_router(community_reports_router)
 app.include_router(community_identity_router)
+app.include_router(community_alerts_router)
 app.include_router(
     institutional_reports_router,
     dependencies=institutional_report_dependencies,
