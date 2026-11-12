@@ -14,14 +14,25 @@ class PageLinks(HTMLParser):
     def __init__(self, markup):
         super().__init__()
         self.links, self.ids = [], set()
+        self.section_menus = []
+        self.in_section_menu = False
         self.feed(markup)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if tag == 'nav' and attrs.get('aria-label') == 'Secciones de Comunidad':
+            self.section_menus.append([])
+            self.in_section_menu = True
         if tag == 'a' and 'href' in attrs:
             self.links.append(attrs['href'])
+            if self.in_section_menu:
+                self.section_menus[-1].append((attrs['href'], attrs.get('aria-current')))
         if 'id' in attrs:
             self.ids.add(attrs['id'])
+
+    def handle_endtag(self, tag):
+        if tag == 'nav':
+            self.in_section_menu = False
 
 
 class CommunityHomeTests(unittest.TestCase):
@@ -108,6 +119,36 @@ class CommunityHomeTests(unittest.TestCase):
                         self.assertIn(url.fragment, PageLinks(target.text).ids, link)
             if role == 'viewer':
                 self.assertIn('community-viewer.js', page.text)
+
+    def test_sections_keep_the_same_navigation_and_mark_the_current_section(self):
+        sections = ['/community', '/community/participants', '/community/attendance',
+                    '/community/school-grades', '/community/reports']
+        for role, user_id in [('admin', self.admin_id), ('supervisor', self.admin_id),
+                              ('user', self.user_id), ('viewer', self.viewer_id)]:
+            with Session(self.engine) as db:
+                db.get(CPUserAccess, user_id).role = role
+                db.commit()
+            self.login(user_id)
+            pages = [(path, path) for path in sections]
+            if role != 'viewer':
+                pages.append(('/community/participants/new', '/community/participants'))
+            if role in ('admin', 'supervisor'):
+                pages.append(('/community/fiscal-participants', None))
+            if role == 'admin':
+                pages.append(('/community/programs', None))
+            for path, active in pages:
+                with self.subTest(role=role, path=path):
+                    page = self.client.get(path)
+                    self.assertEqual(page.status_code, 200)
+                    parsed = PageLinks(page.text)
+                    self.assertEqual(len(parsed.section_menus), 1)
+                    self.assertEqual(parsed.section_menus[0], [
+                        (href, 'page' if href == active else None) for href in sections])
+                    self.assertEqual('/community/programs' in parsed.links, role == 'admin')
+                    self.assertEqual('/community/fiscal-participants' in parsed.links,
+                                     role in ('admin', 'supervisor'))
+                    self.assertIn('#community-main', parsed.links)
+                    self.assertIn('community-main', parsed.ids)
 
 
 if __name__ == '__main__':

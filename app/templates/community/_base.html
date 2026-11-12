@@ -7,90 +7,96 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/community.css') }}?v=20261017-intake" rel="stylesheet">
+  <link href="{{ request.url_for('static', path='css/community-shell.css') }}?v=20261112" rel="stylesheet">
   {% block page_styles %}{% endblock %}
 </head>
 <body class="ui-shell-body community-body {% block page_class %}{% endblock %}">
-{% macro navigation(admin_nav_id) %}
-  {% set current_path = request.url.path %}
-  {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart')] %}
-  {% set active = current_path == href or (href != '/community' and current_path.startswith(href + '/')) %}
-  <a class="ui-nav-link {{ 'is-active' if active }}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
-  {% endfor %}
-  {% if cp.role in ['admin', 'supervisor'] %}
-    {% set admin_links = [
-      ('/community/programs', 'Programas', ['admin']),
-      ('/community/fiscal-years', 'Años fiscales', ['admin']),
-      ('/community/fiscal-participants', 'Sincronización y períodos', ['admin', 'supervisor']),
-      ('/community/activities', 'Actividades', ['admin']),
-      ('/community/adm', 'Configuración ADM', ['admin']),
-      ('/community/catalogs', 'Catálogos y perfil', ['admin'])
-    ] %}
-    {% set admin = namespace(active=false) %}
-    {% for href, label, roles in admin_links if cp.role in roles %}
-      {% if current_path == href or current_path.startswith(href + '/') %}{% set admin.active = true %}{% endif %}
-    {% endfor %}
-    <div class="ui-sidebar__section">
-      <button class="ui-nav-link ui-nav-link--toggle {{ 'is-active' if admin.active }}" type="button" data-bs-toggle="collapse" data-bs-target="#{{ admin_nav_id }}" aria-expanded="{{ 'true' if admin.active else 'false' }}" aria-controls="{{ admin_nav_id }}">
-        <span class="ui-nav-link__group"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span></span>
-        <i class="bi bi-chevron-down ui-nav-link__chevron" aria-hidden="true"></i>
-      </button>
-      <div class="collapse {{ 'show' if admin.active }}" id="{{ admin_nav_id }}">
-        <div class="ui-subnav">
+{% set current_path = request.url.path %}
+{% set admin_links = [
+  ('/community/programs', 'Programas', ['admin']),
+  ('/community/fiscal-years', 'Años fiscales', ['admin']),
+  ('/community/fiscal-participants', 'Sincronización y períodos', ['admin', 'supervisor']),
+  ('/community/activities', 'Actividades', ['admin']),
+  ('/community/adm', 'Configuración ADM', ['admin']),
+  ('/community/catalogs', 'Catálogos y perfil', ['admin'])
+] %}
+{% set admin = namespace(active=false) %}
+{% for href, label, roles in admin_links if cp.role in roles %}
+  {% if current_path == href or current_path.startswith(href + '/') %}{% set admin.active = true %}{% endif %}
+{% endfor %}
+<a class="cp-shell-skip" href="#community-main">Ir al contenido</a>
+<header class="cp-shell-header">
+  <div class="cp-shell-masthead">
+    <a class="cp-shell-brand" href="/community" aria-label="Comunidad y Prevención · Inicio">
+      <span class="cp-shell-brand__mark"><i class="bi bi-people" aria-hidden="true"></i></span>
+      <span><strong>Comunidad</strong><small>y Prevención</small></span>
+    </a>
+    <div class="cp-shell-tools">
+      <a class="cp-shell-context" href="/community/login" title="Cambiar contexto: {{ cp.label }}">
+        <span><small>Contexto de trabajo</small><strong>{{ cp.label }}</strong></span>
+        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+      </a>
+      {% if cp.role in ['admin', 'supervisor'] %}
+      <details class="cp-shell-menu {{ 'is-active' if admin.active }}" name="community-header-menu">
+        <summary aria-label="Administración"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+        <nav class="cp-shell-menu__panel" aria-label="Administración de Comunidad">
           {% for href, label, roles in admin_links if cp.role in roles %}
           {% set active = current_path == href or current_path.startswith(href + '/') %}
-          <a class="ui-subnav-link {{ 'is-active' if active }}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
+          <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
           {% endfor %}
+        </nav>
+      </details>
+      {% endif %}
+      <details class="cp-shell-menu cp-shell-account" name="community-header-menu">
+        <summary aria-label="Cuenta de {{ current_user.username }}">
+          <span class="cp-shell-avatar" aria-hidden="true">{{ (current_user.username or 'US')[:2]|upper }}</span>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </summary>
+        <div class="cp-shell-menu__panel">
+          <div class="cp-shell-account__identity">
+            <strong>{{ current_user.username }}</strong>
+            <span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span>
+            <span>{{ cp.label }}</span>
+          </div>
+          <a href="/community/login">Seleccionar contexto</a>
+          <a href="/home">Volver al portal</a>
+          <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
         </div>
-      </div>
+      </details>
     </div>
-  {% endif %}
-{% endmacro %}
-{% macro page_messages() %}
+  </div>
+  <div class="cp-shell-nav-band">
+    <nav class="cp-shell-nav" aria-label="Secciones de Comunidad">
+      {% for href, label, icon in [('/community', 'Inicio', 'house-door'), ('/community/participants', 'Expedientes', 'folder2-open'), ('/community/attendance', 'Asistencias', 'check2-square'), ('/community/school-grades', 'Notas escolares', 'journal-check'), ('/community/reports', 'Reportes', 'bar-chart')] %}
+      {% set active = current_path == href or (href != '/community' and current_path.startswith(href + '/')) %}
+      <a href="{{ href }}"{% if active %} aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>
+<main class="cp-shell-content" id="community-main" tabindex="-1">
   {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
   {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
   {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-{% endmacro %}
-{% block layout %}
-<div class="ui-shell">
-  <aside class="ui-sidebar d-none d-lg-flex" id="desktopSidebar" aria-label="Menú de Comunidad">
-    <div class="ui-sidebar__brand"><a class="ui-brand-link" href="/community"><span class="ui-brand-mark"><i class="bi bi-people" aria-hidden="true"></i></span><span class="ui-brand-copy"><span class="ui-brand-copy__eyebrow">Centros Sor Isolina Ferré</span><strong class="ui-brand-copy__title">Comunidad y Prevención</strong></span></a></div>
-    <nav class="ui-sidebar__nav">{{ navigation('communitySidebarAdminNav') }}</nav>
-    <div class="ui-sidebar__footer"><div class="ui-user-card"><div class="ui-user-card__label">Sesión de Comunidad</div><div class="ui-user-card__name">{{ current_user.username }}</div><div class="ui-user-card__meta">{{ cp.role }}</div></div></div>
-  </aside>
-  <div class="ui-main">
-    <header class="ui-topbar">
-      <div class="ui-topbar__left">
-        <button class="btn ui-menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#communityMobileMenu" aria-controls="communityMobileMenu" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
-        <button class="btn ui-menu-toggle d-none d-lg-inline-flex" id="communityMenuToggle" type="button" aria-controls="desktopSidebar" aria-expanded="true" aria-label="Ocultar menú lateral"><i class="bi bi-layout-sidebar-inset"></i></button>
-        <a class="ui-topbar__title" href="/community">Comunidad y Prevención</a>
-      </div>
-      <div class="ui-topbar__right"><a class="btn btn-outline-primary btn-sm" href="/community/login">{{ cp.label }} <i class="bi bi-arrow-left-right" aria-hidden="true"></i></a><a class="btn btn-outline-secondary btn-sm" href="/home">Portal</a><form method="post" action="/logout"><button class="btn btn-outline-secondary btn-sm">Salir</button></form></div>
-    </header>
-    <main class="ui-content-shell"><div class="ui-page-wrap">
-      {{ page_messages() }}
-      {% block content %}{% endblock %}
-    </div></main>
-  </div>
-</div>
-<div class="offcanvas offcanvas-start community-mobile" tabindex="-1" id="communityMobileMenu" aria-labelledby="communityMobileTitle"><div class="offcanvas-header"><h2 class="h5" id="communityMobileTitle">Comunidad y Prevención</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Cerrar menú"></button></div><nav class="offcanvas-body ui-mobile-nav" aria-label="Menú móvil de Comunidad">{{ navigation('communityMobileAdminNav') }}</nav></div>
-{% endblock %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="cp-shell-footer">
+  <span>Centros Sor Isolina Ferré · Comunidad y Prevención</span>
+  <a href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (() => {
-  const toggle = document.getElementById('communityMenuToggle');
-  if (!toggle) return;
-  const sync = () => {
-    const collapsed = document.body.classList.contains('ui-sidebar-collapsed');
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral');
-  };
-  try { document.body.classList.toggle('ui-sidebar-collapsed', localStorage.getItem('community.sidebarCollapsed') === 'true'); } catch (_) {}
-  toggle.addEventListener('click', () => {
-    document.body.classList.toggle('ui-sidebar-collapsed');
-    try { localStorage.setItem('community.sidebarCollapsed', String(document.body.classList.contains('ui-sidebar-collapsed'))); } catch (_) {}
-    sync();
+  const menus = [...document.querySelectorAll('.cp-shell-menu')];
+  document.addEventListener('click', event => {
+    menus.forEach(menu => { if (!menu.contains(event.target)) menu.open = false; });
   });
-  sync();
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const focused = menus.find(menu => menu.open && menu.contains(document.activeElement));
+    menus.forEach(menu => { menu.open = false; });
+    focused?.querySelector('summary').focus();
+  });
 })();
 </script>
 {% if cp.role == 'viewer' %}<script src="{{ request.url_for('static', path='js/community-viewer.js') }}?v=20261005"></script>{% endif %}

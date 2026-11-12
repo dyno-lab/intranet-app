@@ -2,56 +2,10 @@
 {% block title %}Inicio · Comunidad y Prevención{% endblock %}
 {% block page_class %}community-home-page{% endblock %}
 {% block page_styles %}
-<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261112" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261112-contrast" rel="stylesheet">
 {% endblock %}
-{% block layout %}
-<a class="cp-home-skip" href="#community-home-main">Ir al contenido</a>
-<header class="cp-home-header">
-  <div class="cp-home-header__inner">
-    <a class="cp-home-brand" href="/community" aria-label="Comunidad y Prevención · Inicio">
-      <span class="cp-home-brand__mark"><i class="bi bi-people" aria-hidden="true"></i></span>
-      <span><strong>Comunidad</strong><small>y Prevención</small></span>
-    </a>
-    <nav class="cp-home-nav" aria-label="Secciones de Comunidad">
-      {% for href, label in [('/community', 'Inicio'), ('/community/participants', 'Expedientes'), ('/community/attendance', 'Asistencias'), ('/community/school-grades', 'Notas escolares'), ('/community/reports', 'Reportes')] %}
-      <a href="{{ href }}"{% if href == '/community' %} aria-current="page"{% endif %}>{{ label }}</a>
-      {% endfor %}
-    </nav>
-    <div class="cp-home-tools">
-      {% if cp.role in ['admin', 'supervisor'] %}
-      <details class="cp-home-menu">
-        <summary aria-label="Administración"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-        <nav class="cp-home-menu__panel" aria-label="Administración de Comunidad">
-          {% if cp.role == 'admin' %}
-          <a href="/community/programs">Programas</a>
-          <a href="/community/fiscal-years">Años fiscales</a>
-          {% endif %}
-          <a href="/community/fiscal-participants">Sincronización y períodos</a>
-          {% if cp.role == 'admin' %}
-          <a href="/community/activities">Actividades</a>
-          <a href="/community/adm">Configuración ADM</a>
-          <a href="/community/catalogs">Catálogos y perfil</a>
-          {% endif %}
-        </nav>
-      </details>
-      {% endif %}
-      <details class="cp-home-menu cp-home-account">
-        <summary aria-label="Cuenta de {{ current_user.username }}">
-          <span class="cp-home-avatar" aria-hidden="true">{{ (current_user.username or 'US')[:2]|upper }}</span>
-          <i class="bi bi-chevron-down" aria-hidden="true"></i>
-        </summary>
-        <div class="cp-home-menu__panel">
-          <div class="cp-home-account__identity"><strong>{{ current_user.username }}</strong><span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span></div>
-          <a href="/community/login">Seleccionar contexto</a>
-          <a href="/home">Volver al portal</a>
-          <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
-        </div>
-      </details>
-    </div>
-  </div>
-</header>
-<main class="cp-home" id="community-home-main">
-  {{ page_messages() }}
+{% block content %}
+<div class="cp-home">
   <section class="cp-home-welcome" aria-labelledby="community-home-title">
     <div>
       <p class="cp-home-eyebrow">Tu espacio de trabajo</p>
@@ -116,6 +70,5 @@
     </div>
     {% if cp.visible_programs %}<p class="cp-home-note">Los conteos por programa pueden incluir a una misma persona. El total de expedientes cuenta personas únicas.</p>{% endif %}
   </section>
-  <footer class="cp-home-footer"><span>Centros Sor Isolina Ferré · Comunidad y Prevención</span><a class="cp-home-text-link" href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></footer>
-</main>
+</div>
 {% endblock %}

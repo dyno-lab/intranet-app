@@ -40,7 +40,9 @@ El total cuenta personas únicas en el contexto seleccionado. El desglose por
 programa muestra solo programas activos autorizados; una misma persona puede
 figurar en varios programas. El selector usa el cambio de contexto existente
 con protección CSRF. La creación de expedientes y la administración se muestran
-según el rol. Las demás pantallas conservan su navegación actual.
+según el rol. Todas las pantallas de trabajo comparten la misma cabecera y
+navegación horizontal, con la sección actual resaltada. El fondo verde grisáceo
+y las tarjetas blancas delimitan las áreas de trabajo en computadora y móvil.
 
 No requiere cambios de esquema ni incorpora el sistema de alertas. Pruebas
 aisladas de accesos, conteos y permisos:
