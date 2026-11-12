@@ -1,8 +1,121 @@
 {% extends "community/_base.html" %}
-{% block content %}
-<section class="community-hero"><span class="community-eyebrow">{{ cp.label }}</span><h1>Comunidad y Prevención</h1><p class="mb-0">Gestione los expedientes y la participación en sus programas.</p></section>
-<div class="row g-3">
-  <div class="col-md-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Expedientes registrados</h2><p class="display-6">{{ participant_count }}</p><p class="text-muted">Expedientes disponibles en el contexto seleccionado.</p><a class="btn btn-primary" href="/community/participants">Ver expedientes</a></div></div></div>
-  <div class="col-md-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Programas disponibles</h2><p class="display-6">{{ cp.visible_programs|length }}</p>{% if cp.role == 'admin' %}<a class="btn btn-outline-primary" href="/community/programs">Ver programas</a>{% else %}<a class="btn btn-outline-primary" href="/community/login">Seleccionar programa</a>{% endif %}</div></div></div>
-</div>
+{% block title %}Inicio · Comunidad y Prevención{% endblock %}
+{% block page_class %}community-home-page{% endblock %}
+{% block page_styles %}
+<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261112" rel="stylesheet">
+{% endblock %}
+{% block layout %}
+<a class="cp-home-skip" href="#community-home-main">Ir al contenido</a>
+<header class="cp-home-header">
+  <div class="cp-home-header__inner">
+    <a class="cp-home-brand" href="/community" aria-label="Comunidad y Prevención · Inicio">
+      <span class="cp-home-brand__mark"><i class="bi bi-people" aria-hidden="true"></i></span>
+      <span><strong>Comunidad</strong><small>y Prevención</small></span>
+    </a>
+    <nav class="cp-home-nav" aria-label="Secciones de Comunidad">
+      {% for href, label in [('/community', 'Inicio'), ('/community/participants', 'Expedientes'), ('/community/attendance', 'Asistencias'), ('/community/school-grades', 'Notas escolares'), ('/community/reports', 'Reportes')] %}
+      <a href="{{ href }}"{% if href == '/community' %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="cp-home-tools">
+      {% if cp.role in ['admin', 'supervisor'] %}
+      <details class="cp-home-menu">
+        <summary aria-label="Administración"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Administración</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+        <nav class="cp-home-menu__panel" aria-label="Administración de Comunidad">
+          {% if cp.role == 'admin' %}
+          <a href="/community/programs">Programas</a>
+          <a href="/community/fiscal-years">Años fiscales</a>
+          {% endif %}
+          <a href="/community/fiscal-participants">Sincronización y períodos</a>
+          {% if cp.role == 'admin' %}
+          <a href="/community/activities">Actividades</a>
+          <a href="/community/adm">Configuración ADM</a>
+          <a href="/community/catalogs">Catálogos y perfil</a>
+          {% endif %}
+        </nav>
+      </details>
+      {% endif %}
+      <details class="cp-home-menu cp-home-account">
+        <summary aria-label="Cuenta de {{ current_user.username }}">
+          <span class="cp-home-avatar" aria-hidden="true">{{ (current_user.username or 'US')[:2]|upper }}</span>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </summary>
+        <div class="cp-home-menu__panel">
+          <div class="cp-home-account__identity"><strong>{{ current_user.username }}</strong><span>{{ {'admin': 'Administrador', 'supervisor': 'Supervisor', 'user': 'Usuario', 'viewer': 'Vista de revisión'}[cp.role] }}</span></div>
+          <a href="/community/login">Seleccionar contexto</a>
+          <a href="/home">Volver al portal</a>
+          <form action="/logout" method="post"><button type="submit">Cerrar sesión</button></form>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<main class="cp-home" id="community-home-main">
+  {{ page_messages() }}
+  <section class="cp-home-welcome" aria-labelledby="community-home-title">
+    <div>
+      <p class="cp-home-eyebrow">Tu espacio de trabajo</p>
+      <h1 id="community-home-title">Todo empieza<br>con tu <span>comunidad.</span></h1>
+      <p class="cp-home-lead">Personas, participación y seguimiento. En un mismo lugar.</p>
+    </div>
+    <form class="cp-home-context" action="/community/context" method="post">
+      <input type="hidden" name="token" value="{{ csrf_token }}">
+      <label for="home-program">Programa de trabajo</label>
+      <div class="cp-home-context__controls">
+        <select id="home-program" name="program">
+          <option value="all" {{ 'selected' if cp.selected_program_id is none }}>Todos {{ 'mis' if cp.role == 'user' else 'los' }} programas</option>
+          {% for program in cp.programs %}<option value="{{ program.program_id }}" {{ 'selected' if cp.selected_program_id == program.program_id }}>{{ program.code }} · {{ program.name }}</option>{% endfor %}
+        </select>
+        <button type="submit">Aplicar</button>
+      </div>
+    </form>
+  </section>
+  <div class="cp-home-work">
+    <section class="cp-home-feature" aria-labelledby="home-records-title">
+      <div class="cp-home-feature__heading"><h2 id="home-records-title">Expedientes</h2><i class="bi bi-folder2-open" aria-hidden="true"></i></div>
+      <div class="cp-home-feature__count"><strong>{{ participant_count }}</strong><span>{{ 'persona registrada' if participant_count == 1 else 'personas registradas' }} en el contexto</span></div>
+      <div class="cp-home-feature__actions">
+        {% if cp.role != 'viewer' %}
+        <a class="cp-home-primary" href="/community/participants/new#participant-register-card"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nuevo expediente</a>
+        <a class="cp-home-feature__link" href="/community/participants#participants-table-card">Ver todos<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+        {% else %}
+        <a class="cp-home-primary" href="/community/participants#participants-table-card">Ver expedientes<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+        {% endif %}
+      </div>
+    </section>
+    <section class="cp-home-services" aria-label="Áreas de trabajo">
+      {% for href, title, description, icon in [
+        ('/community/attendance', 'Asistencias', 'Registra cada participación.', 'clipboard-check'),
+        ('/community/school-grades', 'Notas escolares', 'Acompaña el progreso académico.', 'journal-text'),
+        ('/community/reports', 'Reportes', 'Consulta los resultados de tu trabajo.', 'bar-chart')
+      ] %}
+      <a class="cp-home-service" href="{{ href }}">
+        <span class="cp-home-service__icon"><i class="bi bi-{{ icon }}" aria-hidden="true"></i></span>
+        <div><h2>{{ title }}</h2><p>{{ description }}</p></div>
+        <i class="bi bi-arrow-up-right cp-home-service__arrow" aria-hidden="true"></i>
+      </a>
+      {% endfor %}
+    </section>
+  </div>
+  <section class="cp-home-programs" aria-labelledby="home-programs-title">
+    <div class="cp-home-section-heading">
+      <h2 id="home-programs-title">Tus programas</h2>
+      {% if cp.role == 'admin' %}<a class="cp-home-text-link" href="/community/programs">Administrar<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>{% endif %}
+    </div>
+    <div class="cp-home-program-grid">
+      {% for program in cp.visible_programs %}
+      {% set count = program_counts.get(program.program_id, 0) %}
+      <a class="cp-home-program" href="/community/participants?program_id={{ program.program_id }}#participants-table-card">
+        <div class="cp-home-program__heading"><h3>{{ program.code }}</h3><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div>
+        <p class="cp-home-program__name">{{ program.name }}</p>
+        <p class="cp-home-program__count"><strong>{{ count }}</strong><span>{{ 'expediente' if count == 1 else 'expedientes' }}</span></p>
+      </a>
+      {% else %}
+      <p class="cp-home-empty">No hay programas activos disponibles.</p>
+      {% endfor %}
+    </div>
+    {% if cp.visible_programs %}<p class="cp-home-note">Los conteos por programa pueden incluir a una misma persona. El total de expedientes cuenta personas únicas.</p>{% endif %}
+  </section>
+  <footer class="cp-home-footer"><span>Centros Sor Isolina Ferré · Comunidad y Prevención</span><a class="cp-home-text-link" href="/home">Volver al portal<i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></footer>
+</main>
 {% endblock %}

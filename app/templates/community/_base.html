@@ -45,6 +45,12 @@
     </div>
   {% endif %}
 {% endmacro %}
+{% macro page_messages() %}
+  {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
+  {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
+  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% endmacro %}
+{% block layout %}
 <div class="ui-shell">
   <aside class="ui-sidebar d-none d-lg-flex" id="desktopSidebar" aria-label="Menú de Comunidad">
     <div class="ui-sidebar__brand"><a class="ui-brand-link" href="/community"><span class="ui-brand-mark"><i class="bi bi-people" aria-hidden="true"></i></span><span class="ui-brand-copy"><span class="ui-brand-copy__eyebrow">Centros Sor Isolina Ferré</span><strong class="ui-brand-copy__title">Comunidad y Prevención</strong></span></a></div>
@@ -61,18 +67,18 @@
       <div class="ui-topbar__right"><a class="btn btn-outline-primary btn-sm" href="/community/login">{{ cp.label }} <i class="bi bi-arrow-left-right" aria-hidden="true"></i></a><a class="btn btn-outline-secondary btn-sm" href="/home">Portal</a><form method="post" action="/logout"><button class="btn btn-outline-secondary btn-sm">Salir</button></form></div>
     </header>
     <main class="ui-content-shell"><div class="ui-page-wrap">
-      {% if cp.role == 'viewer' %}<div class="alert alert-info py-2 mb-3" role="status"><strong>Viewer · Vista de revisión.</strong> Puede recorrer las pantallas y explorar los desplegables. Los campos de texto, el guardado y la generación o descarga de reportes están bloqueados.</div>{% endif %}
-      {% if message %}<div class="alert alert-success" role="status">{{ message }}</div>{% endif %}
-      {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+      {{ page_messages() }}
       {% block content %}{% endblock %}
     </div></main>
   </div>
 </div>
 <div class="offcanvas offcanvas-start community-mobile" tabindex="-1" id="communityMobileMenu" aria-labelledby="communityMobileTitle"><div class="offcanvas-header"><h2 class="h5" id="communityMobileTitle">Comunidad y Prevención</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Cerrar menú"></button></div><nav class="offcanvas-body ui-mobile-nav" aria-label="Menú móvil de Comunidad">{{ navigation('communityMobileAdminNav') }}</nav></div>
+{% endblock %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (() => {
   const toggle = document.getElementById('communityMenuToggle');
+  if (!toggle) return;
   const sync = () => {
     const collapsed = document.body.classList.contains('ui-sidebar-collapsed');
     toggle.setAttribute('aria-expanded', String(!collapsed));

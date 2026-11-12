@@ -113,7 +113,12 @@ def choose_context(request: Request, program: str = Form(...), token: str = Form
 def home(request: Request, db: Session = Depends(get_db),
          context: CommunityContext = Depends(require_community_context)):
     count = db.scalar(select(func.count()).select_from(_participant_query(context).subquery())) or 0
-    return _render(request, "home", context, participant_count=count)
+    program_counts = dict(db.execute(select(
+        CPParticipantProgram.program_id, func.count(CPParticipantProgram.participant_id)
+    ).where(CPParticipantProgram.program_id.in_(context.visible_program_ids)).group_by(
+        CPParticipantProgram.program_id
+    )).all())
+    return _render(request, "home", context, participant_count=count, program_counts=program_counts)
 
 
 @router.get("/programs")

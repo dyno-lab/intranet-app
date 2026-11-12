@@ -30,6 +30,25 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+## Inicio de Comunidad
+
+`/community` usa el diseño **Portal abierto** con navegación horizontal,
+accesos a Expedientes, Asistencias, Notas escolares y Reportes, y adaptación
+a computadora y móvil. Conserva los verdes institucionales de Comunidad.
+
+El total cuenta personas únicas en el contexto seleccionado. El desglose por
+programa muestra solo programas activos autorizados; una misma persona puede
+figurar en varios programas. El selector usa el cambio de contexto existente
+con protección CSRF. La creación de expedientes y la administración se muestran
+según el rol. Las demás pantallas conservan su navegación actual.
+
+No requiere cambios de esquema ni incorpora el sistema de alertas. Pruebas
+aisladas de accesos, conteos y permisos:
+
+```powershell
+python -B -m unittest tests.test_community_home tests.test_community_routes tests.test_community_viewer tests.test_community_settings_guard
+```
+
 ## Filtros opcionales de FARO
 
 Los filtros numéricos opcionales de las pantallas y descargas de FARO usan
