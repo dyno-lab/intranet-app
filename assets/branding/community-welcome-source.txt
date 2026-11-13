@@ -1,0 +1,9 @@
+Community home photograph
+Asset: app/static/img/community-welcome.webp
+Created: 2026-11-13
+Method: built-in ImageGen, using the approved Community desktop mockup as reference.
+Delivery: WebP, 1536 x 1024, quality 86. No visual edits after generation.
+The interface identifies this synthetic scene as "Imagen referencial".
+
+Generation prompt:
+Use case: photorealistic-natural. Create a finished website photograph asset ONLY, not a UI mockup. Input image 1 is a visual reference: recreate the warm documentary photograph shown in the upper right of the Comunidad web page as a standalone full-bleed landscape photograph. Do NOT reproduce any of the surrounding interface, text, sidebar, logo, buttons or graphic design. An approachable Puerto Rican community services employee, adult woman about 35 with curly dark hair tied back, simple glasses and a dark forest green polo with no logo, seated at a light wooden desk reviewing a paper form with two adults, a middle-aged man in a dark casual shirt and a middle-aged woman in a light botanical blouse. Three natural friendly faces, candid engagement, hands holding plain forms without legible personal information. Bright airy Puerto Rican community center, louvered windows, natural daylight, green plants, a small subtly out-of-focus Puerto Rican flag in the background. Dignified and credible, no theatrical posing, no corporate stock-photo handshake. Editorial documentary style, natural skin texture, accurate hands, sophisticated soft daylight. Medium wide landscape framing, all three faces within the central 75 percent of the frame, enough space above heads and around subjects for a responsive web hero crop. 3:2 or 16:10 composition, high resolution. Restrained forest green, warm neutral cream, daylight whites. No text, no captions, no watermark, no logos, no extra foreground people. This will be labeled as a referential illustration in the application.

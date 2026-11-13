@@ -1,13 +1,18 @@
 {% extends "community/_base.html" %}
 {% block title %}Editar participante · Comunidad{% endblock %}
+{% block page_class %}community-participants-page{% endblock %}
+{% block page_styles %}
+<link href="{{ request.url_for('static', path='css/community-participants.css') }}?v=20261017-intake" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-registration.css') }}?v=20261113-attendance" rel="stylesheet">
+{% endblock %}
 {% block content %}
-<div class="participants-page">
-  <section class="participants-hero">
-    <div class="participants-hero__content">
-      <span class="participants-hero__eyebrow">Expedientes de Comunidad</span>
-      <h1 class="participants-hero__title">Editar datos personales</h1>
-      <p class="participants-hero__lead">{{ participant.expediente_num }}</p>
-      <div class="participants-hero__actions"><a class="btn btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a><a class="btn btn-outline-primary" href="/community/participants/{{ participant.participant_id }}#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a></div>
+<div class="participants-page participants-registration">
+  <section class="attendance-hero cp-registration-hero">
+    <div class="attendance-hero__content">
+      <span class="attendance-hero__eyebrow">Expedientes de Comunidad</span>
+      <h1 class="attendance-hero__title">Editar datos personales</h1>
+      <p class="attendance-hero__lead">{{ participant.expediente_num }}</p>
+      <div class="attendance-hero__actions"><a class="btn btn-outline-secondary" href="/community/participants/{{ participant.participant_id }}">Volver al expediente</a><a class="btn btn-outline-primary" href="/community/participants/{{ participant.participant_id }}#anadir-programa"><i class="bi bi-plus-circle" aria-hidden="true"></i> Añadir programa</a></div>
     </div>
   </section>
   {% include "community/_participant_form.html" %}

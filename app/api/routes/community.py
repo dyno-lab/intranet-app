@@ -118,7 +118,11 @@ def home(request: Request, db: Session = Depends(get_db),
     ).where(CPParticipantProgram.program_id.in_(context.visible_program_ids)).group_by(
         CPParticipantProgram.program_id
     )).all())
-    return _render(request, "home", context, participant_count=count, program_counts=program_counts)
+    recent_participants = db.scalars(_participant_query(context).order_by(
+        CPParticipant.created_at.desc(), CPParticipant.participant_id.desc()).limit(5)).all()
+    recent_programs = program_links(db, context, [p.participant_id for p in recent_participants])
+    return _render(request, "home", context, participant_count=count, program_counts=program_counts,
+                   recent_participants=recent_participants, recent_programs=recent_programs)
 
 
 @router.get("/programs")

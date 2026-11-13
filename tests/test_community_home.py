@@ -95,6 +95,41 @@ class CommunityHomeTests(unittest.TestCase):
         for program_id in [self.voca_id, self.tanf_id, self.icp_id]:
             self.assertIn(f'/community/participants?program_id={program_id}#participants-table-card', PageLinks(page.text).links)
 
+    def test_recent_records_are_limited_and_follow_the_selected_program(self):
+        with Session(self.engine) as db:
+            for index in range(7):
+                create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
+                    program_ids=[self.voca_id], fields={'fecha_solicitud': '2024-01-15',
+                        'procedencia_solicitud': 'Referido', 'nombre': f'Reciente {index}',
+                        'apellido_paterno': 'Prueba', 'genero': 'F'})
+            db.commit()
+        self.login(self.user_id)
+        page = self.client.get('/community')
+        self.assertEqual([p.nombre for p in page.context['recent_participants']],
+                         [f'Reciente {index}' for index in range(6, 1, -1)])
+        self.assertEqual(page.context['participant_count'], 7)
+        self.login(self.user_id, program=self.tanf_id)
+        selected = self.client.get('/community')
+        self.assertEqual(selected.context['recent_participants'], [])
+        self.assertNotIn('Reciente 6', selected.text)
+
+    def test_recent_record_program_labels_do_not_expose_unassigned_programs(self):
+        self.seed()
+        with Session(self.engine) as db:
+            person = create_participant(db, actor_user_id=self.admin_id, exp_year=2026,
+                program_ids=[self.voca_id, self.icp_id], fields={'fecha_solicitud': '2024-01-15',
+                    'procedencia_solicitud': 'Autoreferido', 'nombre': 'Compartida segura',
+                    'apellido_paterno': 'Prueba', 'genero': 'F'})
+            db.commit()
+            participant_id = person.participant_id
+        self.login(self.user_id)
+        page = self.client.get('/community')
+        names = {p.nombre for p in page.context['recent_participants']}
+        self.assertEqual(names, {'Compartida', 'VOCA', 'Compartida segura'})
+        self.assertEqual([p['code'] for p in page.context['recent_programs'][participant_id]], ['VOCA'])
+        self.assertNotIn('Programa ICP', page.text)
+        self.assertNotIn('Programa inactivo', page.text)
+
     def test_visible_links_and_fragment_targets_resolve_for_every_role(self):
         for role, user_id in [('admin', self.admin_id), ('supervisor', self.admin_id),
                               ('user', self.user_id), ('viewer', self.viewer_id)]:

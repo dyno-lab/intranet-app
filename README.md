@@ -32,9 +32,12 @@ uvicorn app.main:app --reload
 
 ## Inicio de Comunidad
 
-`/community` usa el diseño **Portal abierto** con navegación lateral izquierda,
-accesos a Expedientes, Asistencias, Notas escolares y Reportes, y adaptación
-a computadora y móvil. Conserva los verdes institucionales de Comunidad.
+`/community` presenta una cabecera con imagen referencial de atención comunitaria,
+navegación lateral izquierda, accesos a Expedientes, Asistencias, Notas escolares
+y Reportes, búsqueda y los cinco expedientes más recientes de los programas
+autorizados. Conserva los verdes institucionales y se adapta a computadora y móvil.
+La imagen optimizada está en `app/static/img/community-welcome.webp`; su origen y
+prompt constan en `assets/branding/community-welcome-source.txt`.
 
 El total cuenta personas únicas en el contexto seleccionado. El desglose por
 programa muestra solo programas activos autorizados; una misma persona puede
@@ -45,7 +48,11 @@ navegación lateral izquierda, con la sección actual resaltada. En móvil, el m
 se abre desde la izquierda mediante el botón de la cabecera. El fondo verde grisáceo
 y las tarjetas blancas delimitan las áreas de trabajo en computadora y móvil.
 
-No requiere cambios de esquema ni incorpora el sistema de alertas. Pruebas
+Registro y edición de participantes reutilizan el estilo de Asistencias: cabecera
+con resumen, bloques separados y campos blancos sobre secciones verde suave.
+Los pendientes de sincronización se distinguen en amarillo. Se conservan los
+campos, validaciones, numeración y permisos del formulario. Estos cambios visuales
+no requieren migraciones ni alteran el sistema de alertas existente. Pruebas
 aisladas de accesos, conteos y permisos:
 
 ```powershell
