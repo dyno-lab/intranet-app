@@ -1,4 +1,4 @@
-/* Registration and editing use the same operational composition as Attendance. */
+/* Attendance contrast with the form dimensions and Bootstrap columns of Faro /ui/new-list. */
 .community-participants-page .participants-registration {
   --registration-line: #c8dcd0;
   --registration-muted: #52675b;
@@ -24,7 +24,7 @@
 .community-participants-page .participants-summary-card--pending .attendance-hero-card__value { color: var(--registration-warning-ink); }
 .community-participants-page .participants-registration .participants-breakdown-card,
 .community-participants-page .participants-registration .participants-form-card { background: #fff; border-radius: 14px; }
-.community-participants-page .participants-registration .participants-form-card > .card-body { padding: 1.15rem; }
+.community-participants-page .participants-registration .participants-form-card > .card-body { padding: 1rem 1.05rem; }
 .community-participants-page .participants-registration .participants-breakdown-card > .card-body { padding: 1rem 1.05rem; }
 .community-participants-page .participants-registration .participants-breakdown-table { --bs-table-border-color: var(--registration-line); font-size: .875rem; }
 .community-participants-page .participants-registration .participants-breakdown-table th,
@@ -35,104 +35,83 @@
 .participants-sync-count { display: inline-block; min-width: 1.6rem; text-align: center; }
 .participants-sync-count--pending { padding: .1rem .4rem; border: 1px solid #e1b72d; border-radius: 5px; background: #fff3c4; color: #674b00; font-weight: 700; }
 
-.community-participants-page .participants-registration .community-registration-lookup { margin: 0 0 1rem; }
+.community-participants-page .participants-registration .community-registration-lookup { margin: 0 0 .75rem; }
 .community-participants-page .participants-registration .community-registration-lookup a {
   display: inline-flex;
   align-items: center;
   gap: .5rem;
-  min-height: 44px;
   color: var(--cp-green);
   font-size: .875rem;
   text-underline-offset: .2em;
 }
 .community-participants-page .participants-registration .community-registration-lookup .bi { flex: none; }
 .community-participants-page .participants-registration .participants-form-section {
-  gap: 1rem;
-  padding: 1rem;
+  gap: .75rem;
+  padding: .9rem 1rem;
   border: 1px solid #c8dcd0;
   border-radius: 12px;
   background: #f0f7f2;
 }
 .community-participants-page .participants-registration .participants-form-section__header {
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: flex-start;
-  gap: .3rem;
+  gap: .7rem;
 }
 .community-participants-page .participants-registration .participants-form-section__title {
   color: var(--cp-deep);
-  font-size: 1.125rem;
-  line-height: 1.35;
-  letter-spacing: -.02em;
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: normal;
 }
-.community-participants-page .participants-registration .participants-form-section__text,
-.community-participants-page .participants-registration .form-text { color: var(--registration-muted); font-size: .8125rem; line-height: 1.45; }
-.community-participants-page .participants-registration .row { --bs-gutter-y: 1rem; --bs-gutter-x: 1.25rem; }
+.community-participants-page .participants-registration .participants-form-section__text { color: var(--registration-muted); font-size: 1rem; line-height: 1.5; }
+.community-participants-page .participants-registration .form-text { color: var(--registration-muted); margin-top: .18rem; font-size: .78rem; line-height: 1.5; }
+.community-participants-page .participants-registration .row { --bs-gutter-y: .5rem; --bs-gutter-x: .5rem; }
 .community-participants-page .participants-registration .row > * { min-width: 0; }
-.community-participants-page .participants-registration .form-label { margin-bottom: .4rem; color: var(--cp-deep); font-size: .875rem; font-weight: 600; line-height: 1.4; }
+.community-participants-page .participants-registration .form-label { margin-bottom: .3rem; color: var(--cp-deep); font-size: .92rem; font-weight: 400; line-height: 1.5; }
 .community-participants-page .participants-registration .form-control,
 .community-participants-page .participants-registration .form-select {
   min-width: 0;
   max-width: 100%;
-  min-height: 44px;
-  padding: .55rem .75rem;
+  min-height: 2.45rem;
+  padding: .42rem .75rem;
   border-color: #b8ccc0;
   border-radius: 6px;
   background-color: #fff;
   color: #172c21;
-  font-size: .9375rem;
-  line-height: 1.45;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 .community-participants-page .participants-registration .form-select { padding-right: 2.25rem; }
 .community-participants-page .participants-registration .form-control::placeholder { color: #64736a; opacity: 1; }
 .community-participants-page .participants-registration .form-control[readonly] { background-color: #edf1ee; border-color: #edf1ee; color: #52675b; }
-.community-participants-page .participants-registration .form-check { display: flex; align-items: center; gap: .65rem; min-height: 44px; padding-left: 0; }
-.community-participants-page .participants-registration .form-check-input { float: none; flex: none; width: 1.125rem; height: 1.125rem; margin: 0; border-color: #8b9f93; }
-.community-participants-page .participants-registration .form-check-label { font-size: .875rem; line-height: 1.4; }
+.community-participants-page .participants-registration .form-check { display: flex; align-items: center; gap: .5rem; min-height: 1.5rem; margin-top: .5rem; padding-left: 0; }
+.community-participants-page .participants-registration .form-check-input { float: none; flex: none; width: 1rem; height: 1rem; margin: 0; border-color: #8b9f93; }
+.community-participants-page .participants-registration .form-check-label { font-size: 1rem; line-height: 1.5; }
 .community-participants-page .participants-registration .community-required { color: #b42318; }
 .community-participants-page .participants-registration .community-optional { display: inline-block; margin-left: .5rem; padding: .15rem .55rem; border-radius: 20px; background: var(--cp-mint); color: var(--cp-green); font-size: .7rem; font-weight: 600; letter-spacing: 0; vertical-align: middle; }
-.community-participants-page .participants-registration .community-record-grid,
-.community-participants-page .participants-registration .community-intake-grid,
-.community-participants-page .participants-registration .community-personal-grid,
-.community-participants-page .participants-registration .community-program-grid,
-.community-participants-page .participants-registration .community-emergency-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.25rem; margin: 0; }
-.community-participants-page .participants-registration :is(.community-record-grid, .community-intake-grid, .community-personal-grid, .community-program-grid, .community-emergency-grid) > * { width: auto; max-width: none; margin: 0; padding: 0; }
-.community-participants-page .participants-registration .participant-field--direccion_fisica { grid-column: 1 / -1; }
-.community-participants-page .participants-registration .community-program-choice { min-height: 64px; padding: .75rem; border-radius: 8px; font-size: .875rem; cursor: pointer; }
+/* Keep the existing col-md/lg/xl widths: the same twelve-column form grid as Faro. */
+.community-participants-page .participants-registration .participants-form-section--record .participants-form-section__header { flex-direction: column; gap: .3rem; }
+.community-participants-page #participant-register-card,
+.community-participants-page #participants-table-card { scroll-margin-top: 0; }
+.community-participants-page .participants-registration .community-program-choice { min-height: 44px; padding: .45rem .6rem; border-radius: 8px; font-size: .875rem; cursor: pointer; }
 .community-participants-page .participants-registration .community-program-choice:has(input:focus-visible) { outline: 3px solid #348964; outline-offset: 3px; }
-.community-participants-page .participants-registration .community-registration-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--registration-line); }
+.community-participants-page .participants-registration .community-registration-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; border-top: 1px solid var(--registration-line); }
 .community-participants-page .participants-registration .community-required-note { margin: 0; color: var(--registration-muted); font-size: .8125rem; }
-.community-participants-page .participants-registration .participants-submit-btn { min-height: 44px; padding: .65rem 1.25rem; border-radius: 7px; background: var(--cp-green); border-color: var(--cp-green); font-size: .9375rem; font-weight: 650; }
+.community-participants-page .participants-registration .participants-submit-btn { min-height: 2.45rem; padding: .375rem .75rem; border-radius: 7px; background: var(--cp-green); border-color: var(--cp-green); font-size: .9375rem; font-weight: 650; }
 .community-participants-page .participants-registration .participants-submit-btn:hover { background: #0b4d32; border-color: #0b4d32; }
 
-@media (min-width: 768px) {
-  .community-participants-page .participants-registration .community-record-grid,
-  .community-participants-page .participants-registration .community-emergency-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 991.98px) {
+  .community-participants-page .cp-shell-content { padding: 1rem; }
 }
-@media (min-width: 1200px) {
-  .community-participants-page .participants-registration .community-personal-grid { grid-template-columns: repeat(20, minmax(0, 1fr)); }
-  .community-participants-page .participants-registration .community-personal-grid > * { grid-column: span 5; }
-  .community-participants-page .participants-registration :is(.participant-field--inicial, .participant-field--age) { grid-column: span 2; }
-  .community-participants-page .participants-registration .participant-field--genero { grid-column: span 3; }
-  .community-participants-page .participants-registration .participant-field--primera_vez { grid-column: span 6; }
-  .community-participants-page .participants-registration .participant-field--escolaridad_participante { grid-column: span 7; }
-  .community-participants-page .participants-registration :is(.participant-field--composicion_familiar, .participant-field--grupo_familiar, .participant-field--pueblo, .participant-field--estatus) { grid-column: span 6; }
-  .community-participants-page .participants-registration :is(.participant-field--fuente_ingreso_principal, .participant-field--household) { grid-column: span 8; }
-  .community-participants-page .participants-registration :is(.participant-field--rango_ingreso, .participant-field--relacion_familiar) { grid-column: span 10; }
-  .community-participants-page .participants-registration .participant-field--direccion_fisica { grid-column: 1 / -1; }
-}
-
 @media (max-width: 767.98px) {
-  .community-participants-page .cp-shell-content { padding: 20px 12px; }
   .community-participants-page .cp-registration-hero .attendance-hero__summary { grid-template-columns: minmax(0, 1fr); }
-  .community-participants-page .participants-registration .form-control,
-  .community-participants-page .participants-registration .form-select { font-size: 1rem; }
   .community-participants-page .participants-registration .participants-breakdown-table th,
   .community-participants-page .participants-registration .participants-breakdown-table td { padding: .45rem .35rem; font-size: .75rem; }
 }
 @media (max-width: 575.98px) {
-  .community-participants-page .participants-registration .participants-form-card > .card-body { padding: .75rem; }
-  .community-participants-page .participants-registration .participants-form-section { padding: .85rem; }
-  .community-participants-page .participants-registration :is(.community-record-grid, .community-intake-grid, .community-personal-grid, .community-program-grid, .community-emergency-grid) { grid-template-columns: minmax(0, 1fr); }
+  .community-participants-page .participants-registration .participants-form-card > .card-body { padding: 1rem; }
+  .community-participants-page .participants-registration .participants-form-section { padding: 1rem; }
   .community-participants-page .participants-registration .community-registration-actions { align-items: stretch; flex-direction: column; }
   .community-participants-page .participants-registration .participants-submit-btn { width: 100%; }
 }
