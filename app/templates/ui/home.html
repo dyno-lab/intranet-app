@@ -2,6 +2,7 @@
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
+<link href="/static/css/faro-home-slideshow.css?v=20261113" rel="stylesheet">
 <section class="home-dashboard">
   <div class="home-hero">
     <div class="home-hero__content">
@@ -28,15 +29,45 @@
     </div>
 
     <div class="home-hero__brand">
-      <div class="home-logo-card home-logo-card--hero">
+      <div class="home-logo-card home-logo-card--hero faro-home-slideshow" data-faro-home-slideshow role="region" aria-roledescription="carrusel" aria-label="Fotos del Programa Faro de Esperanza">
+        {# Keep the original content's responsive dimensions so only this card changes. #}
         <img
           src="/static/img/logo-faro-esperanza.png"
           alt="Logo Programa Faro de Esperanza"
           class="home-logo-card__image"
+          aria-hidden="true"
         >
-        <div class="home-logo-card__copy">
+        <div class="home-logo-card__copy" aria-hidden="true">
           <h2 class="home-logo-card__title">Programa Faro de Esperanza</h2>
           <p class="home-logo-card__text">Módulo centralizado de participantes, asistencias, informes y reportes estadísticos</p>
+        </div>
+        <div class="faro-home-slideshow__surface">
+          <div class="faro-home-slideshow__frame" id="faro-home-photos">
+            <div class="faro-home-slideshow__backdrop" aria-hidden="true"></div>
+            {% for filename, description, width, height in [
+              ('01-dibujo.webp', 'Actividad de dibujo en grupo', 601, 436),
+              ('02-apoyo-escolar.webp', 'Acompañamiento en tareas en una mesa', 750, 536),
+              ('03-recreacion.webp', 'Actividad recreativa al aire libre', 699, 422),
+              ('04-taller-grupal.webp', 'Taller grupal en un salón', 927, 588),
+              ('05-participantes.webp', 'Fotografía de un grupo de participantes', 653, 475),
+              ('06-cancha.webp', 'Fotografía de un grupo en una cancha', 881, 770),
+              ('07-actividad-grupal.webp', 'Actividad grupal con materiales en una mesa', 650, 518),
+              ('08-encuentro.webp', 'Encuentro con mesas informativas en un salón', 1076, 606),
+              ('09-taller.webp', 'Taller con una presentación en pantalla', 807, 488)
+            ] %}
+            <img class="faro-home-slideshow__photo" src="/static/img/faro-home/{{ filename }}" width="{{ width }}" height="{{ height }}" alt="Foto {{ loop.index }} de {{ loop.length }}: {{ description }}" decoding="async" {% if loop.first %}fetchpriority="high"{% else %}hidden{% endif %}>
+            {% endfor %}
+          </div>
+          <div class="faro-home-slideshow__footer">
+            <span class="faro-home-slideshow__name">Faro de Esperanza</span>
+            <span class="faro-home-slideshow__controls" hidden>
+              <span class="faro-home-slideshow__count" data-slideshow-count>1 / 9</span>
+              <button class="faro-home-slideshow__button" type="button" data-slideshow-previous aria-label="Foto anterior" aria-controls="faro-home-photos"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+              <button class="faro-home-slideshow__button" type="button" data-slideshow-toggle aria-label="Pausar presentación" aria-pressed="false" aria-controls="faro-home-photos"><i class="bi bi-pause-fill" aria-hidden="true"></i></button>
+              <button class="faro-home-slideshow__button" type="button" data-slideshow-next aria-label="Foto siguiente" aria-controls="faro-home-photos"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+            </span>
+          </div>
+          <span class="visually-hidden" data-slideshow-announcement aria-live="polite" aria-atomic="true"></span>
         </div>
       </div>
     </div>
@@ -235,4 +266,5 @@
 
   <p class="home-footer-note">Derechos reservados Christian X. Ramirez</p>
 </section>
+<script src="/static/js/faro-home-slideshow.js?v=20261113" defer></script>
 {% endblock %}
