@@ -3,10 +3,14 @@
 {% import "shared/_participant_identity.html" as identity %}
 {% block title %}Participantes · Comunidad{% endblock %}
 {% block page_class %}community-participants-page{% endblock %}
-{% block page_styles %}<link href="{{ request.url_for('static', path='css/community-participants.css') }}?v=20261017-intake" rel="stylesheet">{% endblock %}
+{% block page_styles %}
+<link href="{{ request.url_for('static', path='css/community-participants.css') }}?v=20261017-intake" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-registration.css') }}?v=20261113-registration" rel="stylesheet">
+{% endblock %}
 {% block content %}
 {{ identity.assets() }}
 <div class="participants-page">
+  <div class="participants-registration">
   <section class="participants-hero">
     <div class="participants-hero__content">
       <span class="participants-hero__eyebrow">Módulo operativo</span>
@@ -19,21 +23,24 @@
   </section>
   <section class="participants-section participants-section--compact participants-registration-summary" aria-labelledby="registration-summary-title">
     <div class="participants-section__header"><h2 class="participants-section__title" id="registration-summary-title">Resumen existente</h2></div>
+    <div class="participants-registration-summary__layout">
     <div class="participants-summary-grid">
       <article class="participants-summary-card"><span class="participants-summary-card__label">Registrados</span><strong class="participants-summary-card__value">{{ dashboard.totals.registered_count }}</strong></article>
       <article class="participants-summary-card"><span class="participants-summary-card__label">Asignados a año fiscal</span><strong class="participants-summary-card__value">{{ dashboard.totals.assigned_count }}</strong></article>
-      <article class="participants-summary-card"><span class="participants-summary-card__label">Pendientes de sincronización</span><strong class="participants-summary-card__value {{ 'text-warning' if dashboard.totals.pending_sync_count else '' }}">{{ dashboard.totals.pending_sync_count }}</strong></article>
+      <article class="participants-summary-card {{ 'participants-summary-card--pending' if dashboard.totals.pending_sync_count else '' }}"><span class="participants-summary-card__label">Pendientes de sincronización</span><strong class="participants-summary-card__value">{{ dashboard.totals.pending_sync_count }}</strong></article>
     </div>
     <div class="card shadow-sm border-0 participants-breakdown-card"><div class="card-body">
       <div class="participants-card__header"><h3 class="participants-card__title">Desglose por programa</h3></div>
       <div class="table-responsive"><table class="table table-sm align-middle mb-0 participants-breakdown-table">
         <thead><tr><th>Programa</th><th class="text-end">Registrados</th><th class="text-end">Asignados</th><th class="text-end">Pendientes sync</th></tr></thead>
-        <tbody>{% for row in dashboard.program_rows %}<tr><td>{{ row.label }}</td><td class="text-end">{{ row.registered_count }}</td><td class="text-end">{{ row.assigned_count }}</td><td class="text-end {{ 'text-warning fw-semibold' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">No hay programas disponibles.</td></tr>{% endfor %}</tbody>
+        <tbody>{% for row in dashboard.program_rows %}<tr><td>{{ row.label }}</td><td class="text-end">{{ row.registered_count }}</td><td class="text-end">{{ row.assigned_count }}</td><td class="text-end"><span class="participants-sync-count {{ 'participants-sync-count--pending' if row.pending_sync_count else '' }}">{{ row.pending_sync_count }}</span></td></tr>{% else %}<tr><td colspan="4" class="text-muted">No hay programas disponibles.</td></tr>{% endfor %}</tbody>
       </table></div>
-      <p class="form-text mb-0 mt-2">El total cuenta expedientes únicos. Una persona puede aparecer en varios programas. Asignados y pendientes consideran los años fiscales abiertos; los datos congelados se conservan.</p>
     </div></div>
+    </div>
+    <p class="form-text participants-registration-summary__note">El total cuenta expedientes únicos. Una persona puede aparecer en varios programas. Asignados y pendientes consideran los años fiscales abiertos; los datos congelados se conservan.</p>
   </section>
   {% include "community/_participant_form.html" %}
+  </div>
   <section class="participants-section" aria-labelledby="participant-list-title">
     <div class="participants-toolbar">
       <div><h2 class="participants-section__title mb-1" id="participant-list-title">Participantes registrados</h2><p class="participants-section__text mb-0">Consulte los expedientes con filtros, paginación y exportación.</p></div>
