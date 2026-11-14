@@ -26,15 +26,15 @@ OPEN = {'pending', 'review'}
 STATUS = {'pending': 'Pendiente', 'review': 'En revisión', 'resolved': 'Resuelto', 'justified': 'Justificado'}
 KIND = {'record': 'Expedientes', 'attendance': 'Asistencias', 'duplicate': 'Posibles duplicados'}
 URL = '/automatizaciones/faro/validacion'
+RETIRED_RULES = frozenset({'missing_relacion_familiar'})
 
 # Completeness of the operational record, including fields that can be saved blank.
-# Initial, second surname and unchecked boolean flags are not missing information.
+# Initial, second surname, family relationship and unchecked flags are excluded.
 RECORD_FIELDS = (
     ('expediente_num', 'Número de expediente'), ('nombre', 'Nombre'),
     ('apellido_paterno', 'Primer apellido'), ('genero', 'Género'),
     ('edificio', 'Edificio'), ('apart', 'Apartamento'),
     ('grupo_familiar', 'Grupo familiar'), ('composicion_familiar', 'Composición familiar'),
-    ('relacion_familiar', 'Relación familiar'),
     ('escolaridad_participante', 'Escolaridad del participante'),
     ('fuente_ingreso_principal', 'Fuente de ingreso principal'), ('rango_ingreso', 'Rango de ingreso'),
     ('vca', 'VCA'), ('primera_vez', 'Participa por primera vez'), ('estatus', 'Estatus'),
@@ -239,6 +239,10 @@ def review(db,user,proposal_id=None,residential_id=None,year=None,months=(),toda
         stored=saved.get(key)
         live=current.get(key)
         item=dict(live or json.loads(stored.evidence_json))
+        # Retired checks no longer appear or count, even when earlier tracking exists.
+        # Keep saved issues/events so explicit revalidation can close them with an audit.
+        if item['rule'] in RETIRED_RULES:
+            continue
         changed=stored and live and (stored.fingerprint!=live['fingerprint'] or stored.status=='resolved')
         item.update(status='pending' if changed or stored is None else stored.status,
             revision=stored.revision if stored else 0, assignee=stored.assignee if stored else None,

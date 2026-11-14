@@ -18,12 +18,16 @@ presupuestaria sigue siendo el prototipo independiente existente.
 - Se revisan expediente, nombre, primer apellido, género válido, nacimiento faltante
   o posterior a la fecha de referencia, y edades calculadas mayores de 120 años.
   No existe un campo independiente de edad: se calcula desde el nacimiento.
-- También se señalan los datos operativos vacíos: edificio, apartamento, grupo,
-  composición y relación familiar, escolaridad, fuente y rango de ingreso, VCA,
+- También se señalan los datos operativos vacíos: edificio, apartamento, grupo y
+  composición familiar, escolaridad, fuente y rango de ingreso, VCA,
   primera participación y estatus. Esta revisión de integridad incluye campos que
   el formulario permite guardar vacíos; no cambia las reglas de guardado.
   La inicial y el segundo apellido siguen siendo opcionales. «NO», «0», apartamentos
   alfanuméricos y una casilla de jefe de familia sin marcar no se tratan como vacíos.
+- Relación familiar queda fuera del análisis, tanto en inscripciones vigentes como
+  históricas. El campo sigue disponible en el expediente. Los hallazgos anteriores
+  de esa regla dejan de mostrarse y contarse inmediatamente; sus registros de
+  seguimiento se conservan y revalidar los cierra como una regla que dejó de aplicar.
 - Los campos adicionales activos y obligatorios se revisan sin señalar los opcionales
   vacíos. En una estancia histórica se usa la captura del traslado, nunca los valores
   actuales; solo se revisan campos existentes antes de la salida cuando hay captura.

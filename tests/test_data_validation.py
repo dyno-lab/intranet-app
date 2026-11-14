@@ -45,7 +45,7 @@ class DataValidationTests(unittest.TestCase):
         labels = {
             'apellido_paterno': 'Primer apellido', 'edificio': 'Edificio', 'apart': 'Apartamento',
             'grupo_familiar': 'Grupo familiar', 'composicion_familiar': 'Composición familiar',
-            'relacion_familiar': 'Relación familiar', 'escolaridad_participante': 'Escolaridad del participante',
+            'escolaridad_participante': 'Escolaridad del participante',
             'fuente_ingreso_principal': 'Fuente de ingreso principal', 'rango_ingreso': 'Rango de ingreso',
             'vca': 'VCA', 'primera_vez': 'Participa por primera vez', 'estatus': 'Estatus',
         }
@@ -60,6 +60,46 @@ class DataValidationTests(unittest.TestCase):
         self.assertNotIn('missing_inicial', findings)
         self.assertNotIn('missing_apellido_materno', findings)
         self.assertNotIn('missing_is_head_of_household', findings)
+
+    def test_family_relationship_is_excluded_in_current_and_historical_records(self):
+        self.f.old.relacion_familiar = None
+        self.f.participant.relacion_familiar = None
+        self.db.commit()
+        self.assertNotIn('missing_relacion_familiar', {r['rule'] for r in self.review()['findings']})
+        self.f.move()
+        findings = self.review()['findings']
+        self.assertTrue(any(r['records'] and r['records'][0]['historical'] for r in findings))
+        self.assertNotIn('missing_relacion_familiar', {r['rule'] for r in findings})
+        self.assertIsNone(self.f.old.relacion_familiar)
+        self.assertIsNone(self.f.participant.relacion_familiar)
+
+    def test_saved_family_relationship_issues_stop_counting_without_deleting_audit(self):
+        from unittest.mock import patch
+
+        legacy_fields = tuple(f for f in service.RECORD_FIELDS if f[0]!='relacion_familiar') + (('relacion_familiar','Relación familiar'),)
+        self.f.old.relacion_familiar = None
+        self.db.commit()
+        expected_counts = self.review()['counts']
+        with patch.object(service, 'RECORD_FIELDS', legacy_fields):
+            service.mutate(self.db,self.user,'revalidate',self.filters)
+            self.db.commit()
+        issue = next(r for r in self.db.scalars(select(DataValidationIssue))
+                     if '"rule":"missing_relacion_familiar"' in r.evidence_json)
+        event_ids = list(self.db.scalars(select(DataValidationEvent.event_id).where(DataValidationEvent.issue_key==issue.issue_key)))
+        for status in ('pending','review','justified','resolved'):
+            issue.status=status
+            self.db.commit()
+            view=self.review()
+            self.assertNotIn('missing_relacion_familiar',{r['rule'] for r in view['findings']})
+            self.assertEqual(view['counts'],expected_counts)
+            self.assertEqual(issue.status,status)  # Reading the page does not write tracking state.
+        issue.status='pending'
+        self.db.commit()
+        service.mutate(self.db,self.user,'revalidate',self.filters)
+        self.db.commit()
+        self.assertEqual(issue.status,'resolved')
+        self.assertTrue(all(self.db.get(DataValidationEvent,event_id) is not None for event_id in event_ids))
+        self.assertIsNone(self.f.old.relacion_familiar)
 
     def test_completeness_accepts_zero_no_and_preserves_other_pending_fields(self):
         self.f.old.edificio = '0'
