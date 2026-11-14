@@ -79,6 +79,8 @@
     #faro-data-quality .dq-stat small{display:block;font-size:11px;color:var(--dq-muted)}
     #faro-data-quality .dq-caption{font-size:12px;color:var(--dq-muted)}
     #faro-data-quality .dq-results-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    #faro-data-quality .dq-results-head~h2{margin-bottom:6px}
+    #faro-data-quality .dq-results-head~h2+.dq-caption{margin-bottom:16px}
     #faro-data-quality .dq-tabs{display:flex;gap:6px;flex-wrap:wrap}
     #faro-data-quality .dq-tab{border:1px solid transparent;border-radius:10px;background:transparent;color:var(--dq-muted);font-size:14px;font-weight:750;padding:10px 14px}
     #faro-data-quality .dq-tab.dq-active{background:var(--dq-soft);color:var(--dq-teal);border-color:#b8dedb}

@@ -50,17 +50,33 @@ def url_for(filters,**extra):
     return service.URL+'?'+urlencode(params,doseq=True)
 
 
+def navigation_from(values):
+    kind=values.get('kind','all') or 'all'; state=values.get('status','open') or 'open'
+    if kind not in {'all',*service.KIND} or state not in {'all','open',*service.STATUS}:
+        raise HTTPException(422,'Tipo o estado de hallazgo inválido.')
+    screen=values.get('view','')
+    # Preserve old links while separating session findings from participant files.
+    if screen not in {'records','activities','residentials'}:
+        screen='activities' if kind=='attendance' else 'records'
+    if screen=='activities':kind='attendance'
+    elif screen=='records' and kind=='attendance':kind='all'
+    try:number=max(1,int(values.get('page','1') or 1))
+    except ValueError as exc:raise HTTPException(422,'Página inválida.') from exc
+    return dict(kind=kind,status=state,view=screen,page=number)
+
+
 def record_identity(record):
     # Proposal enrollments of one person share a file; names alone never identify it.
     return record['person_id'], record['expediente'].strip().casefold()
 
 
 def group_findings(items):
-    """One file row across proposals; individual issue keys and source stays survive."""
+    """One row per file or session; individual issue keys and source stays survive."""
     groups = {}
     for item in items:
         record = item['records'][0] if item['kind'] == 'record' else None
-        key = ('record', record_identity(record)) if record else ('finding', item['key'])
+        key = (('record', record_identity(record)) if record else
+               ('session', item['session_id']) if item['kind']=='attendance' else ('finding', item['key']))
         group = groups.setdefault(key, {'record': record, 'first': item, 'findings': []})
         group['findings'].append(item)
         if record and group['record']['historical'] and not record['historical']:
@@ -74,40 +90,44 @@ def group_findings(items):
     return list(groups.values())
 
 
-def page(request,db,user,filters,*,error=None,status_code=200):
+def page(request,db,user,filters,*,navigation=None,error=None,status_code=200):
     view=service.review(db,user,**filters)
     query=request.query_params
-    kind=query.get('kind','all') or 'all'; state=query.get('status','open') or 'open'
-    if kind not in {'all',*service.KIND} or state not in {'all','open',*service.STATUS}:
-        raise HTTPException(422,'Tipo o estado de hallazgo inválido.')
-    screen=query.get('view','findings')
-    if screen not in {'findings','residentials'}:screen='findings'
-    items=[r for r in view['findings'] if (kind=='all' or kind==r['kind']) and
-           (state=='all' or (r['status'] in service.OPEN if state=='open' else r['status']==state))]
-    groups = group_findings(items)
-    try: number=max(1,int(query.get('page','1') or 1))
-    except ValueError as exc:raise HTTPException(422,'Página inválida.') from exc
-    pages=max(1,ceil(len(groups)/25));number=min(number,pages)
-    rows=groups[(number-1)*25:number*25]
-    extra=dict(kind=kind,status=state,view=screen,page=number)
-    def link(**changes):return url_for(filters,**{**extra,**changes})
-    detail=None;events=[];record_findings=[]
+    navigation=navigation if navigation is not None else navigation_from(query)
+    kind=navigation['kind'];state=navigation['status'];screen=navigation['view']
+    detail=None;events=[];record_findings=[];session_findings=[]
     finding=query.get('finding')
     if finding:
         detail=next((r for r in view['findings'] if r['key']==finding),None)
         if detail is None:raise HTTPException(404,'Hallazgo no encontrado en el alcance autorizado.')
+        if screen!='residentials' and (detail['kind']=='attendance')!=(screen=='activities'):
+            screen='activities' if detail['kind']=='attendance' else 'records'
+            kind='attendance' if screen=='activities' else 'all'
+    allowed_kinds={'attendance'} if screen=='activities' else {'record','duplicate'}
+    items=[r for r in view['findings'] if r['kind'] in allowed_kinds and (kind=='all' or kind==r['kind']) and
+           (state=='all' or (r['status'] in service.OPEN if state=='open' else r['status']==state))]
+    groups = group_findings(items)
+    number=navigation['page']
+    pages=max(1,ceil(len(groups)/25));number=min(number,pages)
+    rows=groups[(number-1)*25:number*25]
+    extra=dict(kind=kind,status=state,view=screen,page=number)
+    def link(**changes):return url_for(filters,**{**extra,**changes})
+    if detail:
         events=list(db.scalars(select(DataValidationEvent).where(DataValidationEvent.issue_key==finding)
                               .order_by(DataValidationEvent.event_id.desc()).limit(50)))
         for record in detail['records']:
             related = [r for r in view['findings'] if any(record_identity(p) == record_identity(record) for p in r['records'])]
             record_findings.append({'record': record, 'findings': related})
+        if detail['kind']=='attendance':
+            session_findings=[r for r in view['findings'] if r['kind']=='attendance' and r['session_id']==detail['session_id']]
     rid=service.scope_id(user)
     res_query=select(Residential).order_by(Residential.name)
     if rid is not None:res_query=res_query.where(Residential.residential_id==rid)
     return templates.TemplateResponse(request=request,name='automation/data_validation.html',context={
         'current_user':user,'view':view,'rows':rows,'total':len(items),'group_total':len(groups),'page_number':number,'pages':pages,
         'filters':filters,'kind':kind,'state':state,'screen':screen,'link':link,'base_url':service.URL,
-        'detail':detail,'events':events,'record_findings':record_findings,'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
+        'detail':detail,'events':events,'record_findings':record_findings,'session_findings':session_findings,
+        'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
         'proposals':list(db.scalars(select(Proposal).order_by(Proposal.is_active.desc(),Proposal.name))),
         'residentials':list(db.scalars(res_query)),'scope_id':rid,'months':MONTHS,'years':range(2000,2101),
         'can_write':user.role in {'admin','supervisor','user'},'can_supervise':user.role in {'admin','supervisor'},
@@ -129,6 +149,7 @@ async def update(action:str,request:Request,db:Session=Depends(get_db),user:User
     if not expected or not hmac.compare_digest(str(expected).encode(),str(form.get('csrf_token','')).encode()):
         raise HTTPException(403,'La sesión cambió. Actualiza la página antes de continuar.')
     filters=filters_from(form)
+    navigation=navigation_from(form)
     try:
         due=date.fromisoformat(str(form.get('due_on',''))) if action=='assign' else None
         service.mutate(db,user,action,filters,targets=form.getlist('targets'),
@@ -138,9 +159,9 @@ async def update(action:str,request:Request,db:Session=Depends(get_db),user:User
         db.rollback()
         # Preserve authorization failures and avoid rendering data after a rejected scope.
         if isinstance(exc,HTTPException) and exc.status_code in {403,404}:raise
-        return page(request,db,user,filters,error=exc.detail if isinstance(exc,HTTPException) else 'Fecha límite inválida.',
+        return page(request,db,user,filters,navigation=navigation,error=exc.detail if isinstance(exc,HTTPException) else 'Fecha límite inválida.',
                     status_code=exc.status_code if isinstance(exc,HTTPException) else 422)
     except Exception:
         db.rollback();raise
     result={'assign':'assigned','justify':'justified','revalidate':'revalidated'}[action]
-    return RedirectResponse(url_for(filters,result=result),status_code=303,headers=HEADERS)
+    return RedirectResponse(url_for(filters,**navigation,result=result),status_code=303,headers=HEADERS)

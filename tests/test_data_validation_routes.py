@@ -159,6 +159,103 @@ class DataValidationRoutes(unittest.TestCase):
         years = re.search(r'<select[^>]+name="year"[^>]*>.*?</select>', response.text, re.S)[0]
         self.assertIn('<option value="2025" selected>2025</option>', years)
 
+    def test_record_and_activity_views_separate_findings_and_keep_session_errors_together(self):
+        from app.models.attendance import Attendance
+
+        for attendance in self.db.scalars(select(Attendance).where(Attendance.session_id == self.f.session.session_id)):
+            attendance.attended = False
+        self.db.commit()
+        records = self.client.get(self.url, params={**self.params, 'view': 'records'})
+        self.assertIn('Fecha de nacimiento', records.text)
+        self.assertNotIn('Horas de sesión faltantes o inválidas', records.text)
+        self.assertNotIn('Sesión sin participaciones confirmadas', records.text)
+        activities = self.client.get(self.url, params={**self.params, 'view': 'activities'})
+        self.assertEqual(activities.status_code, 200)
+        groups = re.findall(r'<tr[^>]*data-session-group="[^"]+".*?</tr>', activities.text, re.S)
+        self.assertEqual(len(groups), 1)
+        self.assertIn('Horas de sesión faltantes o inválidas', groups[0])
+        self.assertIn('Sesión sin participaciones confirmadas', groups[0])
+        self.assertNotIn('data-record-group=', activities.text)
+        hours = self.source.issue('hours')
+        detail = self.client.get(self.url, params={**self.params, 'view': 'activities', 'finding': hours['key']})
+        self.assertIn('Todos los hallazgos de esta actividad', detail.text)
+        self.assertIn(f'/ui/listado/{self.f.session.session_id}', detail.text)
+        legacy = self.client.get(self.url, params={**self.params, 'view': 'findings', 'kind': 'attendance'})
+        self.assertIn('data-session-group=', legacy.text)
+        empty = self.client.get(self.url, params={**self.params, 'view': 'activities', 'months': 1})
+        self.assertNotIn('data-session-group=', empty.text)
+        self.assertIn('No hay hallazgos', empty.text)
+
+    def test_activity_navigation_survives_filter_forms_assignment_and_invalid_submission(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        response, form = self.form()
+        hours = self.source.issue('hours')
+        params = {**self.params, 'months': [9, 10], 'view': 'activities', 'status': 'all'}
+        page = self.client.get(self.url, params=params)
+        for markup in re.findall(r'<form.*?</form>', page.text, re.S):
+            self.assertIn('name="view" value="activities"', markup)
+            self.assertIn('name="months"', markup)
+        data = {**form, **params, 'targets': hours['token'], 'assignee': 'residential', 'due_on': 'bad'}
+        invalid = self.client.post(self.url + '/assign', data=data)
+        self.assertEqual(invalid.status_code, 422)
+        self.assertIn('name="view" value="activities"', invalid.text)
+        result = self.client.post(self.url + '/assign', data={**data, 'due_on': '2099-11-18'}, follow_redirects=False)
+        self.assertEqual(result.status_code, 303)
+        query = parse_qs(urlsplit(result.headers['location']).query)
+        self.assertEqual(query['view'], ['activities'])
+        self.assertEqual(query['months'], ['9', '10'])
+        self.assertEqual(query['status'], ['all'])
+        updated = self.client.get(result.headers['location'])
+        self.assertIn('En revisión', updated.text)
+        self.assertNotIn('data-record-group=', updated.text)
+        revalidated = self.client.post(self.url + '/revalidate', data={**form, **params}, follow_redirects=False)
+        self.assertEqual(parse_qs(urlsplit(revalidated.headers['location']).query)['view'], ['activities'])
+
+    def test_residential_navigation_and_scoped_activity_access(self):
+        from html import unescape
+
+        overview = self.client.get(self.url, params={**self.params, 'view': 'residentials'})
+        links = re.findall(r'href="([^"]+)"[^>]*>Ver (expedientes|actividades)</a>', overview.text)
+        self.assertEqual({label for _, label in links}, {'expedientes', 'actividades'})
+        for link, label in links:
+            response = self.client.get(unescape(link))
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('data-record-group=' if label == 'expedientes' else 'data-session-group=', response.text)
+        self.user.role = 'user'
+        self.db.commit()
+        activities = self.client.get(self.url, params={**self.params, 'view': 'activities'})
+        self.assertEqual(activities.status_code, 200)
+        self.assertIn('Mi residencial', activities.text)
+        self.assertEqual(self.client.get(self.url, params={**self.params, 'view': 'activities',
+            'residential_id': self.f.b.residential_id}).status_code, 403)
+        self.user.role = 'viewer'
+        self.db.commit()
+        readonly = self.client.get(self.url, params={**self.params, 'view': 'activities'})
+        self.assertNotIn('data-bulk', readonly.text)
+        self.assertNotIn('Revalidar datos', readonly.text)
+
+    def test_activity_pagination_keeps_session_errors_on_the_same_page(self):
+        from app.models.activity_session import ActivitySession
+
+        for index in range(26):
+            self.db.add(ActivitySession(control_number=f'QA-{index:02}',
+                session_date=date(2026, 9, 15), proposal_id=self.f.session.proposal_id,
+                residential_id=self.f.a.residential_id, activity_code_id=self.f.session.activity_code_id,
+                employee_id=self.f.session.employee_id, hours=None))
+        self.db.commit()
+        seen = set()
+        for page_number, expected_count in ((1, 25), (2, 2)):
+            response = self.client.get(self.url, params={**self.params, 'view': 'activities', 'page': page_number})
+            rows = re.findall(r'<tr[^>]*data-session-group="([^"]+)".*?</tr>', response.text, re.S)
+            self.assertEqual(len(rows), expected_count)
+            self.assertFalse(seen.intersection(rows))
+            seen.update(rows)
+            for row in re.findall(r'<tr[^>]*data-session-group="[^"]+".*?</tr>', response.text, re.S):
+                if 'QA-' in row:
+                    self.assertIn('Horas de sesión faltantes o inválidas', row)
+                    self.assertIn('Sesión sin participaciones confirmadas', row)
+
     def test_mutations_csrf_permissions_and_audit(self):
         _,form=self.form()
         data={**form,'assignee':'residential','due_on':'2099-11-18','note':'Prueba <script>alert(1)</script>'}
@@ -261,6 +358,11 @@ class DataValidationRoutes(unittest.TestCase):
             residential_id=self.f.b.residential_id, nombre='Ana', apellido_paterno='Prueba',
             fecha_nacimiento=date(2010, 4, 12), genero='F', expediente_num=self.f.other.expediente_num))
         self.db.commit()
+        records = self.client.get(self.url, params={**self.params, 'view': 'records', 'kind': 'duplicate'})
+        self.assertIn('Comparar', records.text)
+        self.assertNotIn('data-record-group=', records.text)
+        activities = self.client.get(self.url, params={**self.params, 'view': 'activities'})
+        self.assertNotIn('>Comparar</a>', activities.text)
         links = self.finding_links(self.source.issue('duplicate'), 'Consultar expediente')
         self.assertEqual(len(links), 2)
         for link, record in zip(links, (self.f.participant, self.f.other)):

@@ -36,6 +36,21 @@ presupuestaria sigue siendo el prototipo independiente existente.
 
 ## Acceso y seguimiento
 
+Los hallazgos se consultan en tres vistas:
+
+- **Por residencial:** resumen de hallazgos abiertos con accesos a sus expedientes
+  y actividades. Las columnas cuentan hallazgos, no personas ni sesiones.
+- **Expedientes:** datos incompletos o inconsistentes y posibles duplicados; la
+  revisión sigue abarcando todos los expedientes, sin limitarla al mes seleccionado.
+- **Actividades:** problemas de horas o participaciones de las sesiones del período.
+  Los errores de una sesión se agrupan en una fila y su detalle permite consultarlos
+  juntos, incluidos otros estados. Cada hallazgo conserva su seguimiento individual.
+
+Cambiar de vista conserva propuesta, residencial, meses y estado. Aplicar filtros,
+asignar seguimiento, justificar o revalidar conserva la vista activa. Los enlaces
+anteriores `view=findings` siguen funcionando; `kind=attendance` abre Actividades.
+Revalidar sigue revisando el alcance completo, independientemente de la vista.
+
 Se requieren los permisos existentes `access_automation` y `access_faro`, una sesión
 vigente y el contexto residencial autorizado. No se conceden permisos automáticamente.
 Administración y supervisión en contexto global pueden revisar todos los residenciales;
