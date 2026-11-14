@@ -22,7 +22,7 @@ class FaroGPTExpandedReportsTests(unittest.TestCase):
         self.db, self.user = self.f.db, self.f.user
 
     def ask(self, question, context=None, user=None):
-        return farogpt.answer(self.db, user or self.user, question, context or {}, today=date(2026, 11, 14))
+        return farogpt.answer(self.db, user or self.user, question, context or {'proposal_scope': 'all'}, today=date(2026, 11, 14))
 
     def result(self, question, **kwargs):
         result = self.ask(question, **kwargs)
@@ -155,6 +155,46 @@ class FaroGPTExpandedReportsTests(unittest.TestCase):
         result = self.result(response['suggestions'][0])
         self.assertEqual(result['context']['metric'], 'pregnancy')
         self.assertEqual(result['value'], 1)
+
+    def test_missing_period_retains_requested_report_field(self):
+        pending = self.ask('cuántas notas A global')
+        self.assertEqual(pending['type'], 'clarification')
+        pending_year = self.ask('julio y agosto', context=pending['context'])
+        self.assertEqual(pending_year['type'], 'clarification')
+        result = self.ask('2026', context=pending_year['context'])
+        self.assertEqual(result['type'], 'series', result)
+        self.assertEqual(result['context']['field'], 'A')
+        self.assertEqual(result['tables'][0]['rows'], [['Julio 2026', 1], ['Agosto 2026', 1]])
+        self.assertIsNone(result['value'])
+        self.assertEqual(farogpt.summary(self.db, self.user, result['context']), result)
+
+    def test_monthly_reports_preserve_original_values_links_and_scope(self):
+        for label in ('no duplicados', 'notas', 'embarazo', 'ADM'):
+            with self.subTest(report=label):
+                result = self.ask(f'{label} global julio y agosto 2026')
+                self.assertEqual(result['type'], 'series', result)
+                singles = [self.result(f'{label} global {month} 2026') for month in ('julio', 'agosto')]
+                expected = [[single['period'], *[card['value'] for card in single['cards']]] for single in singles]
+                self.assertEqual(result['tables'][0]['rows'], expected)
+                self.assertEqual(result['metrics'], {})
+                self.assertIsNone(result['value'])
+                for month, single in zip(result['monthly_results'], singles):
+                    self.assertEqual(month['source_url'], single['source_url'])
+                self.assertNotIn('TEST-1', json.dumps(result))
+        user = SimpleNamespace(role='supervisor', _active_residential_id=2, username='scoped')
+        scoped = self.ask('no duplicados global julio y agosto 2026', user=user)
+        self.assertEqual(scoped['context']['residential_id'], 2)
+        self.assertEqual(scoped['tables'][0]['rows'][0][1], 1)
+        with patch('app.services.full_monthly_report_data.build_full_monthly_report_data') as full:
+            self.assertEqual(self.ask('Informe completo julio y agosto 2026')['type'], 'clarification')
+            full.assert_not_called()
+
+    def test_several_current_proposals_keep_field_until_selection(self):
+        pending = farogpt.answer(self.db, self.user, 'notas A julio 2026', {})
+        self.assertEqual(pending['type'], 'clarification')
+        self.assertIn('varias propuestas', pending['message'])
+        result = self.result('todas las propuestas', context=pending['context'])
+        self.assertEqual((result['context']['field'], result['value']), ('A', 1))
 
 
 if __name__ == '__main__':

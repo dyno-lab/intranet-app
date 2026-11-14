@@ -25,14 +25,15 @@ class FaroGPTTests(unittest.TestCase):
         self.db.commit()
 
     def ask(self, question, context=None, user=None):
-        return service.answer(self.db, user or self.user, question, context or {}, today=date(2026, 11, 14))
+        return service.answer(self.db, user or self.user, question, context or {'proposal_scope': 'all'}, today=date(2026, 11, 14))
 
     def test_example_real_count_and_exact_report_filters(self):
         result = self.ask('¿Cuántos participantes únicos para septiembre 2026 en residencial chavier?')
         self.assertEqual(result['type'], 'result')
         self.assertEqual(result['value'], 1)
         self.assertEqual(result['context'], dict(metric='people', field=None, month=9, year=2026,
-            residential_id=self.f.a.residential_id, proposal_id=None, activity_code=None))
+            residential_id=self.f.a.residential_id, proposal_id=None, activity_code=None,
+            months=None, proposal_scope='all', pending_terms=None))
         self.assertEqual(result['residential'], 'Arístides Chavier')
         self.assertIn('month=9', result['report_url'])
         self.assertIn('residential_id=', result['report_url'])
@@ -94,7 +95,7 @@ class FaroGPTTests(unittest.TestCase):
         for question in ('participantes únicos Residencial Desconocido marzo 2026',
                          'participantes únicos Chavier marzo 2026 menores de 18 años',
                          'participantes únicos Chavier marzo 2026 propuesta 999',
-                         'participantes únicos Chavier marzo y abril 2026',
+                         'participantes únicos Chavier marzo 2025 y abril 2026',
                          'participantes únicos Chavier marzo 2026 mujeres',
                          'participantes únicos Chavier del 5 al 10 de marzo 2026',
                          'asistencias Chavier marzo 2026',

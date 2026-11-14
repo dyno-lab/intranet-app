@@ -97,6 +97,35 @@ class FaroGPTRouteTests(unittest.TestCase):
         response = self.client.get('/ui/farogpt/inicio', follow_redirects=False)
         self.assertEqual(response.status_code, 303)
 
+    def test_guided_question_and_multiple_month_report_link(self):
+        first = self.send('Cuántas actvidades 2b5 se hicieron').json()
+        self.assertEqual(first['type'], 'clarification')
+        self.assertIn('mes o meses', first['message'])
+        response = self.send('agosto y septiembre 2026', context=first['context'])
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['months'], [8, 9])
+        self.assertEqual(result['context']['proposal_id'], self.f.proposal.proposal_id)
+        report = self.client.get(result['report_url'])
+        self.assertEqual(report.status_code, 200, report.text)
+        self.assertIn('Agosto y Septiembre 2026', report.text)
+        self.assertIn('Desglose por mes', report.text)
+        self.assertNotIn('Ana Prueba', report.text)
+        for months in ([0, 8], [8, 13], ['invalid'], list(range(1, 14))):
+            with self.subTest(months=months):
+                bad = self.client.get('/ui/farogpt/informe', params={
+                    'metric': 'activities', 'year': 2026, 'months': months})
+                self.assertEqual(bad.status_code, 422, bad.text)
+
+    def test_report_query_rejects_unknown_or_conflicting_filters(self):
+        for extra in ({'months': [8, 9]}, {'proposal_scope': 'all', 'proposal_id': self.f.proposal.proposal_id},
+                      {'unsupported': 'filter'}):
+            with self.subTest(extra=extra):
+                response = self.client.get('/ui/farogpt/informe', params={
+                    'metric': 'activities', 'year': 2026, 'month': 9, **extra})
+                self.assertEqual(response.status_code, 422)
+
     def test_access_permission_and_roles(self):
         self.f.actor.role = 'supervisor'
         self.db.commit()

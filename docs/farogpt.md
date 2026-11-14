@@ -4,7 +4,9 @@ Asistente flotante del inicio de FARO (`/ui/`), con el diseño aprobado del fari
 
 ## Consultas de reportes
 
-Consultas en español sobre los indicadores y desgloses de los reportes de FARO. Permite elegir un residencial por nombre o código, una propuesta por nombre o código y un mes/año. «Global», «a nivel global» y «todos los residenciales» consultan el conjunto autorizado y quitan el residencial de la consulta anterior. Por defecto incluye todas las propuestas, incluidas las históricas; el resultado identifica ese alcance y el informe enumera sus nombres. El residencial activo limita siempre los resultados cuando el usuario trabaja en ese contexto.
+Consultas en español sobre los indicadores y desgloses de los reportes de FARO. Permite elegir un residencial por nombre o código, una propuesta por nombre o código y uno o varios meses del mismo año. «Global», «a nivel global» y «todos los residenciales» consultan el conjunto autorizado y quitan el residencial de la consulta anterior. El residencial activo limita siempre los resultados cuando el usuario trabaja en ese contexto.
+
+Si no se indica una propuesta, se selecciona la vigente: `is_active=True` y estado `active`; una propuesta finalizada no se considera vigente aunque conserve la bandera activa. Si hay varias vigentes o ninguna, se pide elegir. Las propuestas históricas siguen disponibles de forma explícita y «todas las propuestas» las incluye. La selección se conserva durante la conversación; «propuesta vigente» vuelve a la selección automática. La respuesta identifica el nombre y el informe enumera las propuestas consultadas.
 
 | Reporte | Indicadores y desgloses disponibles |
 | --- | --- |
@@ -37,12 +39,19 @@ Ejemplos:
 - «Participaciones de la actividad 2.b.5 en agosto 2026».
 - Después de consultar: «Comparar con febrero de 2026» o «Comparar con el mes anterior».
 - Si falta la fecha, puede completarse en el siguiente mensaje: «marzo de 2026».
+- «Cuántas act 2.b.5 se hicieron» → pregunta el mes o meses y año, e informa la propuesta elegida → «agosto y septiembre 2026».
+- «Actividades 1.a.3 de julio a septiembre 2026» incluye julio, agosto y septiembre; «julio y septiembre» incluye solo esos dos meses.
+- «Notas A global julio y agosto 2026» muestra el valor de cada mes con sus enlaces.
+
+Las variantes `act`, `acts`, `actividadss`, `actididades`, `actvidades`, `atividades`, `actividaes` y `activdades` se interpretan como «actividades». Esta tolerancia se limita a palabras conocidas: nunca aproxima códigos, propuestas o residenciales. Al pedir datos faltantes se conservan el código, el residencial, los meses ya seleccionados y los términos del campo solicitado. No se descartan restricciones desconocidas para devolver un número sin ese filtro.
+
+Los conteos generales de actividades y participaciones cubren la unión de los meses seleccionados, con desglose mensual. Participantes únicos cuenta cada persona una sola vez en toda la selección. Los demás reportes presentan resultados por mes según sus reglas originales, sin sumar personas únicas, porcentajes ni acumulados. El informe mensual completo se consulta un mes a la vez. Se admiten listas, rangos ascendentes y «todo el año» (máximo doce meses, dentro del mismo año); los enlaces preservan la lista completa.
 
 El filtro por código acepta mayúsculas, minúsculas, puntos, formato compacto y espacios (`2.B.5`, `2b5`, `2 B 5`). Usa un código por consulta y cuenta sesiones registradas; una sesión sin asistencias también cuenta como actividad. El código se conserva al cambiar de mes, comparar o pedir «global». «Todas las actividades», «todos los códigos» o «sin filtro de actividad» lo eliminan. Cambiar a otro reporte elimina el código anterior; si se solicita explícitamente un código en un reporte que no admite ese filtro, se pide aclaración. Los rangos de días no se reinterpretan como códigos.
 
 El código filtra actividades, participaciones y participantes únicos del conteo general. Se incluyen códigos históricos/inactivos y se usa la propuesta de cada sesión, aunque el código se comparta entre propuestas. Un código inexistente pide corrección; un código válido sin sesiones devuelve cero. El resultado y «Ver informe» muestran código/descripción y mantienen todos los filtros.
 
-El reconocimiento es acotado a los reportes y campos publicados. No utiliza un modelo generativo ni un proveedor externo, no requiere claves de API y no genera SQL libre. Un residencial ambiguo, una propuesta desconocida, varios meses, un rango de días o un filtro no soportado requieren aclaración; no se omiten para producir un total aparente. Los desgloses completos se consultan en las tablas. No consulta presupuestos, confirmaciones mensuales ni hallazgos de validación, que pertenecen a otros módulos.
+El reconocimiento es acotado a los reportes y campos publicados. No utiliza un modelo generativo ni un proveedor externo, no requiere claves de API y no genera SQL libre. Un residencial ambiguo, una propuesta desconocida, varios años, un rango de días o un filtro no soportado requieren aclaración; no se omiten para producir un total aparente. Los desgloses completos se consultan en las tablas. No consulta presupuestos, confirmaciones mensuales ni hallazgos de validación, que pertenecen a otros módulos.
 
 ## Definiciones de datos
 
@@ -52,9 +61,9 @@ El reconocimiento es acotado a los reportes y campos publicados. No utiliza un m
 - **Notas:** conteos por letras, no promedios numéricos inventados. **ADM:** composición familiar cuenta personas, no hogares. **Productividad:** el acumulado de propuesta no tiene corte al mes; se indica expresamente.
 - **Participantes únicos:** personas distintas de asistencias confirmadas vinculadas a una inscripción de la misma propuesta que la sesión; coincide con la definición de identidad del reporte institucional. Una persona que participa en varias propuestas se cuenta una vez en la consulta conjunta.
 - **Participaciones:** todas las filas de asistencia confirmada, incluida la primera participación y las filas antiguas sin vínculo a una inscripción. Si existen vínculos incompletos, la respuesta explica su exclusión del indicador de personas únicas.
-- **Actividades/servicios:** sesiones registradas dentro del mes, tengan o no asistencia confirmada.
+- **Actividades/servicios:** sesiones registradas dentro de los meses seleccionados, tengan o no asistencia confirmada.
 - **Residencial:** el de la sesión; un traslado posterior no mueve los servicios históricos al residencial actual.
-- **Comparación:** se recalculan ambos meses con el mismo reporte, campo, residencial y propuesta. La diferencia es mes original menos mes comparado.
+- **Comparación:** se recalculan ambos períodos con el mismo reporte, campo, código, residencial y propuesta. La diferencia es período original menos período comparado. Para reportes operacionales se compara un mes con otro; los conteos generales permiten comparar conjuntos de meses.
 
 No se cambia ni migra la base de datos. Las respuestas son agregadas, sin nombres ni expedientes de participantes. El informe vuelve a consultar los datos al abrirse; puede cambiar si otra persona registró información después de la respuesta del chat.
 
@@ -86,7 +95,7 @@ Las tres rutas verifican sesión, permiso `access_faro`, rol y contexto residenc
 Pruebas de integración con datos sintéticos: conteos entre propuestas, ausencias, traslados, períodos, contexto conversacional, ambigüedad, filtros desconocidos, CSRF, sesiones, permisos, alcance residencial e informe. El widget se verifica también por rol en la plantilla del inicio.
 
 ```powershell
-python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_activity_codes tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
+python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_activity_codes tests.test_farogpt_conversation tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
 ```
 
 El 14/11/2026 se contrastaron seis combinaciones de mes/residencial/propuesta contra SELECT independientes en la copia local `Faro_Validation_Audit_20261114`, en modo READ_ONLY. Coincidieron los tres indicadores en los seis casos y la interpretación del ejemplo de Chavier. No se conectó a producción. La comprobación real de SQL Server detectó y permitió corregir un predicado booleano que SQLite admitía: se utiliza `attended == True`, compatible con el resto del proyecto.
@@ -96,6 +105,8 @@ La revisión visual local confirmó la consulta, comparación, informe, aclaraci
 Ampliación de reportes: 110 pruebas aprobadas y 29 comparaciones coincidentes contra los builders originales sobre el mismo respaldo local READ_ONLY (octubre de 2026, global y Chavier; informe completo global). El informe completo tardó aproximadamente 35 segundos en esta computadora. Evidencia local fuera del repositorio: `audits/farogpt-20261114/expanded-comparison.json`. Verificación visual de tarjetas, tablas, enlaces y reporte de Notas con datos sintéticos; ancho móvil del panel 351 px dentro de 375 px disponibles. No se conectó a producción ni se alteraron datos del programa.
 
 Consultas por código: el ejemplo exacto del usuario fallaba antes del cambio y pasó después. 123 pruebas aprobadas, incluyendo filtros, sesiones sin asistencia, código compartido entre propuestas, contexto conversacional, API/informe y acceso. Ocho combinaciones de agosto/septiembre de 2026 por global, Chavier y propuesta coinciden con SQL independiente en la copia local READ_ONLY; el respaldo del 14/11/2026 tiene ocho sesiones 2.b.5 en agosto, global. Evidencia: `audits/farogpt-20261114/activity-code-comparison.json`. No se modificó el respaldo ni se consultó producción.
+
+Consultas guiadas: 143 pruebas aprobadas, incluyendo propuesta vigente/finalizada, ninguna o varias vigentes, selección explícita, campos conservados al completar preguntas, variantes de «actividades», listas/rangos de meses, unión de personas únicas y enlaces API/HTML. Ocho combinaciones contrastadas con SQL independiente en la misma copia READ_ONLY coinciden. El respaldo identifica como vigente 2025-000094-C; la consulta guiada de 2.b.5 en agosto y septiembre de 2026 devuelve 16 actividades. Evidencia fuera del repositorio: `audits/farogpt-20261114/guided-comparison.json`. Revisión visual local con datos sintéticos: pregunta sin período, elección de propuesta, respuesta por código, tabla mensual de Notas A y apertura del informe con los mismos meses. Sin cambios a los datos del programa ni producción.
 
 ## Recurso visual
 

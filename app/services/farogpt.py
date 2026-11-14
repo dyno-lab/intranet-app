@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from sqlalchemy import distinct, func, select
+from sqlalchemy import distinct, func, or_, select
 
 from app.core.residential_scope import has_global_residential_access
 from app.models.activity_code import ActivityCode
@@ -26,6 +26,7 @@ from app.services import farogpt_reports
 
 URL = '/ui/farogpt'
 ACTIVITY_CODE_PATTERN = re.compile(r'(?<!\w)(\d{1,2})\s*([a-z])\s*(\d{1,3})(?!\w)')
+ACTIVITY_WORDS = {'act', 'acts', 'actividadss', 'actididades', 'actvidades', 'atividades', 'actividaes', 'activdades'}
 TITLES = {'people': 'Participantes únicos', 'duplicates': 'Participaciones (duplicados)',
           'activities': 'Actividades / servicios'}
 DEFINITIONS = {
@@ -35,7 +36,8 @@ DEFINITIONS = {
 }
 HELP = ('Puedo consultar No Duplicado, Duplicados, ADM, notas, embarazo, deserción, visitas, '
         'referidos, cursos, Bonafide, Certificación, VCA, Cotejo, programas, productividad y el informe completo. '
-        'Indica el mes y año, un residencial o «global» y, si deseas, una propuesta. '
+        'Indica el mes o los meses y el año, un residencial o «global» y, si deseas, una propuesta. '
+        'Si omites la propuesta usaré la vigente; si hay varias te pediré elegir. '
         'También puedo contar actividades por código, como «Actividades 2.b.5 en agosto 2026».')
 
 
@@ -47,9 +49,21 @@ class QueryContext(BaseModel):
     field: str | None = Field(default=None, max_length=80)
     year: int | None = Field(default=None, ge=2000, le=2100)
     month: int | None = Field(default=None, ge=1, le=12)
+    months: list[int] | None = Field(default=None, min_length=1, max_length=12)
     residential_id: int | None = Field(default=None, gt=0)
     proposal_id: int | None = Field(default=None, gt=0)
+    proposal_scope: Literal['auto', 'all'] = 'auto'
     activity_code: str | None = Field(default=None, max_length=20)
+    pending_terms: str | None = Field(default=None, max_length=800)
+
+    @field_validator('months')
+    @classmethod
+    def validate_months(cls, value):
+        if value is not None:
+            if any(month < 1 or month > 12 for month in value):
+                raise ValueError('Los meses deben estar entre 1 y 12.')
+            return sorted(set(value))
+        return value
 
     @field_validator('activity_code')
     @classmethod
@@ -81,7 +95,14 @@ def catalogs(db, user):
 
 def _context(value):
     try:
-        return QueryContext.model_validate(value).model_dump()
+        result = QueryContext.model_validate(value).model_dump()
+        if result['months']:
+            if result['month'] is not None and result['month'] != result['months'][0]:
+                raise HTTPException(422, 'El mes inicial no coincide con los meses seleccionados.')
+            result['month'] = result['months'][0]
+        if result['proposal_scope'] == 'all' and result['proposal_id'] is not None:
+            raise HTTPException(422, 'Selecciona una propuesta o todas las propuestas.')
+        return result
     except ValidationError as exc:
         raise HTTPException(422, 'Los filtros de la consulta no son válidos.') from exc
 
@@ -98,14 +119,45 @@ def _authorized_context(context, user, residentials, proposals):
     return result
 
 
+def _default_proposal(context, proposals):
+    if context['proposal_id'] is not None or context['proposal_scope'] == 'all':
+        return None
+    active = [p for p in proposals if p.is_active and (p.status or '').strip().lower() == 'active']
+    if len(active) == 1:
+        context['proposal_id'] = active[0].proposal_id
+        return None
+    if active:
+        message = 'Hay varias propuestas vigentes. ¿Cuál quieres consultar? ' + ', '.join(p.name for p in active) + '.'
+        choices = active
+    else:
+        message = 'No hay una propuesta vigente. Indica la propuesta histórica que quieres consultar o «todas las propuestas».'
+        choices = proposals
+    return {'message': message, 'suggestions': [f'Propuesta {p.name}' for p in choices[:3]]}
+
+
+def _months(context):
+    return context['months'] or ([context['month']] if context['month'] else [])
+
+
+def _period_label(context):
+    names = [dict(MONTHS)[m] for m in _months(context)]
+    return (', '.join(names[:-1]) + ' y ' + names[-1] if len(names) > 1 else names[0]) + f' {context["year"]}'
+
+
 def _dataset(db, user, context, proposals):
     ids = [context['proposal_id']] if context['proposal_id'] else [p.proposal_id for p in proposals]
     if context['metric'] not in TITLES:
         if context['activity_code']:
             raise HTTPException(422, 'El filtro por código está disponible para actividades, participaciones '
                                 'y participantes únicos. Indica uno de esos indicadores para esta actividad.')
-        return farogpt_reports.build(context['metric'], db, user, ids, context['month'],
-                                     context['year'], context['residential_id'])
+        months = _months(context)
+        if len(months) > 1 and context['metric'] == 'complete':
+            raise HTTPException(422, 'El informe mensual completo se consulta un mes a la vez. Indica cuál de los meses quieres abrir.')
+        data = [farogpt_reports.build(context['metric'], db, user, ids, month,
+                                     context['year'], context['residential_id']) for month in months]
+        if len(data) == 1:
+            return data[0]
+        return {**data[0], 'monthly_data': list(zip(months, data))}
     return _attendance_dataset(db, context, ids)
 
 
@@ -113,6 +165,9 @@ def summary(db, user, context):
     """Recalculate the selected source report with its own reporting definitions."""
     residentials, proposals = catalogs(db, user)
     context = _authorized_context(context, user, residentials, proposals)
+    problem = _default_proposal(context, proposals)
+    if problem:
+        raise HTTPException(422, problem['message'])
     metric, year, month = (context[k] for k in ('metric', 'year', 'month'))
     if metric is None or year is None or month is None:
         raise HTTPException(422, 'Indica el indicador, el mes y el año.')
@@ -120,11 +175,13 @@ def summary(db, user, context):
 
 
 def _attendance_dataset(db, context, ids):
-    year, month = context['year'], context['month']
-    start = date(year, month, 1)
-    end = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
-    conditions = [ActivitySession.proposal_id.in_(ids), ActivitySession.session_date >= start,
-                  ActivitySession.session_date < end]
+    year = context['year']
+    months = _months(context)
+    # Query the union of selected months: unique people cannot be summed month by month.
+    periods = [(ActivitySession.session_date >= date(year, month, 1)) &
+               (ActivitySession.session_date < date(year + (month == 12), 1 if month == 12 else month + 1, 1))
+               for month in months]
+    conditions = [ActivitySession.proposal_id.in_(ids), or_(*periods)]
     if context['residential_id'] is not None:
         conditions.append(ActivitySession.residential_id == context['residential_id'])
     activity = None
@@ -151,13 +208,22 @@ def _attendance_dataset(db, context, ids):
         .where(*conditions, Attendance.attended == True,  # noqa: E712
                ProposalParticipant.proposal_id == ActivitySession.proposal_id)).one()
     metrics = {'people': int(people), 'duplicates': int(duplicates), 'activities': int(activities)}
+    tables = []
+    if len(months) > 1:
+        rows = []
+        for month in months:
+            monthly = _attendance_dataset(db, dict(context, month=month, months=None), ids)
+            values = {m['key']: m['value'] for m in monthly['metrics']}
+            rows.append([dict(MONTHS)[month], values['activities'], values['duplicates'], values['people']])
+        tables.append({'title': 'Desglose por mes', 'columns': ['Mes', 'Actividades', 'Participaciones', 'Personas únicas del mes'], 'rows': rows})
     return {'title': TITLES[context['metric']] + (f' · {context["activity_code"]}' if activity else ''),
             'activity': activity, 'primary': context['metric'],
             'metrics': [{'key': k, 'label': TITLES[k], 'value': value, 'definition': DEFINITIONS[k],
-                         'aliases': []} for k, value in metrics.items()], 'tables': [],
+                         'aliases': []} for k, value in metrics.items()], 'tables': tables,
             'source_title': 'Conteo general de actividades y participaciones',
             'note': ('El residencial corresponde al lugar de la actividad. '
-                     'Participantes únicos usa la identidad de persona vinculada a la propuesta. ' +
+                     'Participantes únicos usa la identidad de persona vinculada a la propuesta. '
+                     'Cada persona cuenta una vez en el total de meses seleccionados; los únicos mensuales no se suman. ' +
                      (f'{duplicates - linked} participaciones sin vínculo válido no se incluyen en participantes únicos.'
                       if duplicates > linked else ''))}
 
@@ -173,8 +239,8 @@ def _result(context, residentials, proposals, data):
                        'Todos los residenciales autorizados')
     proposal = next((p.name for p in proposals if p.proposal_id == context['proposal_id']), 'Todas las propuestas')
     previous = date(year, month, 1) - timedelta(days=1)
-    params = {k: v for k, v in context.items() if v is not None}
-    return {
+    params = {k: v for k, v in context.items() if v is not None and k != 'pending_terms'}
+    result = {
         'type': 'result', 'title': primary['label'] if context['field'] else data['title'],
         'value': primary['value'], 'unit': primary.get('unit', ''),
         'metrics': {m['key']: m['value'] for m in data['metrics']},
@@ -182,12 +248,24 @@ def _result(context, residentials, proposals, data):
         'tables': [] if context['field'] else data['tables'],
         'source_title': data.get('source_title', data['title']), 'source_url': data.get('source_url'),
         'definition': primary['definition'], 'context': context, 'activity': data.get('activity'),
-        'period': f'{dict(MONTHS)[month]} {year}', 'residential': residential, 'proposal': proposal,
+        'period': _period_label(context), 'residential': residential, 'proposal': proposal,
         'proposal_names': [p.name for p in proposals if p.proposal_id in ids],
-        'report_url': URL + '/informe?' + urlencode(params),
+        'report_url': URL + '/informe?' + urlencode(params, doseq=True),
         'suggestions': [f'Comparar con {dict(MONTHS)[previous.month].lower()} de {previous.year}'],
         'note': data.get('note'),
     }
+    if data.get('monthly_data'):
+        monthly = [_result(dict(context, month=m, months=None), residentials, proposals, dataset)
+                   for m, dataset in data['monthly_data']]
+        keys = [m['key'] for m in result['cards']]
+        columns = ['Mes', *[m['label'] + (f' ({m["unit"]})' if m.get('unit') else '') for m in result['cards']]]
+        result.update(type='series', title=data['title'] + ' · por mes', value=None, cards=[], metrics={},
+                      source_url=None, definition='Resultados de cada mes según el reporte original. No se suman personas únicas ni porcentajes de meses distintos.',
+                      tables=[{'title': 'Resultados por mes', 'columns': columns,
+                               'rows': [[r['period'], *[r['metrics'].get(k) for k in keys]] for r in monthly]}],
+                      monthly_results=[{k: r[k] for k in ('period', 'report_url', 'source_url')} for r in monthly],
+                      suggestions=[])
+    return result
 
 
 def _normalize(value):
@@ -198,6 +276,24 @@ def _normalize(value):
 def _canonical_activity_code(value):
     match = ACTIVITY_CODE_PATTERN.fullmatch(_normalize(value or ''))
     return '.'.join(match.groups()) if match else None
+
+
+def _extract_months(text):
+    lookup = {_normalize(name): number for number, name in MONTHS}
+    matches = list(re.finditer(r'\b(' + '|'.join(lookup) + r')\b', text))
+    selected = {lookup[m.group()] for m in matches}
+    spans = [(m.start(), m.end()) for m in matches]
+    for left, right in zip(matches, matches[1:]):
+        connector = text[left.end():right.start()].strip()
+        if connector in {'a', 'hasta'}:
+            first, last = lookup[left.group()], lookup[right.group()]
+            if last < first:
+                return [], text, 'Selecciona meses dentro de un mismo año, en orden de inicio a fin.'
+            selected.update(range(first, last + 1))
+            spans.append((left.end(), right.start()))
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + ' ' + text[end:]
+    return sorted(selected), text, None
 
 
 def _phrase(text, phrase):
@@ -277,6 +373,10 @@ def answer(db, user, question, context, *, today=None):
         return _clarify(HELP)
     if text in {'hola', 'ayuda', 'que puedes hacer', 'buenos dias', 'buenas tardes'}:
         return _clarify(HELP, original)
+    if original['pending_terms']:
+        text = original['pending_terms'] + ' ' + text
+    text = ' '.join('actividades' if word in ACTIVITY_WORDS else word for word in text.split())
+    selected['pending_terms'] = None
     # A day range such as "del 1 a 5" must not become activity code 1.a.5.
     if re.search(r'\b(?:del|desde|entre|de)\s+\d{1,2}\s+(?:a|al|hasta|y)\s+\d{1,2}\b', question, re.I):
         return _clarify('Estas consultas utilizan el mes completo. Indica un mes y año sin rango de días.', original)
@@ -309,8 +409,8 @@ def answer(db, user, question, context, *, today=None):
         for phrase in clear_code_phrases:
             text = _remove(text, phrase)
     compare = bool(re.search(r'\b(compara|comparar|comparame|comparalo)\b', text))
-    if re.search(r'\bpor (?:cada )?(?:residencial|propuesta|mes)\b', text):
-        return _clarify('Por ahora puedo consultar el total de un residencial o de todos, para un mes. '
+    if re.search(r'\bpor (?:cada )?(?:residencial|propuesta)\b', text):
+        return _clarify('Por ahora puedo consultar el total de un residencial o de todos, para los meses seleccionados. '
                         'Indica qué residencial y período quieres consultar.', original)
     residence, text, ambiguous = _entity(text, residentials, 'residencial')
     if ambiguous:
@@ -326,27 +426,41 @@ def answer(db, user, question, context, *, today=None):
             text = _remove(text, phrase)
     elif not residence and _phrase(text, 'residencial'):
         return _clarify('Indica el nombre completo del residencial, o escribe «todos los residenciales».', original)
+    all_proposals = bool(_phrase(text, 'todas las propuestas'))
+    active_phrases = ('propuesta vigente', 'propuesta activa', 'propuesta actual')
+    active_proposal = any(_phrase(text, phrase) for phrase in active_phrases)
+    if all_proposals and active_proposal:
+        return _clarify('Selecciona la propuesta vigente o todas las propuestas.', original)
+    if all_proposals:
+        selected.update(proposal_id=None, proposal_scope='all')
+        text = _remove(text, 'todas las propuestas')
+    if active_proposal:
+        selected.update(proposal_id=None, proposal_scope='auto')
+        for phrase in active_phrases:
+            text = _remove(text, phrase)
     proposal, text, ambiguous = _entity(text, proposals, 'propuesta')
     if ambiguous:
         return _clarify('Indica una sola propuesta por nombre o código, o escribe «todas las propuestas».', original)
     if proposal:
-        selected['proposal_id'] = proposal.proposal_id
-    if _phrase(text, 'todas las propuestas'):
-        selected['proposal_id'] = None
-        text = _remove(text, 'todas las propuestas')
+        if all_proposals or active_proposal:
+            return _clarify('Indica una propuesta específica o la selección general, sin mezclar ambos filtros.', original)
+        selected.update(proposal_id=proposal.proposal_id, proposal_scope='auto')
     elif not proposal and _phrase(text, 'propuesta'):
         return _clarify('Indica el nombre o código de la propuesta, o escribe «todas las propuestas».', original)
-    months = []
-    for number, name in MONTHS:
-        normalized = _normalize(name)
-        if _phrase(text, normalized):
-            months.append(number)
-            text = _remove(text, normalized)
+    months, text, period_error = _extract_months(text)
+    if period_error:
+        return _clarify(period_error, original)
+    for phrase in ('todos los meses', 'todo el ano', 'ano completo'):
+        if _phrase(text, phrase):
+            if months:
+                return _clarify('Selecciona meses específicos o el año completo.', original)
+            months = list(range(1, 13))
+            text = _remove(text, phrase)
     years = re.findall(r'\b(?:20\d{2}|2100)\b', text)
-    if len(set(months)) > 1 or len(set(years)) > 1:
-        return _clarify('Indica un mes y un año por consulta. Después puedes pedir «comparar con» otro mes.', original)
+    if len(set(years)) > 1:
+        return _clarify('Selecciona uno o varios meses dentro de un mismo año por consulta.', original)
     if months:
-        selected['month'] = months[0]
+        selected.update(month=months[0], months=months if len(months) > 1 else None)
     if years:
         selected['year'] = int(years[0])
         text = _remove(text, years[0])
@@ -354,16 +468,35 @@ def answer(db, user, question, context, *, today=None):
     for phrase in ('mes anterior', 'mes pasado', 'este mes', 'mes actual'):
         if _phrase(text, phrase):
             relative_period = True
+            if compare and len(_months(original)) > 1:
+                return _clarify('Indica los meses y el año con los que quieres comparar este conjunto.', original)
             base = date(original['year'], original['month'], 1) if compare and original['year'] and original['month'] else today.replace(day=1)
             target = base - timedelta(days=1) if phrase in {'mes anterior', 'mes pasado'} else base
             if months or years:
                 return _clarify('Usa un mes concreto o un período relativo, por ejemplo «mes anterior».', original)
-            selected.update(year=target.year, month=target.month)
+            selected.update(year=target.year, month=target.month, months=None)
             text = _remove(text, phrase)
     if not selected['metric']:
         return _clarify(HELP, selected)
-    if not selected['year'] or not selected['month']:
-        return _clarify('¿Qué mes y año quieres consultar? Por ejemplo: «marzo de 2026».', selected)
+    proposal_problem = _default_proposal(selected, proposals)
+    missing_period = not selected['year'] or not selected['month']
+    if missing_period or proposal_problem:
+        if len(text) > 800:
+            return _clarify('Escribe nuevamente la consulta completa con el período y la propuesta.', original)
+        selected['pending_terms'] = text.strip()
+        messages = []
+        if missing_period:
+            if selected['month']:
+                messages.append('¿De qué año quieres consultar esos meses?')
+            else:
+                messages.append('¿Qué mes o meses' + (f' de {selected["year"]} quieres consultar?' if selected['year'] else ' quieres consultar y de qué año?') +
+                                ' Por ejemplo: «agosto y septiembre de 2026».')
+        if proposal_problem:
+            messages.append(proposal_problem['message'])
+        else:
+            name = next((p.name for p in proposals if p.proposal_id == selected['proposal_id']), 'Todas las propuestas')
+            messages.append('Propuesta: ' + name + '.')
+        return _clarify(' '.join(messages), selected, proposal_problem['suggestions'] if proposal_problem else [])
     selected = _authorized_context(selected, user, residentials, proposals)
     try:
         data = _dataset(db, user, selected, proposals)
@@ -390,7 +523,7 @@ def answer(db, user, question, context, *, today=None):
     words = set(text.split())
     allowed = set('cuantos cuantas hubo hay fueron tenemos tuvo tuvo total cantidad numero de del el la los las '
                   'en para por durante y con al un una me puedes puede dime dame saber quiero quisiera '
-                  'consulta consultar muestra mostrar indicame residencial propuesta mes ano faro '
+                  'consulta consultar muestra mostrar indicame residencial propuesta mes meses ano faro '
                   'compara comparar comparame comparalo favor por favor registrados registradas '
                   'atendidos atendidas este ese fueron se atendieron participaron informe reporte '
                   'datos informacion resultado resultados seguimiento cual cuales es son las los '
@@ -404,8 +537,10 @@ def answer(db, user, question, context, *, today=None):
             return _clarify('¿Con qué mes y año quieres comparar la consulta anterior?', original)
         if not all(original[k] for k in ('metric', 'year', 'month')):
             return _clarify('Consulta primero un mes y después pide compararlo con otro.', selected)
-        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id', 'activity_code')):
+        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id', 'proposal_scope', 'activity_code')):
             return _clarify('Para comparar meses conservaré el indicador, el código de actividad, el residencial y la propuesta de la consulta anterior.', original)
+        if selected['metric'] not in TITLES and (len(_months(selected)) > 1 or len(_months(original)) > 1):
+            return _clarify('Este reporte muestra cada mes por separado. Para una comparación numérica selecciona un mes de cada período.', original)
         result = summary(db, user, original)
         other = _result(selected, residentials, proposals, data)
         result['comparison'] = {'period': other['period'], 'value': other['value'],

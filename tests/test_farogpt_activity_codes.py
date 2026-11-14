@@ -43,7 +43,7 @@ class FaroGPTActivityCodeTests(unittest.TestCase):
         self.db.commit()
 
     def ask(self, question, context=None, user=None):
-        return farogpt.answer(self.db, user or self.f.actor, question, context or {}, today=date(2026, 11, 14))
+        return farogpt.answer(self.db, user or self.f.actor, question, context or {'proposal_scope': 'all'}, today=date(2026, 11, 14))
 
     def result(self, question, **kwargs):
         result = self.ask(question, **kwargs)

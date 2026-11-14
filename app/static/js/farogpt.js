@@ -83,10 +83,10 @@
   }
 
   function render(result) {
-    if (result.type === 'result' && Number.isFinite(result.value)) {
+    if ((result.type === 'result' && Number.isFinite(result.value)) || result.type === 'series') {
       const { content } = bubble('result');
       content.append(element('h3', 'farogpt__result-title', result.title));
-      content.append(element('strong', 'farogpt__value', `${format.format(result.value)}${result.unit ? ' ' + result.unit : ''}`));
+      if (Number.isFinite(result.value)) content.append(element('strong', 'farogpt__value', `${format.format(result.value)}${result.unit ? ' ' + result.unit : ''}`));
       const filters = element('div', 'farogpt__filters');
       filters.append(element('p', '', `${result.residential} · ${result.period}`));
       filters.append(element('p', '', `Propuesta: ${result.proposal}`));
@@ -103,6 +103,7 @@
       }
       if ((result.tables || []).length) {
         const details = element('details', 'farogpt__details');
+        details.open = result.type === 'series';
         details.append(element('summary', '', 'Ver desgloses del reporte'));
         result.tables.forEach(item => {
           const wrap = element('div', 'farogpt__table-wrap');
@@ -134,6 +135,10 @@
       if (result.source_title) content.append(element('p', 'farogpt__note', `Fuente: ${result.source_title}`));
       const source = reportLink(result.source_url, 'Abrir reporte original');
       if (source) content.append(source);
+      (result.monthly_results || []).forEach(month => {
+        const monthlyLink = reportLink(month.report_url, `Ver ${month.period.toLowerCase()}`);
+        if (monthlyLink) content.append(monthlyLink);
+      });
       if (result.note) content.append(element('p', 'farogpt__note', result.note));
       if (result.comparison) {
         const other = result.comparison;

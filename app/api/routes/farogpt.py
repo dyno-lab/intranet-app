@@ -60,9 +60,11 @@ def query(payload: Question, request: Request, db: Session = Depends(get_db), us
 
 
 @router.get('/informe')
-def report(request: Request, filters: service.QueryContext = Depends(),
-           db: Session = Depends(get_db), user: User = Depends(supervision)):
-    result = service.summary(db, user, filters.model_dump())
+def report(request: Request, db: Session = Depends(get_db), user: User = Depends(supervision)):
+    filters = dict(request.query_params)
+    if 'months' in filters:
+        filters['months'] = request.query_params.getlist('months')
+    result = service.summary(db, user, filters)
     return templates.TemplateResponse(request=request, name='ui/farogpt_report.html', context={
         'current_user': user, 'result': result, 'titles': service.TITLES,
         'definitions': service.DEFINITIONS, 'consulted_on': date.today(),
