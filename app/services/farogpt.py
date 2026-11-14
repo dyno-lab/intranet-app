@@ -10,10 +10,11 @@ from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import distinct, func, select
 
 from app.core.residential_scope import has_global_residential_access
+from app.models.activity_code import ActivityCode
 from app.models.activity_session import ActivitySession
 from app.models.attendance import Attendance
 from app.models.person import Person
@@ -24,6 +25,7 @@ from app.services.participant_courses import MONTHS
 from app.services import farogpt_reports
 
 URL = '/ui/farogpt'
+ACTIVITY_CODE_PATTERN = re.compile(r'(?<!\w)(\d{1,2})\s*([a-z])\s*(\d{1,3})(?!\w)')
 TITLES = {'people': 'Participantes únicos', 'duplicates': 'Participaciones (duplicados)',
           'activities': 'Actividades / servicios'}
 DEFINITIONS = {
@@ -34,7 +36,7 @@ DEFINITIONS = {
 HELP = ('Puedo consultar No Duplicado, Duplicados, ADM, notas, embarazo, deserción, visitas, '
         'referidos, cursos, Bonafide, Certificación, VCA, Cotejo, programas, productividad y el informe completo. '
         'Indica el mes y año, un residencial o «global» y, si deseas, una propuesta. '
-        'Ejemplo: «Informe administrativo global de octubre 2026».')
+        'También puedo contar actividades por código, como «Actividades 2.b.5 en agosto 2026».')
 
 
 class QueryContext(BaseModel):
@@ -47,6 +49,17 @@ class QueryContext(BaseModel):
     month: int | None = Field(default=None, ge=1, le=12)
     residential_id: int | None = Field(default=None, gt=0)
     proposal_id: int | None = Field(default=None, gt=0)
+    activity_code: str | None = Field(default=None, max_length=20)
+
+    @field_validator('activity_code')
+    @classmethod
+    def validate_activity_code(cls, value):
+        if value is None:
+            return None
+        canonical = _canonical_activity_code(value)
+        if canonical is None:
+            raise ValueError('Usa un código de actividad completo, por ejemplo 2.b.5.')
+        return canonical
 
 
 def require_supervision(user):
@@ -88,6 +101,9 @@ def _authorized_context(context, user, residentials, proposals):
 def _dataset(db, user, context, proposals):
     ids = [context['proposal_id']] if context['proposal_id'] else [p.proposal_id for p in proposals]
     if context['metric'] not in TITLES:
+        if context['activity_code']:
+            raise HTTPException(422, 'El filtro por código está disponible para actividades, participaciones '
+                                'y participantes únicos. Indica uno de esos indicadores para esta actividad.')
         return farogpt_reports.build(context['metric'], db, user, ids, context['month'],
                                      context['year'], context['residential_id'])
     return _attendance_dataset(db, context, ids)
@@ -111,6 +127,17 @@ def _attendance_dataset(db, context, ids):
                   ActivitySession.session_date < end]
     if context['residential_id'] is not None:
         conditions.append(ActivitySession.residential_id == context['residential_id'])
+    activity = None
+    if context['activity_code']:
+        # Include historical/inactive codes. Session.proposal_id owns the service;
+        # a code can be shared by multiple proposals regardless of its owner today.
+        codes = [row for row in db.execute(select(ActivityCode.activity_code_id, ActivityCode.code, ActivityCode.description))
+                 if _canonical_activity_code(row.code) == context['activity_code']]
+        if not codes:
+            raise HTTPException(422, f'No encontré el código {context["activity_code"]} en el catálogo de actividades. Revisa el código.')
+        conditions.append(ActivitySession.activity_code_id.in_([row.activity_code_id for row in codes]))
+        descriptions = list(dict.fromkeys(row.description for row in codes if row.description))
+        activity = context['activity_code'] + (' · ' + ' / '.join(descriptions) if descriptions else '')
     activities = db.scalar(select(func.count()).select_from(ActivitySession).where(*conditions)) or 0
     duplicates = db.scalar(select(func.count(Attendance.attendance_id)).select_from(Attendance)
         .join(ActivitySession, ActivitySession.session_id == Attendance.session_id)
@@ -124,7 +151,8 @@ def _attendance_dataset(db, context, ids):
         .where(*conditions, Attendance.attended == True,  # noqa: E712
                ProposalParticipant.proposal_id == ActivitySession.proposal_id)).one()
     metrics = {'people': int(people), 'duplicates': int(duplicates), 'activities': int(activities)}
-    return {'title': TITLES[context['metric']], 'primary': context['metric'],
+    return {'title': TITLES[context['metric']] + (f' · {context["activity_code"]}' if activity else ''),
+            'activity': activity, 'primary': context['metric'],
             'metrics': [{'key': k, 'label': TITLES[k], 'value': value, 'definition': DEFINITIONS[k],
                          'aliases': []} for k, value in metrics.items()], 'tables': [],
             'source_title': 'Conteo general de actividades y participaciones',
@@ -153,7 +181,7 @@ def _result(context, residentials, proposals, data):
         'cards': [primary] if context['field'] else data['metrics'],
         'tables': [] if context['field'] else data['tables'],
         'source_title': data.get('source_title', data['title']), 'source_url': data.get('source_url'),
-        'definition': primary['definition'], 'context': context,
+        'definition': primary['definition'], 'context': context, 'activity': data.get('activity'),
         'period': f'{dict(MONTHS)[month]} {year}', 'residential': residential, 'proposal': proposal,
         'proposal_names': [p.name for p in proposals if p.proposal_id in ids],
         'report_url': URL + '/informe?' + urlencode(params),
@@ -165,6 +193,11 @@ def _result(context, residentials, proposals, data):
 def _normalize(value):
     value = ''.join(c for c in unicodedata.normalize('NFKD', value.lower()) if not unicodedata.combining(c))
     return ' '.join(re.findall(r'[a-z0-9]+', value))
+
+
+def _canonical_activity_code(value):
+    match = ACTIVITY_CODE_PATTERN.fullmatch(_normalize(value or ''))
+    return '.'.join(match.groups()) if match else None
 
 
 def _phrase(text, phrase):
@@ -244,11 +277,37 @@ def answer(db, user, question, context, *, today=None):
         return _clarify(HELP)
     if text in {'hola', 'ayuda', 'que puedes hacer', 'buenos dias', 'buenas tardes'}:
         return _clarify(HELP, original)
+    # A day range such as "del 1 a 5" must not become activity code 1.a.5.
+    if re.search(r'\b(?:del|desde|entre|de)\s+\d{1,2}\s+(?:a|al|hasta|y)\s+\d{1,2}\b', question, re.I):
+        return _clarify('Estas consultas utilizan el mes completo. Indica un mes y año sin rango de días.', original)
+    codes = {'.'.join(match.groups()) for match in ACTIVITY_CODE_PATTERN.finditer(text)}
+    if len(codes) > 1:
+        return _clarify('Indica un solo código de actividad por consulta, por ejemplo «2.b.5».', original)
+    # Extract codes before residential/proposal recognition so their digits and
+    # letters cannot accidentally become a different scope or a school grade.
+    text = ACTIVITY_CODE_PATTERN.sub(' ', text)
+    if codes:
+        # In "participaciones de la actividad 2.b.5", activity describes the
+        # filter, rather than requesting a second indicator alongside attendance.
+        text = re.sub(r'\b(?:de|en)\s+(?:(?:la|las)\s+)?actividad(?:es)?\b', ' ', text)
     reports = _report_in_question(text)
     if len(reports) > 1:
         return _clarify('Consulta un reporte a la vez. ' + HELP, original)
     if reports:
         selected.update(metric=reports[0], field=None)
+        if not codes and reports[0] not in TITLES:
+            selected['activity_code'] = None
+    if codes:
+        selected['activity_code'] = codes.pop()
+        if not reports and selected['metric'] not in TITLES:
+            selected.update(metric='activities', field=None)
+    clear_code_phrases = ('todas las actividades', 'todos los codigos', 'sin filtro de actividad')
+    if any(_phrase(text, phrase) for phrase in clear_code_phrases):
+        if selected['activity_code'] and ACTIVITY_CODE_PATTERN.search(_normalize(question)):
+            return _clarify('Selecciona un código específico o todas las actividades, sin mezclar ambos filtros.', original)
+        selected['activity_code'] = None
+        for phrase in clear_code_phrases:
+            text = _remove(text, phrase)
     compare = bool(re.search(r'\b(compara|comparar|comparame|comparalo)\b', text))
     if re.search(r'\bpor (?:cada )?(?:residencial|propuesta|mes)\b', text):
         return _clarify('Por ahora puedo consultar el total de un residencial o de todos, para un mes. '
@@ -334,7 +393,9 @@ def answer(db, user, question, context, *, today=None):
                   'consulta consultar muestra mostrar indicame residencial propuesta mes ano faro '
                   'compara comparar comparame comparalo favor por favor registrados registradas '
                   'atendidos atendidas este ese fueron se atendieron participaron informe reporte '
-                  'datos informacion resultado resultados seguimiento cual cuales es son las los'.split())
+                  'datos informacion resultado resultados seguimiento cual cuales es son las los '
+                  'codigo hicieron realizaron realizadas realizados ejecutaron ejecutadas ejecutados '
+                  'ofrecieron registraron impartieron'.split())
     if words - allowed:
         return _clarify('No pude identificar todos los campos o filtros. Puedes pedir el resumen o un campo del reporte.',
                         original, [f'Resumen de {data["title"]} {dict(MONTHS)[selected["month"]]} {selected["year"]}'])
@@ -343,8 +404,8 @@ def answer(db, user, question, context, *, today=None):
             return _clarify('¿Con qué mes y año quieres comparar la consulta anterior?', original)
         if not all(original[k] for k in ('metric', 'year', 'month')):
             return _clarify('Consulta primero un mes y después pide compararlo con otro.', selected)
-        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id')):
-            return _clarify('Para comparar meses conservaré el indicador, el residencial y la propuesta de la consulta anterior.', original)
+        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id', 'activity_code')):
+            return _clarify('Para comparar meses conservaré el indicador, el código de actividad, el residencial y la propuesta de la consulta anterior.', original)
         result = summary(db, user, original)
         other = _result(selected, residentials, proposals, data)
         result['comparison'] = {'period': other['period'], 'value': other['value'],

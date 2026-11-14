@@ -26,7 +26,7 @@ ALIASES = {
     'duplicado': ('duplicados', 'duplicadas', 'duplicado'),
     'people': ('participantes unicos', 'personas unicas', 'personas atendidas', 'participantes', 'personas'),
     'duplicates': ('participaciones',),
-    'activities': ('actividades', 'servicios'),
+    'activities': ('actividades', 'actividad', 'servicios', 'servicio', 'sesiones'),
 }
 
 FIELD_ALIASES = {

@@ -32,7 +32,7 @@ class FaroGPTTests(unittest.TestCase):
         self.assertEqual(result['type'], 'result')
         self.assertEqual(result['value'], 1)
         self.assertEqual(result['context'], dict(metric='people', field=None, month=9, year=2026,
-            residential_id=self.f.a.residential_id, proposal_id=None))
+            residential_id=self.f.a.residential_id, proposal_id=None, activity_code=None))
         self.assertEqual(result['residential'], 'Arístides Chavier')
         self.assertIn('month=9', result['report_url'])
         self.assertIn('residential_id=', result['report_url'])

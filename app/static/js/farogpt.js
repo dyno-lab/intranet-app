@@ -90,6 +90,7 @@
       const filters = element('div', 'farogpt__filters');
       filters.append(element('p', '', `${result.residential} · ${result.period}`));
       filters.append(element('p', '', `Propuesta: ${result.proposal}`));
+      if (result.activity) filters.append(element('p', '', `Actividad: ${result.activity}`));
       content.append(filters, element('p', 'farogpt__definition', result.definition));
       if ((result.cards || []).length > 1) {
         const metrics = element('dl', 'farogpt__metrics');

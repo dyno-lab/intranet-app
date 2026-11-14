@@ -64,6 +64,32 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.assertNotIn('Ana Prueba', report.text)
         self.assertEqual(report.headers['cache-control'], 'no-store')
 
+    def test_activity_code_is_preserved_in_api_and_report(self):
+        self.f.code.description = 'Destrezas para el empleo'
+        self.db.commit()
+        response = self.send('Cuántas actividades 2.B.5 se hicieron en septiembre 2026')
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['activity_code'], '2.b.5')
+        report = self.client.get(result['report_url'])
+        self.assertEqual(report.status_code, 200, report.text)
+        self.assertIn('2.b.5', report.text)
+        self.assertIn('Destrezas para el empleo', report.text)
+        self.assertEqual(self.client.get('/ui/farogpt/informe', params={
+            'metric': 'activities', 'month': 9, 'year': 2026, 'activity_code': '2B5'}).status_code, 200)
+
+    def test_activity_code_context_is_validated_and_scoped(self):
+        self.assertEqual(self.send(context={'activity_code': 'DROP TABLE attendance'}).status_code, 422)
+        self.assertEqual(self.client.get('/ui/farogpt/informe', params={
+            'metric': 'activities', 'month': 9, 'year': 2026, 'activity_code': '9.z.99'}).status_code, 422)
+        self.client.get('/test/login?scoped=true')
+        result = self.send('Actividades 2b5 global septiembre 2026').json()
+        self.assertEqual(result['value'], 0)
+        self.assertEqual(result['context']['residential_id'], self.f.b.residential_id)
+        self.assertEqual(self.send('agosto 2026', context={'metric': 'activities', 'activity_code': '2.b.5',
+            'month': 9, 'year': 2026, 'residential_id': self.f.a.residential_id}).status_code, 403)
+
     def test_csrf_and_session_required(self):
         response = self.client.post('/ui/farogpt/consulta', json={'question': 'participantes únicos septiembre 2026'})
         self.assertEqual(response.status_code, 403)

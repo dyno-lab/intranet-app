@@ -32,8 +32,15 @@ Ejemplos:
 - «Referidos internos en visitas global octubre 2026».
 - «Participaciones en Chavier en octubre de 2026, propuesta 006».
 - «Actividades en todos los residenciales en octubre de 2026».
+- «¿Cuántas actividades 2.B.5 se hicieron en agosto 2026?».
+- «Actividades 2B5 en Chavier agosto 2026 propuesta 006».
+- «Participaciones de la actividad 2.b.5 en agosto 2026».
 - Después de consultar: «Comparar con febrero de 2026» o «Comparar con el mes anterior».
 - Si falta la fecha, puede completarse en el siguiente mensaje: «marzo de 2026».
+
+El filtro por código acepta mayúsculas, minúsculas, puntos, formato compacto y espacios (`2.B.5`, `2b5`, `2 B 5`). Usa un código por consulta y cuenta sesiones registradas; una sesión sin asistencias también cuenta como actividad. El código se conserva al cambiar de mes, comparar o pedir «global». «Todas las actividades», «todos los códigos» o «sin filtro de actividad» lo eliminan. Cambiar a otro reporte elimina el código anterior; si se solicita explícitamente un código en un reporte que no admite ese filtro, se pide aclaración. Los rangos de días no se reinterpretan como códigos.
+
+El código filtra actividades, participaciones y participantes únicos del conteo general. Se incluyen códigos históricos/inactivos y se usa la propuesta de cada sesión, aunque el código se comparta entre propuestas. Un código inexistente pide corrección; un código válido sin sesiones devuelve cero. El resultado y «Ver informe» muestran código/descripción y mantienen todos los filtros.
 
 El reconocimiento es acotado a los reportes y campos publicados. No utiliza un modelo generativo ni un proveedor externo, no requiere claves de API y no genera SQL libre. Un residencial ambiguo, una propuesta desconocida, varios meses, un rango de días o un filtro no soportado requieren aclaración; no se omiten para producir un total aparente. Los desgloses completos se consultan en las tablas. No consulta presupuestos, confirmaciones mensuales ni hallazgos de validación, que pertenecen a otros módulos.
 
@@ -79,7 +86,7 @@ Las tres rutas verifican sesión, permiso `access_faro`, rol y contexto residenc
 Pruebas de integración con datos sintéticos: conteos entre propuestas, ausencias, traslados, períodos, contexto conversacional, ambigüedad, filtros desconocidos, CSRF, sesiones, permisos, alcance residencial e informe. El widget se verifica también por rol en la plantilla del inicio.
 
 ```powershell
-python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
+python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_activity_codes tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
 ```
 
 El 14/11/2026 se contrastaron seis combinaciones de mes/residencial/propuesta contra SELECT independientes en la copia local `Faro_Validation_Audit_20261114`, en modo READ_ONLY. Coincidieron los tres indicadores en los seis casos y la interpretación del ejemplo de Chavier. No se conectó a producción. La comprobación real de SQL Server detectó y permitió corregir un predicado booleano que SQLite admitía: se utiliza `attended == True`, compatible con el resto del proyecto.
@@ -87,6 +94,8 @@ El 14/11/2026 se contrastaron seis combinaciones de mes/residencial/propuesta co
 La revisión visual local confirmó la consulta, comparación, informe, aclaraciones, minimizar/cerrar/Escape, reapertura y un ancho móvil de 390 px. El widget móvil ocupa el ancho disponible sin recortarse. La revisión usó una base SQLite sintética y el template real del inicio.
 
 Ampliación de reportes: 110 pruebas aprobadas y 29 comparaciones coincidentes contra los builders originales sobre el mismo respaldo local READ_ONLY (octubre de 2026, global y Chavier; informe completo global). El informe completo tardó aproximadamente 35 segundos en esta computadora. Evidencia local fuera del repositorio: `audits/farogpt-20261114/expanded-comparison.json`. Verificación visual de tarjetas, tablas, enlaces y reporte de Notas con datos sintéticos; ancho móvil del panel 351 px dentro de 375 px disponibles. No se conectó a producción ni se alteraron datos del programa.
+
+Consultas por código: el ejemplo exacto del usuario fallaba antes del cambio y pasó después. 123 pruebas aprobadas, incluyendo filtros, sesiones sin asistencia, código compartido entre propuestas, contexto conversacional, API/informe y acceso. Ocho combinaciones de agosto/septiembre de 2026 por global, Chavier y propuesta coinciden con SQL independiente en la copia local READ_ONLY; el respaldo del 14/11/2026 tiene ocho sesiones 2.b.5 en agosto, global. Evidencia: `audits/farogpt-20261114/activity-code-comparison.json`. No se modificó el respaldo ni se consultó producción.
 
 ## Recurso visual
 

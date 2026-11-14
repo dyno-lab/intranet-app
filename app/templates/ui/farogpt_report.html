@@ -17,6 +17,7 @@
       <dl>
         <div><dt>Período</dt><dd>{{ result.period }}</dd></div>
         <div><dt>Propuestas consultadas</dt><dd>{{ result.proposal_names | join(', ') or 'No hay propuestas disponibles' }}</dd></div>
+        {% if result.activity %}<div><dt>Actividad</dt><dd>{{ result.activity }}</dd></div>{% endif %}
         <div><dt>Consulta</dt><dd>{{ consulted_on.strftime('%d/%m/%Y') }}</dd></div>
       </dl>
     </section>
