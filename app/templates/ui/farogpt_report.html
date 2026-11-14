@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consulta FaroGPT · {{ result.period }}</title>
+  <link href="/static/css/farogpt.css?v=1" rel="stylesheet">
+</head>
+<body class="farogpt-report">
+  <header class="farogpt-report__header">
+    <div><h1>FaroGPT · Informe de consulta</h1><p>Programa Faro de Esperanza</p></div>
+    <a href="/ui/#farogpt">Volver a FaroGPT</a>
+  </header>
+  <main>
+    <section class="farogpt-report__filters" aria-labelledby="fg-report-filters">
+      <h2 id="fg-report-filters">{{ result.residential }}</h2>
+      <dl>
+        <div><dt>Período</dt><dd>{{ result.period }}</dd></div>
+        <div><dt>Propuestas consultadas</dt><dd>{{ result.proposal_names | join(', ') or 'No hay propuestas disponibles' }}</dd></div>
+        <div><dt>Consulta</dt><dd>{{ consulted_on.strftime('%d/%m/%Y') }}</dd></div>
+      </dl>
+    </section>
+    <section class="farogpt-report__metrics" aria-label="Resultados del período">
+      {% for key, value in result.metrics.items() %}
+      <article class="farogpt-report__metric">
+        <h2>{{ titles[key] }}</h2>
+        <strong>{{ '{:,}'.format(value) }}</strong>
+        <p>{{ definitions[key] }}</p>
+      </article>
+      {% endfor %}
+    </section>
+    <div class="farogpt-report__source">
+      <p>Fuente: actividades y participaciones registradas en FARO. El residencial corresponde al lugar donde se registró la actividad; los traslados posteriores no cambian su historial.</p>
+      <p>Participantes únicos utiliza la identidad de la persona vinculada a la propuesta, con la misma definición del reporte institucional. Los resultados se vuelven a calcular al abrir este informe.</p>
+      {% if result.note %}<p>{{ result.note }}</p>{% endif %}
+    </div>
+  </main>
+</body>
+</html>

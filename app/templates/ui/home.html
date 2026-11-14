@@ -267,4 +267,7 @@
   <p class="home-footer-note">Derechos reservados Christian X. Ramirez</p>
 </section>
 <script src="/static/js/faro-home-slideshow.js?v=20261113" defer></script>
+{% if current_user and current_user.role in ['admin', 'supervisor'] %}
+{% include 'ui/_farogpt.html' %}
+{% endif %}
 {% endblock %}
