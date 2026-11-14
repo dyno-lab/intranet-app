@@ -22,6 +22,9 @@ Si no se indica una propuesta, se selecciona la vigente: `is_active=True` y esta
 | Hoja de Cotejo / Por Programa | Actividades, participaciones, horas y tablas por actividad/programa |
 | Productividad | Ejecución mensual, acumulado, metas, cumplimiento y desglose residencial |
 | Informe mensual completo | Resumen global, totales residenciales y horas por programa; solo desde contexto global |
+| Confirmaciones mensuales pendientes | Residenciales sin confirmar o que necesitan reconfirmar, fecha límite y volumen registrado |
+| Expedientes incompletos | Expedientes con hallazgos abiertos de integridad, todos sus errores agrupados y acceso a Validación |
+| Actividades sin asistencias u horas | Sesiones con participaciones vacías u horas faltantes/inválidas y acceso a su seguimiento |
 
 Ejemplos:
 
@@ -42,6 +45,11 @@ Ejemplos:
 - «Cuántas act 2.b.5 se hicieron» → pregunta el mes o meses y año, e informa la propuesta elegida → «agosto y septiembre 2026».
 - «Actividades 1.a.3 de julio a septiembre 2026» incluye julio, agosto y septiembre; «julio y septiembre» incluye solo esos dos meses.
 - «Notas A global julio y agosto 2026» muestra el valor de cada mes con sus enlaces.
+- «¿Qué residenciales faltan por confirmar las asistencias de octubre 2026?».
+- «Confirmaciones mensuales pendientes septiembre y octubre 2026».
+- «¿Qué expedientes tienen información incompleta en Chavier?»; no necesita indicar mes.
+- «¿Qué actividades tienen asistencias vacías o les faltan horas septiembre 2026?».
+- «Actividades sin asistencias u horas octubre 2026», «Actividades sin asistencias octubre 2026» o «Actividades sin horas octubre 2026».
 
 Las variantes `act`, `acts`, `actividadss`, `actididades`, `actvidades`, `atividades`, `actividaes` y `activdades` se interpretan como «actividades». Esta tolerancia se limita a palabras conocidas: nunca aproxima códigos, propuestas o residenciales. Al pedir datos faltantes se conservan el código, el residencial, los meses ya seleccionados y los términos del campo solicitado. No se descartan restricciones desconocidas para devolver un número sin ese filtro.
 
@@ -53,7 +61,16 @@ El filtro por código acepta mayúsculas, minúsculas, puntos, formato compacto 
 
 El código filtra actividades, participaciones y participantes únicos del conteo general. Se incluyen códigos históricos/inactivos y se usa la propuesta de cada sesión, aunque el código se comparta entre propuestas. Un código inexistente pide corrección; un código válido sin sesiones devuelve cero. El resultado y «Ver informe» muestran código/descripción y mantienen todos los filtros.
 
-El reconocimiento es acotado a los reportes y campos publicados. No utiliza un modelo generativo ni un proveedor externo, no requiere claves de API y no genera SQL libre. Un residencial ambiguo, una propuesta desconocida, varios años, un rango de días o un filtro no soportado requieren aclaración; no se omiten para producir un total aparente. Los desgloses completos se consultan en las tablas. No consulta presupuestos, confirmaciones mensuales ni hallazgos de validación, que pertenecen a otros módulos.
+El reconocimiento es acotado a los reportes y campos publicados. No utiliza un modelo generativo ni un proveedor externo, no requiere claves de API y no genera SQL libre. Un residencial ambiguo, una propuesta desconocida, varios años, un rango de días o un filtro no soportado requieren aclaración; no se omiten para producir un total aparente. Los desgloses completos se consultan en las tablas. No consulta presupuestos ni ejecuta confirmaciones, revalidaciones, asignaciones o recordatorios desde el chat.
+
+## Consultas de supervisión
+
+- **Confirmación mensual:** reutiliza `monthly_attendance.build_month`. Cuenta una obligación por propuesta, residencial y mes; también informa el número de residenciales distintos. Incluye los estados pendiente y revisión por cambios posteriores; excluye confirmados y residenciales no incluidos en el período. Un mes sin actividades requiere confirmación expresa. Conserva la fecha límite configurada, o el día 10 del mes siguiente si aún no se configuró. Los enlaces abren la propuesta y el mes en el módulo original, que no admite un filtro residencial adicional; el alcance del usuario sigue siendo obligatorio.
+- **Expedientes:** reutiliza los hallazgos abiertos de tipo `record` de `data_validation.review`. Agrupa por persona y número de expediente entre propuestas, muestra todos los errores del grupo y conserva números históricos diferentes como filas separadas. Incluye campos incompletos o inconsistentes; relación familiar y posibles duplicados quedan fuera de esta consulta. No aplica corte mensual ni obliga a pedir fecha. Un período usado internamente para la validación no se guarda como si lo hubiera elegido el usuario: la siguiente pregunta mensual vuelve a pedirlo si falta.
+- **Actividades:** reutiliza las reglas `no_participations` y `hours`. Solo revisa sesiones hasta hoy en los meses elegidos. Asistencias vacías significa ausencia de participaciones confirmadas vinculadas a participante/inscripción. Horas faltantes o inválidas significa vacío, no finito, cero, negativo o mayor que 24. Una sesión con ambos problemas cuenta una vez. Se puede consultar cada problema por separado o su unión con «u/o». El filtro elegido se conserva al cambiar de mes.
+- **Seguimiento vigente:** justificados y resueltos quedan fuera; evidencia nueva vuelve a pendiente según la validación original. Si un problema corregido conserva seguimiento abierto, se muestra «Por revalidar» y se explica, sin cerrar el hallazgo desde la consulta.
+- **Acceso:** las tres consultas requieren Faro y rol admin/supervisor. Las dos de validación también verifican `access_automation` en servidor, tanto en el chat como al abrir su informe; no basta con conocer el enlace. La selección global nunca elude el residencial activo. No se conceden permisos nuevos.
+- **Salida:** tablas con enlaces protegidos, número de expediente y errores, o control/fecha/código de sesión. No se devuelven nombres de participantes, nacimientos, observaciones privadas, responsables ni huellas internas. El chat muestra hasta doce filas; «Ver informe» incluye todas. Los botones llevan a los módulos existentes para corregir o dar seguimiento. Las consultas solo leen datos.
 
 ## Definiciones de datos
 
@@ -67,7 +84,7 @@ El reconocimiento es acotado a los reportes y campos publicados. No utiliza un m
 - **Residencial:** el de la sesión; un traslado posterior no mueve los servicios históricos al residencial actual.
 - **Comparación:** se recalculan ambos períodos con el mismo reporte, campo, código, residencial y propuesta. La diferencia es período original menos período comparado. Para reportes operacionales se compara un mes con otro; los conteos generales permiten comparar conjuntos de meses.
 
-No se cambia ni migra la base de datos. Las respuestas son agregadas, sin nombres ni expedientes de participantes. El informe vuelve a consultar los datos al abrirse; puede cambiar si otra persona registró información después de la respuesta del chat.
+No se cambia ni migra la base de datos. Los reportes estadísticos siguen devolviendo agregados; la nueva consulta autorizada de expedientes incluye sus números para localizar pendientes, sin nombres ni nacimientos. El informe vuelve a consultar los datos al abrirse; puede cambiar si otra persona registró información después de la respuesta del chat.
 
 ## Interfaz y acceso
 
@@ -86,6 +103,7 @@ Las tres rutas verifican sesión, permiso `access_faro`, rol y contexto residenc
 - `app/services/farogpt.py`: reconocimiento acotado, alcance autorizado y agregaciones.
 - `app/services/farogpt_reports.py`: catálogo, enlace a fuente y resumen del informe mensual completo, con restricción de alcance global.
 - `app/services/farogpt_report_operations.py`, `farogpt_report_followups.py`: proyecciones explícitas de métricas/tablas agregadas de los reportes; no devuelven sus contextos completos.
+- `app/services/farogpt_monthly_pending.py`, `farogpt_data_quality.py`: proyecciones de seguimiento que reutilizan confirmación mensual y validación, sin escrituras.
 - `app/api/routes/farogpt.py`: endpoints de consulta e informe.
 - `app/templates/ui/_farogpt.html`, `app/static/css/farogpt.css`, `app/static/js/farogpt.js`: widget aislado.
 - `app/templates/ui/farogpt_report.html`: informe agregado de consulta.
@@ -97,7 +115,7 @@ Las tres rutas verifican sesión, permiso `access_faro`, rol y contexto residenc
 Pruebas de integración con datos sintéticos: conteos entre propuestas, ausencias, traslados, períodos, contexto conversacional, ambigüedad, filtros desconocidos, CSRF, sesiones, permisos, alcance residencial e informe. El widget se verifica también por rol en la plantilla del inicio.
 
 ```powershell
-python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_activity_codes tests.test_farogpt_conversation tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
+python -B -m unittest tests.test_farogpt.FaroGPTTests tests.test_farogpt_routes.FaroGPTRouteTests tests.test_farogpt_activity_codes tests.test_farogpt_conversation tests.test_farogpt_reports tests.test_farogpt_report_operations tests.test_farogpt_report_followups tests.test_farogpt_supervision tests.test_farogpt_monthly_pending tests.test_data_validation.DataValidationTests tests.test_data_validation_routes.DataValidationRoutes tests.test_monthly_attendance.MonthlyAttendanceTests tests.test_monthly_attendance_routes.MonthlyAttendanceRouteTests tests.test_institutional_reports tests.test_institutional_report_participant_snapshots tests.test_residential_access tests.test_ui_navigation tests.test_viewer_read_only
 ```
 
 El 14/11/2026 se contrastaron seis combinaciones de mes/residencial/propuesta contra SELECT independientes en la copia local `Faro_Validation_Audit_20261114`, en modo READ_ONLY. Coincidieron los tres indicadores en los seis casos y la interpretación del ejemplo de Chavier. No se conectó a producción. La comprobación real de SQL Server detectó y permitió corregir un predicado booleano que SQLite admitía: se utiliza `attended == True`, compatible con el resto del proyecto.
@@ -109,6 +127,8 @@ Ampliación de reportes: 110 pruebas aprobadas y 29 comparaciones coincidentes c
 Consultas por código: el ejemplo exacto del usuario fallaba antes del cambio y pasó después. 123 pruebas aprobadas, incluyendo filtros, sesiones sin asistencia, código compartido entre propuestas, contexto conversacional, API/informe y acceso. Ocho combinaciones de agosto/septiembre de 2026 por global, Chavier y propuesta coinciden con SQL independiente en la copia local READ_ONLY; el respaldo del 14/11/2026 tiene ocho sesiones 2.b.5 en agosto, global. Evidencia: `audits/farogpt-20261114/activity-code-comparison.json`. No se modificó el respaldo ni se consultó producción.
 
 Consultas guiadas: 143 pruebas aprobadas, incluyendo propuesta vigente/finalizada, ninguna o varias vigentes, selección explícita, campos conservados al completar preguntas, variantes de «actividades», listas/rangos de meses, unión de personas únicas y enlaces API/HTML. Ocho combinaciones contrastadas con SQL independiente en la misma copia READ_ONLY coinciden. El respaldo identifica como vigente 2025-000094-C; la consulta guiada de 2.b.5 en agosto y septiembre de 2026 devuelve 16 actividades. Evidencia fuera del repositorio: `audits/farogpt-20261114/guided-comparison.json`. Revisión visual local con datos sintéticos: pregunta sin período, elección de propuesta, respuesta por código, tabla mensual de Notas A y apertura del informe con los mismos meses. Sin cambios a los datos del programa ni producción.
+
+Consultas de supervisión: 221 pruebas aprobadas, incluyendo confirmaciones sin registrar o que requieren nueva confirmación, períodos configurados, permisos de Automatizaciones, alcance residencial, expedientes agrupados entre propuestas, historial, excepciones, hallazgos por revalidar, meses múltiples y filtros desconocidos. Doce combinaciones coinciden con los módulos originales de Confirmación mensual y Validación de datos sobre la copia local READ_ONLY (octubre de 2026, propuesta vigente/todas y global/Chavier). Evidencia fuera del repositorio: `audits/farogpt-20261114/supervision-comparison.json`. La revisión visual sintética confirmó las tres consultas, las listas de pendientes, el informe y la apertura del hallazgo desde su enlace. `node --check` y `git diff --check` correctos. Sin conexión a producción, escrituras de datos del programa ni migraciones.
 
 ## Recurso visual
 

@@ -9,6 +9,20 @@ from app.services import farogpt_report_followups, farogpt_report_operations
 
 # These phrases identify a report. Field aliases are owned by each projection.
 ALIASES = {
+    'attendance_pending': ('faltan por confirmar las asistencias', 'faltan por confirmar asistencias',
+        'no han confirmado las asistencias', 'no han confirmado asistencias',
+        'pendientes de confirmar las asistencias', 'pendientes de confirmar asistencias',
+        'sin confirmar las asistencias', 'sin confirmar asistencias',
+        'confirmaciones mensuales de asistencias pendientes', 'confirmaciones de asistencias pendientes',
+        'confirmaciones pendientes de asistencias', 'confirmaciones mensuales pendientes', 'confirmaciones pendientes',
+        'pendientes de confirmacion', 'faltan por confirmar', 'pendientes de confirmar', 'sin confirmar', 'no han confirmado'),
+    'record_issues': ('expedientes incompletos', 'expedientes con datos incompletos',
+        'expedientes con informacion incompleta', 'expedientes con errores', 'expedientes con campos vacios',
+        'expedientes tienen informacion incompleta', 'expedientes tienen datos incompletos',
+        'expedientes que tienen informacion incompleta', 'expedientes que tienen datos incompletos'),
+    'session_issues': ('actividades sin asistencias', 'actividades sin participaciones', 'actividades sin horas',
+        'asistencias vacias', 'faltan horas', 'horas faltantes', 'horas invalidas', 'sin participaciones confirmadas',
+        'sin participaciones', 'sin asistencias', 'sin horas', 'no tienen asistencias', 'no tienen participaciones', 'no tienen horas'),
     'adm': ('informe administrativo', 'reporte administrativo', 'administrativo', 'adm'),
     'notes': ('notas escolares', 'notas', 'calificaciones'),
     'pregnancy': ('embarazos', 'embarazo', 'embarazadas'),

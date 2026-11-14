@@ -66,7 +66,7 @@
   }
 
   function reportLink(url, label = 'Ver informe') {
-    if (typeof url !== 'string' || !/^\/ui\/(?:farogpt\/informe|reports\/(?:no-duplicado|duplicado|adm|vca|hoja-cotejo|por-programa|productividad|notas|embarazo|desercion-escolar|visitas|cursos|bonafide|certificacion|completo))\?/.test(url)) return null;
+    if (typeof url !== 'string' || !/^\/(?:ui\/(?:farogpt\/informe|monthly-attendance|reports\/(?:no-duplicado|duplicado|adm|vca|hoja-cotejo|por-programa|productividad|notas|embarazo|desercion-escolar|visitas|cursos|bonafide|certificacion|completo))|automatizaciones\/faro\/validacion)\?/.test(url)) return null;
     const link = element('a', 'farogpt__report-link', label);
     link.href = url;
     link.target = '_blank';
@@ -103,8 +103,8 @@
       }
       if ((result.tables || []).length) {
         const details = element('details', 'farogpt__details');
-        details.open = result.type === 'series';
-        details.append(element('summary', '', 'Ver desgloses del reporte'));
+        details.open = result.type === 'series' || result.show_details === true;
+        details.append(element('summary', '', result.details_label || 'Ver desgloses del reporte'));
         result.tables.forEach(item => {
           const wrap = element('div', 'farogpt__table-wrap');
           wrap.tabIndex = 0;
@@ -120,7 +120,15 @@
           const rows = element('tbody');
           item.rows.slice(0, 12).forEach(values => {
             const row = element('tr');
-            values.forEach(value => row.append(element('td', '', typeof value === 'number' ? format.format(value) : value ?? '—')));
+            values.forEach(value => {
+              const cell = element('td');
+              if (value && typeof value === 'object') {
+                const link = reportLink(value.url, value.text || 'Ver seguimiento');
+                if (link) cell.append(link);
+                else cell.textContent = value.text || '—';
+              } else cell.textContent = typeof value === 'number' ? format.format(value) : value ?? '—';
+              row.append(cell);
+            });
             rows.append(row);
           });
           table.append(rows);
@@ -133,8 +141,12 @@
       const link = reportLink(result.report_url);
       if (link) content.append(link);
       if (result.source_title) content.append(element('p', 'farogpt__note', `Fuente: ${result.source_title}`));
-      const source = reportLink(result.source_url, 'Abrir reporte original');
+      const source = reportLink(result.source_url, result.source_label || 'Abrir reporte original');
       if (source) content.append(source);
+      (result.source_links || []).forEach(item => {
+        const sourceLink = reportLink(item.url, item.label);
+        if (sourceLink) content.append(sourceLink);
+      });
       (result.monthly_results || []).forEach(month => {
         const monthlyLink = reportLink(month.report_url, `Ver ${month.period.toLowerCase()}`);
         if (monthlyLink) content.append(monthlyLink);
@@ -166,7 +178,10 @@
     try {
       const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options, signal: controller.signal });
       if (response.redirected || response.status === 401) throw new Error('Tu sesión terminó. Vuelve a iniciar sesión para consultar.');
-      if (response.status === 403) throw new Error('No se pudo validar tu acceso. Actualiza la página y revisa tu sesión.');
+      if (response.status === 403) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(typeof error.detail === 'string' ? error.detail : 'No se pudo validar tu acceso. Actualiza la página y revisa tu sesión.');
+      }
       if (response.status === 422) throw new Error('Revisa la pregunta y sus filtros antes de volver a consultar.');
       if (!response.ok) throw new Error('No pude consultar los datos en este momento. Inténtalo nuevamente.');
       return await response.json();

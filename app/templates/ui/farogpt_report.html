@@ -35,14 +35,15 @@
       <table class="farogpt__table">
         <caption>{{ table.title }}</caption>
         <thead><tr>{% for column in table.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for row in table.rows %}<tr>{% for value in row %}<td>{{ value if value is not none else '—' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        <tbody>{% for row in table.rows %}<tr>{% for value in row %}<td>{% if value is mapping %}<a href="{{ value.url }}">{{ value.text }}</a>{% else %}{{ value if value is not none else '—' }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
       </table>
     </div>
     {% endfor %}
     <div class="farogpt-report__source">
       {% if result.type == 'series' %}<p>{{ result.definition }}</p>{% endif %}
       <p>Fuente: {{ result.source_title }}. Los resultados se vuelven a calcular al abrir este informe.</p>
-      {% if result.source_url %}<p><a href="{{ result.source_url }}">Abrir reporte original con los mismos filtros</a></p>{% endif %}
+      {% if result.source_url %}<p><a href="{{ result.source_url }}">{{ result.get('source_label', 'Abrir reporte original con los mismos filtros') }}</a></p>{% endif %}
+      {% for source in result.get('source_links', []) %}<p><a href="{{ source.url }}">{{ source.label }}</a></p>{% endfor %}
       {% for monthly in result.get('monthly_results', []) %}
       <p><a href="{{ monthly.report_url }}">Ver {{ monthly.period }}</a>{% if monthly.source_url %} · <a href="{{ monthly.source_url }}">Abrir reporte original</a>{% endif %}</p>
       {% endfor %}

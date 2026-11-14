@@ -23,10 +23,12 @@ from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.services.participant_courses import MONTHS
 from app.services import farogpt_reports
+from app.services import farogpt_data_quality, farogpt_monthly_pending
 
 URL = '/ui/farogpt'
 ACTIVITY_CODE_PATTERN = re.compile(r'(?<!\w)(\d{1,2})\s*([a-z])\s*(\d{1,3})(?!\w)')
 ACTIVITY_WORDS = {'act', 'acts', 'actividadss', 'actididades', 'actvidades', 'atividades', 'actividaes', 'activdades'}
+SUPERVISION_REPORTS = frozenset({'attendance_pending', 'record_issues', 'session_issues'})
 TITLES = {'people': 'Participantes únicos', 'duplicates': 'Participaciones (duplicados)',
           'activities': 'Actividades / servicios'}
 DEFINITIONS = {
@@ -38,14 +40,16 @@ HELP = ('Puedo consultar No Duplicado, Duplicados, ADM, notas, embarazo, deserci
         'referidos, cursos, Bonafide, Certificación, VCA, Cotejo, programas, productividad y el informe completo. '
         'Indica el mes o los meses y el año, un residencial o «global» y, si deseas, una propuesta. '
         'Si omites la propuesta usaré la vigente; si hay varias te pediré elegir. '
-        'También puedo contar actividades por código, como «Actividades 2.b.5 en agosto 2026».')
+        'También puedo contar actividades por código y consultar confirmaciones mensuales pendientes, '
+        'expedientes incompletos y actividades sin asistencias u horas. Los expedientes se revisan completos, sin corte mensual.')
 
 
 class QueryContext(BaseModel):
     model_config = ConfigDict(extra='forbid')
     metric: Literal['people', 'duplicates', 'activities', 'no_duplicado', 'duplicado',
                     'adm', 'notes', 'pregnancy', 'dropout', 'visits', 'courses', 'bonafide',
-                    'certification', 'vca', 'cotejo', 'programs', 'productivity', 'complete'] | None = None
+                    'certification', 'vca', 'cotejo', 'programs', 'productivity', 'complete',
+                    'attendance_pending', 'record_issues', 'session_issues'] | None = None
     field: str | None = Field(default=None, max_length=80)
     year: int | None = Field(default=None, ge=2000, le=2100)
     month: int | None = Field(default=None, ge=1, le=12)
@@ -55,6 +59,7 @@ class QueryContext(BaseModel):
     proposal_scope: Literal['auto', 'all'] = 'auto'
     activity_code: str | None = Field(default=None, max_length=20)
     pending_terms: str | None = Field(default=None, max_length=800)
+    issue_filter: Literal['hours', 'no_participations'] | None = None
 
     @field_validator('months')
     @classmethod
@@ -102,6 +107,10 @@ def _context(value):
             result['month'] = result['months'][0]
         if result['proposal_scope'] == 'all' and result['proposal_id'] is not None:
             raise HTTPException(422, 'Selecciona una propuesta o todas las propuestas.')
+        if result['issue_filter'] and result['metric'] != 'session_issues':
+            raise HTTPException(422, 'El filtro de incidencias solo aplica a la validación de actividades.')
+        if result['metric'] in SUPERVISION_REPORTS and result['field'] is not None:
+            raise HTTPException(422, 'Consulta el resumen de seguimiento con sus pendientes.')
         return result
     except ValidationError as exc:
         raise HTTPException(422, 'Los filtros de la consulta no son válidos.') from exc
@@ -144,12 +153,19 @@ def _period_label(context):
     return (', '.join(names[:-1]) + ' y ' + names[-1] if len(names) > 1 else names[0]) + f' {context["year"]}'
 
 
-def _dataset(db, user, context, proposals):
+def _dataset(db, user, context, proposals, *, today=None):
     ids = [context['proposal_id']] if context['proposal_id'] else [p.proposal_id for p in proposals]
     if context['metric'] not in TITLES:
         if context['activity_code']:
             raise HTTPException(422, 'El filtro por código está disponible para actividades, participaciones '
                                 'y participantes únicos. Indica uno de esos indicadores para esta actividad.')
+        if context['metric'] == 'attendance_pending':
+            return farogpt_monthly_pending.build(db, user, ids, _months(context), context['year'],
+                                                context['residential_id'], today=today)
+        if context['metric'] in farogpt_data_quality.REPORTS:
+            reference = today or date.today()
+            return farogpt_data_quality.build(context['metric'], db, user, ids, _months(context) or [reference.month],
+                context['year'] or reference.year, context['residential_id'], issue_filter=context['issue_filter'], today=today)
         months = _months(context)
         if len(months) > 1 and context['metric'] == 'complete':
             raise HTTPException(422, 'El informe mensual completo se consulta un mes a la vez. Indica cuál de los meses quieres abrir.')
@@ -161,7 +177,7 @@ def _dataset(db, user, context, proposals):
     return _attendance_dataset(db, context, ids)
 
 
-def summary(db, user, context):
+def summary(db, user, context, *, today=None):
     """Recalculate the selected source report with its own reporting definitions."""
     residentials, proposals = catalogs(db, user)
     context = _authorized_context(context, user, residentials, proposals)
@@ -169,9 +185,9 @@ def summary(db, user, context):
     if problem:
         raise HTTPException(422, problem['message'])
     metric, year, month = (context[k] for k in ('metric', 'year', 'month'))
-    if metric is None or year is None or month is None:
+    if metric is None or (metric != 'record_issues' and (year is None or month is None)):
         raise HTTPException(422, 'Indica el indicador, el mes y el año.')
-    return _result(context, residentials, proposals, _dataset(db, user, context, proposals))
+    return _result(context, residentials, proposals, _dataset(db, user, context, proposals, today=today))
 
 
 def _attendance_dataset(db, context, ids):
@@ -238,7 +254,8 @@ def _result(context, residentials, proposals, data):
     residential = next((r.name for r in residentials if r.residential_id == context['residential_id']),
                        'Todos los residenciales autorizados')
     proposal = next((p.name for p in proposals if p.proposal_id == context['proposal_id']), 'Todas las propuestas')
-    previous = date(year, month, 1) - timedelta(days=1)
+    previous = date(year, month, 1) - timedelta(days=1) if year and month else None
+    suggestions = [f'Comparar con {dict(MONTHS)[previous.month].lower()} de {previous.year}'] if previous else []
     params = {k: v for k, v in context.items() if v is not None and k != 'pending_terms'}
     result = {
         'type': 'result', 'title': primary['label'] if context['field'] else data['title'],
@@ -248,12 +265,15 @@ def _result(context, residentials, proposals, data):
         'tables': [] if context['field'] else data['tables'],
         'source_title': data.get('source_title', data['title']), 'source_url': data.get('source_url'),
         'definition': primary['definition'], 'context': context, 'activity': data.get('activity'),
-        'period': _period_label(context), 'residential': residential, 'proposal': proposal,
+        'period': data.get('period_label') or _period_label(context), 'residential': residential, 'proposal': proposal,
         'proposal_names': [p.name for p in proposals if p.proposal_id in ids],
         'report_url': URL + '/informe?' + urlencode(params, doseq=True),
-        'suggestions': [f'Comparar con {dict(MONTHS)[previous.month].lower()} de {previous.year}'],
+        'suggestions': data.get('suggestions', suggestions),
         'note': data.get('note'),
     }
+    if context['metric'] in SUPERVISION_REPORTS:
+        result.update(show_details=True, details_label='Ver pendientes y seguimiento',
+                      source_links=data.get('source_links', []), source_label=data.get('source_label', 'Abrir seguimiento'))
     if data.get('monthly_data'):
         monthly = [_result(dict(context, month=m, months=None), residentials, proposals, dataset)
                    for m, dataset in data['monthly_data']]
@@ -394,13 +414,23 @@ def answer(db, user, question, context, *, today=None):
     if len(reports) > 1:
         return _clarify('Consulta un reporte a la vez. ' + HELP, original)
     if reports:
-        selected.update(metric=reports[0], field=None)
+        selected.update(metric=reports[0], field=None, issue_filter=None)
         if not codes and reports[0] not in TITLES:
             selected['activity_code'] = None
+        if reports[0] == 'session_issues':
+            no_attendance = bool(re.search(r'\b(?:(?:sin|no tienen) (?:asistencias|participaciones)|asistencias vacias)\b', text))
+            no_hours = bool(re.search(r'\b(?:(?:sin|no tienen|faltan) horas|horas (?:faltantes|invalidas)|[ou] horas)\b', text))
+            selected['issue_filter'] = 'no_participations' if no_attendance and not no_hours else 'hours' if no_hours and not no_attendance else None
+            if no_attendance:
+                # Expand only the supported disjunction; "con horas" remains
+                # an unsupported restriction, never a filler word.
+                text = re.sub(r'\b([ou]) horas\b', r'\1 sin horas', text)
+                if re.search(r'\b(?:asistencias|participaciones)(?: confirmadas)? y (?:sin )?horas\b', text):
+                    return _clarify('Puedo listar actividades con alguno de esos problemas: escribe «sin asistencias u horas», o consulta cada problema por separado.', original)
     if codes:
         selected['activity_code'] = codes.pop()
         if not reports and selected['metric'] not in TITLES:
-            selected.update(metric='activities', field=None)
+            selected.update(metric='activities', field=None, issue_filter=None)
     clear_code_phrases = ('todas las actividades', 'todos los codigos', 'sin filtro de actividad')
     if any(_phrase(text, phrase) for phrase in clear_code_phrases):
         if selected['activity_code'] and ACTIVITY_CODE_PATTERN.search(_normalize(question)):
@@ -409,7 +439,7 @@ def answer(db, user, question, context, *, today=None):
         for phrase in clear_code_phrases:
             text = _remove(text, phrase)
     compare = bool(re.search(r'\b(compara|comparar|comparame|comparalo)\b', text))
-    if re.search(r'\bpor (?:cada )?(?:residencial|propuesta)\b', text):
+    if selected['metric'] not in SUPERVISION_REPORTS and re.search(r'\bpor (?:cada )?(?:residencial|propuesta)\b', text):
         return _clarify('Por ahora puedo consultar el total de un residencial o de todos, para los meses seleccionados. '
                         'Indica qué residencial y período quieres consultar.', original)
     residence, text, ambiguous = _entity(text, residentials, 'residencial')
@@ -482,8 +512,10 @@ def answer(db, user, question, context, *, today=None):
                   'se realizaron', text)
     if not selected['metric']:
         return _clarify(HELP, selected)
+    if selected['metric'] in farogpt_data_quality.REPORTS:
+        farogpt_data_quality.require_access(db, user)
     proposal_problem = _default_proposal(selected, proposals)
-    missing_period = not selected['year'] or not selected['month']
+    missing_period = selected['metric'] != 'record_issues' and (not selected['year'] or not selected['month'])
     if missing_period or proposal_problem:
         if len(text) > 800:
             return _clarify('Escribe nuevamente la consulta completa con el período y la propuesta.', original)
@@ -503,7 +535,7 @@ def answer(db, user, question, context, *, today=None):
         return _clarify(' '.join(messages), selected, proposal_problem['suggestions'] if proposal_problem else [])
     selected = _authorized_context(selected, user, residentials, proposals)
     try:
-        data = _dataset(db, user, selected, proposals)
+        data = _dataset(db, user, selected, proposals, today=today)
     except HTTPException as exc:
         if exc.status_code != 422:
             raise
@@ -511,7 +543,7 @@ def answer(db, user, question, context, *, today=None):
     if selected['metric'] in {'no_duplicado', 'duplicado'}:
         for phrase in farogpt_reports.ALIASES[selected['metric']]:
             text = _remove(text, phrase)
-    fields, text = _fields(text, data, farogpt_reports.ALIASES[selected['metric']])
+    fields, text = (set(), text) if selected['metric'] in SUPERVISION_REPORTS else _fields(text, data, farogpt_reports.ALIASES[selected['metric']])
     if len(fields) > 1:
         return _clarify('Indica un campo a la vez o pide el resumen del reporte para ver todos sus indicadores.', original)
     if fields:
@@ -533,19 +565,28 @@ def answer(db, user, question, context, *, today=None):
                   'datos informacion resultado resultados seguimiento cual cuales es son las los '
                   'codigo hicieron realizo realizaron realizada realizado realizadas realizados ejecutaron ejecutadas ejecutados '
                   'ofrecieron registraron impartieron'.split())
+    if selected['metric'] in SUPERVISION_REPORTS:
+        allowed.update('que lista listame'.split())
+    if selected['metric'] == 'attendance_pending':
+        allowed.add('residenciales')
+    if selected['metric'] == 'session_issues':
+        allowed.update('actividades sesiones tienen les o u'.split())
     if words - allowed:
         return _clarify('No pude identificar todos los campos o filtros. Puedes pedir el resumen o un campo del reporte.',
-                        original, [f'Resumen de {data["title"]} {dict(MONTHS)[selected["month"]]} {selected["year"]}'])
+                        original, [f'Resumen de {data["title"]}' +
+                                   (f' {dict(MONTHS)[selected["month"]]} {selected["year"]}' if selected['month'] and selected['year'] else '')])
     if compare:
+        if selected['metric'] == 'record_issues':
+            return _clarify('Los expedientes se revisan completos, sin corte mensual. Cambia de propuesta o residencial para consultar otro alcance.', original)
         if not months and not years and not relative_period:
             return _clarify('¿Con qué mes y año quieres comparar la consulta anterior?', original)
         if not all(original[k] for k in ('metric', 'year', 'month')):
             return _clarify('Consulta primero un mes y después pide compararlo con otro.', selected)
-        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id', 'proposal_scope', 'activity_code')):
+        if any(selected[k] != original[k] for k in ('metric', 'field', 'residential_id', 'proposal_id', 'proposal_scope', 'activity_code', 'issue_filter')):
             return _clarify('Para comparar meses conservaré el indicador, el código de actividad, el residencial y la propuesta de la consulta anterior.', original)
         if selected['metric'] not in TITLES and (len(_months(selected)) > 1 or len(_months(original)) > 1):
             return _clarify('Este reporte muestra cada mes por separado. Para una comparación numérica selecciona un mes de cada período.', original)
-        result = summary(db, user, original)
+        result = summary(db, user, original, today=today)
         other = _result(selected, residentials, proposals, data)
         result['comparison'] = {'period': other['period'], 'value': other['value'],
                                 'difference': result['value'] - other['value'], 'report_url': other['report_url']}

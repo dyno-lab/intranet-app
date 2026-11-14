@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.residential_scope import require_faro_access
+from app.core.platform_permissions import ACCESS_AUTOMATION, user_has_platform_permission
 from app.models.user import User
 from app.services import farogpt as service
 from app.services.participant_courses import MONTHS
@@ -39,13 +40,16 @@ def bootstrap(request: Request, db: Session = Depends(get_db), user: User = Depe
     residential = next((r.name for r in residentials if 'chavier' in r.name.lower()),
                        residentials[0].name if residentials else None)
     scope = f'en {residential}' if residential else 'en todos los residenciales'
+    suggestions = [f'¿Cuántos no duplicados hubo global en {period}?',
+                   f'Confirmaciones mensuales pendientes en {period}', f'Resumen de notas {scope} en {period}']
+    if user_has_platform_permission(db, user, ACCESS_AUTOMATION):
+        suggestions = [f'Confirmaciones mensuales pendientes en {period}',
+                       f'Expedientes incompletos {scope}', f'Actividades sin asistencias u horas en {period}']
     return JSONResponse({
         'csrf_token': request.session.setdefault('farogpt_csrf', secrets.token_urlsafe(32)),
         'message': 'Hola, ¿qué te gustaría consultar?',
         'help': service.HELP,
-        'suggestions': [f'¿Cuántos no duplicados hubo global en {period}?',
-                        f'Resumen administrativo en {period}',
-                        f'Resumen de notas {scope} en {period}'],
+        'suggestions': suggestions,
     }, headers=HEADERS)
 
 
