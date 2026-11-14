@@ -93,3 +93,15 @@
 }
 @media (prefers-reduced-motion:reduce) { .farogpt__launcher img { transition:none; } }
 @media print { .farogpt { display:none; } .farogpt-report__header a { display:none; } }
+.farogpt__metrics { margin:12px 0; padding:0; }
+.farogpt__metrics > div { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-bottom:1px solid #dcebea; }
+.farogpt__metrics dt { font-size:12px; color:#456779; }
+.farogpt__metrics dd { margin:0; font-size:15px; font-weight:700; color:#0d4c68; }
+.farogpt__details { margin:12px 0; min-width:0; }
+.farogpt__details summary { color:#087c78; font-weight:700; cursor:pointer; font-size:12px; }
+.farogpt__table-wrap { overflow:auto; max-width:100%; margin:12px 0; }
+.farogpt__table { border-collapse:collapse; width:100%; font-size:12px; text-align:left; }
+.farogpt__table caption { text-align:left; font-weight:700; color:#0d4c68; padding:8px 0; }
+.farogpt__table th { color:#145f63; background:#eaf6f5; }
+.farogpt__table th, .farogpt__table td { padding:8px; border-bottom:1px solid #dcebea; vertical-align:top; min-width:65px; }
+.farogpt-report__table { background:#fff; border:1px solid #dce8f0; border-radius:14px; padding:16px; box-sizing:border-box; margin-top:22px; }

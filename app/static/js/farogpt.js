@@ -42,7 +42,10 @@
     return { row, content };
   }
 
-  function scrollToLatest() { body.scrollTop = body.scrollHeight; }
+  function scrollToLatest() {
+    const latest = messages.lastElementChild;
+    if (latest) body.scrollTop += latest.getBoundingClientRect().top - body.getBoundingClientRect().top - 12;
+  }
 
   function setBusy(value) {
     busy = value;
@@ -63,7 +66,7 @@
   }
 
   function reportLink(url, label = 'Ver informe') {
-    if (typeof url !== 'string' || !url.startsWith('/ui/farogpt/informe?')) return null;
+    if (typeof url !== 'string' || !/^\/ui\/(?:farogpt\/informe|reports\/(?:no-duplicado|duplicado|adm|vca|hoja-cotejo|por-programa|productividad|notas|embarazo|desercion-escolar|visitas|cursos|bonafide|certificacion|completo))\?/.test(url)) return null;
     const link = element('a', 'farogpt__report-link', label);
     link.href = url;
     link.target = '_blank';
@@ -83,19 +86,59 @@
     if (result.type === 'result' && Number.isFinite(result.value)) {
       const { content } = bubble('result');
       content.append(element('h3', 'farogpt__result-title', result.title));
-      content.append(element('strong', 'farogpt__value', format.format(result.value)));
+      content.append(element('strong', 'farogpt__value', `${format.format(result.value)}${result.unit ? ' ' + result.unit : ''}`));
       const filters = element('div', 'farogpt__filters');
       filters.append(element('p', '', `${result.residential} · ${result.period}`));
       filters.append(element('p', '', `Propuesta: ${result.proposal}`));
       content.append(filters, element('p', 'farogpt__definition', result.definition));
+      if ((result.cards || []).length > 1) {
+        const metrics = element('dl', 'farogpt__metrics');
+        result.cards.slice(0, 6).forEach(item => {
+          const row = element('div');
+          row.append(element('dt', '', item.label), element('dd', '', `${format.format(item.value)}${item.unit ? ' ' + item.unit : ''}`));
+          metrics.append(row);
+        });
+        content.append(metrics);
+      }
+      if ((result.tables || []).length) {
+        const details = element('details', 'farogpt__details');
+        details.append(element('summary', '', 'Ver desgloses del reporte'));
+        result.tables.forEach(item => {
+          const wrap = element('div', 'farogpt__table-wrap');
+          wrap.tabIndex = 0;
+          wrap.setAttribute('role', 'region');
+          wrap.setAttribute('aria-label', item.title);
+          const table = element('table', 'farogpt__table');
+          table.append(element('caption', '', item.title));
+          const head = element('thead');
+          const header = element('tr');
+          item.columns.forEach(text => { const cell = element('th', '', text); cell.scope = 'col'; header.append(cell); });
+          head.append(header);
+          table.append(head);
+          const rows = element('tbody');
+          item.rows.slice(0, 12).forEach(values => {
+            const row = element('tr');
+            values.forEach(value => row.append(element('td', '', typeof value === 'number' ? format.format(value) : value ?? '—')));
+            rows.append(row);
+          });
+          table.append(rows);
+          wrap.append(table);
+          details.append(wrap);
+          if (item.rows.length > 12) details.append(element('p', 'farogpt__note', 'Se muestran 12 filas. Abre el informe de consulta para ver el desglose completo.'));
+        });
+        content.append(details);
+      }
       const link = reportLink(result.report_url);
       if (link) content.append(link);
+      if (result.source_title) content.append(element('p', 'farogpt__note', `Fuente: ${result.source_title}`));
+      const source = reportLink(result.source_url, 'Abrir reporte original');
+      if (source) content.append(source);
       if (result.note) content.append(element('p', 'farogpt__note', result.note));
       if (result.comparison) {
         const other = result.comparison;
         const comparison = element('div', 'farogpt__comparison');
         comparison.append(element('p', '', `En ${other.period.toLowerCase()}`));
-        comparison.append(element('strong', '', format.format(other.value)));
+        comparison.append(element('strong', '', `${format.format(other.value)}${result.unit ? ' ' + result.unit : ''}`));
         const difference = other.difference === 0 ? 'La misma cantidad en ambos meses.' :
           `${format.format(Math.abs(other.difference))} ${other.difference > 0 ? 'más' : 'menos'} en ${result.period.toLowerCase()}.`;
         comparison.append(element('p', '', difference));
@@ -111,9 +154,9 @@
     scrollToLatest();
   }
 
-  async function request(url, options = {}) {
+  async function request(url, options = {}, timeoutMs = 25000) {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 25000);
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options, signal: controller.signal });
       if (response.redirected || response.status === 401) throw new Error('Tu sesión terminó. Vuelve a iniciar sesión para consultar.');
@@ -175,7 +218,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-FaroGPT-CSRF': csrf },
         body: JSON.stringify({ question, context: requestContext }),
-      });
+      }, 120000);
       render(result);
     } catch (error) {
       errorMessage(error, () => ask(question, true, requestContext));

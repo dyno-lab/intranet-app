@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Consulta FaroGPT · {{ result.period }}</title>
-  <link href="/static/css/farogpt.css?v=1" rel="stylesheet">
+  <link href="/static/css/farogpt.css?v=2" rel="stylesheet">
 </head>
 <body class="farogpt-report">
   <header class="farogpt-report__header">
@@ -21,17 +21,26 @@
       </dl>
     </section>
     <section class="farogpt-report__metrics" aria-label="Resultados del período">
-      {% for key, value in result.metrics.items() %}
+      {% for item in result.cards %}
       <article class="farogpt-report__metric">
-        <h2>{{ titles[key] }}</h2>
-        <strong>{{ '{:,}'.format(value) }}</strong>
-        <p>{{ definitions[key] }}</p>
+        <h2>{{ item.label }}</h2>
+        <strong>{{ '{:,}'.format(item.value) }} {{ item.get('unit', '') }}</strong>
+        <p>{{ item.definition }}</p>
       </article>
       {% endfor %}
     </section>
+    {% for table in result.tables %}
+    <div class="farogpt__table-wrap farogpt-report__table" tabindex="0" role="region" aria-label="{{ table.title }}">
+      <table class="farogpt__table">
+        <caption>{{ table.title }}</caption>
+        <thead><tr>{% for column in table.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in table.rows %}<tr>{% for value in row %}<td>{{ value if value is not none else '—' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endfor %}
     <div class="farogpt-report__source">
-      <p>Fuente: actividades y participaciones registradas en FARO. El residencial corresponde al lugar donde se registró la actividad; los traslados posteriores no cambian su historial.</p>
-      <p>Participantes únicos utiliza la identidad de la persona vinculada a la propuesta, con la misma definición del reporte institucional. Los resultados se vuelven a calcular al abrir este informe.</p>
+      <p>Fuente: {{ result.source_title }}. Los resultados se vuelven a calcular al abrir este informe.</p>
+      {% if result.source_url %}<p><a href="{{ result.source_url }}">Abrir reporte original con los mismos filtros</a></p>{% endif %}
       {% if result.note %}<p>{{ result.note }}</p>{% endif %}
     </div>
   </main>

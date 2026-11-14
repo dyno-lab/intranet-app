@@ -46,7 +46,7 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.addCleanup(self.client.close)
         self.client.get('/test/login')
 
-    def send(self, question='no duplicados Chavier septiembre 2026', **extra):
+    def send(self, question='participantes únicos Chavier septiembre 2026', **extra):
         first = self.client.get('/ui/farogpt/inicio')
         token = first.json()['csrf_token']
         return self.client.post('/ui/farogpt/consulta', json={'question': question, **extra},
@@ -65,7 +65,7 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.assertEqual(report.headers['cache-control'], 'no-store')
 
     def test_csrf_and_session_required(self):
-        response = self.client.post('/ui/farogpt/consulta', json={'question': 'no duplicados septiembre 2026'})
+        response = self.client.post('/ui/farogpt/consulta', json={'question': 'participantes únicos septiembre 2026'})
         self.assertEqual(response.status_code, 403)
         self.client.cookies.clear()
         response = self.client.get('/ui/farogpt/inicio', follow_redirects=False)
@@ -86,7 +86,7 @@ class FaroGPTRouteTests(unittest.TestCase):
 
     def test_context_tampering_and_scope_cannot_broaden_data(self):
         self.client.get('/test/login?scoped=true')
-        result = self.send('no duplicados septiembre 2026')
+        result = self.send('participantes únicos septiembre 2026')
         self.assertEqual(result.json()['value'], 0)
         response = self.send('septiembre 2026', context={'metric': 'people',
             'residential_id': self.f.a.residential_id, 'month': 9, 'year': 2026})
@@ -99,7 +99,7 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.assertEqual(self.send('x' * 801).status_code, 422)
         self.assertEqual(self.send(context={'year': 1900}).status_code, 422)
         self.assertEqual(self.send(context={'month': 13}).status_code, 422)
-        response = self.send('no duplicados chavier septiembre 2026 mujeres')
+        response = self.send('participantes únicos chavier septiembre 2026 mujeres')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['type'], 'clarification')
 

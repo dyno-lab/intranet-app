@@ -43,9 +43,9 @@ def bootstrap(request: Request, db: Session = Depends(get_db), user: User = Depe
         'csrf_token': request.session.setdefault('farogpt_csrf', secrets.token_urlsafe(32)),
         'message': 'Hola, ¿qué te gustaría consultar?',
         'help': service.HELP,
-        'suggestions': [f'¿Cuántos no duplicados hubo {scope} en {period}?',
-                        f'¿Cuántas actividades hubo en {period}?',
-                        f'¿Cuántas participaciones hubo en {period}?'],
+        'suggestions': [f'¿Cuántos no duplicados hubo global en {period}?',
+                        f'Resumen administrativo en {period}',
+                        f'Resumen de notas {scope} en {period}'],
     }, headers=HEADERS)
 
 
