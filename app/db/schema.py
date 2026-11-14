@@ -4,6 +4,7 @@ from app.db.session import SessionLocal, engine
 from app.db.participant_courses_schema import PARTICIPANT_COURSES_SQL
 from app.db.notifications_schema import NOTIFICATIONS_SQL
 from app.db.monthly_attendance_schema import MONTHLY_ATTENDANCE_SQL
+from app.db.data_validation_schema import DATA_VALIDATION_SQL
 from app.db.adm_internal_referrals_schema import ADM_INTERNAL_REFERRALS_SQL
 from app.db.participant_transfers_schema import PARTICIPANT_TRANSFERS_SQL
 
@@ -2639,6 +2640,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PARTICIPANT_COURSES_SQL)
         conn.exec_driver_sql(NOTIFICATIONS_SQL)
         conn.exec_driver_sql(MONTHLY_ATTENDANCE_SQL)
+        conn.exec_driver_sql(DATA_VALIDATION_SQL)
         conn.exec_driver_sql(PHASE9_REPORT_TEMPLATES_SQL)
         if settings.COMMUNITY_ENABLED:
             from app.db.community_schema import COMMUNITY_SCHEMA_SQL

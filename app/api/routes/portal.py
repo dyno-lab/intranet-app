@@ -98,7 +98,7 @@ def automation_mockup(
     request: Request,
     current_user: User = Depends(require_platform_permission(ACCESS_AUTOMATION)),
 ):
-    """Serve the in-memory budget prototype without reading or writing program data."""
+    """Program selector with Faro validation access and the independent budget prototype."""
     return templates.TemplateResponse(
         request=request,
         name="automation/index.html",

@@ -198,3 +198,10 @@ Pruebas aisladas, sin conexión a la base de la aplicación:
 python -B -m unittest tests.test_notifications tests.test_notification_routes tests.test_participant_courses tests.test_participant_courses_routes tests.test_viewer_read_only tests.test_residential_access tests.test_residential_route_scope
 python -B -m unittest tests.test_referral_notifications tests.test_referral_routes tests.test_visits_multi_proposal tests.test_visit_attendance_parameter_limit tests.test_report_multi_proposal_ui
 ```
+
+## Validación de datos de Faro
+
+Automatizaciones → Faro incorpora revisión de expedientes, asistencias y posibles
+duplicados, con seguimiento auditado y vista de supervisión. El período filtra las
+asistencias; se revisan todos los expedientes de la propuesta. Instrucciones de
+pruebas, permisos y migración: [Validación de datos](docs/faro-data-validation.md).

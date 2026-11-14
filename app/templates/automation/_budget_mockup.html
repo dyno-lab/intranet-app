@@ -81,7 +81,7 @@
   </style>
   <div class="fb-main fb-programs" data-screen="programs">
     <section class="fb-programs-hero" aria-labelledby="fb-programs-title">
-      <div class="fb-programs-intro"><p class="fb-kicker">Servicios institucionales</p><h1 id="fb-programs-title">Automatizaciones</h1><p>Herramientas para organizar el presupuesto y dar seguimiento a la gestión de cada programa.</p></div>
+      <div class="fb-programs-intro"><p class="fb-kicker">Servicios institucionales</p><h1 id="fb-programs-title">Automatizaciones</h1><p>Herramientas para revisar los datos y dar seguimiento a la gestión de cada programa.</p></div>
       <svg class="fb-programs-art" viewBox="0 0 240 130" fill="none" aria-hidden="true" focusable="false">
         <path d="M44 65h152M120 25v80" stroke="currentColor" stroke-dasharray="4 6" opacity=".35"/>
         <rect x="5" y="37" width="60" height="60" rx="16" fill="currentColor" fill-opacity=".06" stroke="currentColor" stroke-opacity=".2"/>
@@ -96,9 +96,9 @@
     <div class="fb-programs-heading"><h2>Selecciona tu programa</h2><p>Cada programa tiene su propio espacio de trabajo.</p></div>
     <div class="fb-programs-grid">
       <article class="fb-program-card fb-program-card--faro" aria-labelledby="fb-faro-title">
-        <div class="fb-program-card-top"><span class="fb-program-eyebrow">Programa Faro</span><span class="fb-program-state"><span aria-hidden="true"></span>Disponible en el mockup</span></div>
+        <div class="fb-program-card-top"><span class="fb-program-eyebrow">Programa Faro</span><span class="fb-program-state"><span aria-hidden="true"></span>Validación disponible</span></div>
         <div class="fb-program-identity"><div class="fb-program-logo"><img src="/static/img/logo-faro-esperanza.png" alt="Faro de Esperanza · Centros Sor Isolina Ferré" width="280" height="116"></div></div>
-        <div class="fb-program-copy"><h3 id="fb-faro-title">Faro de Esperanza</h3><p>Administra los fondos de tus propuestas y mantén cada movimiento al día.</p></div>
+        <div class="fb-program-copy"><h3 id="fb-faro-title">Faro de Esperanza</h3><p>Valida los datos del programa y consulta el diseño de gestión de presupuesto.</p></div>
         <ul class="fb-program-features" aria-label="Herramientas disponibles en Faro">
           <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v13H3zM3 7V4h15v3M16 11h5v5h-5z"/></svg>Presupuesto, categorías y partidas</li>
           <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zm4 5h4m-4 4h4"/></svg>Gastos, compromisos y recibos</li>
@@ -142,6 +142,11 @@
   </style>
   <div class="fb-main fb-faro-tools" data-screen="faro" hidden>
     <header class="fb-budget-hero"><div><p class="fb-kicker">Automatizaciones / Faro</p><h1>Herramientas de gestión</h1><p class="fb-budget-intro">Selecciona una herramienta para comenzar a trabajar con tu programa.</p></div><div class="fb-budget-hero-actions"><button class="fb-text-button" type="button" data-go="programs">← Automatizaciones</button></div></header>
+    <article class="fb-tool-card" aria-labelledby="fb-validation-tool-title">
+      <div class="fb-tool-card-head"><div class="fb-tool-title"><div><p class="fb-kicker">Calidad de datos</p><h2 id="fb-validation-tool-title">Validación de datos</h2></div></div><span class="fb-program-state">Disponible</span></div>
+      <p class="fb-tool-description">Revisa expedientes incompletos, posibles duplicados y asistencias sin participaciones u horas. Organiza el seguimiento con los facilitadores por propuesta y residencial.</p>
+      <div class="fb-tool-card-footer"><p>Datos reales de Faro · Vista de supervisión y seguimiento por residencial.</p><a class="automation-action" href="/automatizaciones/faro/validacion">Abrir validación de datos →</a></div>
+    </article>
     <article class="fb-tool-card" aria-labelledby="fb-budget-tool-title">
       <div class="fb-tool-card-head"><div class="fb-tool-title"><span class="fb-tool-mark"><svg class="fb-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v13H3zM3 7V4h15v3M16 11h5v5h-5z"/></svg></span><div><p class="fb-kicker">Gestión financiera</p><h2 id="fb-budget-tool-title">Gestión de presupuesto</h2></div></div><span class="fb-program-state"><span aria-hidden="true"></span>Disponible en el mockup</span></div>
       <p class="fb-tool-description">Administra el fondo de cada propuesta, desde la asignación del presupuesto hasta el cierre mensual.</p>
@@ -733,6 +738,7 @@
     function render(){
       const p=active(),t=totals(p);
       const shellTitle=document.querySelector('[data-automation-title]');
+      const budgetNotice=document.querySelector('.automation-preview-notice');if(budgetNotice)budgetNotice.hidden=state.screen!=='budget';
       if(shellTitle)shellTitle.textContent=['faro','budget'].includes(state.screen)?'Programa Faro de Esperanza':state.screen==='community'?'Comunidad y Prevención':'Automatizaciones';
       root.classList.toggle('fb-tight',state.compact);
       qa('[data-screen]').forEach(el=>el.hidden=el.dataset.screen!==state.screen);
@@ -879,6 +885,7 @@
     let chartWidth=0;const resizeObserver=new ResizeObserver(entries=>{const width=Math.round(entries[0].contentRect.width);if(width>0&&width!==chartWidth){chartWidth=width;if(state.screen==='budget'&&state.tab==='charts')renderHistory(chartData(active(),state).history);}});resizeObserver.observe(q('[data-history-chart]'));
     try{restore(window.openai?.widgetState);}catch(_){}
     window.addEventListener('openai:set_globals',event=>{if(event.detail?.globals?.widgetState){restore(event.detail.globals.widgetState);render();}});
+    if(window.location.hash==='#faro')state.screen='faro';
     render();root.dataset.ready='true';
     if(typeof globalThis.Tweak==='function'){try{const tweak=new globalThis.Tweak({container:root,onChange:()=>{render();save();}});tweak.addToggle(state,'compact',{label:'Vista compacta'});}catch(_){}}
   }

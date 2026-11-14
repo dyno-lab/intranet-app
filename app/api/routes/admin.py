@@ -2970,6 +2970,12 @@ def admin_delete_proposal(
             "/ui/admin/proposals",
             "Error: La propuesta tiene seguimiento mensual de asistencias. Desactívela o finalícela para conservar el historial.",
         )
+    from app.models.data_validation import DataValidationIssue
+    if db.scalar(select(DataValidationIssue.issue_key).where(DataValidationIssue.proposal_id == proposal_id).limit(1)) is not None:
+        return _redirect_with_msg(
+            "/ui/admin/proposals",
+            "Error: La propuesta tiene historial de validación de datos. Desactívela o finalícela para conservar el seguimiento.",
+        )
     blockers: list[str] = []
 
     session_count = db.execute(
