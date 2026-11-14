@@ -46,6 +46,36 @@ class FaroGPTConversationTests(unittest.TestCase):
             with self.subTest(spelling=spelling):
                 self.assertEqual(self.result(f'Cuántas {spelling} 2.b.5 agosto 2026')['value'], 3)
 
+    def test_exact_reported_question_completes_without_rejecting_verb_phrase(self):
+        self.f.f.code.code = '1.a.2'
+        self.db.commit()
+        question = 'Cuantas actividades 1.a.2 se a realizado'
+        pending = self.ask(question)
+        self.assertEqual(pending['type'], 'clarification')
+        self.assertIn('mes o meses', pending['message'])
+        self.assertEqual(pending['context']['activity_code'], '1.a.2')
+        result = self.result('agosto 2026', context=pending['context'])
+        self.assertEqual(result['value'], 3)
+        self.assertEqual(result['context']['activity_code'], '1.a.2')
+        self.assertEqual(self.result(question, context=result['context'])['value'], 3)
+
+    def test_performed_activity_expressions_accept_correct_and_common_spelling(self):
+        self.f.f.code.code = '1.a.2'
+        self.db.commit()
+        for expression in ('se a realizado', 'se ha realizado', 'se han realizado', 'han realizado',
+                           'se ha hecho', 'se han hecho', 'se realizó', 'realizada', 'realizado'):
+            with self.subTest(expression=expression):
+                result = self.result(f'Cuantas actividades 1.a.2 {expression} en agosto 2026')
+                self.assertEqual(result['value'], 3)
+                self.assertEqual(result['context']['proposal_id'], self.active.proposal_id)
+
+    def test_verb_tolerance_preserves_unsupported_qualifiers(self):
+        for qualifier in ('no se ha realizado', 'se a realizado solo mujeres'):
+            with self.subTest(qualifier=qualifier):
+                result = self.ask(f'Cuantas actividades 2.b.5 {qualifier} agosto 2026')
+                self.assertEqual(result['type'], 'clarification')
+                self.assertNotIn('value', result)
+
     def test_finalized_proposal_is_not_current_even_if_active_flag_is_true(self):
         self.active.status = 'finalized'
         self.inactive.is_active = True

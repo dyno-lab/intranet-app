@@ -68,6 +68,8 @@ class FaroGPTExpandedReportsTests(unittest.TestCase):
     def test_fields_of_notes_pregnancy_visits_and_school_followup(self):
         cases = (
             ('notas A', 'notes', 'A', 1),
+            ('notas A realizadas', 'notes', 'A', 1),
+            ('notas A se han realizado', 'notes', 'A', 1),
             ('notas B en matematicas', 'notes', 'math_b', 1),
             ('casos de embarazo', 'pregnancy', 'pregnancy_cases', 1),
             ('porcentaje de prevencion de embarazo', 'pregnancy', 'prevention_pct', 0),

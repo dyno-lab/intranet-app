@@ -118,6 +118,18 @@ class FaroGPTRouteTests(unittest.TestCase):
                     'metric': 'activities', 'year': 2026, 'months': months})
                 self.assertEqual(bad.status_code, 422, bad.text)
 
+    def test_reported_question_asks_period_then_returns_scoped_result(self):
+        self.f.code.code = '1.a.2'
+        self.db.commit()
+        pending = self.send('Cuantas actividades 1.a.2 se a realizado').json()
+        self.assertEqual(pending['type'], 'clarification')
+        self.assertIn('mes o meses', pending['message'])
+        result = self.send('septiembre 2026', context=pending['context']).json()
+        self.assertEqual(result['type'], 'result', result)
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['activity_code'], '1.a.2')
+        self.assertEqual(self.client.get(result['report_url']).status_code, 200)
+
     def test_report_query_rejects_unknown_or_conflicting_filters(self):
         for extra in ({'months': [8, 9]}, {'proposal_scope': 'all', 'proposal_id': self.f.proposal.proposal_id},
                       {'unsupported': 'filter'}):

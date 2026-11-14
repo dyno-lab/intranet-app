@@ -476,6 +476,10 @@ def answer(db, user, question, context, *, today=None):
                 return _clarify('Usa un mes concreto o un período relativo, por ejemplo «mes anterior».', original)
             selected.update(year=target.year, month=target.month, months=None)
             text = _remove(text, phrase)
+    # Accept common verb phrases, including "se a realizado", without dropping
+    # a standalone A (school grade), a code letter or an unknown qualifier.
+    text = re.sub(r'\b(?:se\s+(?:a|ha|han)|ha|han)\s+(?:realizad[oa]s?|hech[oa]s?)\b',
+                  'se realizaron', text)
     if not selected['metric']:
         return _clarify(HELP, selected)
     proposal_problem = _default_proposal(selected, proposals)
@@ -527,7 +531,7 @@ def answer(db, user, question, context, *, today=None):
                   'compara comparar comparame comparalo favor por favor registrados registradas '
                   'atendidos atendidas este ese fueron se atendieron participaron informe reporte '
                   'datos informacion resultado resultados seguimiento cual cuales es son las los '
-                  'codigo hicieron realizaron realizadas realizados ejecutaron ejecutadas ejecutados '
+                  'codigo hicieron realizo realizaron realizada realizado realizadas realizados ejecutaron ejecutadas ejecutados '
                   'ofrecieron registraron impartieron'.split())
     if words - allowed:
         return _clarify('No pude identificar todos los campos o filtros. Puedes pedir el resumen o un campo del reporte.',
