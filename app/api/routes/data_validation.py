@@ -50,6 +50,17 @@ def url_for(filters,**extra):
     return service.URL+'?'+urlencode(params,doseq=True)
 
 
+def group_findings(items):
+    """Keep an enrollment's complete set on one page without merging tracked issues."""
+    groups = {}
+    for item in items:
+        record = item['records'][0] if item['kind'] == 'record' else None
+        key = ('record', record['id']) if record else ('finding', item['key'])
+        group = groups.setdefault(key, {'record': record, 'first': item, 'findings': []})
+        group['findings'].append(item)
+    return list(groups.values())
+
+
 def page(request,db,user,filters,*,error=None,status_code=200):
     view=service.review(db,user,**filters)
     query=request.query_params
@@ -60,26 +71,30 @@ def page(request,db,user,filters,*,error=None,status_code=200):
     if screen not in {'findings','residentials'}:screen='findings'
     items=[r for r in view['findings'] if (kind=='all' or kind==r['kind']) and
            (state=='all' or (r['status'] in service.OPEN if state=='open' else r['status']==state))]
+    groups = group_findings(items)
     try: number=max(1,int(query.get('page','1') or 1))
     except ValueError as exc:raise HTTPException(422,'Página inválida.') from exc
-    pages=max(1,ceil(len(items)/25));number=min(number,pages)
-    rows=items[(number-1)*25:number*25]
+    pages=max(1,ceil(len(groups)/25));number=min(number,pages)
+    rows=groups[(number-1)*25:number*25]
     extra=dict(kind=kind,status=state,view=screen,page=number)
     def link(**changes):return url_for(filters,**{**extra,**changes})
-    detail=None;events=[]
+    detail=None;events=[];record_findings=[]
     finding=query.get('finding')
     if finding:
         detail=next((r for r in view['findings'] if r['key']==finding),None)
         if detail is None:raise HTTPException(404,'Hallazgo no encontrado en el alcance autorizado.')
         events=list(db.scalars(select(DataValidationEvent).where(DataValidationEvent.issue_key==finding)
                               .order_by(DataValidationEvent.event_id.desc()).limit(50)))
+        for record in detail['records']:
+            related = [r for r in view['findings'] if any(p['id'] == record['id'] for p in r['records'])]
+            record_findings.append({'record': record, 'findings': related})
     rid=service.scope_id(user)
     res_query=select(Residential).order_by(Residential.name)
     if rid is not None:res_query=res_query.where(Residential.residential_id==rid)
     return templates.TemplateResponse(request=request,name='automation/data_validation.html',context={
-        'current_user':user,'view':view,'rows':rows,'total':len(items),'page_number':number,'pages':pages,
+        'current_user':user,'view':view,'rows':rows,'total':len(items),'group_total':len(groups),'page_number':number,'pages':pages,
         'filters':filters,'kind':kind,'state':state,'screen':screen,'link':link,'base_url':service.URL,
-        'detail':detail,'events':events,'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
+        'detail':detail,'events':events,'record_findings':record_findings,'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
         'proposals':list(db.scalars(select(Proposal).order_by(Proposal.is_active.desc(),Proposal.name))),
         'residentials':list(db.scalars(res_query)),'scope_id':rid,'months':MONTHS,
         'can_write':user.role in {'admin','supervisor','user'},'can_supervise':user.role in {'admin','supervisor'},

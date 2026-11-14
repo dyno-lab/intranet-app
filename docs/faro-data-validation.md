@@ -15,6 +15,12 @@ presupuestaria sigue siendo el prototipo independiente existente.
 - Se revisan expediente, nombre, primer apellido, género válido, nacimiento faltante
   o posterior a la fecha de referencia, y edades calculadas mayores de 120 años.
   No existe un campo independiente de edad: se calcula desde el nacimiento.
+- También se señalan los datos operativos vacíos: edificio, apartamento, grupo,
+  composición y relación familiar, escolaridad, fuente y rango de ingreso, VCA,
+  primera participación y estatus. Esta revisión de integridad incluye campos que
+  el formulario permite guardar vacíos; no cambia las reglas de guardado.
+  La inicial y el segundo apellido siguen siendo opcionales. «NO», «0», apartamentos
+  alfanuméricos y una casilla de jefe de familia sin marcar no se tratan como vacíos.
 - Los campos adicionales activos y obligatorios se revisan sin señalar los opcionales
   vacíos. En una estancia histórica se usa la captura del traslado, nunca los valores
   actuales; solo se revisan campos existentes antes de la salida cuando hay captura.
@@ -51,6 +57,14 @@ residenciales afectados. El resumen por residencial desglosa tipos, pendientes s
 asignar y vencidos. Un par que involucra dos residenciales aparece en ambos; el total
 global cuenta ese par una sola vez. El filtro de tipo/estado afecta la lista, no los
 indicadores del alcance completo. El detalle muestra hasta 50 eventos recientes.
+
+La lista agrupa todos los hallazgos de una misma inscripción residencial en una fila.
+Se pagina por grupos, sin separar los errores de un expediente entre páginas; el
+filtro de estado conserva su efecto sobre la lista. «Ver todos» abre el detalle con
+todos los hallazgos autorizados de esa inscripción, incluidos otros estados y posibles
+duplicados, aunque no coincidan con el filtro de estado. Las diferentes propuestas y
+estancias del participante se muestran por separado. Cada error mantiene su propia
+clave, asignación, justificación e historial; corregir uno no cierra los demás.
 
 ## Actualización en la PC de pruebas
 

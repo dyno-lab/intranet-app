@@ -41,6 +41,54 @@ class DataValidationTests(unittest.TestCase):
         self.assertEqual(self.db.scalars(select(DataValidationIssue)).all(), [])
         self.assertEqual(self.db.scalars(select(DataValidationEvent)).all(), [])
 
+    def test_all_missing_record_fields_are_detected_together(self):
+        labels = {
+            'apellido_paterno': 'Primer apellido', 'edificio': 'Edificio', 'apart': 'Apartamento',
+            'grupo_familiar': 'Grupo familiar', 'composicion_familiar': 'Composición familiar',
+            'relacion_familiar': 'Relación familiar', 'escolaridad_participante': 'Escolaridad del participante',
+            'fuente_ingreso_principal': 'Fuente de ingreso principal', 'rango_ingreso': 'Rango de ingreso',
+            'vca': 'VCA', 'primera_vez': 'Participa por primera vez', 'estatus': 'Estatus',
+        }
+        for field in labels:
+            setattr(self.f.old, field, '  ')
+        self.db.commit()
+        findings = {row['rule']: row for row in self.review(year=2025, months=(1,))['findings']}
+        for field, label in labels.items():
+            with self.subTest(field=field):
+                self.assertIn('missing_' + field, findings)
+                self.assertEqual(findings['missing_' + field]['title'], label + ' sin registrar')
+        self.assertNotIn('missing_inicial', findings)
+        self.assertNotIn('missing_apellido_materno', findings)
+        self.assertNotIn('missing_is_head_of_household', findings)
+
+    def test_completeness_accepts_zero_no_and_preserves_other_pending_fields(self):
+        self.f.old.edificio = '0'
+        self.f.old.apart = 'A-02'
+        self.f.old.vca = 'NO'
+        self.f.old.primera_vez = 'NO'
+        self.db.commit()
+        service.mutate(self.db, self.user, 'revalidate', self.filters)
+        self.db.commit()
+        self.f.old.grupo_familiar = '1'
+        self.db.commit()
+        service.mutate(self.db, self.user, 'revalidate', self.filters)
+        self.db.commit()
+        findings = {row['rule']: row for row in self.review()['findings']}
+        self.assertEqual(findings['missing_grupo_familiar']['status'], 'resolved')
+        self.assertEqual(findings['birth_missing']['status'], 'pending')
+        for rule in ('missing_edificio', 'missing_apart', 'missing_vca', 'missing_primera_vez'):
+            self.assertNotIn(rule, findings)
+
+    def test_missing_location_is_checked_in_each_stay_without_using_current_values(self):
+        self.f.old.edificio = None
+        self.f.old.apart = None
+        self.f.move()
+        self.db.commit()
+        findings = [r for r in self.review()['findings'] if r['rule'] in {'missing_edificio', 'missing_apart'}]
+        self.assertEqual({r['rule'] for r in findings}, {'missing_edificio', 'missing_apart'})
+        self.assertTrue(all(r['records'][0]['historical'] for r in findings))
+        self.assertTrue(all(r['records'][0]['id'] == self.f.old.proposal_participant_id for r in findings))
+
     def test_only_confirmed_attendance_and_past_sessions(self):
         self.f.attendance.attended=False
         future=self.f.make_session(self.f.a.residential_id, date(2027,9,1))

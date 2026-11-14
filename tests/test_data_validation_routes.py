@@ -55,6 +55,63 @@ class DataValidationRoutes(unittest.TestCase):
             self.assertEqual(self.client.get(self.url,params={**self.params,**invalid}).status_code,422)
         self.assertIn('Seguimiento',self.client.get(self.url,params={**self.params,'view':'residentials'}).text)
 
+    def test_record_groups_and_detail_include_all_errors_even_outside_status_filter(self):
+        from app.services import data_validation as service
+        from app.models.participant_profile_field import ParticipantProfileField
+
+        self.f.old.apellido_paterno = ''
+        self.f.old.edificio = None
+        self.f.old.apart = None
+        self.db.add_all([ParticipantProfileField(field_key=f'required_{i}', label=f'Campo requerido {i}',
+            is_required=True) for i in range(28)])
+        self.db.commit()
+        page, form = self.form()
+        self.assertEqual(page.text.count(f'data-record-group="{self.f.old.proposal_participant_id}"'), 1)
+        for title in ('Primer apellido sin registrar', 'Edificio sin registrar', 'Apartamento sin registrar',
+                      'Grupo familiar sin registrar', 'Campo requerido 27 sin registrar'):
+            self.assertIn(title, page.text)
+        building = self.source.issue('missing_edificio')
+        service.mutate(self.db, self.user, 'assign', self.source.filters, targets=[building['token']],
+            assignee='residential', due_on=date(2099, 11, 18))
+        self.db.commit()
+        surname = self.source.issue('missing_apellido_paterno')
+        response = self.client.get(self.url, params={**self.params, 'finding': surname['key'], 'status': 'pending'})
+        self.assertEqual(response.status_code, 200)
+        dialog = re.search(r'<section[^>]+data-record-findings.*?</section>', response.text, re.S)[0]
+        self.assertIn('Todos los hallazgos de este expediente', dialog)
+        for title in ('Primer apellido sin registrar', 'Edificio sin registrar', 'Apartamento sin registrar',
+                      'Grupo familiar sin registrar', 'Campo requerido 27 sin registrar'):
+            self.assertIn(title, dialog)
+        self.assertIn('En revisión', dialog)
+        self.assertIn(f'finding={building["key"]}', dialog)
+        self.assertNotIn(self.f.other.expediente_num, dialog)
+
+    def test_record_groups_never_mix_proposals_or_residential_stays(self):
+        from app.models.proposal import Proposal
+        from app.models.proposal_participant import ProposalParticipant
+        from app.services.proposal_participant_sync import get_proposal_participant_update_values
+
+        self.f.move()
+        other_proposal = Proposal(code='OTHER', name='Otra propuesta de prueba', is_active=True)
+        self.db.add(other_proposal)
+        self.db.flush()
+        other_stay = ProposalParticipant(person_id=self.f.person.person_id,
+            proposal_id=other_proposal.proposal_id, residential_id=self.f.b.residential_id,
+            **get_proposal_participant_update_values(self.f.participant))
+        other_stay.grupo_familiar = None
+        self.db.add(other_stay)
+        self.db.commit()
+        response = self.client.get(self.url, params={**self.params, 'proposal_id': ''})
+        self.assertEqual(response.status_code, 200)
+        for stay in self.db.scalars(select(ProposalParticipant)):
+            self.assertEqual(response.text.count(f'data-record-group="{stay.proposal_participant_id}"'), 1)
+        self.user.role = 'user'
+        self.db.commit()
+        response = self.client.get(self.url, params={**self.params, 'proposal_id': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'data-record-group="{self.f.old.proposal_participant_id}"', response.text)
+        self.assertNotIn(f'data-record-group="{other_stay.proposal_participant_id}"', response.text)
+
     def test_mutations_csrf_permissions_and_audit(self):
         _,form=self.form()
         data={**form,'assignee':'residential','due_on':'2099-11-18','note':'Prueba <script>alert(1)</script>'}

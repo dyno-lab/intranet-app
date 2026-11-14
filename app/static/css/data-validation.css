@@ -1,6 +1,15 @@
 
     #faro-data-quality{color-scheme:light dark;font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.5;--dq-bg:light-dark(#f3f6fb,#0e192a);--dq-panel:light-dark(#fff,#16263b);--dq-ink:light-dark(#142d49,#e5edf8);--dq-muted:light-dark(#526780,#b1c2d8);--dq-line:light-dark(#dce5f1,#344760);--dq-blue:light-dark(#2459ca,#91b7ff);--dq-soft:light-dark(#edf3ff,#1e3659);--dq-red:light-dark(#a42c3e,#ffabb4);--dq-red-bg:light-dark(#fff0f2,#452732);--dq-amber:light-dark(#81531a,#efc578);--dq-amber-bg:light-dark(#fff4df,#41341f);--dq-green:light-dark(#146a51,#7eddbb);--dq-green-bg:light-dark(#eaf7f0,#173c32);color:var(--dq-ink)}
     #faro-data-quality *{box-sizing:border-box}
+    #faro-data-quality .dq-findings-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+    #faro-data-quality .dq-findings-list>li{padding:0 0 10px;border-bottom:1px solid var(--dq-line);overflow-wrap:anywhere}
+    #faro-data-quality .dq-findings-list>li:last-child{border-bottom:0;padding-bottom:0}
+    #faro-data-quality .dq-finding-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+    #faro-data-quality .dq-finding-title input{flex:none}
+    #faro-data-quality .dq-grouped-table td:nth-child(3){width:48%}
+    #faro-data-quality .dq-record-findings{border:1px solid var(--dq-line);border-radius:12px;padding:16px;margin-top:18px}
+    #faro-data-quality .dq-record-findings>.dq-caption{margin:8px 0 14px}
+    #faro-data-quality .dq-current-finding{background:var(--dq-soft);padding:10px!important;border-radius:8px}
     #faro-data-quality [hidden]{display:none!important}
     #faro-data-quality h1,#faro-data-quality h2,#faro-data-quality h3,#faro-data-quality p{margin:0}
     #faro-data-quality button,#faro-data-quality select,#faro-data-quality input,#faro-data-quality textarea{font:inherit}

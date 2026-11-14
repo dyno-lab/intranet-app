@@ -27,6 +27,19 @@ STATUS = {'pending': 'Pendiente', 'review': 'En revisión', 'resolved': 'Resuelt
 KIND = {'record': 'Expedientes', 'attendance': 'Asistencias', 'duplicate': 'Posibles duplicados'}
 URL = '/automatizaciones/faro/validacion'
 
+# Completeness of the operational record, including fields that can be saved blank.
+# Initial, second surname and unchecked boolean flags are not missing information.
+RECORD_FIELDS = (
+    ('expediente_num', 'Número de expediente'), ('nombre', 'Nombre'),
+    ('apellido_paterno', 'Primer apellido'), ('genero', 'Género'),
+    ('edificio', 'Edificio'), ('apart', 'Apartamento'),
+    ('grupo_familiar', 'Grupo familiar'), ('composicion_familiar', 'Composición familiar'),
+    ('relacion_familiar', 'Relación familiar'),
+    ('escolaridad_participante', 'Escolaridad del participante'),
+    ('fuente_ingreso_principal', 'Fuente de ingreso principal'), ('rango_ingreso', 'Rango de ingreso'),
+    ('vca', 'VCA'), ('primera_vez', 'Participa por primera vez'), ('estatus', 'Estatus'),
+)
+
 
 def _json(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str, separators=(',', ':'))
@@ -145,8 +158,7 @@ def scan(db, user, *, proposal_id, residential_id, year, months, today):
         rank = (not historical, record.proposal_participant_id)
         if current is None or rank > current[0]:
             representatives[(record.proposal_id,record.person_id)] = (rank, record, info)
-        for field, label in (('expediente_num','Número de expediente'),('nombre','Nombre'),
-                             ('apellido_paterno','Primer apellido'),('genero','Género')):
+        for field, label in RECORD_FIELDS:
             if not _text(getattr(record,field)):
                 add('missing_'+field, label+' sin registrar', 'Sin registrar', label+' completo', records=[info])
         if record.genero and _text(record.genero).upper() not in {'F','M'}:

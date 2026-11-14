@@ -9,7 +9,8 @@
   const checked = () => targets().filter(input => input.checked);
   function selection() {
     const all = targets(), selected = checked();
-    if (q('[data-bulk]')) q('[data-bulk]').disabled = !selected.length;
+    if (q('[data-bulk]')) q('[data-bulk]').disabled = !selected.length || selected.length > 100;
+    if (q('[data-selection-error]')) q('[data-selection-error]').hidden = selected.length <= 100;
     if (q('[data-selected-count]')) q('[data-selected-count]').textContent = selected.length ? '(' + selected.length + ')' : '';
     if (q('[data-select-all]')) { q('[data-select-all]').checked = all.length > 0 && all.length === selected.length; q('[data-select-all]').indeterminate = selected.length > 0 && selected.length < all.length; q('[data-select-all]').disabled = !all.length; }
   }
