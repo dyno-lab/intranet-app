@@ -131,7 +131,7 @@ def scan(db, user, *, proposal_id, residential_id, year, months, today):
         if audit:
             source_url = f'/ui/new-list/{audit.participant_id}/history/{audit.transfer_id}'
         elif participant and participant.residential_id == record.residential_id:
-            source_url = f'/ui/new-list/{participant.participant_id}'
+            source_url = f'/ui/new-list/{participant.participant_id}/expediente'
         cutoff = record.valid_until - timedelta(days=1) if historical else today
         dob = record.fecha_nacimiento
         age = cutoff.year-dob.year-((cutoff.month,cutoff.day)<(dob.month,dob.day)) if dob else None

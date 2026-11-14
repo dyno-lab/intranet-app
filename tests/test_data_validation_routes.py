@@ -105,3 +105,75 @@ class DataValidationRoutes(unittest.TestCase):
         self.assertEqual(response.status_code,303)
         self.assertIn('validaci%C3%B3n',response.headers['location'])
         self.assertTrue(self.db.scalars(select(DataValidationEvent)).all())
+
+    def enable_expediente_routes(self):
+        from unittest.mock import patch
+        from fastapi import Depends
+        from app.api.routes import ui
+        from app.core.residential_scope import require_faro_access
+
+        self.client.app.include_router(ui.router, prefix='/ui', dependencies=[Depends(require_faro_access)])
+        connection = self.db.connection().connection.driver_connection
+        connection.create_function('year', 1, lambda value: date.fromisoformat(value).year if value else None)
+        connection.create_function('month', 1, lambda value: date.fromisoformat(value).month if value else None)
+        community = patch.object(ui.settings, 'COMMUNITY_ENABLED', False)
+        community.start()
+        self.addCleanup(community.stop)
+
+    def finding_links(self, finding, label):
+        from html import unescape
+
+        detail = self.client.get(self.url, params={**self.params, 'finding': finding['key']})
+        self.assertEqual(detail.status_code, 200, detail.text)
+        links = re.findall(r'href="([^"]+)"[^>]*>' + re.escape(label) + r'</a>', detail.text)
+        self.assertTrue(links, detail.text)
+        return [unescape(link) for link in links]
+
+    def test_open_record_from_finding_reaches_real_expediente_for_each_role(self):
+        self.enable_expediente_routes()
+        for role in ('admin', 'supervisor', 'user', 'viewer'):
+            with self.subTest(role=role):
+                self.user.role = role
+                self.db.commit()
+                self.assertEqual(self.client.get(self.url, params=self.params).status_code, 200)
+                link, = self.finding_links(self.source.issue('birth_missing'), 'Abrir expediente')
+                response = self.client.get(link)
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertIn(self.f.participant.expediente_num, response.text)
+                if role in ('user', 'viewer'):
+                    foreign = self.client.get(f'/ui/new-list/{self.f.other.participant_id}/expediente')
+                    self.assertEqual(foreign.status_code, 403)
+
+    def test_duplicate_comparison_links_open_both_real_records(self):
+        from app.models.person import Person
+        from app.models.proposal_participant import ProposalParticipant
+
+        self.enable_expediente_routes()
+        self.f.old.fecha_nacimiento = date(2010, 4, 12)
+        person = Person(legacy_participant_id=self.f.other.participant_id, nombre='Ana', apellido_paterno='Prueba')
+        self.db.add(person)
+        self.db.flush()
+        self.db.add(ProposalParticipant(person_id=person.person_id, proposal_id=self.f.proposal.proposal_id,
+            residential_id=self.f.b.residential_id, nombre='Ana', apellido_paterno='Prueba',
+            fecha_nacimiento=date(2010, 4, 12), genero='F', expediente_num=self.f.other.expediente_num))
+        self.db.commit()
+        links = self.finding_links(self.source.issue('duplicate'), 'Consultar expediente')
+        self.assertEqual(len(links), 2)
+        for link, record in zip(links, (self.f.participant, self.f.other)):
+            response = self.client.get(link)
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertIn(record.expediente_num, response.text)
+
+    def test_historical_finding_opens_readonly_history_in_origin(self):
+        self.enable_expediente_routes()
+        self.f.move()
+        self.user.role = 'user'
+        self.db.commit()
+        self.form()
+        link, = self.finding_links(self.source.issue('birth_missing'), 'Consultar historial')
+        response = self.client.get(link)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn('FE-2026-A-0001', response.text)
+        self.assertIn('Solo lectura', response.text)
+        self.assertNotIn('FE-2026-B-0002', response.text)
+        self.assertNotIn('/edit', response.text)
