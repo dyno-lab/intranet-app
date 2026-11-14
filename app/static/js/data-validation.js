@@ -25,11 +25,5 @@
   q('[data-select-all]')?.addEventListener('change', event => { targets().forEach(input => { input.checked = event.target.checked; }); selection(); });
   targets().forEach(input => input.addEventListener('change', selection));
   root.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => { button.closest('dialog').close(); if (initial) initial.showModal(); }));
-  const form = q('[data-filters]');
-  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const chosen = () => [...form.querySelectorAll('input[name="months"]:checked')];
-  const monthLabel = () => { const items = chosen(); q('[data-month-label]').textContent = items.length === 1 ? monthNames[Number(items[0].value)-1] : items.length + ' meses'; };
-  form?.addEventListener('change', monthLabel);
-  form?.addEventListener('submit', event => { if (!chosen().length) { event.preventDefault(); q('[data-month-error]').hidden = false; q('.dq-months').open = true; } });
-  monthLabel(); selection();
+  selection();
 })();

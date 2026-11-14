@@ -86,7 +86,7 @@ class DataValidationRoutes(unittest.TestCase):
         self.assertIn(f'finding={building["key"]}', dialog)
         self.assertNotIn(self.f.other.expediente_num, dialog)
 
-    def test_record_groups_never_mix_proposals_or_residential_stays(self):
+    def test_one_record_row_across_proposals_with_historical_number_separate(self):
         from app.models.proposal import Proposal
         from app.models.proposal_participant import ProposalParticipant
         from app.services.proposal_participant_sync import get_proposal_participant_update_values
@@ -103,14 +103,61 @@ class DataValidationRoutes(unittest.TestCase):
         self.db.commit()
         response = self.client.get(self.url, params={**self.params, 'proposal_id': ''})
         self.assertEqual(response.status_code, 200)
-        for stay in self.db.scalars(select(ProposalParticipant)):
-            self.assertEqual(response.text.count(f'data-record-group="{stay.proposal_participant_id}"'), 1)
+        groups = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
+        self.assertEqual(len(groups), 2)
+        destination = next(row for row in groups if 'FE-2026-B-0002' in row)
+        self.assertIn(self.f.proposal.name, destination)
+        self.assertIn(other_proposal.name, destination)
+        current = self.db.scalar(select(ProposalParticipant).where(
+            ProposalParticipant.proposal_id == self.f.proposal.proposal_id,
+            ProposalParticipant.valid_until.is_(None)))
+        issue = next(r for r in self.source.review(proposal_id=None)['findings']
+                     if r['rule'] == 'birth_missing' and r['records'][0]['id'] == current.proposal_participant_id)
+        detail = self.client.get(self.url, params={**self.params, 'proposal_id': '', 'finding': issue['key']})
+        related = re.search(r'<section[^>]+data-record-findings.*?</section>', detail.text, re.S)[0]
+        self.assertIn(other_proposal.name, related)
+        self.assertIn(self.f.proposal.name, related)
+        self.assertNotIn('FE-2026-A-0001', related)
+        filtered = self.client.get(self.url, params={**self.params, 'proposal_id': other_proposal.proposal_id})
+        filtered_groups = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', filtered.text, re.S)
+        self.assertEqual(len(filtered_groups), 1)
+        self.assertNotIn(self.f.proposal.name, filtered_groups[0])
         self.user.role = 'user'
         self.db.commit()
         response = self.client.get(self.url, params={**self.params, 'proposal_id': ''})
         self.assertEqual(response.status_code, 200)
         self.assertIn(f'data-record-group="{self.f.old.proposal_participant_id}"', response.text)
         self.assertNotIn(f'data-record-group="{other_stay.proposal_participant_id}"', response.text)
+
+    def test_same_number_for_different_people_is_not_merged(self):
+        from app.models.person import Person
+        from app.models.proposal_participant import ProposalParticipant
+
+        person = Person(nombre='Otra persona', apellido_paterno='Distinta')
+        self.db.add(person)
+        self.db.flush()
+        self.db.add(ProposalParticipant(person_id=person.person_id, proposal_id=self.f.proposal.proposal_id,
+            residential_id=self.f.a.residential_id, expediente_num=self.f.old.expediente_num,
+            nombre='Otra persona', apellido_paterno='Distinta'))
+        self.db.commit()
+        page, _ = self.form()
+        groups = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', page.text, re.S)
+        self.assertEqual(len(groups), 2)
+        self.assertTrue(any('Otra persona' in row for row in groups))
+
+    def test_report_style_month_and_year_selectors_preserve_multiple_months(self):
+        response = self.client.get(self.url, params={**self.params, 'months': [9, 10], 'year': 2025})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('/static/js/report-proposals.js', response.text)
+        self.assertIn('/static/css/report-proposals.css', response.text)
+        months = re.search(r'<select[^>]+name="months"[^>]*>.*?</select>', response.text, re.S)[0]
+        self.assertIn('multiple', months)
+        self.assertIn('data-report-multiselect', months)
+        self.assertRegex(months, r'<option value="9" selected>Septiembre</option>')
+        self.assertRegex(months, r'<option value="10" selected>Octubre</option>')
+        self.assertNotIn('<details class="dq-months"', response.text)
+        years = re.search(r'<select[^>]+name="year"[^>]*>.*?</select>', response.text, re.S)[0]
+        self.assertIn('<option value="2025" selected>2025</option>', years)
 
     def test_mutations_csrf_permissions_and_audit(self):
         _,form=self.form()

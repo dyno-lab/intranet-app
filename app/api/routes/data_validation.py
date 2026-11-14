@@ -50,14 +50,27 @@ def url_for(filters,**extra):
     return service.URL+'?'+urlencode(params,doseq=True)
 
 
+def record_identity(record):
+    # Proposal enrollments of one person share a file; names alone never identify it.
+    return record['person_id'], record['expediente'].strip().casefold()
+
+
 def group_findings(items):
-    """Keep an enrollment's complete set on one page without merging tracked issues."""
+    """One file row across proposals; individual issue keys and source stays survive."""
     groups = {}
     for item in items:
         record = item['records'][0] if item['kind'] == 'record' else None
-        key = ('record', record['id']) if record else ('finding', item['key'])
+        key = ('record', record_identity(record)) if record else ('finding', item['key'])
         group = groups.setdefault(key, {'record': record, 'first': item, 'findings': []})
         group['findings'].append(item)
+        if record and group['record']['historical'] and not record['historical']:
+            group['record'], group['first'] = record, item
+    for group in groups.values():
+        group['proposals'] = list(dict.fromkeys(r['proposal_name'] for r in group['findings']))
+        group['residentials'] = list(dict.fromkeys(r['residential_name'] for r in group['findings']))
+        historical = {p['historical'] for r in group['findings'] for p in r['records']}
+        group['stay_label'] = ('Vigente e histórico' if len(historical) > 1 else
+                               'Histórico · solo consulta' if historical == {True} else 'Inscripción vigente')
     return list(groups.values())
 
 
@@ -86,7 +99,7 @@ def page(request,db,user,filters,*,error=None,status_code=200):
         events=list(db.scalars(select(DataValidationEvent).where(DataValidationEvent.issue_key==finding)
                               .order_by(DataValidationEvent.event_id.desc()).limit(50)))
         for record in detail['records']:
-            related = [r for r in view['findings'] if any(p['id'] == record['id'] for p in r['records'])]
+            related = [r for r in view['findings'] if any(record_identity(p) == record_identity(record) for p in r['records'])]
             record_findings.append({'record': record, 'findings': related})
     rid=service.scope_id(user)
     res_query=select(Residential).order_by(Residential.name)
@@ -96,7 +109,7 @@ def page(request,db,user,filters,*,error=None,status_code=200):
         'filters':filters,'kind':kind,'state':state,'screen':screen,'link':link,'base_url':service.URL,
         'detail':detail,'events':events,'record_findings':record_findings,'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
         'proposals':list(db.scalars(select(Proposal).order_by(Proposal.is_active.desc(),Proposal.name))),
-        'residentials':list(db.scalars(res_query)),'scope_id':rid,'months':MONTHS,
+        'residentials':list(db.scalars(res_query)),'scope_id':rid,'months':MONTHS,'years':range(2000,2101),
         'can_write':user.role in {'admin','supervisor','user'},'can_supervise':user.role in {'admin','supervisor'},
         'csrf_token':request.session.setdefault('data_validation_token',secrets.token_urlsafe(32)),
         'today':view['today'],'default_due':view['today']+timedelta(days=4),

@@ -45,13 +45,16 @@
     #faro-data-quality .dq-filter-title{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:15px}
     #faro-data-quality .dq-role{display:flex;gap:8px;align-items:center;color:var(--dq-muted);font-size:11px}
     #faro-data-quality .dq-role select{border:1px solid var(--dq-line);border-radius:7px;background:var(--dq-panel);color:var(--dq-ink);padding:6px;max-width:190px;font-size:12px}
-    #faro-data-quality .dq-fields{display:grid;grid-template-columns:minmax(155px,1.45fr) minmax(120px,1fr) 80px minmax(120px,1fr);gap:12px}
+    #faro-data-quality .dq-fields{display:grid;grid-template-columns:minmax(155px,1.45fr) minmax(120px,1fr) minmax(180px,1fr) 100px;gap:12px}
+    /* Match Faro report filter controls; the multiselect uses report-proposals assets. */
+    #faro-data-quality .dq-report-filters .form-label{display:block;margin-bottom:.28rem;color:var(--dq-ink);font-size:.78rem;font-weight:700}
+    #faro-data-quality .dq-report-filters .form-select{display:block;width:100%;min-height:2.55rem;padding:.375rem 2.25rem .375rem .75rem;border:1px solid rgba(15,23,42,.12);border-radius:.78rem;background-color:var(--dq-panel);color:var(--dq-ink);font:inherit;font-size:.9rem;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23526780' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;background-size:16px 12px}
+    #faro-data-quality .dq-report-filters .form-select[hidden]{display:none}
+    #faro-data-quality .dq-report-filters select[multiple]{background-image:none}
+    #faro-data-quality .dq-report-filters .form-select:focus{outline:0;border-color:#86b7fe;box-shadow:0 0 0 .25rem #0d6efd40}
+    #faro-data-quality .dq-report-filters .form-select:disabled{background-color:var(--dq-bg)}
     #faro-data-quality .dq-field-label{display:block;color:var(--dq-ink);font-size:12px;font-weight:600;margin-bottom:5px}
     #faro-data-quality .dq-input{display:block;width:100%;min-width:0;border:1px solid var(--dq-line);border-radius:8px;padding:9px 10px;background:var(--dq-panel);color:var(--dq-ink);min-height:40px;font-size:13px}
-    #faro-data-quality .dq-months{position:relative}
-    #faro-data-quality .dq-months summary{padding:9px 10px;border:1px solid var(--dq-line);border-radius:8px;min-height:40px;font-size:13px}
-    #faro-data-quality .dq-month-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px 0}
-    #faro-data-quality .dq-month-options label{display:flex;align-items:center;gap:6px;font-size:12px;min-height:30px}
     #faro-data-quality input[type=checkbox]{accent-color:#2459ca;width:16px;height:16px}
     #faro-data-quality .dq-filter-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px}
     #faro-data-quality .dq-scope{font-size:11px;color:var(--dq-muted);max-width:440px}

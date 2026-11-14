@@ -7,6 +7,9 @@ presupuestaria sigue siendo el prototipo independiente existente.
 ## Alcance y reglas
 
 - Filtros por propuesta (nombre), residencial, año y uno o varios meses.
+  Los meses reutilizan el selector desplegable múltiple de los reportes de Faro,
+  con nombres completos y «Seleccionar todos». El año usa un desplegable con el
+  mismo estilo; se conserva el rango admitido de 2000 a 2100.
 - Los expedientes abarcan todas las inscripciones vinculadas a la propuesta,
   incluidas las inactivas y las estancias históricas, independientemente del período.
 - Las sesiones se limitan a los meses seleccionados, hasta la fecha de consulta.
@@ -58,12 +61,15 @@ asignar y vencidos. Un par que involucra dos residenciales aparece en ambos; el 
 global cuenta ese par una sola vez. El filtro de tipo/estado afecta la lista, no los
 indicadores del alcance completo. El detalle muestra hasta 50 eventos recientes.
 
-La lista agrupa todos los hallazgos de una misma inscripción residencial en una fila.
+La lista agrupa los hallazgos de una misma persona y número de expediente en una fila,
+aunque pertenezcan a varias propuestas. No identifica personas por nombre ni une
+expedientes de personas distintas que tengan por error el mismo número.
 Se pagina por grupos, sin separar los errores de un expediente entre páginas; el
 filtro de estado conserva su efecto sobre la lista. «Ver todos» abre el detalle con
-todos los hallazgos autorizados de esa inscripción, incluidos otros estados y posibles
-duplicados, aunque no coincidan con el filtro de estado. Las diferentes propuestas y
-estancias del participante se muestran por separado. Cada error mantiene su propia
+todos los hallazgos autorizados de ese expediente, incluidos otros estados y posibles
+duplicados, aunque no coincidan con el filtro de estado. Cada error indica su propuesta
+y si corresponde a una estancia histórica. Los números anteriores y actuales distintos
+siguen separados; ningún dato histórico se sobrescribe. Cada error mantiene su propia
 clave, asignación, justificación e historial; corregir uno no cierra los demás.
 
 ## Actualización en la PC de pruebas

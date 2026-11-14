@@ -1,5 +1,5 @@
 (() => {
-  document.querySelectorAll('select[name="proposal_id"][multiple]').forEach((select, index) => {
+  document.querySelectorAll('select[name="proposal_id"][multiple], select[data-report-multiselect][multiple]').forEach((select, index) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'report-proposals';
     const button = document.createElement('button');
@@ -12,12 +12,12 @@
     menu.id = `${button.id}-options`;
     menu.hidden = true;
     menu.setAttribute('role', 'group');
-    menu.setAttribute('aria-label', 'Propuestas');
+    menu.setAttribute('aria-label', select.dataset.reportLabel || 'Propuestas');
     button.setAttribute('aria-controls', menu.id);
     const error = document.createElement('div');
     error.className = 'report-proposals__error';
     error.id = `${button.id}-error`;
-    error.textContent = 'Selecciona al menos una propuesta.';
+    error.textContent = select.dataset.reportError || 'Selecciona al menos una propuesta.';
     error.hidden = true;
     button.setAttribute('aria-describedby', error.id);
     const addCheckbox = (text, all = false) => {
@@ -31,7 +31,7 @@
       menu.append(label);
       return input;
     };
-    const all = addCheckbox('Seleccionar todas', true);
+    const all = addCheckbox(select.dataset.reportAll || 'Seleccionar todas', true);
     const options = Array.from(select.options);
     const checks = options.map(option => {
       const input = addCheckbox(option.textContent);
@@ -45,7 +45,7 @@
     const sync = () => {
       checks.forEach((input, i) => { input.checked = options[i].selected; });
       const selected = options.filter(option => option.selected);
-      button.textContent = selected.length === 0 ? 'Selecciona propuestas' : selected.length === 1 ? selected[0].textContent : `${selected.length} propuestas seleccionadas`;
+      button.textContent = selected.length === 0 ? (select.dataset.reportPlaceholder || 'Selecciona propuestas') : selected.length === 1 ? selected[0].textContent : `${selected.length} ${select.dataset.reportSelected || 'propuestas seleccionadas'}`;
       button.title = selected.map(option => option.textContent).join(', ');
       const enabled = options.filter(option => !option.disabled);
       all.checked = enabled.length > 0 && enabled.every(option => option.selected);
