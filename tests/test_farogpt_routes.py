@@ -88,6 +88,22 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.assertIn('2025-000094-C', report.text)
         self.assertIn('Arístides Chavier', report.text)
 
+    def test_spelling_confirmation_queries_with_original_code_and_period(self):
+        response = self.send('Cuantas actividdades 2.B.5 septiemrbe 2026')
+        self.assertEqual(response.status_code, 200, response.text)
+        clarification = response.json()
+        self.assertNotIn('value', clarification)
+        corrected = 'Cuantas actividades 2.B.5 septiembre 2026'
+        self.assertIn(corrected, clarification['suggestions'])
+        result = self.send(corrected, context=clarification['context']).json()
+        self.assertEqual(result['type'], 'result', result)
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['activity_code'], '2.b.5')
+        self.assertEqual(result['context']['month'], 9)
+        report = self.client.get(result['report_url'])
+        self.assertEqual(report.status_code, 200, report.text)
+        self.assertIn('Septiembre 2026', report.text)
+
     def test_activity_code_is_preserved_in_api_and_report(self):
         self.f.code.description = 'Destrezas para el empleo'
         self.db.commit()

@@ -22,13 +22,21 @@ from app.models.proposal import Proposal
 from app.models.proposal_participant import ProposalParticipant
 from app.models.residential import Residential
 from app.services.participant_courses import MONTHS
-from app.services import farogpt_reports
+from app.services import farogpt_reports, farogpt_spelling, farogpt_report_operations
 from app.services import farogpt_data_quality, farogpt_monthly_pending
 
 URL = '/ui/farogpt'
 ACTIVITY_CODE_PATTERN = re.compile(r'(?<!\w)(\d{1,2})\s*([a-z])\s*(\d{1,3})(?!\w)')
 ACTIVITY_WORDS = {'act', 'acts', 'actividadss', 'actididades', 'actvidades', 'atividades', 'actividaes', 'activdades'}
 SUMMARY_PHRASES = ('resumen', 'todos los campos', 'todos los indicadores')
+QUERY_WORDS = frozenset(('cuantos cuantas hubo hay fueron tengo tenemos tuvo total cantidad numero de del el la los las '
+    'en para por durante y con al un una me puedes puede dime dame saber quiero quisiera '
+    'consulta consultar muestra mostrar indicame residencial propuesta mes meses ano faro '
+    'compara comparar comparame comparalo favor registrados registradas '
+    'atendidos atendidas este ese se atendieron participaron informe reporte '
+    'datos informacion resultado resultados seguimiento cual cuales es son '
+    'codigo hicieron realizo realizaron realizada realizado realizadas realizados ejecutaron ejecutadas ejecutados '
+    'ofrecieron registraron impartieron').split())
 SUPERVISION_REPORTS = frozenset({'attendance_pending', 'record_issues', 'session_issues'})
 TITLES = {'people': 'Participantes únicos', 'duplicates': 'Participaciones (duplicados)',
           'activities': 'Actividades / servicios'}
@@ -395,6 +403,25 @@ def answer(db, user, question, context, *, today=None):
     today = today or date.today()
     residentials, proposals = catalogs(db, user)
     original = _authorized_context(context, user, residentials, proposals)
+    result = _answer(db, user, question, original, residentials, proposals, today=today)
+    if result['type'] != 'clarification':
+        return result
+    # Never change a successfully parsed query. If clarification is needed,
+    # offer spelling proposals without executing any corrected question.
+    spelling = farogpt_spelling.propose(question,
+        [*QUERY_WORDS, *ACTIVITY_WORDS, *SUMMARY_PHRASES, 'dupliaods',
+         *(name for _, name in MONTHS),
+         *(phrase for aliases in farogpt_reports.ALIASES.values() for phrase in aliases),
+         *(phrase for aliases in farogpt_reports.FIELD_ALIASES.values() for phrase in aliases),
+         *(phrase for aliases in farogpt_report_operations.METRIC_ALIASES.values() for phrase in aliases)],
+        protected_phrases=[value for row in [*residentials, *proposals]
+                           for value in (row.name, row.code) if value])
+    if spelling:
+        return _clarify('Encontré posibles errores de escritura. Confirma la pregunta que quieres consultar:', original, spelling)
+    return result
+
+
+def _answer(db, user, question, original, residentials, proposals, *, today):
     selected = dict(original)
     text = _query_aliases(_normalize(question))
     if not text or len(question) > 800:
@@ -569,14 +596,7 @@ def answer(db, user, question, context, *, today=None):
     # An unsupported qualifier (day range, unknown residential, etc.)
     # must not disappear into a plausible but unfiltered number.
     words = set(text.split())
-    allowed = set('cuantos cuantas hubo hay fueron tengo tenemos tuvo tuvo total cantidad numero de del el la los las '
-                  'en para por durante y con al un una me puedes puede dime dame saber quiero quisiera '
-                  'consulta consultar muestra mostrar indicame residencial propuesta mes meses ano faro '
-                  'compara comparar comparame comparalo favor por favor registrados registradas '
-                  'atendidos atendidas este ese fueron se atendieron participaron informe reporte '
-                  'datos informacion resultado resultados seguimiento cual cuales es son las los '
-                  'codigo hicieron realizo realizaron realizada realizado realizadas realizados ejecutaron ejecutadas ejecutados '
-                  'ofrecieron registraron impartieron'.split())
+    allowed = set(QUERY_WORDS)
     if selected['metric'] in SUPERVISION_REPORTS:
         allowed.update('que lista listame'.split())
     if selected['metric'] == 'attendance_pending':

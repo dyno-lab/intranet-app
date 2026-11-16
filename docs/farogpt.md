@@ -16,6 +16,14 @@ de Faro, no llama a sus endpoints, no acepta preguntas, no consulta datos ni
 guarda conversaciones. La futura integración deberá usar exclusivamente los
 datos y permisos de Comunidad; aún no se habilita ninguna consulta en este módulo.
 
+Incluye doce saludos jocosos sobre su bombillita, la construcción de su integración
+y su vida de farito junto al mar, incluida una visita imaginaria a Cabo Rojo.
+Al entrar se elige uno al azar y cada reapertura
+del farito presenta el siguiente, sin repetir hasta completar el ciclo. El texto
+permanece estable mientras se lee. La presentación y el aviso de consultas aún
+no disponibles permanecen visibles. La rotación vive solo en esa página, sin
+temporizadores, almacenamiento ni llamadas de red.
+
 ## Consultas de reportes
 
 Consultas en español sobre los indicadores y desgloses de los reportes de FARO. Permite elegir un residencial por nombre o código, una propuesta por nombre o código y uno o varios meses del mismo año. «Global», «a nivel global» y «todos los residenciales» consultan el conjunto autorizado y quitan el residencial de la consulta anterior. El residencial activo limita siempre los resultados cuando el usuario trabaja en ese contexto.
@@ -66,6 +74,12 @@ Ejemplos:
 - «Actividades sin asistencias u horas octubre 2026», «Actividades sin asistencias octubre 2026» o «Actividades sin horas octubre 2026».
 
 Las variantes `act`, `acts`, `actividadss`, `actididades`, `actvidades`, `atividades`, `actividaes` y `activdades` se interpretan como «actividades». Esta tolerancia se limita a palabras conocidas: nunca aproxima códigos, propuestas o residenciales. Al pedir datos faltantes se conservan el código, el residencial, los meses ya seleccionados y los términos del campo solicitado. No se descartan restricciones desconocidas para devolver un número sin ese filtro.
+
+Además, hay un corrector general de escritura como respaldo del intérprete existente. Compara palabras con el vocabulario de los reportes, campos comunes, meses y expresiones de consulta; reconoce omisiones, letras repetidas, sustituciones e intercambios adyacentes sin registrar cada error por separado. Por ejemplo, «cuatnos participntes no duplciados en juino 2026» ofrece «cuantos participantes no duplicados en junio 2026» en una sola pregunta sugerida.
+
+Las consultas que ya se entienden se conservan. Una corrección inferida requiere seleccionar la pregunta sugerida o escribirla: no se ejecuta automáticamente. Si hay empate, se ofrecen hasta tres alternativas; «juio» puede requerir elegir junio o julio. La confirmación reutiliza el contexto y pasa nuevamente por la validación de permisos, campos y filtros. No cambia nombres de catálogo, identificadores explícitos, números, códigos, negaciones ni restricciones desconocidas para fabricar un resultado. Una palabra que no pueda interpretarse sigue requiriendo aclaración. El reconocimiento continúa limitado a los reportes y filtros existentes.
+
+El corrector funciona localmente, sin claves, servicios externos, dependencias adicionales ni cambios de base de datos. Limita las propuestas a preguntas de 800 caracteres y a una o dos ediciones por palabra, según su longitud. Las letras de calificaciones y palabras cortas no se aproximan. Usa los botones de sugerencias actuales y conserva el diseño del chat.
 
 «Cuántos participantes únicos tengo en Chavier» puede completarse respondiendo «junio 2026». Si una consulta pendiente contiene términos no reconocidos, pedir explícitamente un resumen con nombre de reporte (por ejemplo, «Resumen de Participantes únicos Junio 2026», incluida la sugerencia del chat) inicia una nueva solicitud sin arrastrar esos términos. Conserva los filtros ya seleccionados y autorizados, y valida los términos nuevos. Responder solamente con un mes o año conserva las restricciones pendientes: no las elimina para devolver un total sin ese filtro.
 
