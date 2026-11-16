@@ -1,4 +1,5 @@
 import unittest
+from datetime import date
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -63,6 +64,29 @@ class FaroGPTRouteTests(unittest.TestCase):
         self.assertIn('Septiembre 2026', report.text)
         self.assertNotIn('Ana Prueba', report.text)
         self.assertEqual(report.headers['cache-control'], 'no-store')
+
+    def test_summary_recovers_pending_conversation_and_matches_report(self):
+        self.f.proposal.name = '2025-000094-C'
+        self.f.session.session_date = date(2026, 6, 10)
+        self.db.commit()
+        pending = self.send('Participantes únicos en Chavier menores de 18 años').json()
+        self.assertEqual(pending['type'], 'clarification')
+        rejected = self.send('junio 2026', context=pending['context']).json()
+        self.assertEqual(rejected['type'], 'clarification')
+        self.assertEqual(rejected['suggestions'], ['Resumen de Participantes únicos Junio 2026'])
+        response = self.send(rejected['suggestions'][0], context=rejected['context'])
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result['type'], 'result', result)
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['proposal_id'], self.f.proposal.proposal_id)
+        self.assertEqual(result['context']['residential_id'], self.f.a.residential_id)
+        self.assertIsNone(result['context']['pending_terms'])
+        report = self.client.get(result['report_url'])
+        self.assertEqual(report.status_code, 200, report.text)
+        self.assertIn('Junio 2026', report.text)
+        self.assertIn('2025-000094-C', report.text)
+        self.assertIn('Arístides Chavier', report.text)
 
     def test_activity_code_is_preserved_in_api_and_report(self):
         self.f.code.description = 'Destrezas para el empleo'

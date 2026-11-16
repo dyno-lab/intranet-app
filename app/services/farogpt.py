@@ -28,6 +28,7 @@ from app.services import farogpt_data_quality, farogpt_monthly_pending
 URL = '/ui/farogpt'
 ACTIVITY_CODE_PATTERN = re.compile(r'(?<!\w)(\d{1,2})\s*([a-z])\s*(\d{1,3})(?!\w)')
 ACTIVITY_WORDS = {'act', 'acts', 'actividadss', 'actididades', 'actvidades', 'atividades', 'actividaes', 'activdades'}
+SUMMARY_PHRASES = ('resumen', 'todos los campos', 'todos los indicadores')
 SUPERVISION_REPORTS = frozenset({'attendance_pending', 'record_issues', 'session_issues'})
 TITLES = {'people': 'Participantes únicos', 'duplicates': 'Participaciones (duplicados)',
           'activities': 'Actividades / servicios'}
@@ -293,6 +294,13 @@ def _normalize(value):
     return ' '.join(re.findall(r'[a-z0-9]+', value))
 
 
+def _query_aliases(text):
+    # Correct only this known phrase, never fuzzy-match entities or discard "no".
+    text = re.sub(r'\bno\s+dupliaods\b', 'no duplicados', text)
+    # "Participantes no duplicados" names one report, not two indicators.
+    return re.sub(r'\b(?:participantes|personas)\s+(?=no duplicad(?:os|as|o)\b)', '', text)
+
+
 def _canonical_activity_code(value):
     match = ACTIVITY_CODE_PATTERN.fullmatch(_normalize(value or ''))
     return '.'.join(match.groups()) if match else None
@@ -388,13 +396,17 @@ def answer(db, user, question, context, *, today=None):
     residentials, proposals = catalogs(db, user)
     original = _authorized_context(context, user, residentials, proposals)
     selected = dict(original)
-    text = _normalize(question)
+    text = _query_aliases(_normalize(question))
     if not text or len(question) > 800:
         return _clarify(HELP)
     if text in {'hola', 'ayuda', 'que puedes hacer', 'buenos dias', 'buenas tardes'}:
         return _clarify(HELP, original)
-    if original['pending_terms']:
-        text = original['pending_terms'] + ' ' + text
+    # A named summary starts a fresh request (including our own suggestions),
+    # while retaining the authorized proposal/residential context. A date-only
+    # reply must still validate the previous question's unresolved restrictions.
+    named_summary = any(_phrase(text, phrase) for phrase in SUMMARY_PHRASES) and bool(_report_in_question(text))
+    if original['pending_terms'] and not named_summary:
+        text = _query_aliases(original['pending_terms']) + ' ' + text
     text = ' '.join('actividades' if word in ACTIVITY_WORDS else word for word in text.split())
     selected['pending_terms'] = None
     # A day range such as "del 1 a 5" must not become activity code 1.a.5.
@@ -550,14 +562,14 @@ def answer(db, user, question, context, *, today=None):
         selected['field'] = fields.pop()
     for phrase in farogpt_reports.ALIASES[selected['metric']]:
         text = _remove(text, phrase)
-    if any(_phrase(text, phrase) for phrase in ('resumen', 'todos los campos', 'todos los indicadores')):
+    if any(_phrase(text, phrase) for phrase in SUMMARY_PHRASES):
         selected['field'] = None
-        for phrase in ('resumen', 'todos los campos', 'todos los indicadores'):
+        for phrase in SUMMARY_PHRASES:
             text = _remove(text, phrase)
     # An unsupported qualifier (day range, unknown residential, etc.)
     # must not disappear into a plausible but unfiltered number.
     words = set(text.split())
-    allowed = set('cuantos cuantas hubo hay fueron tenemos tuvo tuvo total cantidad numero de del el la los las '
+    allowed = set('cuantos cuantas hubo hay fueron tengo tenemos tuvo tuvo total cantidad numero de del el la los las '
                   'en para por durante y con al un una me puedes puede dime dame saber quiero quisiera '
                   'consulta consultar muestra mostrar indicame residencial propuesta mes meses ano faro '
                   'compara comparar comparame comparalo favor por favor registrados registradas '

@@ -46,6 +46,56 @@ class FaroGPTConversationTests(unittest.TestCase):
             with self.subTest(spelling=spelling):
                 self.assertEqual(self.result(f'Cuántas {spelling} 2.b.5 agosto 2026')['value'], 3)
 
+    def test_count_with_tengo_completes_after_june_answer(self):
+        self.active.name = '2025-000094-C'
+        self.f.f.session.session_date = date(2026, 6, 10)
+        self.db.commit()
+        pending = self.ask('Cuántos participantes únicos tengo en Chavier')
+        self.assertEqual(pending['type'], 'clarification')
+        self.assertIn('Propuesta: 2025-000094-C.', pending['message'])
+        result = self.result('junio 2026', context=pending['context'])
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['proposal_id'], self.active.proposal_id)
+        self.assertEqual(result['context']['residential_id'], self.f.f.a.residential_id)
+        self.assertEqual((result['context']['month'], result['context']['year']), (6, 2026))
+
+    def test_named_summary_recovers_from_pending_unsupported_terms(self):
+        self.active.name = '2025-000094-C'
+        self.f.f.session.session_date = date(2026, 6, 10)
+        self.db.commit()
+        pending = self.ask('Participantes únicos en Chavier menores de 18 años')
+        self.assertEqual(pending['type'], 'clarification')
+        rejected = self.ask('junio 2026', context=pending['context'])
+        self.assertEqual(rejected['type'], 'clarification')
+        self.assertNotIn('value', rejected)
+        self.assertEqual(rejected['suggestions'], ['Resumen de Participantes únicos Junio 2026'])
+        # A month-only reply must still preserve the unsupported age restriction.
+        self.assertEqual(self.ask('junio 2026', context=rejected['context'])['type'], 'clarification')
+        # An explicit named summary is a new request, including the bot's own suggestion.
+        result = self.result(rejected['suggestions'][0], context=rejected['context'])
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['proposal_id'], self.active.proposal_id)
+        self.assertEqual(result['context']['residential_id'], self.f.f.a.residential_id)
+        self.assertIsNone(result['context']['pending_terms'])
+        self.assertEqual(self.result('Resumen de Participantes únicos Junio 2026',
+                                    context=result['context'])['value'], 1)
+
+    def test_summary_recovery_still_validates_new_qualifiers(self):
+        pending = self.ask('Participantes únicos en Chavier menores de 18 años')
+        rejected = self.ask('junio 2026', context=pending['context'])
+        result = self.ask('Resumen de Participantes únicos Junio 2026 mujeres', context=rejected['context'])
+        self.assertEqual(result['type'], 'clarification')
+        self.assertNotIn('value', result)
+
+    def test_named_summary_can_replace_a_different_pending_report(self):
+        pending = self.ask('Actividades en Chavier')
+        self.assertEqual(pending['type'], 'clarification')
+        result = self.result('Resumen de Participantes únicos Junio 2026', context=pending['context'])
+        self.assertEqual(result['context']['metric'], 'people')
+        self.assertIsNone(result['context']['field'])
+        self.assertEqual(result['context']['residential_id'], self.f.f.a.residential_id)
+        self.assertEqual(result['context']['proposal_id'], self.active.proposal_id)
+
     def test_exact_reported_question_completes_without_rejecting_verb_phrase(self):
         self.f.f.code.code = '1.a.2'
         self.db.commit()

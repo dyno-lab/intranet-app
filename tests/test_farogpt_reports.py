@@ -40,6 +40,44 @@ class FaroGPTExpandedReportsTests(unittest.TestCase):
         self.assertEqual(self.result('no duplicados R1 julio 2026')['value'], 3)
         self.assertEqual(self.result('no duplicados R2 julio 2026')['value'], 1)
 
+    def test_reported_no_duplicate_question_completes_after_june_answer(self):
+        proposals = self.f.source.tables['proposals']
+        self.db.execute(proposals.update().values(is_active=False))
+        self.db.execute(proposals.update().where(proposals.c.proposal_id == 1).values(
+            name='2025-000094-C', is_active=True))
+        self.db.commit()
+        for spelling in ('duplicados', 'dupliaods'):
+            with self.subTest(spelling=spelling):
+                pending = self.ask(f'cuantos participantes no {spelling}', context={'proposal_scope': 'auto'})
+                self.assertEqual(pending['type'], 'clarification', pending)
+                self.assertIn('mes o meses', pending['message'])
+                self.assertIn('Propuesta: 2025-000094-C.', pending['message'])
+                self.assertEqual(pending['context']['metric'], 'no_duplicado')
+                result = self.result('junio 2026', context=pending['context'])
+                self.assertEqual(result['value'], 1)  # One confirmed participant in June.
+                self.assertEqual(result['context']['metric'], 'no_duplicado')
+                self.assertEqual(result['context']['proposal_id'], 1)
+                self.assertEqual(result['period'], 'Junio 2026')
+                self.assertIsNone(result['context']['residential_id'])
+                self.assertIn('/ui/reports/no-duplicado?', result['source_url'])
+
+    def test_old_pending_typo_recovers_without_restarting_conversation(self):
+        pending = {'metric': 'people', 'proposal_id': 1, 'residential_id': 1,
+                   'pending_terms': 'cuantos participantes no dupliaods'}
+        result = self.result('junio 2026', context=pending)
+        self.assertEqual(result['value'], 1)
+        self.assertEqual(result['context']['metric'], 'no_duplicado')
+        self.assertEqual(result['context']['residential_id'], 1)
+        self.assertEqual(result['context']['proposal_id'], 1)
+        self.assertIsNone(result['context']['pending_terms'])
+
+    def test_no_duplicate_phrase_preserves_report_fields_and_scope(self):
+        for phrase in ('participantes no duplicados', 'participantes no dupliaods', 'personas no duplicadas'):
+            with self.subTest(phrase=phrase):
+                result = self.result(f'cuantos {phrase} mujeres global julio 2026')
+                self.assertEqual((result['context']['metric'], result['context']['field']), ('no_duplicado', 'f'))
+                self.assertEqual(result['value'], 2)
+
     def test_global_followup_resets_residential_but_retains_proposal_and_month(self):
         first = self.result('no duplicados R2 julio 2026 propuesta 2')
         result = self.result('Y global', context=first['context'])
@@ -133,7 +171,9 @@ class FaroGPTExpandedReportsTests(unittest.TestCase):
         for question in ('no duplicados R1 global julio 2026', 'notas julio 2026 menores de 10 años',
                          'no duplicados niños julio 2026', 'notas promedio numerico de matematicas julio 2026',
                          'desertores julio 2026', 'notas y embarazo julio 2026',
-                         'embarazos mujeres julio 2026', 'ADM del 5 al 10 de julio 2026'):
+                         'embarazos mujeres julio 2026', 'ADM del 5 al 10 de julio 2026',
+                         'participantes no dupliaods niños julio 2026',
+                         'participantes únicos y no duplicados julio 2026'):
             with self.subTest(question=question):
                 result = self.ask(question)
                 self.assertEqual(result['type'], 'clarification', result)
