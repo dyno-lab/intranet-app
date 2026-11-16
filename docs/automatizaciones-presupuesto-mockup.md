@@ -1,10 +1,19 @@
 # Mockup de presupuesto en Automatizaciones
 
 Esta versión permite validar el diseño entrando datos ficticios. Abre
-**Portal → Automatizaciones → Faro → Abrir presupuesto**. La ruta es
+**Portal → Automatizaciones → Faro → Explorar presupuesto**. La ruta es
 `/automatizaciones` y exige sesión activa y el permiso `access_automation`.
 El catálogo anterior permanece en `/api/automation/reports` y tiene un enlace
-en la pantalla del mockup.
+en el pie de la pantalla.
+
+El selector de programas y las herramientas de Faro siguen la paleta azul y
+turquesa, tipografía, encabezado institucional y tarjetas de Reportes
+Institucionales. En escritorio, Validación de datos y Gestión de presupuesto
+se presentan en dos columnas; en móvil, en una sola. Validación conserva su
+enlace a datos reales. Presupuesto se identifica como **Mockup · Datos de
+prueba**, con el aviso de reinicio al recargar. Comunidad conserva su estado
+pendiente de diseño. Este cambio es de presentación y no modifica cálculos,
+permisos ni almacenamiento.
 
 ## Validación en la PC de pruebas
 

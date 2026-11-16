@@ -104,10 +104,11 @@
     }
     #faro-budget-design button:not(:disabled), #faro-budget-design summary { cursor: pointer; }
   </style>
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/automation-portal.css') }}?v=1">
 </head>
-<body>
+<body class="automation-portal" data-automation-screen="programs">
   <header class="automation-topbar" aria-label="Encabezado de la plataforma">
-    <div class="automation-topbar-brand"><span class="automation-brand-mark" aria-hidden="true"><svg class="automation-icon" viewBox="0 0 24 24" focusable="false"><path d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z"/></svg></span><strong data-automation-title>Automatizaciones</strong></div>
+    <div class="automation-topbar-brand"><a href="/home" aria-label="Regresar al portal de programas"><img class="automation-brand-logo" src="{{ request.url_for('static', path='img/logo-centros-isolina.png') }}" alt="Centros Sor Isolina Ferré" width="210" height="72"></a><div class="automation-brand-copy"><span>Portal de programas</span><strong data-automation-title>Automatizaciones</strong></div></div>
     <div class="automation-topbar-actions">
       <div class="automation-session" aria-label="Cuenta de la sesión">
         <div class="automation-session-copy"><span>Usuario</span><strong>{{ current_user.username }}</strong></div>
@@ -124,10 +125,10 @@
         <p>Los gastos, recibos y cambios solo duran en esta página y se reinician al recargar. No se guardan en la plataforma.</p>
         <p>Fecha simulada: 10 de noviembre de 2026. El selector de roles permite probar los permisos del diseño y no modifica el rol de tu cuenta.</p>
       </details>
-      <a class="automation-action" href="/api/automation/reports">Catálogo de reportes de automatización</a>
     </div>
     <noscript>Activa JavaScript para probar el mockup de presupuesto.</noscript>
     {% include "automation/_budget_mockup.html" %}
   </div>
+  <footer class="automation-footer"><span>Centros Sor Isolina Ferré · Automatizaciones</span><a href="/api/automation/reports">Catálogo de reportes de automatización <span aria-hidden="true">↗</span></a></footer>
 </body>
 </html>
