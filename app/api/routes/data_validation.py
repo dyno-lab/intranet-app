@@ -68,24 +68,30 @@ def navigation_from(values):
 
 
 def record_identity(record):
-    # Proposal enrollments of one person share a file; names alone never identify it.
-    return record['person_id'], record['expediente'].strip().casefold()
+    # Current enrollments share the person's file even if a proposal kept an old number.
+    # Closed stays remain separate from the current file and from other residentials.
+    if record['historical']:
+        return 'historical', record['person_id'], record['residential_id'], record['expediente'].strip().casefold()
+    return 'current', record['person_id'], record['residential_id']
 
 
 def decorate_findings(db, user, items, proposals):
     """Display current identifiers without changing saved evidence or file identity."""
     proposal_by_id = {p.proposal_id: p for p in proposals}
     person_ids = sorted({r['person_id'] for item in items for r in item['records']})
-    current_numbers = {}
+    current_files = {}
     rid = service.scope_id(user)
     # Bound parameters stay below SQL Server's limit, even for global reviews.
     for start in range(0, len(person_ids), 500):
-        query = (select(Person.person_id, Participant.expediente_num)
+        query = (select(Person.person_id, Participant.expediente_num, Participant.nombre,
+                        Participant.inicial, Participant.apellido_paterno, Participant.apellido_materno)
                  .join(Participant, Participant.participant_id == Person.legacy_participant_id)
                  .where(Person.person_id.in_(person_ids[start:start + 500])))
         if rid is not None:
             query = query.where(Participant.residential_id == rid)
-        current_numbers.update((person_id, number or '') for person_id, number in db.execute(query))
+        for person_id, number, *names in db.execute(query):
+            name = ' '.join(' '.join(str(value or '').split()) for value in names if str(value or '').strip())
+            current_files[person_id] = (number or '', name)
     for item in items:
         proposal = proposal_by_id.get(item['proposal_id'])
         finalized = proposal is not None and proposal.status == 'finalized'
@@ -95,7 +101,11 @@ def decorate_findings(db, user, items, proposals):
             'Propuesta activa' if proposal.is_active and proposal.status == 'active' else 'Propuesta inactiva')
         for record in item['records']:
             # None means no authorized current link, not an inferred historical number.
-            record['current_expediente'] = current_numbers.get(record['person_id'])
+            current = current_files.get(record['person_id'])
+            record['current_expediente'] = current[0] if current is not None else None
+            record['current_name'] = current[1] if current is not None else None
+            record['proposal_name_differs'] = (current is not None and
+                current[1].casefold() != ' '.join(record['name'].split()).casefold())
 
 
 def group_findings(items):

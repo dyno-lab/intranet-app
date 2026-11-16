@@ -153,6 +153,11 @@ class DataValidationRoutes(unittest.TestCase):
 
         self.f.old.expediente_num = 'FE-2025-ERA-0101'
         self.f.participant.expediente_num = 'FE-2025-ERA-0103'
+        self.f.participant.nombre = 'Nombre Corregido'
+        self.f.participant.apellido_paterno = 'Actual'
+        self.f.participant.inicial = None
+        self.f.participant.apellido_materno = None
+        self.f.person.nombre = 'Nombre desactualizado en Person'
         self.f.proposal.name = '2025-000094-B'
         self.f.proposal.status = 'finalized'
         current_proposal = Proposal(code='NEW', name='2025-000094-C', status='active')
@@ -173,23 +178,30 @@ class DataValidationRoutes(unittest.TestCase):
         response = self.client.get(self.url, params=params)
         self.assertEqual(response.status_code, 200, response.text)
         rows = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
-        self.assertEqual(len(rows), 2)
-        old_row = next(row for row in rows if f'data-record-group="{self.f.old.proposal_participant_id}"' in row)
-        new_row = next(row for row in rows if f'data-record-group="{current.proposal_participant_id}"' in row)
+        self.assertEqual(len(rows), 1, 'One current person must not repeat because proposal numbers changed')
+        old_row = rows[0]
         self.assertIn('Expediente actual', old_row)
         self.assertIn('<strong>FE-2025-ERA-0103</strong>', old_row)
+        first_cell = old_row.split('</td>', 1)[0]
+        self.assertIn('Nombre Corregido Actual', first_cell)
+        self.assertNotIn('Ana Prueba', first_cell)
+        self.assertNotIn('Nombre desactualizado en Person', old_row)
+        self.assertIn('Nombre en propuesta: Ana Prueba', old_row)
         self.assertIn('Número en propuesta: FE-2025-ERA-0101', old_row)
         self.assertIn('Propuesta finalizada', old_row)
         self.assertNotIn('Inscripción vigente', old_row)
-        self.assertIn('Número en propuesta: FE-2025-ERA-0103', new_row)
-        self.assertIn('Propuesta activa', new_row)
+        self.assertIn('Número en propuesta: FE-2025-ERA-0103', old_row)
+        self.assertIn('Propuesta activa', old_row)
         issue = next(r for r in original['findings'] if r['rule'] == 'missing_grupo_familiar'
                      and r['records'][0]['id'] == self.f.old.proposal_participant_id)
         detail = self.client.get(self.url, params={**params, 'finding': issue['key']})
         dialog = re.search(r'<dialog[^>]+id="dq-detail".*?</dialog>', detail.text, re.S)[0]
-        for label in ('Expediente actual', 'FE-2025-ERA-0103', 'Número en propuesta: FE-2025-ERA-0101', 'Propuesta finalizada'):
+        for label in ('Expediente actual', 'FE-2025-ERA-0103', 'Nombre Corregido Actual',
+                      'Nombre en propuesta: Ana Prueba', 'Número en propuesta: FE-2025-ERA-0101', 'Propuesta finalizada'):
             self.assertIn(label, dialog)
         self.assertEqual(self.f.old.expediente_num, 'FE-2025-ERA-0101')
+        self.assertEqual(self.f.old.nombre, 'Ana')
+        self.assertEqual(self.f.old.apellido_paterno, 'Prueba')
         self.assertEqual(self.f.participant.expediente_num, 'FE-2025-ERA-0103')
         self.assertEqual(saved, [(r.issue_key, r.fingerprint, r.revision, r.evidence_json)
                                 for r in self.db.scalars(select(DataValidationIssue))])
@@ -197,10 +209,14 @@ class DataValidationRoutes(unittest.TestCase):
 
     def test_historical_number_is_preserved_and_current_number_respects_scope(self):
         self.f.move()
+        self.f.participant.nombre = 'Nombre privado del destino'
+        self.db.commit()
         response = self.client.get(self.url, params=self.params)
         old_row = re.search(rf'<tr[^>]*data-record-group="{self.f.old.proposal_participant_id}".*?</tr>', response.text, re.S)[0]
         self.assertIn('Expediente actual', old_row)
         self.assertIn('FE-2026-B-0002', old_row)
+        self.assertIn('Nombre privado del destino', old_row.split('</td>', 1)[0])
+        self.assertIn('Nombre en propuesta: Ana Prueba', old_row)
         self.assertIn('Número en propuesta: FE-2026-A-0001', old_row)
         self.assertIn('Histórico · solo consulta', old_row)
         self.user.role = 'user'
@@ -210,6 +226,68 @@ class DataValidationRoutes(unittest.TestCase):
         self.assertIn('Expediente actual no disponible', response.text)
         self.assertIn('FE-2026-A-0001', response.text)
         self.assertNotIn('FE-2026-B-0002', response.text)
+        self.assertNotIn('Nombre privado del destino', response.text)
+        self.assertIn('Nombre en propuesta: Ana Prueba', response.text)
+
+    def test_historical_stay_is_separate_even_when_proposal_number_matches_current(self):
+        self.f.move()
+        self.f.old.expediente_num = self.f.participant.expediente_num
+        self.db.commit()
+        response = self.client.get(self.url, params=self.params)
+        self.assertEqual(response.status_code, 200)
+        rows = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
+        self.assertEqual(len(rows), 2, 'A historical stay must not merge into the current file')
+        historical = next(row for row in rows if f'data-record-group="{self.f.old.proposal_participant_id}"' in row)
+        self.assertIn('Histórico · solo consulta', historical)
+
+    def test_reused_proposal_number_never_merges_two_distinct_current_people(self):
+        from app.models.person import Person
+        from app.models.proposal import Proposal
+        from app.models.proposal_participant import ProposalParticipant
+        from app.services.proposal_participant_sync import get_proposal_participant_update_values
+
+        # Ana kept 0001 in the old proposal, but now uses 0003. Bruno now uses 0001.
+        self.f.participant.expediente_num = 'FE-2026-A-0003'
+        self.f.participant.exp_seq4 = '0003'
+        self.db.flush()
+        self.f.other.expediente_num = 'FE-2026-A-0001'
+        self.f.other.residential_id = self.f.a.residential_id
+        self.f.other.nombre = 'Bruno'
+        self.f.other.apellido_paterno = 'Actual'
+        person = Person(legacy_participant_id=self.f.other.participant_id,
+                        nombre='Bruno', apellido_paterno='Actual')
+        current_proposal = Proposal(code='NEW', name='Propuesta actual', status='active')
+        self.f.proposal.status = 'finalized'
+        self.db.add_all([person, current_proposal]); self.db.flush()
+        older = ProposalParticipant(person_id=person.person_id, proposal_id=self.f.proposal.proposal_id,
+            residential_id=self.f.a.residential_id, **get_proposal_participant_update_values(self.f.other))
+        older.expediente_num = 'FE-2026-A-0009'
+        self.db.add(older)
+        for identity, participant in ((self.f.person, self.f.participant), (person, self.f.other)):
+            self.db.add(ProposalParticipant(person_id=identity.person_id,
+                proposal_id=current_proposal.proposal_id, residential_id=self.f.a.residential_id,
+                **get_proposal_participant_update_values(participant)))
+        self.db.commit()
+        response = self.client.get(self.url, params={**self.params, 'proposal_id': ''})
+        self.assertEqual(response.status_code, 200)
+        rows = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
+        self.assertEqual(len(rows), 2)
+        ana = next(row for row in rows if 'Ana Prueba' in row.split('</td>', 1)[0])
+        bruno = next(row for row in rows if 'Bruno Actual' in row.split('</td>', 1)[0])
+        self.assertIn('<strong>FE-2026-A-0003</strong>', ana)
+        self.assertIn('<strong>FE-2026-A-0001</strong>', bruno)
+        self.assertNotIn('Bruno Actual', ana)
+        self.assertNotIn('Ana Prueba', bruno)
+        self.assertIn('Número en propuesta: FE-2026-A-0001', ana)
+        self.assertIn('Número en propuesta: FE-2026-A-0003', ana)
+        self.assertIn('Número en propuesta: FE-2026-A-0009', bruno)
+        self.assertIn('Número en propuesta: FE-2026-A-0001', bruno)
+        detail = self.client.get(self.url, params={**self.params, 'proposal_id': '',
+            'finding': self.source.issue('birth_missing')['key']})
+        related = re.search(r'<section[^>]+data-record-findings.*?</section>', detail.text, re.S)[0]
+        self.assertIn('Ana Prueba', related)
+        self.assertNotIn('Bruno Actual', related)
+        self.assertIn(f'/ui/new-list/{self.f.participant.participant_id}/expediente', detail.text)
 
     def test_missing_current_link_does_not_invent_a_current_file(self):
         self.f.person.legacy_participant_id = None
@@ -217,6 +295,7 @@ class DataValidationRoutes(unittest.TestCase):
         page, _ = self.form()
         self.assertIn('Expediente actual no disponible', page.text)
         self.assertIn(self.f.old.expediente_num, page.text)
+        self.assertIn('Nombre en propuesta: Ana Prueba', page.text)
 
     def test_report_style_month_and_year_selectors_preserve_multiple_months(self):
         response = self.client.get(self.url, params={**self.params, 'months': [9, 10], 'year': 2025})
