@@ -95,6 +95,40 @@ class CommunityHomeTests(unittest.TestCase):
         for program_id in [self.voca_id, self.tanf_id, self.icp_id]:
             self.assertIn(f'/community/participants?program_id={program_id}#participants-table-card', PageLinks(page.text).links)
 
+    def test_farogpt_welcome_uses_community_role_without_loading_faro_queries(self):
+        # The fixture's Community viewer is a global admin, while its Community
+        # user is a global viewer. Neither global role controls this welcome.
+        for user_id, role, visible in [
+            (self.admin_id, 'admin', True),
+            (self.user_id, 'supervisor', True),
+            (self.viewer_id, 'viewer', False),
+            (self.user_id, 'user', False),
+        ]:
+            with self.subTest(role=role):
+                with Session(self.engine) as db:
+                    db.get(CPUserAccess, user_id).role = role
+                    db.commit()
+                self.login(user_id)
+                page = self.client.get('/community')
+                self.assertEqual(page.status_code, 200)
+                self.assertEqual('community-farogpt' in PageLinks(page.text).ids, visible)
+                self.assertEqual('/static/js/community-farogpt.js' in page.text, visible)
+                self.assertNotIn('/static/js/farogpt.js', page.text)
+                self.assertNotIn('/ui/farogpt/', page.text)
+                self.assertNotIn('id="farogpt-question"', page.text)
+                if visible:
+                    self.assertIn('Soy FaroGPT, la mascota de Faro.', page.text)
+                    self.assertIn('únicamente con datos de Comunidad', page.text)
+
+    def test_farogpt_welcome_is_only_on_community_home(self):
+        self.login()
+        for path in ['/community/login', '/community/participants', '/community/reports']:
+            with self.subTest(path=path):
+                page = self.client.get(path)
+                self.assertEqual(page.status_code, 200)
+                self.assertNotIn('community-farogpt', PageLinks(page.text).ids)
+                self.assertNotIn('/static/js/community-farogpt.js', page.text)
+
     def test_recent_records_are_limited_and_follow_the_selected_program(self):
         with Session(self.engine) as db:
             for index in range(7):

@@ -2,6 +2,20 @@
 
 Asistente flotante del inicio de FARO (`/ui/`), con el diseño aprobado del farito, encabezado azul/turquesa, conversación y enlace **Ver informe**. Está disponible para `admin` y `supervisor` con acceso a FARO. Conserva el slideshow, la navegación y los demás módulos del inicio.
 
+## Bienvenida en Comunidad
+
+El inicio `/community` presenta la misma mascota únicamente a los roles
+`admin` y `supervisor` propios de Comunidad (`cp.role`). El rol global de Faro
+no habilita esta presentación. El saludo se muestra al entrar, puede cerrarse
+o minimizarse y volver a abrirse desde la mascota; no mueve el foco al aparecer.
+
+Esta versión anuncia la futura integración con Comunidad con un saludo jocoso.
+Solo reutiliza la imagen y los estilos de FaroGPT. Su script independiente
+`community-farogpt.js` abre y cierra el mensaje: no carga el cliente de consultas
+de Faro, no llama a sus endpoints, no acepta preguntas, no consulta datos ni
+guarda conversaciones. La futura integración deberá usar exclusivamente los
+datos y permisos de Comunidad; aún no se habilita ninguna consulta en este módulo.
+
 ## Consultas de reportes
 
 Consultas en español sobre los indicadores y desgloses de los reportes de FARO. Permite elegir un residencial por nombre o código, una propuesta por nombre o código y uno o varios meses del mismo año. «Global», «a nivel global» y «todos los residenciales» consultan el conjunto autorizado y quitan el residencial de la consulta anterior. El residencial activo limita siempre los resultados cuando el usuario trabaja en ese contexto.
