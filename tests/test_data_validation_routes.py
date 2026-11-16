@@ -105,12 +105,12 @@ class DataValidationRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         groups = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
         self.assertEqual(len(groups), 2)
-        destination = next(row for row in groups if 'FE-2026-B-0002' in row)
-        self.assertIn(self.f.proposal.name, destination)
-        self.assertIn(other_proposal.name, destination)
         current = self.db.scalar(select(ProposalParticipant).where(
             ProposalParticipant.proposal_id == self.f.proposal.proposal_id,
             ProposalParticipant.valid_until.is_(None)))
+        destination = next(row for row in groups if 'Número en propuesta: FE-2026-B-0002' in row)
+        self.assertIn(self.f.proposal.name, destination)
+        self.assertIn(other_proposal.name, destination)
         issue = next(r for r in self.source.review(proposal_id=None)['findings']
                      if r['rule'] == 'birth_missing' and r['records'][0]['id'] == current.proposal_participant_id)
         detail = self.client.get(self.url, params={**self.params, 'proposal_id': '', 'finding': issue['key']})
@@ -144,6 +144,79 @@ class DataValidationRoutes(unittest.TestCase):
         groups = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', page.text, re.S)
         self.assertEqual(len(groups), 2)
         self.assertTrue(any('Otra persona' in row for row in groups))
+
+    def test_current_and_proposal_numbers_are_distinct_and_finalized_is_visible(self):
+        from app.models.proposal import Proposal
+        from app.models.proposal_participant import ProposalParticipant
+        from app.services.proposal_participant_sync import get_proposal_participant_update_values
+        from app.services import data_validation as service
+
+        self.f.old.expediente_num = 'FE-2025-ERA-0101'
+        self.f.participant.expediente_num = 'FE-2025-ERA-0103'
+        self.f.proposal.name = '2025-000094-B'
+        self.f.proposal.status = 'finalized'
+        current_proposal = Proposal(code='NEW', name='2025-000094-C', status='active')
+        self.db.add(current_proposal)
+        self.db.flush()
+        current = ProposalParticipant(person_id=self.f.person.person_id,
+            proposal_id=current_proposal.proposal_id, residential_id=self.f.a.residential_id,
+            **get_proposal_participant_update_values(self.f.participant))
+        current.grupo_familiar = None
+        self.db.add(current)
+        self.db.commit()
+        service.mutate(self.db, self.user, 'revalidate', self.source.filters)
+        self.db.commit()
+        saved = [(r.issue_key, r.fingerprint, r.revision, r.evidence_json) for r in self.db.scalars(select(DataValidationIssue))]
+        original = self.source.review(proposal_id=None)
+        fingerprints = {r['key']: r['fingerprint'] for r in original['findings']}
+        params = {**self.params, 'proposal_id': ''}
+        response = self.client.get(self.url, params=params)
+        self.assertEqual(response.status_code, 200, response.text)
+        rows = re.findall(r'<tr[^>]*data-record-group="[^"]+".*?</tr>', response.text, re.S)
+        self.assertEqual(len(rows), 2)
+        old_row = next(row for row in rows if f'data-record-group="{self.f.old.proposal_participant_id}"' in row)
+        new_row = next(row for row in rows if f'data-record-group="{current.proposal_participant_id}"' in row)
+        self.assertIn('Expediente actual', old_row)
+        self.assertIn('<strong>FE-2025-ERA-0103</strong>', old_row)
+        self.assertIn('Número en propuesta: FE-2025-ERA-0101', old_row)
+        self.assertIn('Propuesta finalizada', old_row)
+        self.assertNotIn('Inscripción vigente', old_row)
+        self.assertIn('Número en propuesta: FE-2025-ERA-0103', new_row)
+        self.assertIn('Propuesta activa', new_row)
+        issue = next(r for r in original['findings'] if r['rule'] == 'missing_grupo_familiar'
+                     and r['records'][0]['id'] == self.f.old.proposal_participant_id)
+        detail = self.client.get(self.url, params={**params, 'finding': issue['key']})
+        dialog = re.search(r'<dialog[^>]+id="dq-detail".*?</dialog>', detail.text, re.S)[0]
+        for label in ('Expediente actual', 'FE-2025-ERA-0103', 'Número en propuesta: FE-2025-ERA-0101', 'Propuesta finalizada'):
+            self.assertIn(label, dialog)
+        self.assertEqual(self.f.old.expediente_num, 'FE-2025-ERA-0101')
+        self.assertEqual(self.f.participant.expediente_num, 'FE-2025-ERA-0103')
+        self.assertEqual(saved, [(r.issue_key, r.fingerprint, r.revision, r.evidence_json)
+                                for r in self.db.scalars(select(DataValidationIssue))])
+        self.assertEqual(fingerprints, {r['key']: r['fingerprint'] for r in self.source.review(proposal_id=None)['findings']})
+
+    def test_historical_number_is_preserved_and_current_number_respects_scope(self):
+        self.f.move()
+        response = self.client.get(self.url, params=self.params)
+        old_row = re.search(rf'<tr[^>]*data-record-group="{self.f.old.proposal_participant_id}".*?</tr>', response.text, re.S)[0]
+        self.assertIn('Expediente actual', old_row)
+        self.assertIn('FE-2026-B-0002', old_row)
+        self.assertIn('Número en propuesta: FE-2026-A-0001', old_row)
+        self.assertIn('Histórico · solo consulta', old_row)
+        self.user.role = 'user'
+        self.db.commit()
+        response = self.client.get(self.url, params=self.params)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn('Expediente actual no disponible', response.text)
+        self.assertIn('FE-2026-A-0001', response.text)
+        self.assertNotIn('FE-2026-B-0002', response.text)
+
+    def test_missing_current_link_does_not_invent_a_current_file(self):
+        self.f.person.legacy_participant_id = None
+        self.db.commit()
+        page, _ = self.form()
+        self.assertIn('Expediente actual no disponible', page.text)
+        self.assertIn(self.f.old.expediente_num, page.text)
 
     def test_report_style_month_and_year_selectors_preserve_multiple_months(self):
         response = self.client.get(self.url, params={**self.params, 'months': [9, 10], 'year': 2025})

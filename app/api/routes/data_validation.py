@@ -15,6 +15,8 @@ from app.core.platform_permissions import ACCESS_AUTOMATION, require_platform_pe
 from app.core.residential_scope import require_faro_access
 from app.models.user import User
 from app.models.proposal import Proposal
+from app.models.person import Person
+from app.models.participant import Participant
 from app.models.residential import Residential
 from app.models.data_validation import DataValidationEvent
 from app.services import data_validation as service
@@ -70,6 +72,32 @@ def record_identity(record):
     return record['person_id'], record['expediente'].strip().casefold()
 
 
+def decorate_findings(db, user, items, proposals):
+    """Display current identifiers without changing saved evidence or file identity."""
+    proposal_by_id = {p.proposal_id: p for p in proposals}
+    person_ids = sorted({r['person_id'] for item in items for r in item['records']})
+    current_numbers = {}
+    rid = service.scope_id(user)
+    # Bound parameters stay below SQL Server's limit, even for global reviews.
+    for start in range(0, len(person_ids), 500):
+        query = (select(Person.person_id, Participant.expediente_num)
+                 .join(Participant, Participant.participant_id == Person.legacy_participant_id)
+                 .where(Person.person_id.in_(person_ids[start:start + 500])))
+        if rid is not None:
+            query = query.where(Participant.residential_id == rid)
+        current_numbers.update((person_id, number or '') for person_id, number in db.execute(query))
+    for item in items:
+        proposal = proposal_by_id.get(item['proposal_id'])
+        finalized = proposal is not None and proposal.status == 'finalized'
+        item['proposal_finalized'] = finalized
+        item['proposal_state_label'] = ('Estado de propuesta no disponible' if proposal is None else
+            'Propuesta finalizada' if finalized else
+            'Propuesta activa' if proposal.is_active and proposal.status == 'active' else 'Propuesta inactiva')
+        for record in item['records']:
+            # None means no authorized current link, not an inferred historical number.
+            record['current_expediente'] = current_numbers.get(record['person_id'])
+
+
 def group_findings(items):
     """One row per file or session; individual issue keys and source stays survive."""
     groups = {}
@@ -83,15 +111,18 @@ def group_findings(items):
             group['record'], group['first'] = record, item
     for group in groups.values():
         group['proposals'] = list(dict.fromkeys(r['proposal_name'] for r in group['findings']))
+        group['proposal_details'] = list({r['proposal_id']: r for r in group['findings']}.values())
         group['residentials'] = list(dict.fromkeys(r['residential_name'] for r in group['findings']))
         historical = {p['historical'] for r in group['findings'] for p in r['records']}
         group['stay_label'] = ('Vigente e histórico' if len(historical) > 1 else
-                               'Histórico · solo consulta' if historical == {True} else 'Inscripción vigente')
+                               'Histórico · solo consulta' if historical == {True} else 'Inscripción por propuesta')
     return list(groups.values())
 
 
 def page(request,db,user,filters,*,navigation=None,error=None,status_code=200):
     view=service.review(db,user,**filters)
+    proposals=list(db.scalars(select(Proposal).order_by(Proposal.is_active.desc(),Proposal.name)))
+    decorate_findings(db,user,view['findings'],proposals)
     query=request.query_params
     navigation=navigation if navigation is not None else navigation_from(query)
     kind=navigation['kind'];state=navigation['status'];screen=navigation['view']
@@ -128,7 +159,7 @@ def page(request,db,user,filters,*,navigation=None,error=None,status_code=200):
         'filters':filters,'kind':kind,'state':state,'screen':screen,'link':link,'base_url':service.URL,
         'detail':detail,'events':events,'record_findings':record_findings,'session_findings':session_findings,
         'labels':service.STATUS,'kinds':service.KIND,'open_statuses':service.OPEN,
-        'proposals':list(db.scalars(select(Proposal).order_by(Proposal.is_active.desc(),Proposal.name))),
+        'proposals':proposals,
         'residentials':list(db.scalars(res_query)),'scope_id':rid,'months':MONTHS,'years':range(2000,2101),
         'can_write':user.role in {'admin','supervisor','user'},'can_supervise':user.role in {'admin','supervisor'},
         'csrf_token':request.session.setdefault('data_validation_token',secrets.token_urlsafe(32)),
