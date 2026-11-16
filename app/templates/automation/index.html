@@ -105,6 +105,7 @@
     #faro-budget-design button:not(:disabled), #faro-budget-design summary { cursor: pointer; }
   </style>
   <link rel="stylesheet" href="{{ request.url_for('static', path='css/automation-portal.css') }}?v=1">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='css/automation-budget.css') }}?v=1">
 </head>
 <body class="automation-portal" data-automation-screen="programs">
   <header class="automation-topbar" aria-label="Encabezado de la plataforma">
@@ -119,13 +120,6 @@
     </div>
   </header>
   <div class="automation-preview-shell">
-    <div class="automation-preview-utility">
-      <details class="automation-preview-notice" aria-label="Alcance de la demostración">
-        <summary><strong>Presupuesto: Mockup · Datos de prueba</strong><span>Los datos se reinician al recargar.</span></summary>
-        <p>Los gastos, recibos y cambios solo duran en esta página y se reinician al recargar. No se guardan en la plataforma.</p>
-        <p>Fecha simulada: 10 de noviembre de 2026. El selector de roles permite probar los permisos del diseño y no modifica el rol de tu cuenta.</p>
-      </details>
-    </div>
     <noscript>Activa JavaScript para probar el mockup de presupuesto.</noscript>
     {% include "automation/_budget_mockup.html" %}
   </div>

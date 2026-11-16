@@ -15,6 +15,14 @@ prueba**, con el aviso de reinicio al recargar. Comunidad conserva su estado
 pendiente de diseño. Este cambio es de presentación y no modifica cálculos,
 permisos ni almacenamiento.
 
+El interior de **Gestión de presupuesto** usa el mismo encabezado azul y
+turquesa, logo, ancho de contenido y tarjetas institucionales. El estilo cubre
+Resumen, Gráficas, Configuración y Entrada de gastos, además de los filtros,
+tablas, cierres, recibos y ventanas de edición. El botón **Herramientas de Faro**
+regresa al catálogo del programa. En móvil, los filtros y formularios se apilan
+y las tablas conservan su desplazamiento horizontal. El aviso de datos de
+prueba se mantiene bajo el encabezado; los cálculos y la simulación no cambian.
+
 ## Validación en la PC de pruebas
 
 1. Actualizar la rama `ui/modernization-v1` con `git pull --ff-only origin ui/modernization-v1`.

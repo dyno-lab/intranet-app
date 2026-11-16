@@ -1,0 +1,150 @@
+/* Budget demo: the same institutional theme as the Automation portal.
+   Keep the model, filters and data attributes in the existing template. */
+.automation-portal[data-automation-screen="budget"] {
+  color-scheme: light;
+  color: var(--ap-ink);
+  background: radial-gradient(circle at 88% 0%, #2a9d8f1a, transparent 28rem), linear-gradient(180deg, #fbfdff, #f5f8fb);
+}
+.automation-portal[data-automation-screen="budget"] .automation-preview-shell {
+  width: min(100% - 48px, 1240px); padding: 30px 0 40px;
+}
+.automation-portal[data-automation-screen="budget"] #faro-budget-design {
+  --fb-bg: #f5f8fb; --fb-panel: #fff; --fb-ink: #17324d; --fb-muted: #61788b;
+  --fb-line: #dce6ef; --fb-blue: #0d3b66; --fb-soft: #e8f6f4;
+  --fb-good: #146a51; --fb-good-bg: #eaf7f0;
+  --fb-warn: #81531a; --fb-warn-bg: #fff5e4;
+  --fb-paid: #155e7c; --fb-commit: #b68021; --fb-free: #c3e5df;
+  --fb-hero-ink: #0d3b66;
+  --fb-hero-background: linear-gradient(128deg, #0d3b66, #155e7c 60%, #1c7c7b);
+  color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.automation-portal #faro-budget-design .fb-main.fb-budget { gap: 24px; }
+/* Clip the decorative circles without making the hero a focus-scroll container. */
+.automation-portal #faro-budget-design .fb-budget .automation-hero { overflow: clip; }
+.automation-portal #faro-budget-design .fb-budget .fb-kicker {
+  color: var(--ap-teal); font-size: 11px; font-weight: 800; letter-spacing: .09em; margin-bottom: 6px;
+}
+.automation-portal #faro-budget-design .fb-budget .automation-hero .fb-kicker { color: #d6eeef; margin-bottom: 10px; }
+.automation-portal #faro-budget-design .fb-budget :is(h2, h3),
+.automation-portal #faro-budget-design .fb-dialog :is(h2, h3) { color: var(--ap-blue); font-weight: 800; }
+.automation-portal #faro-budget-design .fb-budget h2 { font-size: 21px; }
+.automation-portal #faro-budget-design .fb-budget h3 { font-size: 17px; }
+.automation-portal #faro-budget-design .fb-budget .fb-card {
+  border-color: var(--ap-line); border-radius: 22px; padding: 26px; box-shadow: 0 12px 32px #0d3b660a;
+}
+.automation-portal #faro-budget-design .fb-budget .fb-context {
+  border-left: 3px solid var(--ap-teal); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px 24px;
+}
+.automation-portal #faro-budget-design .automation-budget-context-heading { grid-column: 1 / -1; }
+.automation-portal #faro-budget-design .fb-budget .automation-preview-notice {
+  padding: 14px 18px; border-radius: 14px; background: #fff9ed; color: #81531a; border-color: #eeddbb;
+}
+.automation-portal #faro-budget-design .fb-budget .automation-preview-notice summary { font-size: 12px; }
+.automation-portal #faro-budget-design .fb-budget .automation-preview-notice summary:focus-visible { outline-color: var(--ap-teal); }
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-label {
+  color: var(--ap-ink); font-size: 13px; font-weight: 700; margin-bottom: 8px;
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-input {
+  min-height: 48px; border: 1px solid #cfdce7; border-radius: 12px; padding: 11px 14px;
+  color: var(--ap-ink); background: #fff; font-family: inherit; font-size: 14px; line-height: 1.5;
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-input:focus-visible {
+  outline: 3px solid #2a9d8f40; outline-offset: 2px; border-color: var(--ap-teal);
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-input:is(:disabled, [readonly]) {
+  background: var(--fb-bg); color: var(--ap-muted);
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) button[type][class] {
+  min-height: 44px; padding: 10px 16px; border: 1px solid #cfdce7; border-radius: 12px;
+  color: var(--ap-blue); background: #fff; font-family: inherit; font-weight: 700; line-height: 1.4;
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) button[type][class]:not(:disabled):hover {
+  color: var(--ap-teal); background: #f1f9f8; border-color: #2a9d8f80;
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) button.fb-primary[type][class] {
+  color: #fff; background: linear-gradient(135deg, #0d3b66, #145d82); border-color: transparent; box-shadow: 0 8px 18px #0d3b661a;
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) button.fb-primary[type][class]:not(:disabled):hover {
+  color: #fff; background: linear-gradient(135deg, #0a3155, #104f70);
+}
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) button:focus-visible {
+  outline: 3px solid #2a9d8f; outline-offset: 3px;
+}
+.automation-portal #faro-budget-design .fb-budget .automation-hero button[type][class] {
+  color: #fff; background: #ffffff12; border-color: #ffffff55;
+}
+.automation-portal #faro-budget-design .fb-budget .automation-hero button[type][class]:hover { color: #fff; background: #ffffff24; border-color: #ffffff80; }
+.automation-portal #faro-budget-design .fb-budget .automation-hero button[type][class]:focus-visible { outline-color: #fff; }
+.automation-portal #faro-budget-design .fb-budget nav.fb-tabs {
+  padding: 8px; border-radius: 18px; box-shadow: 0 6px 18px #0d3b6608;
+}
+.automation-portal #faro-budget-design .fb-budget .fb-tabs button[data-tab] {
+  min-height: 48px; border: 1px solid transparent; border-radius: 12px; font-family: inherit; font-weight: 700; color: var(--ap-muted);
+}
+.automation-portal #faro-budget-design .fb-budget .fb-tabs button[data-tab]:hover { color: var(--ap-teal); background: #f1f9f8; }
+.automation-portal #faro-budget-design .fb-budget .fb-tabs button[data-tab][aria-pressed="true"] {
+  color: var(--ap-teal); border-color: #2a9d8f40; background: var(--ap-soft); box-shadow: none;
+}
+.automation-portal #faro-budget-design .fb-budget :is(.fb-stat, .fb-filter-stats > div) {
+  border-color: #2a9d8f40; border-radius: 18px; background: #fff; box-shadow: 0 8px 20px #0d3b6608;
+}
+.automation-portal #faro-budget-design .fb-budget .fb-stat--paid { --stat-accent: var(--ap-teal); }
+.automation-portal #faro-budget-design .fb-budget .fb-stat .fb-label,
+.automation-portal #faro-budget-design .fb-budget .fb-filter-stats .fb-label {
+  color: var(--ap-muted); font-size: 11px; font-weight: 800; letter-spacing: .025em; text-transform: uppercase;
+}
+.automation-portal #faro-budget-design .fb-budget .fb-stat > strong,
+.automation-portal #faro-budget-design .fb-budget .fb-filter-stats strong {
+  color: var(--ap-blue); font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.automation-portal #faro-budget-design .fb-budget .fb-stat.fb-available,
+.automation-portal #faro-budget-design .fb-budget .fb-filter-stats > div:nth-child(3) { background: #f0f9f6; }
+.automation-portal #faro-budget-design .fb-budget .fb-available > strong,
+.automation-portal #faro-budget-design .fb-budget .fb-filter-stats > div:nth-child(3) strong { color: var(--fb-good); }
+.automation-portal #faro-budget-design .fb-budget .fb-period-state { color: var(--ap-blue); background: #edf4f9; border-color: #d3e4ee; }
+.automation-portal #faro-budget-design .fb-budget .fb-section-icon { background: var(--ap-soft); color: var(--ap-teal); border-radius: 14px; }
+.automation-portal #faro-budget-design .fb-budget [data-history-chart] { background: #fafdfd; border-radius: 16px; }
+.automation-portal #faro-budget-design .fb-budget .fb-pie-legend strong { color: var(--ap-blue); font-variant-numeric: tabular-nums; }
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) th { background: #eef7f6; color: #426d72; font-size: 11px; font-weight: 800; letter-spacing: .03em; }
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-table-wrap { border-radius: 14px; border-color: var(--ap-line); }
+.automation-portal #faro-budget-design .fb-budget :is(.fb-category, .fb-period-audit, .fb-closing-comparison, .fb-chart-detail) { border-radius: 14px; }
+.automation-portal #faro-budget-design .fb-budget :is(.fb-category, .fb-period-audit, .fb-closing-comparison, .fb-chart-detail) > summary {
+  color: var(--ap-blue); background: #f4f9fa; font-weight: 700;
+}
+.automation-portal #faro-budget-design .fb-budget details.fb-audit-card { padding: 0; }
+.automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-info { background: #f1f9f8; border: 1px solid #d3e8e4; border-radius: 14px; color: #365e67; }
+.automation-portal #faro-budget-design .fb-budget legend.fb-section-head { color: var(--ap-blue); font-weight: 800; }
+.automation-portal #faro-budget-design .fb-budget .fb-form .fb-fields { gap: 20px; }
+
+/* Native dialogs stay inside the same light theme, with their existing scroll areas. */
+.automation-portal #faro-budget-design .fb-dialog { border-color: #cfdce7; border-radius: 24px; color: var(--ap-ink); box-shadow: 0 24px 80px #0d3b6640; }
+.automation-portal #faro-budget-design .fb-dialog::backdrop { background: #102d4c80; backdrop-filter: blur(3px); }
+.automation-portal #faro-budget-design .fb-editor-header { background: var(--fb-hero-background); border: 0; }
+.automation-portal #faro-budget-design .fb-editor .fb-kicker { color: #d6eeef; }
+.automation-portal #faro-budget-design .fb-editor-header h2 { color: #fff; }
+.automation-portal #faro-budget-design #fb-editor-description { color: #e2eff4; }
+.automation-portal #faro-budget-design .fb-editor-heading .fb-section-icon { color: #fff; background: #ffffff1a; }
+.automation-portal #faro-budget-design .fb-editor button.fb-editor-dismiss[type][class] { color: #fff; background: #ffffff12; border-color: #ffffff55; width: 44px; padding: 10px; }
+.automation-portal #faro-budget-design .fb-editor button.fb-editor-dismiss[type][class]:hover { color: #fff; background: #ffffff24; border-color: #ffffff80; }
+.automation-portal #faro-budget-design .fb-editor button.fb-editor-dismiss[type][class]:focus-visible { outline-color: #fff; }
+.automation-portal #faro-budget-design .fb-editor-context { background: #f1f9f8; border-color: var(--ap-teal); border-radius: 0 12px 12px 0; }
+.automation-portal #faro-budget-design .fb-editor-context strong { color: var(--ap-blue); font-weight: 700; }
+.automation-portal #faro-budget-design .fb-editor-footer { background: #f8fbfc; }
+
+@media (max-width: 760px) {
+  .automation-portal #faro-budget-design .fb-budget .fb-card { padding: 22px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-context { grid-template-columns: 1fr; gap: 18px; }
+}
+@media (max-width: 600px) {
+  .automation-portal[data-automation-screen="budget"] .automation-preview-shell { width: calc(100% - 32px); padding: 20px 0 28px; }
+  .automation-portal #faro-budget-design .fb-main.fb-budget { gap: 20px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-card { border-radius: 18px; padding: 18px; }
+  .automation-portal #faro-budget-design .fb-budget nav.fb-tabs { padding: 6px; gap: 6px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-tabs button[data-tab] { padding: 9px 6px; font-size: 12px; }
+  .automation-portal #faro-budget-design :is(.fb-budget, .fb-dialog) .fb-input { font-size: 16px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-filter-stats strong { font-size: 25px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-chart-heading { gap: 10px; }
+  .automation-portal #faro-budget-design .fb-budget .fb-chart-heading h3 { font-size: 16px; }
+  .automation-portal #faro-budget-design .fb-dialog { border-radius: 18px; }
+  .automation-portal #faro-budget-design .fb-editor-footer button[type][class] { padding: 10px; }
+}
