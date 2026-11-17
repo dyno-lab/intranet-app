@@ -2,7 +2,7 @@
 {% block title %}Inicio · Comunidad y Prevención{% endblock %}
 {% block page_class %}community-home-page{% endblock %}
 {% block page_styles %}
-<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261113-photo" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261117-construction" rel="stylesheet">
 {% if cp.role in ['admin', 'supervisor'] %}
 <link href="{{ request.url_for('static', path='css/farogpt.css') }}?v=2" rel="stylesheet">
 <link href="{{ request.url_for('static', path='css/community-farogpt.css') }}?v=1" rel="stylesheet">
@@ -15,6 +15,7 @@
       <p class="cp-home-eyebrow">Comunidad y Prevención · Inicio</p>
       <h1 id="community-home-title">Comunidad<br>y Prevención</h1>
       <p class="cp-home-lead">Gestión de expedientes y programas.</p>
+      <p class="cp-home-construction-note"><i class="bi bi-cone-striped" aria-hidden="true"></i><span>En construcción · Sistema disponible</span></p>
       <div class="cp-home-hero__actions">
         {% if cp.role != 'viewer' %}<a class="cp-home-primary" href="/community/participants/new#participant-register-card"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nuevo expediente</a>{% endif %}
         <a class="cp-home-text-link" href="/community/participants#participants-table-card">Consultar expedientes<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
@@ -22,6 +23,10 @@
     </div>
     <figure class="cp-home-hero__photo">
       <img src="{{ request.url_for('static', path='img/community-welcome.webp') }}" width="1536" height="1024" alt="Escena ilustrativa de orientación a dos personas en un centro comunitario." fetchpriority="high">
+      <div class="cp-home-construction" aria-hidden="true">
+        <div class="cp-home-construction__tape cp-home-construction__tape--back">{% for _ in range(4) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
+        <div class="cp-home-construction__tape cp-home-construction__tape--front">{% for _ in range(4) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
+      </div>
       <figcaption>Imagen referencial</figcaption>
     </figure>
   </section>
