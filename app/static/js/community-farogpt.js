@@ -21,6 +21,12 @@
     'Mientras preparan mi llegada, estoy ensayando: «¡Buenos días, Comunidad!». 👋 Ya me sale con luz propia.',
     '¡Traje mi lonchera y muchas ganas de ayudar! 🥪 Mientras terminan mi integración con Comunidad, estoy en entrenamiento intensivo de saludos.',
     'Me dijeron «ve calentando motores», pero como soy un faro, ¡encendí la bombillita! 💡 Sigo preparándome para ayudarles en Comunidad.',
+    'Estoy cansadito de decorar para Navidad… puse tantas luces que ahora no sé cuál es mi bombillita. 🎄💡 ¡Dame un segundo para recargar!',
+    'Llevo toda la mañana desenredando luces de Navidad. 🎄🔌 Ya desenredé tres cables… ¡y me enredé yo!',
+    'Subí la estrella al árbol y bajé con las baterías en rojo. ⭐😮‍💨 ¡Decorar para Navidad cuenta como ejercicio!',
+    'Hoy estoy corriendo detrás del pavo. 🦃🏃 Él va fresco y yo voy con la bombillita parpadeando. ¡Eso sí que es ejercicio!',
+    'El pavo me vio con las luces de Navidad y salió corriendo. 🦃🎄 Ahora ando detrás de él… ¡solo quería ponerlo a ayudar!',
+    'Entre decorar para Navidad y correr detrás del pavo, hoy mi bombillita está en modo ahorro. 🎄🦃💡 ¡Pero todavía me queda luz para saludarte!',
   ];
   let greetingIndex = Math.floor(Math.random() * greetings.length);
 
