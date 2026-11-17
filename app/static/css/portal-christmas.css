@@ -1,0 +1,119 @@
+/* Seasonal presentation for /home only; all portal controls remain native. */
+body.program-hub-body--christmas {
+  --portal-holiday-spacing: clamp(32px, 3.2vw, 56px);
+  min-height: 100vh;
+  padding: var(--portal-holiday-spacing) 0;
+  background: #dfc4a1 url("/static/img/portal-christmas/living-room.webp?v=20261117") right center / cover no-repeat fixed;
+}
+
+.program-hub-body--christmas .program-hub {
+  width: min(1264px, 76%);
+  min-height: calc(100vh - var(--portal-holiday-spacing) - var(--portal-holiday-spacing));
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: 24px;
+  background: #f8faff;
+  box-shadow: 0 24px 70px rgba(74, 43, 18, .22);
+}
+
+.program-hub-body--christmas .program-hub__shell {
+  width: calc(100% - 64px);
+}
+
+.program-hub-body--christmas .program-hub__header {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 23px 23px 0 0;
+}
+
+.program-hub-body--christmas .program-hub__header::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: calc(100% - 16px);
+  inset-inline: -6px;
+  height: 96px;
+  background: url("/static/img/portal-christmas/garland.webp?v=20261117") center / max(100%, 720px) auto no-repeat;
+  pointer-events: none;
+}
+
+.program-hub-body--christmas .program-hub__main {
+  padding-top: 4.25rem;
+  background: linear-gradient(135deg, #ffffff, #f7f9fd 75%);
+}
+
+.program-hub-body--christmas .program-hub__footer {
+  border-radius: 0 0 23px 23px;
+  background: #f8faff;
+}
+
+@media (max-width: 991.98px) {
+  body.program-hub-body--christmas {
+    padding: clamp(96px, 16vw, 152px) 0 24px;
+    background-color: #ede3d7;
+    background-size: 100% auto;
+    background-position: center top;
+    background-attachment: scroll;
+  }
+
+  .program-hub-body--christmas .program-hub {
+    width: calc(100% - 40px);
+    min-height: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  body.program-hub-body--christmas {
+    padding-top: clamp(144px, 52vw, 320px);
+  }
+
+  .program-hub-body--christmas .program-hub {
+    width: calc(100% - 24px);
+    border-radius: 20px;
+  }
+
+  .program-hub-body--christmas .program-hub__shell {
+    width: calc(100% - 32px);
+  }
+
+  .program-hub-body--christmas .program-hub__header {
+    border-radius: 19px 19px 0 0;
+  }
+
+  .program-hub-body--christmas .program-hub__header::after {
+    top: calc(100% - 14px);
+    height: 72px;
+  }
+
+  .program-hub-body--christmas .program-hub__main {
+    padding-top: 3.25rem;
+  }
+
+  .program-hub-body--christmas .program-hub__footer {
+    border-radius: 0 0 19px 19px;
+  }
+}
+
+@media print {
+  body.program-hub-body--christmas {
+    padding: 0;
+    background: #fff;
+  }
+
+  .program-hub-body--christmas .program-hub {
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .program-hub-body--christmas .program-hub__header::after {
+    display: none;
+  }
+
+  .program-hub-body--christmas .program-hub__main {
+    padding-top: 2rem;
+    background: #fff;
+  }
+}
