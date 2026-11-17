@@ -69,7 +69,23 @@
               ('21-4d-espejo-del-alma-exterior.webp', 'Actividad El espejo del alma al aire libre', 1600, 1200),
               ('22-4d-espejo-del-alma-taller.webp', 'Taller El espejo del alma en un salón', 1600, 1200),
               ('23-4d-arte-columbus-landing.webp', 'Taller de arte de otoño en Columbus Landing', 1600, 1200),
-              ('24-4d-arte-manuel-hernandez-el-carmen.webp', 'Participantes de Manuel Hernández y El Carmen mostrando sus trabajos de arte', 1600, 1058)
+              ('24-4d-arte-manuel-hernandez-el-carmen.webp', 'Participantes de Manuel Hernández y El Carmen mostrando sus trabajos de arte', 1600, 1058),
+              ('25-1a-tutorias-brisas-bella-vista.webp', 'Participante realizando tareas escolares en Brisas del Mar y Bella Vista', 1200, 1600),
+              ('26-1a-trabajo-educativo-ernesto-ramos.webp', 'Participante mostrando su trabajo educativo en Ernesto Ramos Antonini', 687, 948),
+              ('27-1a-juegos-grupales-rafael-lopez.webp', 'Juegos grupales en Rafael López Nussa', 1600, 1199),
+              ('28-2b-estudio-computadora-manuel-hernandez.webp', 'Actividad educativa con computadora en Manuel Hernández', 1055, 1600),
+              ('29-2b-destrezas-ocupacionales.webp', 'Participante presentando su trabajo en un taller de destrezas ocupacionales', 1200, 1600),
+              ('30-2b-charla-feria-empleo.webp', 'Charla para participantes de la feria de empleo', 1200, 1600),
+              ('31-2b-orientacion-servicios-feria.webp', 'Orientación sobre servicios en la feria de empleo', 1485, 1114),
+              ('32-3c-lugares-seguros-columbus.webp', 'Taller sobre personas y lugares seguros en Columbus Landing', 1600, 1201),
+              ('33-3c-actividad-civica-exterior.webp', 'Participante en una actividad de conciencia cívica al aire libre', 1200, 1600),
+              ('34-3c-responsabilidad-social-exterior.webp', 'Actividad de responsabilidad social al aire libre', 1200, 1600),
+              ('35-3c-conecta-crea-grupo.webp', 'Trabajo grupal en la actividad Conecta, crea y transforma', 1143, 1600),
+              ('36-3c-espejo-alma-villa-parque.webp', 'Taller El espejo del alma en Villa del Parque', 1201, 1600),
+              ('37-4d-taller-ernesto-ramos-la-ceiba.webp', 'Taller para participantes de Ernesto Ramos Antonini y La Ceiba', 1600, 1200),
+              ('38-4d-arte-otono-participante.webp', 'Participante mostrando su pintura de otoño en Columbus Landing', 1050, 1600),
+              ('39-4d-arte-hojas-participante.webp', 'Participante mostrando su trabajo de arte con hojas secas', 1060, 1600),
+              ('40-4d-arte-grupal-manuel-hernandez.webp', 'Taller de arte en grupo de Manuel Hernández y El Carmen', 1531, 1021)
             ] %}
             <img class="faro-home-slideshow__photo" src="/static/img/faro-home/{{ filename }}" width="{{ width }}" height="{{ height }}" alt="Foto {{ loop.index }} de {{ loop.length }}: {{ description }}" decoding="async" {% if loop.first %}fetchpriority="high"{% else %}hidden{% endif %}>
             {% endfor %}
@@ -77,7 +93,7 @@
           <div class="faro-home-slideshow__footer">
             <span class="faro-home-slideshow__name">Faro de Esperanza</span>
             <span class="faro-home-slideshow__controls" hidden>
-              <span class="faro-home-slideshow__count" data-slideshow-count>1 / 24</span>
+              <span class="faro-home-slideshow__count" data-slideshow-count>1 / 40</span>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-previous aria-label="Foto anterior" aria-controls="faro-home-photos"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-toggle aria-label="Pausar presentación" aria-pressed="false" aria-controls="faro-home-photos"><i class="bi bi-pause-fill" aria-hidden="true"></i></button>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-next aria-label="Foto siguiente" aria-controls="faro-home-photos"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
