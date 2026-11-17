@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="60" viewBox="0 0 640 60">
+  <defs>
+    <filter id="halo" x="-100%" y="-100%" width="300%" height="300%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="filament" x="-100%" y="-100%" width="300%" height="300%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.1"/>
+    </filter>
+    <linearGradient id="socket" x1="0" x2="1">
+      <stop stop-color="#152e20"/>
+      <stop offset=".35" stop-color="#526b47"/>
+      <stop offset=".65" stop-color="#294630"/>
+      <stop offset="1" stop-color="#11271b"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" x2="1">
+      <stop stop-color="#14251b" stop-opacity=".35"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity=".5"/>
+      <stop offset=".6" stop-color="#fff" stop-opacity=".04"/>
+      <stop offset="1" stop-color="#131b15" stop-opacity=".28"/>
+    </linearGradient>
+    <radialGradient id="lit-core" cx="45%" cy="35%" r="65%">
+      <stop stop-color="#fffdeb"/>
+      <stop offset=".25" stop-color="#fffbe2" stop-opacity=".9"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <path id="glass-shape" d="M-4 8 C-9 13-7 18 0 26 C7 18 9 13 4 8Z"/>
+    <g id="bulb">
+      <ellipse cy="17" rx="18" ry="14" fill="currentColor" opacity=".32" filter="url(#halo)"/>
+      <ellipse cy="16" rx="8" ry="10" fill="currentColor" opacity=".3" filter="url(#filament)"/>
+      <use href="#glass-shape" fill="currentColor"/>
+      <use href="#glass-shape" fill="url(#glass)"/>
+      <use href="#glass-shape" fill="url(#lit-core)"/>
+      <path d="M-1.7 10.5-.8 15.5 1.3 12.5.4 20" fill="none" stroke="#fffce5" stroke-width="1.2" stroke-linecap="round" filter="url(#filament)"/>
+      <path d="M-3.2 10.5Q-5.3 13-3.9 16" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M2.7 18.5 0 22" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".7"/>
+      <rect x="-3.8" y="-.5" width="7.6" height="9" rx="1.4" fill="url(#socket)"/>
+      <path d="M-3.2 2H3.2M-3.2 4.2H3.2M-3.2 6.4H3.2" stroke="#0d2919" stroke-opacity=".6" stroke-width=".65"/>
+      <path d="M-2.3.7V7" stroke="#afc49a" stroke-opacity=".35" stroke-width=".7"/>
+    </g>
+  </defs>
+  <path d="M0 5.5Q160 21.5 320 21.5T640 5.5" fill="none" stroke="#14241b" stroke-opacity=".15" stroke-width="3.5"/>
+  <path d="M0 4Q160 20 320 20Q480 20 640 4" fill="none" stroke="#1a3627" stroke-width="2.3"/>
+  <path d="M0 3.5Q160 19.5 320 19.5Q480 19.5 640 3.5" fill="none" stroke="#74906b" stroke-opacity=".65" stroke-width=".65"/>
+  <use href="#bulb" transform="translate(40 7.75) rotate(-4)" color="#ff281c"/>
+  <use href="#bulb" transform="translate(120 13.75) rotate(2)" color="#23d824"/>
+  <use href="#bulb" transform="translate(200 17.75) rotate(-2)" color="#ffb30d"/>
+  <use href="#bulb" transform="translate(280 19.75) rotate(3)" color="#2052ff"/>
+  <use href="#bulb" transform="translate(360 19.75) rotate(-3)" color="#ff281c"/>
+  <use href="#bulb" transform="translate(440 17.75) rotate(2)" color="#23d824"/>
+  <use href="#bulb" transform="translate(520 13.75) rotate(-2)" color="#ffb30d"/>
+  <use href="#bulb" transform="translate(600 7.75) rotate(4)" color="#2052ff"/>
+</svg>

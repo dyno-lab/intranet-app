@@ -1,0 +1,16 @@
+/* Loaded only by Faro's home template. Decorative lights do not occupy layout space. */
+.ui-topbar::after {
+  content: "";
+  position: absolute;
+  top: calc(100% - 6px);
+  inset-inline: 0;
+  height: 60px;
+  background: url("/static/img/faro-christmas-lights.svg?v=20261117") repeat-x left top / 640px 60px;
+  pointer-events: none;
+}
+
+@media print {
+  .ui-topbar::after {
+    display: none;
+  }
+}
