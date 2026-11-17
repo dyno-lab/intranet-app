@@ -22,7 +22,7 @@
   let elapsed = 0;
   let lastFrameAt = null;
   let imageReady = false;
-  let staticMode = reducedMotion.matches;
+  let omitBounce = reducedMotion.matches;
   let frameId = 0;
   let delayId = 0;
   let finished = false;
@@ -59,8 +59,8 @@
   }
 
   function onMotionPreference(event) {
-    // Keep the decoration visible without movement when motion is reduced.
-    if (event.matches) staticMode = true;
+    // Keep the requested brief run, omitting the optional bounce in reduced mode.
+    omitBounce = event.matches;
   }
 
   function refreshGeometry() {
@@ -88,10 +88,7 @@
     let x;
     let pose;
     let bob = 0;
-    if (staticMode) {
-      x = stopAt;
-      pose = 5;
-    } else if (elapsed < 1850) {
+    if (elapsed < 1850) {
       x = -size + (stopAt + size) * elapsed / 1850;
       pose = Math.floor(elapsed / 100) % 4;
       bob = -Math.abs(Math.sin(elapsed / 100 * Math.PI)) * 2;
@@ -103,6 +100,7 @@
       pose = Math.floor((elapsed - 2850) / 100) % 4;
       bob = -Math.abs(Math.sin(elapsed / 100 * Math.PI)) * 2;
     }
+    if (omitBounce) bob = 0;
 
     // Never draw over a field, its label, or a button, including after scrolling.
     const obscuresControl = obstacles.some(rect =>
