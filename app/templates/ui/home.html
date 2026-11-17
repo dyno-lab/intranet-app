@@ -54,7 +54,22 @@
               ('06-cancha.webp', 'Fotografía de un grupo en una cancha', 881, 770),
               ('07-actividad-grupal.webp', 'Actividad grupal con materiales en una mesa', 650, 518),
               ('08-encuentro.webp', 'Encuentro con mesas informativas en un salón', 1076, 606),
-              ('09-taller.webp', 'Taller con una presentación en pantalla', 807, 488)
+              ('09-taller.webp', 'Taller con una presentación en pantalla', 807, 488),
+              ('10-1a-tutorias-villa-del-parque.webp', 'Tutorías en grupo en Villa del Parque', 1600, 1200),
+              ('11-1a-tutorias-brisas-del-mar.webp', 'Apoyo escolar en Brisas del Mar', 1600, 1200),
+              ('12-1a-arte-juan-ponce-de-leon.webp', 'Actividad de pintura en Juan Ponce de León', 852, 1136),
+              ('13-1a-recreacion-rafael-lopez-nussa.webp', 'Juegos recreativos en Rafael López Nussa', 1600, 1200),
+              ('14-2b-destrezas-manuel-hernandez.webp', 'Actividad educativa en Manuel Hernández', 1600, 1151),
+              ('15-2b-feria-empleo-orientacion.webp', 'Orientación en la feria de empleo', 1411, 1122),
+              ('16-2b-feria-empleo-atencion.webp', 'Atención a participantes en la feria de empleo', 1402, 1052),
+              ('17-2b-feria-empleo-participacion.webp', 'Participación en la feria de empleo', 1600, 901),
+              ('18-3c-taller-rafael-hernandez.webp', 'Taller grupal en Rafael Hernández', 1600, 1200),
+              ('19-3c-personas-y-lugares-seguros.webp', 'Taller sobre personas y lugares seguros', 1600, 1200),
+              ('20-3c-conecta-crea-transforma.webp', 'Actividad Conecta, crea y transforma', 1432, 1205),
+              ('21-4d-espejo-del-alma-exterior.webp', 'Actividad El espejo del alma al aire libre', 1600, 1200),
+              ('22-4d-espejo-del-alma-taller.webp', 'Taller El espejo del alma en un salón', 1600, 1200),
+              ('23-4d-arte-columbus-landing.webp', 'Taller de arte de otoño en Columbus Landing', 1600, 1200),
+              ('24-4d-arte-manuel-hernandez-el-carmen.webp', 'Participantes de Manuel Hernández y El Carmen mostrando sus trabajos de arte', 1600, 1058)
             ] %}
             <img class="faro-home-slideshow__photo" src="/static/img/faro-home/{{ filename }}" width="{{ width }}" height="{{ height }}" alt="Foto {{ loop.index }} de {{ loop.length }}: {{ description }}" decoding="async" {% if loop.first %}fetchpriority="high"{% else %}hidden{% endif %}>
             {% endfor %}
@@ -62,7 +77,7 @@
           <div class="faro-home-slideshow__footer">
             <span class="faro-home-slideshow__name">Faro de Esperanza</span>
             <span class="faro-home-slideshow__controls" hidden>
-              <span class="faro-home-slideshow__count" data-slideshow-count>1 / 9</span>
+              <span class="faro-home-slideshow__count" data-slideshow-count>1 / 24</span>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-previous aria-label="Foto anterior" aria-controls="faro-home-photos"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-toggle aria-label="Pausar presentación" aria-pressed="false" aria-controls="faro-home-photos"><i class="bi bi-pause-fill" aria-hidden="true"></i></button>
               <button class="faro-home-slideshow__button" type="button" data-slideshow-next aria-label="Foto siguiente" aria-controls="faro-home-photos"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
