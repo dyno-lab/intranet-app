@@ -1,0 +1,32 @@
+/* A short, decorative visit; the login remains the only interactive content. */
+.faro-login-turkey {
+  --turkey-size: clamp(80px, 9vw, 118px);
+  position: fixed;
+  z-index: 10;
+  inset: auto 0 max(4px, env(safe-area-inset-bottom));
+  height: calc(var(--turkey-size) + 4px);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.faro-login-turkey[hidden] {
+  display: none;
+}
+
+.faro-login-turkey__sprite {
+  display: block;
+  width: var(--turkey-size);
+  height: var(--turkey-size);
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  transform: translateX(-150px);
+  filter: drop-shadow(0 3px 2px rgba(42, 28, 14, .18));
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce), print {
+  .faro-login-turkey {
+    display: none !important;
+  }
+}
