@@ -17,15 +17,17 @@
 .cp-home-hero__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 43%; }
 .cp-home-hero__photo::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40px; background: linear-gradient(90deg, #fff, #ffffff00); pointer-events: none; }
 .cp-home-hero__photo figcaption { position: absolute; bottom: 12px; right: 14px; padding: 4px 8px; border-radius: 4px; color: #fff; background: #102e24b8; font-size: 10px; }
-/* Decorative tapes stay inside the photo and never intercept clicks or touch. */
-.cp-home-construction { position: absolute; inset: 0; overflow: hidden; pointer-events: none; user-select: none; }
-.cp-home-construction__tape { position: absolute; left: -12%; width: 124%; display: flex; justify-content: center; align-items: center; gap: 28px; padding: 11px 0; border: 1px solid #d3a614; background: linear-gradient(#ffe34c, #f9ce24); color: #201e13; box-shadow: 0 4px 12px #102e2440; font-family: Impact, 'Arial Narrow', sans-serif; font-size: clamp(17px, 1.6vw, 23px); font-weight: 800; line-height: 1.1; letter-spacing: .025em; white-space: nowrap; }
+/* Home-only decoration spans the viewport, including navigation, without intercepting input. */
+.cp-home-construction { position: fixed; inset: 0; z-index: 1031; overflow: hidden; pointer-events: none; user-select: none; }
+.cp-home-construction__tape { position: absolute; top: 45%; left: -12%; width: 124%; display: flex; justify-content: center; align-items: center; gap: 28px; padding: 11px 0; border: 1px solid #d3a614; background: linear-gradient(#ffe34c, #f9ce24); color: #201e13; box-shadow: 0 4px 12px #102e2440; font-family: Impact, 'Arial Narrow', sans-serif; font-size: clamp(18px, 1.8vw, 26px); font-weight: 800; line-height: 1.1; letter-spacing: .025em; white-space: nowrap; }
 .cp-home-construction__tape::before, .cp-home-construction__tape::after { content: ''; position: absolute; left: 0; right: 0; height: 6px; background: repeating-linear-gradient(135deg, #201e13 0 10px, #ffdc35 10px 20px); }
 .cp-home-construction__tape::before { top: 0; }
 .cp-home-construction__tape::after { bottom: 0; }
 .cp-home-construction__tape span { flex: none; }
-.cp-home-construction__tape--back { bottom: 29%; transform: rotate(10deg); }
-.cp-home-construction__tape--front { bottom: 17%; transform: rotate(-8deg); }
+.cp-home-construction__tape--back { transform: translateY(-50%) rotate(14deg); }
+.cp-home-construction__tape--front { transform: translateY(-50%) rotate(-11deg); }
+/* Reveal the content beneath the tapes while someone uses a control. */
+.community-home-page:has(a:hover, button:hover, summary:hover, input:focus, select:focus, :focus-visible) .cp-home-construction { opacity: .15; }
 .cp-home-services { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px 0; border: 1px solid var(--cp-line); border-radius: 14px; background: #fff; }
 .cp-home-service { display: grid; grid-template-columns: 34px minmax(0, 1fr) 14px; gap: 14px; align-items: center; padding: 12px 22px; color: var(--cp-deep); text-decoration: none; border-right: 1px solid var(--cp-line); }
 .cp-home-service:last-child { border-right: 0; }

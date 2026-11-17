@@ -2,13 +2,17 @@
 {% block title %}Inicio · Comunidad y Prevención{% endblock %}
 {% block page_class %}community-home-page{% endblock %}
 {% block page_styles %}
-<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261117-construction" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261117-construction-page" rel="stylesheet">
 {% if cp.role in ['admin', 'supervisor'] %}
 <link href="{{ request.url_for('static', path='css/farogpt.css') }}?v=2" rel="stylesheet">
 <link href="{{ request.url_for('static', path='css/community-farogpt.css') }}?v=1" rel="stylesheet">
 {% endif %}
 {% endblock %}
 {% block content %}
+<div class="cp-home-construction" aria-hidden="true">
+  <div class="cp-home-construction__tape cp-home-construction__tape--back">{% for _ in range(16) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
+  <div class="cp-home-construction__tape cp-home-construction__tape--front">{% for _ in range(16) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
+</div>
 <div class="cp-home">
   <section class="cp-home-hero" aria-labelledby="community-home-title">
     <div class="cp-home-hero__content">
@@ -23,10 +27,6 @@
     </div>
     <figure class="cp-home-hero__photo">
       <img src="{{ request.url_for('static', path='img/community-welcome.webp') }}" width="1536" height="1024" alt="Escena ilustrativa de orientación a dos personas en un centro comunitario." fetchpriority="high">
-      <div class="cp-home-construction" aria-hidden="true">
-        <div class="cp-home-construction__tape cp-home-construction__tape--back">{% for _ in range(4) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
-        <div class="cp-home-construction__tape cp-home-construction__tape--front">{% for _ in range(4) %}<span>EN CONSTRUCCIÓN</span>{% endfor %}</div>
-      </div>
       <figcaption>Imagen referencial</figcaption>
     </figure>
   </section>
