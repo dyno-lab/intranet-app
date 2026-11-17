@@ -1,0 +1,74 @@
+/* Decoration for Faro login only; existing forms and access modes are unchanged. */
+body.faro-login-christmas {
+  background: #dfc4a1 url("/static/img/portal-christmas/living-room.webp?v=20261117") right center / cover no-repeat fixed;
+}
+
+.faro-login-christmas .login-layout {
+  position: relative;
+  box-shadow: 0 24px 60px rgba(74, 43, 18, .24);
+}
+
+.faro-login-christmas .login-layout::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
+  height: 72px;
+  background: url("/static/img/portal-christmas/garland.webp?v=20261117") center / max(100%, 720px) auto no-repeat;
+  pointer-events: none;
+}
+
+.faro-login-christmas .brand-panel {
+  padding-top: 92px;
+}
+
+.faro-login-christmas .login-panel {
+  padding-top: 84px;
+}
+
+@media (max-width: 991px) {
+  body.faro-login-christmas {
+    background-color: #ede3d7;
+    background-size: 100% auto;
+    background-position: center top;
+    background-attachment: scroll;
+  }
+
+  .faro-login-christmas .login-shell {
+    padding-top: clamp(120px, 32vw, 220px);
+  }
+
+  .faro-login-christmas .brand-panel {
+    padding-top: 84px;
+  }
+
+  .faro-login-christmas .login-panel {
+    padding-top: 32px;
+  }
+}
+
+@media print {
+  body.faro-login-christmas {
+    background: #fff;
+  }
+
+  .faro-login-christmas .login-shell {
+    padding-top: 24px;
+  }
+
+  .faro-login-christmas .login-layout {
+    box-shadow: none;
+  }
+
+  .faro-login-christmas .login-layout::before {
+    display: none;
+  }
+
+  .faro-login-christmas .brand-panel {
+    padding-top: 48px;
+  }
+
+  .faro-login-christmas .login-panel {
+    padding-top: 40px;
+  }
+}
