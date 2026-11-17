@@ -25,7 +25,13 @@
   will-change: transform;
 }
 
-@media (prefers-reduced-motion: reduce), print {
+@media (prefers-reduced-motion: reduce) {
+  .faro-login-turkey__sprite {
+    will-change: auto;
+  }
+}
+
+@media print {
   .faro-login-turkey {
     display: none !important;
   }

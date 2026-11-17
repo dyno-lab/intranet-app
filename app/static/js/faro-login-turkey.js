@@ -5,7 +5,7 @@
   if (!visit) return;
   const sprite = visit.querySelector(".faro-login-turkey__sprite");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  if (!sprite || reducedMotion.matches || document.visibilityState === "hidden") {
+  if (!sprite) {
     visit.remove();
     return;
   }
@@ -19,7 +19,10 @@
   let width = 0;
   let size = 0;
   let top = 0;
-  let startedAt = null;
+  let elapsed = 0;
+  let lastFrameAt = null;
+  let imageReady = false;
+  let staticMode = reducedMotion.matches;
   let frameId = 0;
   let delayId = 0;
   let finished = false;
@@ -30,7 +33,7 @@
     window.clearTimeout(delayId);
     window.cancelAnimationFrame(frameId);
     image.onload = image.onerror = null;
-    document.removeEventListener("focusin", onFocus);
+    document.removeEventListener("input", onInput);
     document.removeEventListener("visibilitychange", onVisibility);
     window.removeEventListener("scroll", refreshGeometry, true);
     window.removeEventListener("resize", refreshGeometry);
@@ -39,16 +42,25 @@
     visit.remove();
   }
 
-  function onFocus(event) {
+  function onInput(event) {
     if (event.target.closest("form")) finish();
   }
 
   function onVisibility() {
-    if (document.visibilityState === "hidden") finish();
+    if (document.visibilityState === "hidden") {
+      window.clearTimeout(delayId);
+      window.cancelAnimationFrame(frameId);
+      delayId = frameId = 0;
+      lastFrameAt = null;
+      visit.hidden = true;
+    } else {
+      scheduleStart();
+    }
   }
 
   function onMotionPreference(event) {
-    if (event.matches) finish();
+    // Keep the decoration visible without movement when motion is reduced.
+    if (event.matches) staticMode = true;
   }
 
   function refreshGeometry() {
@@ -57,8 +69,8 @@
 
   function animate(now) {
     if (finished) return;
-    if (startedAt === null) startedAt = now;
-    const elapsed = now - startedAt;
+    if (lastFrameAt !== null) elapsed += now - lastFrameAt;
+    lastFrameAt = now;
     if (elapsed >= 4800) {
       finish();
       return;
@@ -76,7 +88,10 @@
     let x;
     let pose;
     let bob = 0;
-    if (elapsed < 1850) {
+    if (staticMode) {
+      x = stopAt;
+      pose = 5;
+    } else if (elapsed < 1850) {
       x = -size + (stopAt + size) * elapsed / 1850;
       pose = Math.floor(elapsed / 100) % 4;
       bob = -Math.abs(Math.sin(elapsed / 100 * Math.PI)) * 2;
@@ -99,7 +114,20 @@
     frameId = window.requestAnimationFrame(animate);
   }
 
-  document.addEventListener("focusin", onFocus);
+  function scheduleStart() {
+    if (finished || !imageReady || delayId || frameId || document.visibilityState === "hidden") return;
+    delayId = window.setTimeout(() => {
+      delayId = 0;
+      if (finished || document.visibilityState === "hidden") return;
+      geometryDirty = true;
+      sprite.style.backgroundImage = `url("${image.src}")`;
+      visit.hidden = false;
+      frameId = window.requestAnimationFrame(animate);
+    }, 650);
+  }
+
+  // Autofocus alone is not user input and must not cancel the visit.
+  document.addEventListener("input", onInput);
   document.addEventListener("visibilitychange", onVisibility);
   window.addEventListener("scroll", refreshGeometry, {capture: true, passive: true});
   window.addEventListener("resize", refreshGeometry, {passive: true});
@@ -107,16 +135,8 @@
   reducedMotion.addEventListener("change", onMotionPreference);
   image.onerror = finish;
   image.onload = () => {
-    delayId = window.setTimeout(() => {
-      if (finished) return;
-      if (document.activeElement?.closest("form")) {
-        finish();
-        return;
-      }
-      sprite.style.backgroundImage = `url("${image.src}")`;
-      visit.hidden = false;
-      frameId = window.requestAnimationFrame(animate);
-    }, 650);
+    imageReady = true;
+    scheduleStart();
   };
   image.src = visit.dataset.spriteUrl;
 })();
