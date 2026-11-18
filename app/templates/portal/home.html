@@ -7,9 +7,13 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}?v={{ ui_modern_css_version }}" rel="stylesheet">
+  {% if current_user %}
   <link href="{{ request.url_for('static', path='css/portal-christmas.css') }}?v=20261117" rel="stylesheet">
+  {% else %}
+  <link href="{{ request.url_for('static', path='css/portal-welcome.css') }}?v=20261118" rel="stylesheet">
+  {% endif %}
 </head>
-<body class="program-hub-body program-hub-body--christmas">
+<body class="program-hub-body {{ 'program-hub-body--christmas' if current_user else 'portal-welcome' }}">
   <div class="program-hub">
     <header class="program-hub__header">
       <div class="program-hub__shell program-hub__topbar">
@@ -33,17 +37,19 @@
             </button>
           </form>
         </div>
+        {% else %}
+        <span class="portal-welcome__header-label">Portal institucional</span>
         {% endif %}
       </div>
     </header>
 
     <main class="program-hub__main">
       <div class="program-hub__shell">
+      {% if current_user %}
       <div class="program-hub__intro">
         <h1 class="program-hub__title">Portal de Programas</h1>
         <p class="program-hub__subtitle">Acceso a programas y servicios internos</p>
       </div>
-      {% if current_user %}
       {% if can_access_faro or can_access_community %}
       <section class="program-hub__section" aria-labelledby="programas-disponibles">
           <div class="program-hub__section-heading">
@@ -133,10 +139,24 @@
       </div>
       {% endif %}
       {% else %}
-      <section class="program-hub__section" aria-labelledby="portal-access-title">
-          <div class="program-hub-access-card">
+      <p class="portal-welcome__eyebrow">Centros Sor Isolina Ferré</p>
+      <div class="portal-welcome__hero">
+        <section class="portal-welcome__intro" aria-labelledby="portal-welcome-title">
+          <h1 id="portal-welcome-title">Portal de<br>Programas</h1>
+          <p class="portal-welcome__subtitle">Acceso a programas y servicios internos</p>
+          <span class="portal-welcome__accent" aria-hidden="true"></span>
+          <p class="portal-welcome__description">Un punto de acceso para continuar el trabajo de nuestros programas.</p>
+          <ul class="portal-welcome__programs" aria-label="Programas institucionales">
+            <li>Faro de Esperanza</li>
+            <li>Comunidad y Prevención</li>
+          </ul>
+        </section>
+        <section class="program-hub-access-card" aria-labelledby="portal-access-title">
             <span class="program-hub-access-card__icon" aria-hidden="true">
-              <i class="bi bi-shield-check"></i>
+              <svg viewBox="0 0 48 48" fill="none" focusable="false">
+                <path d="M24 5 40 11v12c0 10-7 17-16 21C15 40 8 33 8 23V11L24 5Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+                <path d="m17 24 5 5 10-11" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </span>
             <div class="program-hub-access-card__copy">
               <span class="program-hub__section-label">Acceso institucional</span>
@@ -146,16 +166,21 @@
             <div class="program-hub-access-card__actions">
               {% if google_oauth_available %}
               <a class="program-hub-google-button" href="/auth/google">
-                <i class="bi bi-google" aria-hidden="true"></i>
-                Continuar con Google
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-1.99 3.01v2.5h3.23c1.89-1.74 2.98-4.3 2.98-7.34Z"/>
+                  <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.5c-.9.6-2.04.97-3.39.97-2.6 0-4.8-1.76-5.59-4.12H3.07v2.59A10 10 0 0 0 12 22Z"/>
+                  <path fill="#FBBC05" d="M6.41 13.92a6 6 0 0 1 0-3.84V7.49H3.07a10 10 0 0 0 0 9.02l3.34-2.59Z"/>
+                  <path fill="#EA4335" d="M12 5.96c1.47 0 2.79.51 3.82 1.5l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.93 5.49l3.34 2.59C7.2 7.72 9.4 5.96 12 5.96Z"/>
+                </svg>
+                <span>Continuar con Google</span>
               </a>
               {% else %}
               <span class="program-hub-access-card__unavailable">Google no está disponible temporalmente.</span>
               {% endif %}
               <a class="program-hub-local-link" href="/login">Acceso local de contingencia</a>
             </div>
-          </div>
-      </section>
+        </section>
+      </div>
       {% endif %}
       </div>
     </main>
@@ -168,6 +193,9 @@
           <i class="bi bi-gear" aria-hidden="true"></i>
           Configuración de plataforma
         </a>
+        {% endif %}
+        {% if not current_user %}
+        <span class="portal-welcome__footer-label">Portal de Programas</span>
         {% endif %}
       </div>
     </footer>
