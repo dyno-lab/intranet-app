@@ -1,0 +1,193 @@
+/* Program selection on the signed-in portal. The seasonal surround is independent. */
+.program-hub__main {
+  container: portal-main / inline-size;
+}
+
+.portal-picker {
+  --picker-ink: #102440;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.portal-picker .program-hub__intro {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.portal-picker .program-hub__title {
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 750;
+}
+
+.portal-picker .program-hub__section {
+  min-width: 0;
+  margin: 0;
+}
+
+.portal-picker .program-hub__section-label {
+  margin: 0 0 1rem;
+  color: var(--picker-ink);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.portal-picker .program-hub__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+}
+
+.portal-picker .program-card {
+  --card-shade: #e7f2fd;
+  --button-accent: #083d60;
+  align-items: stretch;
+  isolation: isolate;
+  padding: clamp(1rem, 1.5vw, 1.5rem);
+  background: linear-gradient(150deg, var(--card-shade), #fff 175%);
+  border-radius: 1.25rem;
+}
+
+.portal-picker .program-card--community {
+  --card-shade: #e6f3e7;
+  --button-accent: #13764d;
+}
+
+.portal-picker .program-card::before {
+  content: none;
+}
+
+.portal-picker .program-card__header {
+  position: relative;
+  display: block;
+  height: clamp(11.5rem, 15vw, 14.5rem);
+}
+
+.portal-picker .program-card__category {
+  position: absolute;
+  z-index: 1;
+  color: var(--picker-ink);
+  font-size: .75rem;
+  font-weight: 750;
+  letter-spacing: .17em;
+}
+
+.portal-picker .program-card__category::after {
+  content: "";
+  display: block;
+  width: 2.6rem;
+  height: .2rem;
+  margin-top: .35rem;
+  border-radius: 1rem;
+  background: var(--program-accent);
+}
+
+.portal-picker .program-card__art {
+  display: block;
+  width: 80%;
+  height: 100%;
+  margin-left: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.portal-picker .program-card--community .program-card__art {
+  width: 100%;
+  padding-top: 2rem;
+  object-position: center bottom;
+}
+
+.portal-picker .program-card__content {
+  margin-top: .5rem;
+}
+
+.portal-picker .program-card__title {
+  max-width: 12ch;
+  color: var(--picker-ink);
+  font-size: clamp(1.65rem, 2.3vw, 2.4rem);
+  font-weight: 750;
+  line-height: 1.08;
+}
+
+.portal-picker .program-card__description,
+.portal-picker .program-service__description {
+  color: #455871;
+  font-size: .94rem;
+  line-height: 1.45;
+}
+
+.portal-picker .program-card__footer {
+  padding-top: 1.15rem;
+}
+
+.portal-picker .program-card__action {
+  width: 100%;
+  padding: .5rem .65rem .5rem 1rem;
+  color: var(--picker-ink);
+  background: #fff;
+  box-shadow: 0 2px 8px #12314812;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.program-card__arrow {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--button-accent);
+  font-size: 1.3rem;
+}
+
+.portal-picker .program-service {
+  align-items: center;
+  min-height: 5.75rem;
+}
+
+.portal-picker .program-service__icon {
+  display: grid;
+  place-items: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  margin: 0;
+  color: #274765;
+  background: #f0f5f9;
+  border-radius: .75rem;
+}
+
+.portal-picker .program-service__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.program-service__arrow {
+  margin-left: auto;
+  color: var(--picker-ink);
+  font-size: 1.4rem;
+}
+
+@container portal-main (min-width: 60rem) {
+  .portal-picker:has(.program-hub__section + .program-hub__services) {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+  }
+
+  .portal-picker .program-hub__section + .program-hub__services .program-hub__services-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(clamp(6rem, 8vw, 8rem), auto);
+  }
+}
+
+.portal-picker .program-card:only-child {
+  max-width: 30rem;
+}
+
+@media screen and (min-width: 992px) {
+  body.portal-member.program-hub-body--christmas {
+    --portal-holiday-spacing: clamp(16px, 1.5vw, 32px);
+  }
+
+  .portal-member.program-hub-body--christmas .program-hub {
+    width: min(90%, 1440px);
+  }
+}

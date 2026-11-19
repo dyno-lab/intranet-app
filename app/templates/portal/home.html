@@ -7,12 +7,14 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}?v={{ ui_modern_css_version }}" rel="stylesheet">
-  {% if not current_user %}
+  {% if current_user %}
+  <link href="{{ request.url_for('static', path='css/portal-programs.css') }}?v=20261119" rel="stylesheet">
+  {% else %}
   <link href="{{ request.url_for('static', path='css/portal-welcome.css') }}?v=20261118" rel="stylesheet">
   {% endif %}
   <link href="{{ request.url_for('static', path='css/portal-christmas.css') }}?v=20261117" rel="stylesheet">
 </head>
-<body class="program-hub-body program-hub-body--christmas{% if not current_user %} portal-welcome{% endif %}">
+<body class="program-hub-body program-hub-body--christmas{% if current_user %} portal-member{% else %} portal-welcome{% endif %}">
   <div class="program-hub">
     <header class="program-hub__header">
       <div class="program-hub__shell program-hub__topbar">
@@ -43,7 +45,7 @@
     </header>
 
     <main class="program-hub__main">
-      <div class="program-hub__shell">
+      <div class="program-hub__shell{% if current_user %} portal-picker{% endif %}">
       {% if current_user %}
       <div class="program-hub__intro">
         <h1 class="program-hub__title">Portal de Programas</h1>
@@ -51,17 +53,15 @@
       </div>
       {% if can_access_faro or can_access_community %}
       <section class="program-hub__section" aria-labelledby="programas-disponibles">
-          <div class="program-hub__section-heading">
-            <h2 id="programas-disponibles" class="program-hub__section-label">Tus programas</h2>
-            <p>Selecciona el programa para comenzar</p>
-          </div>
+          <h2 id="programas-disponibles" class="program-hub__section-label">Tus programas</h2>
 
           <div class="program-hub__grid">
             {% if can_access_faro %}
             <a class="program-card program-card--active" href="/login?next=/ui/new-list" aria-label="Ingresar a Faro de Esperanza">
               <div class="program-card__header">
-                <span class="program-card__icon" aria-hidden="true"><i class="bi bi-people-fill"></i></span>
-                <span class="program-card__category">Programa FARO</span>
+                <span class="program-card__category">FARO</span>
+                <img class="program-card__art" src="{{ request.url_for('static', path='img/portal-programs/faro-crayola.webp') }}"
+                     alt="" width="544" height="816">
               </div>
               <div class="program-card__content">
                 <h3 class="program-card__title">Faro de Esperanza</h3>
@@ -70,7 +70,7 @@
                 </p>
               </div>
               <div class="program-card__footer">
-                <span class="program-card__action">Ingresar a FARO <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                <span class="program-card__action">Ingresar a FARO <span class="program-card__arrow" aria-hidden="true">&rarr;</span></span>
               </div>
             </a>
             {% endif %}
@@ -78,15 +78,16 @@
             {% if can_access_community %}
             <a class="program-card program-card--active program-card--community" href="/community/login" aria-label="Ingresar a Comunidad y Prevención">
               <div class="program-card__header">
-                <span class="program-card__icon" aria-hidden="true"><i class="bi bi-people"></i></span>
-                <span class="program-card__category">Programa Comunidad</span>
+                <span class="program-card__category">COMUNIDAD</span>
+                <img class="program-card__art" src="{{ request.url_for('static', path='img/portal-programs/comunidad-crayola.webp') }}"
+                     alt="" width="920" height="460">
               </div>
               <div class="program-card__content">
                 <h3 class="program-card__title">Comunidad y Prevención</h3>
                 <p class="program-card__description">Administra expedientes y la participación en programas por año fiscal.</p>
               </div>
               <div class="program-card__footer">
-                <span class="program-card__action">Ingresar a Comunidad <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                <span class="program-card__action">Ingresar a Comunidad <span class="program-card__arrow" aria-hidden="true">&rarr;</span></span>
               </div>
             </a>
             {% endif %}
@@ -105,6 +106,7 @@
                 <h3 class="program-service__title">Reportes Institucionales</h3>
                 <p class="program-service__description">Consulta indicadores y resultados.</p>
               </div>
+              <span class="program-service__arrow" aria-hidden="true">&rarr;</span>
             </a>
             {% endif %}
 
@@ -115,6 +117,7 @@
                 <h3 class="program-service__title">Automatizaciones</h3>
                 <p class="program-service__description">Accede a las automatizaciones.</p>
               </div>
+              <span class="program-service__arrow" aria-hidden="true">&rarr;</span>
             </a>
             {% endif %}
 
