@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ request.url_for('static', path='css/ui-modern.css') }}?v={{ ui_modern_css_version }}" rel="stylesheet">
   {% if current_user %}
-  <link href="{{ request.url_for('static', path='css/portal-programs.css') }}?v=20261119" rel="stylesheet">
+  <link href="{{ request.url_for('static', path='css/portal-programs.css') }}?v=20261119-2" rel="stylesheet">
   {% else %}
   <link href="{{ request.url_for('static', path='css/portal-welcome.css') }}?v=20261118" rel="stylesheet">
   {% endif %}
@@ -60,8 +60,8 @@
             <a class="program-card program-card--active" href="/login?next=/ui/new-list" aria-label="Ingresar a Faro de Esperanza">
               <div class="program-card__header">
                 <span class="program-card__category">FARO</span>
-                <img class="program-card__art" src="{{ request.url_for('static', path='img/portal-programs/faro-crayola.webp') }}"
-                     alt="" width="544" height="816">
+                <img class="program-card__art" src="{{ request.url_for('static', path='img/portal-programs/faro-crayola.webp') }}?v=2"
+                     alt="" width="920" height="460">
               </div>
               <div class="program-card__content">
                 <h3 class="program-card__title">Faro de Esperanza</h3>

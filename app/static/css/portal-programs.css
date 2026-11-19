@@ -82,17 +82,12 @@
 
 .portal-picker .program-card__art {
   display: block;
-  width: 80%;
-  height: 100%;
-  margin-left: auto;
-  object-fit: contain;
-  mix-blend-mode: multiply;
-}
-
-.portal-picker .program-card--community .program-card__art {
   width: 100%;
+  height: 100%;
   padding-top: 2rem;
+  object-fit: contain;
   object-position: center bottom;
+  mix-blend-mode: multiply;
 }
 
 .portal-picker .program-card__content {
