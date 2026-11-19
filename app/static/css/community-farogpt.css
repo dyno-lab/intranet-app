@@ -3,6 +3,9 @@
 .farogpt--community .farogpt__bubble { font-size: 14px; line-height: 1.65; }
 .farogpt--community .farogpt__bubble p + p { margin-top: 12px; }
 .farogpt--community .farogpt__bubble strong { font-size: 16px; }
+.farogpt--community .community-farogpt-topics { margin: 10px 0 14px; padding-left: 20px; }
+.farogpt--community .community-farogpt-topics li + li { margin-top: 6px; }
+.farogpt--community .community-farogpt-permissions { margin-top: 14px; padding-top: 12px; border-top: 1px solid #c6deed; font-size: 12px; line-height: 1.5; }
 .farogpt--community .farogpt__footer { padding: 13px 16px 12px; }
 .farogpt--community .community-farogpt-dismiss {
   display: block; width: 100%; min-height: 44px; padding: 10px 16px;

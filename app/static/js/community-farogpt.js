@@ -7,35 +7,31 @@
   const launcher = root.querySelector('[data-cfg-launcher]');
   const invitation = root.querySelector('[data-cfg-invitation]');
   const dismiss = root.querySelectorAll('[data-cfg-dismiss]');
-  const message = root.querySelector('[data-cfg-message]');
-  const greetings = [
-    'Estoy aquí en Cabo Rojo tomando sol y bien prendido. ☀️💡 ¡Recargando energía para cuando me toque trabajar en Comunidad!',
-    'La brisa casi me despeina… ¡y eso que no tengo pelo! 🌊 La bombillita sigue firme, esperando mi turno en Comunidad.',
-    'Traje arena hasta en los cables. 🏖️ Estoy sacudiendo la playa para llegar presentable a Comunidad. ¡Un farito también se prepara para su primer día!',
-    'El mar está tranquilo, pero yo tengo una ola de ganas de ayudar. 🌊 Mientras preparan mi llegada a Comunidad, ¡aquí sigo dando luz!',
-    '¡Me vine de visita con la bombillita encendida! 💡 Todavía estoy buscando dónde enchufarme. Cuando esté lista mi integración con Comunidad, ¡arrancamos!',
-    'Ya traje la luz; ahora falta que terminen de ponerme los cables. 🔌 Mientras preparan mi integración con Comunidad, practico mi mejor saludo: ¡holaaa!',
-    'Tengo el casco puesto y la bombillita lista. 🦺 Mi integración con Comunidad sigue en construcción; mientras tanto, ¡qué bueno verles por aquí!',
-    'Dicen que Roma no se construyó en un día… ¡y un farito ayudante tampoco! 🛠️ Estoy preparándome para acompañarles en Comunidad.',
-    'Vine a supervisar la instalación de mi enchufe… ¡y terminé saludando a todo el mundo! 🔌 Cuando esté listo en Comunidad, también ayudaré con las tareas.',
-    'Mientras preparan mi llegada, estoy ensayando: «¡Buenos días, Comunidad!». 👋 Ya me sale con luz propia.',
-    '¡Traje mi lonchera y muchas ganas de ayudar! 🥪 Mientras terminan mi integración con Comunidad, estoy en entrenamiento intensivo de saludos.',
-    'Me dijeron «ve calentando motores», pero como soy un faro, ¡encendí la bombillita! 💡 Sigo preparándome para ayudarles en Comunidad.',
-    'Estoy cansadito de decorar para Navidad… puse tantas luces que ahora no sé cuál es mi bombillita. 🎄💡 ¡Dame un segundo para recargar!',
-    'Llevo toda la mañana desenredando luces de Navidad. 🎄🔌 Ya desenredé tres cables… ¡y me enredé yo!',
-    'Subí la estrella al árbol y bajé con las baterías en rojo. ⭐😮‍💨 ¡Decorar para Navidad cuenta como ejercicio!',
-    'Hoy estoy corriendo detrás del pavo. 🦃🏃 Él va fresco y yo voy con la bombillita parpadeando. ¡Eso sí que es ejercicio!',
-    'El pavo me vio con las luces de Navidad y salió corriendo. 🦃🎄 Ahora ando detrás de él… ¡solo quería ponerlo a ayudar!',
-    'Entre decorar para Navidad y correr detrás del pavo, hoy mi bombillita está en modo ahorro. 🎄🦃💡 ¡Pero todavía me queda luz para saludarte!',
-  ];
-  let greetingIndex = Math.floor(Math.random() * greetings.length);
+  const messages = [...root.querySelectorAll('[data-cfg-message]')];
+  const body = root.querySelector('.farogpt__body');
+  if (!messages.length) return;
+  const nextMessageKey = 'community.farogpt.welcome.next';
+  let greetingIndex = 0;
+  try {
+    const saved = Number(window.sessionStorage.getItem(nextMessageKey));
+    if (Number.isInteger(saved) && saved >= 0 && saved < messages.length) greetingIndex = saved;
+  } catch (error) {
+    // Alternation still works while this page is open if storage is unavailable.
+  }
 
   function showWelcome(open, focus = true) {
-    if (open && panel.hidden && message) {
-      message.textContent = greetings[greetingIndex];
-      greetingIndex = (greetingIndex + 1) % greetings.length;
+    const opening = open && panel.hidden;
+    if (opening) {
+      messages.forEach((message, index) => { message.hidden = index !== greetingIndex; });
+      greetingIndex = (greetingIndex + 1) % messages.length;
+      try {
+        window.sessionStorage.setItem(nextMessageKey, String(greetingIndex));
+      } catch (error) {
+        // Keep the greeting usable without browser storage.
+      }
     }
     panel.hidden = !open;
+    if (opening && body) body.scrollTop = 0;
     invitation.hidden = open;
     launcher.setAttribute('aria-expanded', String(open));
     launcher.setAttribute('aria-label', open ? 'Minimizar FaroGPT' : 'Abrir bienvenida de FaroGPT');

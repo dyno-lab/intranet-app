@@ -2,29 +2,58 @@
   <section class="farogpt__panel" id="community-farogpt-welcome" role="dialog" aria-modal="false" aria-labelledby="community-farogpt-title" aria-describedby="community-farogpt-message" hidden>
     <header class="farogpt__header">
       <img src="{{ request.url_for('static', path='img/farogpt-mascot.png') }}" alt="" width="48" height="48" class="farogpt__avatar">
-      <div class="farogpt__heading"><h2 id="community-farogpt-title">FaroGPT</h2><p>De visita en Comunidad</p></div>
+      <div class="farogpt__heading"><h2 id="community-farogpt-title">FaroGPT</h2><p>Comunidad y Prevención</p></div>
       <button type="button" class="farogpt__control" data-cfg-dismiss aria-label="Minimizar FaroGPT" title="Minimizar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
       <button type="button" class="farogpt__control" data-cfg-dismiss aria-label="Cerrar FaroGPT" title="Cerrar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </header>
     <div class="farogpt__body">
-      <div class="farogpt__badge"><span aria-hidden="true"></span>Próximamente en Comunidad</div>
+      <div class="farogpt__badge"><span aria-hidden="true"></span>Modo de configuración</div>
       <div class="farogpt__message">
         <img src="{{ request.url_for('static', path='img/farogpt-mascot.png') }}" alt="" width="28" height="30" class="farogpt__message-avatar">
         <div class="farogpt__bubble" id="community-farogpt-message">
-          <p><strong>¡Hola, Comunidad! 👋</strong></p>
-          <p>Soy FaroGPT, la mascota de Faro. Ayudo a consultar información y a organizar las tareas del programa.</p>
-          <p data-cfg-message>¡Me vine de visita con la bombillita encendida! 💡 Todavía estoy buscando dónde enchufarme, pero pronto estaré ayudándoles por aquí, tan pronto esté lista mi integración con Comunidad.</p>
-          <p>Aquí trabajaré únicamente con datos de Comunidad. Por ahora, ¡solo vine a saludar y a iluminarles el día!</p>
+          <p>¡Hola! Soy FaroGPT, tu asistente digital en Comunidad y Prevención. Estoy aquí para ayudarte a consultar información y organizar tu trabajo.</p>
+          <p>Por ahora estoy en modo de configuración. Las funciones que te presento todavía no están habilitadas.</p>
+          <p><strong>Cuando esté listo, podré ayudarte a:</strong></p>
+          <div data-cfg-message="consultas">
+            <ul class="community-farogpt-topics">
+              <li>Consultar datos con solo enviarme un mensaje.</li>
+              <li>Preparar resúmenes por programa y período.</li>
+              <li>Revisar solicitudes por fecha y procedencia.</li>
+              <li>Consultar asistencias y participación en actividades.</li>
+              <li>Explicarte cómo se obtuvo una cifra.</li>
+            </ul>
+            <p>🎄💡 Mientras tanto, estoy cansadito de decorar para Navidad… puse tantas luces que ahora no sé cuál es mi bombillita. ¡Dame un segundo para recargar!</p>
+          </div>
+          <div data-cfg-message="expedientes" hidden>
+            <ul class="community-farogpt-topics">
+              <li>Identificar expedientes con información pendiente.</li>
+              <li>Señalar posibles duplicados para que puedas revisarlos.</li>
+              <li>Apoyar la auditoría de expedientes y señalar posibles inconsistencias.</li>
+              <li>Consultar la participación de una persona en distintos programas.</li>
+              <li>Identificar cambios pendientes de sincronizar con el año fiscal.</li>
+            </ul>
+            <p>🎄🔌 Mientras termino de prepararme, estoy desenredando las luces de Navidad. Ya desenredé tres cables… ¡y me enredé yo!</p>
+          </div>
+          <div data-cfg-message="tareas" hidden>
+            <ul class="community-farogpt-topics">
+              <li>Organizar tareas con responsables y fechas.</li>
+              <li>Revisar seguimientos pendientes por participante.</li>
+              <li>Identificar tareas próximas a vencer o atrasadas.</li>
+              <li>Preparar una lista de asuntos que requieren atención.</li>
+            </ul>
+            <p>⭐😮‍💨 Hoy subí la estrella al árbol y bajé con las baterías en rojo. ¡Decorar para Navidad cuenta como ejercicio!</p>
+          </div>
+          <p class="community-farogpt-permissions">🔒 Trabajaré únicamente con la información que tu usuario tenga permiso para consultar.</p>
         </div>
       </div>
     </div>
     <footer class="farogpt__footer">
       <button type="button" class="community-farogpt-dismiss" data-cfg-dismiss>¡Nos vemos pronto!</button>
-      <p>Solo bienvenida · Consultas aún no disponibles</p>
+      <p>En configuración · Funciones aún no disponibles</p>
     </footer>
   </section>
   <div class="farogpt__dock">
-    <button type="button" class="farogpt__invitation" data-cfg-invitation aria-controls="community-farogpt-welcome">¡Llegué a Comunidad! Ven a saludar 👋</button>
+    <button type="button" class="farogpt__invitation" data-cfg-invitation aria-controls="community-farogpt-welcome">Conoce cómo podré ayudarte 👋</button>
     <button type="button" class="farogpt__launcher" data-cfg-launcher aria-label="Abrir bienvenida de FaroGPT" aria-haspopup="dialog" aria-controls="community-farogpt-welcome" aria-expanded="false">
       <img src="{{ request.url_for('static', path='img/farogpt-mascot.png') }}" alt="" width="112" height="112" decoding="async">
       <span>FaroGPT</span>

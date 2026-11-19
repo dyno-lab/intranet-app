@@ -117,8 +117,9 @@ class CommunityHomeTests(unittest.TestCase):
                 self.assertNotIn('/ui/farogpt/', page.text)
                 self.assertNotIn('id="farogpt-question"', page.text)
                 if visible:
-                    self.assertIn('Soy FaroGPT, la mascota de Faro.', page.text)
-                    self.assertIn('únicamente con datos de Comunidad', page.text)
+                    self.assertIn('¡Hola! Soy FaroGPT, tu asistente digital en Comunidad y Prevención.', page.text)
+                    self.assertIn('Las funciones que te presento todavía no están habilitadas.', page.text)
+                    self.assertIn('Trabajaré únicamente con la información que tu usuario tenga permiso para consultar.', page.text)
 
     def test_farogpt_welcome_is_only_on_community_home(self):
         self.login()

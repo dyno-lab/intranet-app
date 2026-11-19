@@ -5,7 +5,7 @@
 <link href="{{ request.url_for('static', path='css/community-home.css') }}?v=20261117-construction-page" rel="stylesheet">
 {% if cp.role in ['admin', 'supervisor'] %}
 <link href="{{ request.url_for('static', path='css/farogpt.css') }}?v=2" rel="stylesheet">
-<link href="{{ request.url_for('static', path='css/community-farogpt.css') }}?v=1" rel="stylesheet">
+<link href="{{ request.url_for('static', path='css/community-farogpt.css') }}?v=20261119-welcome" rel="stylesheet">
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -103,6 +103,6 @@
 {% block scripts %}
 {% if cp.role in ['admin', 'supervisor'] %}
 {% include 'community/_farogpt_welcome.html' %}
-<script src="{{ request.url_for('static', path='js/community-farogpt.js') }}?v=20261117-navidad" defer></script>
+<script src="{{ request.url_for('static', path='js/community-farogpt.js') }}?v=20261119-welcome" defer></script>
 {% endif %}
 {% endblock %}
