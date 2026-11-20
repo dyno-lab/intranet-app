@@ -17,6 +17,7 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.core.google_oauth import (
     GOOGLE_NONCE_SESSION_KEY,
+    GoogleDomainDenied,
     GoogleIdentityError,
     GoogleOAuthConfigurationError,
     clear_google_oauth_session,
@@ -43,6 +44,7 @@ from app.core.session_security import establish_authenticated_session
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.residential import Residential
 from app.models.user import User
+from app.services.platform_login_log import record_login_event
 
 
 router = APIRouter()
@@ -202,12 +204,19 @@ def login(
         select(User).where(User.username == username)
     ).scalar_one_or_none()
 
-    if (
-        not user
-        or not user.is_active
-        or not user.local_login_enabled
-        or not verify_password(password, user.password_hash)
-    ):
+    if user is None:
+        outcome = "unknown_account"
+    elif not user.is_active:
+        outcome = "inactive"
+    elif not user.local_login_enabled:
+        outcome = "local_disabled"
+    elif not verify_password(password, user.password_hash):
+        outcome = "invalid_password"
+    else:
+        outcome = "success"
+
+    record_login_event(db, "local", outcome, username, user.user_id if user else None)
+    if outcome != "success":
         return templates.TemplateResponse(
             request=request,
             name="auth/login.html",
@@ -322,19 +331,29 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             configuration=configuration,
             expected_nonce=expected_nonce,
         )
+    except GoogleDomainDenied as exc:
+        record_login_event(db, "google", "denied_domain", exc.email)
+        return _oauth_error_response(request)
     except GoogleIdentityError:
+        record_login_event(db, "google", "unverified", None)
+        return _oauth_error_response(request)
+
+    def reject(outcome: str, user_id: int | None = None):
+        record_login_event(db, "google", outcome, normalized_email, user_id)
+        if outcome == "unknown_account":
+            return _oauth_access_denied_response(request)
         return _oauth_error_response(request)
 
     users_by_sub = db.execute(
         select(User).where(User.google_sub == google_sub)
     ).scalars().all()
     if len(users_by_sub) > 1:
-        return _oauth_error_response(request)
+        return reject("identity_conflict")
 
     if users_by_sub:
         user = users_by_sub[0]
         if not user.is_active:
-            return _oauth_error_response(request)
+            return reject("inactive", user.user_id)
     else:
         users_by_email = db.execute(
             select(User).where(
@@ -342,17 +361,17 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
         ).scalars().all()
         if not users_by_email:
-            return _oauth_access_denied_response(request)
+            return reject("unknown_account")
         if len(users_by_email) > 1:
-            return _oauth_error_response(request)
+            return reject("identity_conflict")
 
         user = users_by_email[0]
         if not user.is_active:
-            return _oauth_error_response(request)
+            return reject("inactive", user.user_id)
         if user.google_sub and user.google_sub != google_sub:
-            return _oauth_error_response(request)
+            return reject("identity_conflict", user.user_id)
         if user.google_linked_at is not None:
-            return _oauth_error_response(request)
+            return reject("identity_conflict", user.user_id)
 
         if not user.google_sub:
             link_result = db.execute(
@@ -373,7 +392,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
             if link_result.rowcount == 0:
                 db.rollback()
-                return _oauth_error_response(request)
+                return reject("identity_conflict", user.user_id)
 
             linked_user_count = db.execute(
                 select(func.count())
@@ -388,7 +407,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             ).scalar_one()
             if linked_user_count != 1:
                 db.rollback()
-                return _oauth_error_response(request)
+                return reject("identity_conflict", user.user_id)
             db.add(
                 PlatformUserAudit(
                     actor_user_id=user.user_id,
@@ -396,12 +415,15 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     action="google_linked",
                 )
             )
-            try:
-                db.commit()
-                db.refresh(user)
-            except IntegrityError:
-                db.rollback()
-                return _oauth_error_response(request)
+
+    try:
+        # The first Google link and the successful access event commit together.
+        record_login_event(db, "google", "success", normalized_email, user.user_id)
+    except IntegrityError:
+        db.rollback()
+        return _oauth_error_response(request)
+    if not users_by_sub:
+        db.refresh(user)
 
     establish_authenticated_session(request.session, user)
     return RedirectResponse("/home", status_code=303)

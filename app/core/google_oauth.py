@@ -25,6 +25,14 @@ class GoogleIdentityError(ValueError):
     pass
 
 
+class GoogleDomainDenied(GoogleIdentityError):
+    """A verified Google identity outside the authorized Workspace domain."""
+
+    def __init__(self, email: str):
+        super().__init__("Google Workspace domain is not allowed.")
+        self.email = email
+
+
 @dataclass(frozen=True)
 class GoogleOAuthConfiguration:
     client_id: str
@@ -123,11 +131,6 @@ def validate_google_identity(
     if claims.get("email_verified") is not True:
         raise GoogleIdentityError("Google email is not verified.")
 
-    allowed_domain = configuration.allowed_domain
-    hosted_domain = claims.get("hd")
-    if not isinstance(hosted_domain, str) or hosted_domain.strip().lower() != allowed_domain:
-        raise GoogleIdentityError("Google Workspace domain is not allowed.")
-
     subject = claims.get("sub")
     email = claims.get("email")
     if not isinstance(subject, str) or not subject.strip():
@@ -136,7 +139,13 @@ def validate_google_identity(
         raise GoogleIdentityError("Google email is missing.")
 
     normalized_email = email.strip().lower()
-    if normalized_email.rpartition("@")[2] != allowed_domain:
-        raise GoogleIdentityError("Google email domain is not allowed.")
+    hosted_domain = claims.get("hd")
+    allowed_domain = configuration.allowed_domain
+    if (
+        not isinstance(hosted_domain, str)
+        or hosted_domain.strip().lower() != allowed_domain
+        or normalized_email.rpartition("@")[2] != allowed_domain
+    ):
+        raise GoogleDomainDenied(normalized_email)
 
     return subject.strip(), normalized_email

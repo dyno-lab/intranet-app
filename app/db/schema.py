@@ -1843,6 +1843,25 @@ END;
 """
 
 
+PLATFORM_LOGIN_EVENTS_SQL = """
+IF OBJECT_ID(N'dbo.platform_login_events', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.platform_login_events (
+        event_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        user_id INT NULL,
+        identifier NVARCHAR(320) NULL,
+        method VARCHAR(10) NOT NULL,
+        outcome VARCHAR(32) NOT NULL,
+        occurred_at DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_login_event_user_result_time
+        ON dbo.platform_login_events(user_id, outcome, occurred_at);
+    CREATE INDEX IX_login_event_result_id
+        ON dbo.platform_login_events(outcome, event_id);
+END;
+"""
+
+
 PLATFORM_SETTINGS_SQL = """
 
 IF NOT EXISTS (
@@ -2629,6 +2648,7 @@ def ensure_schema_updates() -> None:
         conn.exec_driver_sql(PHASE1_PROPOSALS_SQL)
         conn.exec_driver_sql(PLATFORM_SETTINGS_USER_COLUMNS_SQL)
         conn.exec_driver_sql(PLATFORM_SETTINGS_SQL)
+        conn.exec_driver_sql(PLATFORM_LOGIN_EVENTS_SQL)
         conn.exec_driver_sql(PHASE3_RESIDENTIALS_SQL)
         conn.exec_driver_sql(STAGE1_RESIDENTIAL_ACCESS_SQL)
         conn.exec_driver_sql(PHASE4_VCA_SQL)

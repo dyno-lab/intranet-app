@@ -25,6 +25,7 @@ from app.core.google_oauth import (  # noqa: E402
     validate_google_identity,
 )
 import app.models.residential  # noqa: E402, F401
+from app.models.platform_login_event import PlatformLoginEvent
 from app.models.user import User  # noqa: E402
 
 
@@ -363,13 +364,32 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertNotIn("invalid ID token", response.body.decode())
 
+    def assert_google_event(self, db, outcome, user_id, email="employee@csifpr.org"):
+        self.assertEqual(db.commits, 1)
+        events = [record for record in db.added if isinstance(record, PlatformLoginEvent)]
+        self.assertEqual([(e.method, e.outcome, e.user_id, e.identifier) for e in events],
+                         [("google", outcome, user_id, email)])
+
+    async def test_only_verified_google_email_is_attributed(self):
+        for verified, outcome, identifier in (
+            (True, "denied_domain", "guest@example.net"),
+            (False, "unverified", None),
+        ):
+            with self.subTest(verified=verified):
+                response, request, db = await self._callback([], claims=_claims(
+                    email="Guest@example.net", hd="example.net", email_verified=verified,
+                ))
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("user_id", request.session)
+                self.assert_google_event(db, outcome, None, identifier)
+
     async def test_inactive_user_is_rejected(self):
         response, request, db = await self._callback(
             [[_user(1, google_sub="google-subject-123", is_active=False)]]
         )
         self.assertEqual(response.status_code, 403)
         self.assertNotIn("user_id", request.session)
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "inactive", 1)
 
     async def test_unknown_user_is_sent_to_access_denied_page(self):
         response, request, db = await self._callback([[], []])
@@ -378,14 +398,14 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("No tiene acceso habilitado", response_body)
         self.assertIn("cramirez@csifpr.org", response_body)
         self.assertNotIn("user_id", request.session)
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "unknown_account", None)
 
     async def test_duplicate_email_is_rejected(self):
         response, request, db = await self._callback([[], [_user(1), _user(2)]])
         self.assertEqual(response.status_code, 403)
         self.assertNotIn("cramirez@csifpr.org", response.body.decode())
         self.assertNotIn("user_id", request.session)
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "identity_conflict", None)
 
     async def test_first_login_links_google_subject(self):
         user = _user(7)
@@ -394,7 +414,8 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.headers["location"], "/home")
         self.assertEqual(user.google_sub, "google-subject-123")
         self.assertEqual(request.session, {"user_id": 7, "session_version": 2})
-        self.assertEqual(db.commits, 1)
+        self.assert_google_event(db, "success", 7)
+        self.assertEqual(len(db.added), 2)
 
     async def test_sql_server_unknown_rowcount_accepts_confirmed_link(self):
         user = _user(7)
@@ -438,7 +459,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         response, request, db = await self._callback([[], [user]])
         self.assertEqual(response.status_code, 403)
         self.assertNotIn("user_id", request.session)
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "identity_conflict", 7)
 
     async def test_concurrent_google_link_change_is_rejected(self):
         user = _user(7)
@@ -460,7 +481,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         response, request, db = await self._callback([[user]])
         self.assertEqual(response.status_code, 303)
         self.assertEqual(request.session, {"user_id": 8, "session_version": 1})
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "success", 8)
         self.assertEqual(len(db.statements), 1)
 
     async def test_different_existing_google_subject_is_rejected(self):
@@ -469,18 +490,19 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(user.google_sub, "different-subject")
         self.assertNotIn("user_id", request.session)
-        self.assertEqual(db.commits, 0)
+        self.assert_google_event(db, "identity_conflict", 9)
 
     async def _callback(
         self,
         results: list[list[object]],
         *,
         update_rowcount: int = 1,
+        claims: dict | None = None,
     ):
         request = _Request({GOOGLE_NONCE_SESSION_KEY: "expected-nonce"})
         db = _Database(results, update_rowcount=update_rowcount)
         client = MagicMock()
-        client.authorize_access_token = AsyncMock(return_value={"userinfo": _claims()})
+        client.authorize_access_token = AsyncMock(return_value={"userinfo": claims if claims is not None else _claims()})
         with (
             _enabled_configuration(),
             patch.object(auth, "create_google_oauth_client", return_value=client),

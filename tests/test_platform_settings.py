@@ -242,6 +242,7 @@ class PlatformSettingsTests(unittest.TestCase):
         ]
         columns_batch_index = executed_batches.index(PLATFORM_SETTINGS_USER_COLUMNS_SQL)
         platform_settings_batch_index = executed_batches.index(PLATFORM_SETTINGS_SQL)
+        self.assertIn(db_schema.PLATFORM_LOGIN_EVENTS_SQL, executed_batches)
 
         self.assertEqual(platform_settings_batch_index, columns_batch_index + 1)
         self.assertEqual(
@@ -505,6 +506,7 @@ class PlatformSettingsTests(unittest.TestCase):
                 _Result(values=[(current_user.user_id, MANAGE_PLATFORM_SETTINGS)]),
                 _Result(values=[]),
                 _Result(values=[]),
+                _Result(values=[]),
             ]
         )
         request = _Request({"user_id": current_user.user_id})
@@ -520,6 +522,8 @@ class PlatformSettingsTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Usuarios y accesos", body)
+        self.assertIn("Sin acceso registrado", body)
+        self.assertIn("/platform/settings/access-log", body)
         self.assertIn("Buscar por usuario, correo o residencial", body)
         self.assertIn('/platform/settings/users/new', body)
         self.assertNotIn('/ui/admin/users', body)

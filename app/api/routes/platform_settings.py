@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
@@ -22,16 +23,19 @@ from app.core.platform_permissions import (
 from app.core.roles import VALID_USER_ROLES
 from app.core.security import hash_password
 from app.core.session_security import SESSION_VERSION_KEY
+from app.helpers.query_filters import OptionalQueryInt
 from app.models.platform_permission import PlatformPermission
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.residential import Residential
 from app.models.user import User
 from app.models.user_platform_permission import UserPlatformPermission
 from app.models.user_residential import UserResidential
+from app.services import platform_login_log
 
 
 router = APIRouter(prefix="/platform/settings", tags=["platform-settings"])
 templates = Jinja2Templates(directory="app/templates")
+templates.env.filters["access_time"] = platform_login_log.puerto_rico_time
 _CSRF_SESSION_KEY = "platform_settings_csrf_token"
 _ALLOWED_EMAIL_DOMAIN = "csifpr.org"
 _VALID_USER_SECTIONS = {"general", "permissions", "residentials"}
@@ -184,11 +188,13 @@ def platform_settings_index(
     return templates.TemplateResponse(
         request=request,
         name="platform_settings/index.html",
+        headers={"Cache-Control": "no-store"},
         context={
             "request": request,
             "current_user": current_user,
             "permissions": permissions,
             "users": users,
+            "last_logins": platform_login_log.last_success_by_user(db),
             "permissions_by_user": permissions_by_user,
             "residentials": residentials,
             "residentials_by_id": residentials_by_id,
@@ -198,6 +204,37 @@ def platform_settings_index(
             "csrf_token": _csrf_token(request),
             "message": msg,
             "error": error,
+        },
+    )
+
+
+@router.get("/access-log", response_class=HTMLResponse)
+def platform_access_log(
+    request: Request,
+    resultado: Literal["todos", "exitosos", "denegados", "no-autorizados"] = "todos",
+    cuenta: str = Query("", max_length=320),
+    usuario_id: OptionalQueryInt = None,
+    antes: OptionalQueryInt = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
+):
+    cuenta = cuenta.strip()
+    rows, cursor = platform_login_log.access_history(
+        db, result=resultado, account=cuenta, user_id=usuario_id, before=antes,
+    )
+    filters = {"resultado": resultado, "cuenta": cuenta}
+    if usuario_id is not None:
+        filters["usuario_id"] = usuario_id
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_settings/access_log.html",
+        headers={"Cache-Control": "no-store"},
+        context={
+            "request": request, "rows": rows, "labels": platform_login_log.OUTCOMES,
+            "result": resultado, "account": cuenta, "user_id": usuario_id,
+            "selected_user": db.get(User, usuario_id) if usuario_id is not None else None,
+            "next_query": urlencode({**filters, "antes": cursor}) if cursor else None,
+            "first_query": urlencode(filters) if antes is not None else None,
         },
     )
 
