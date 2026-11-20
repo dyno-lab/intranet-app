@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import settings
 from app.core.google_oauth import (
+    GOOGLE_LOGIN_EVENT_SESSION_KEY,
     GOOGLE_NONCE_SESSION_KEY,
     GoogleDomainDenied,
     GoogleIdentityError,
@@ -44,7 +45,7 @@ from app.core.session_security import establish_authenticated_session
 from app.models.platform_user_audit import PlatformUserAudit
 from app.models.residential import Residential
 from app.models.user import User
-from app.services.platform_login_log import record_login_event
+from app.services.platform_login_log import record_login_event, start_google_login_event
 
 
 router = APIRouter()
@@ -286,7 +287,7 @@ def enter_faro(
 
 
 @router.get("/auth/google")
-async def google_login(request: Request):
+async def google_login(request: Request, db: Session = Depends(get_db)):
     configuration = _require_google_oauth_enabled()
     require_account_selection = bool(
         request.session.pop(_GOOGLE_ACCOUNT_SELECTION_SESSION_KEY, False)
@@ -299,7 +300,7 @@ async def google_login(request: Request):
     if require_account_selection:
         authorization_parameters["prompt"] = "select_account"
     try:
-        return await client.authorize_redirect(
+        response = await client.authorize_redirect(
             request,
             configuration.redirect_uri,
             **authorization_parameters,
@@ -307,22 +308,39 @@ async def google_login(request: Request):
     except (OAuthError, httpx.HTTPError):
         return _oauth_error_response(request, status_code=503)
 
+    request.session[GOOGLE_LOGIN_EVENT_SESSION_KEY] = start_google_login_event(db)
+    return response
+
 
 @router.get("/auth/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     configuration = _require_google_oauth_enabled()
+    # Authlib consumes its session state during token exchange. Check the association first.
+    pending_id = request.session.get(GOOGLE_LOGIN_EVENT_SESSION_KEY)
+    if pending_id is not None:
+        state = request.query_params.get("state")
+        if not state or f"_state_google_{state}" not in request.session:
+            pending_id = None
+
+    def record(outcome: str, identifier: str | None = None, user_id: int | None = None):
+        record_login_event(db, "google", outcome, identifier, user_id, pending_google_id=pending_id)
+
     expected_nonce = request.session.get(GOOGLE_NONCE_SESSION_KEY)
     if not isinstance(expected_nonce, str) or not expected_nonce:
+        if pending_id is not None:
+            record("unverified")
         return _oauth_error_response(request, status_code=400)
 
     client = create_google_oauth_client(configuration)
     try:
         token = await client.authorize_access_token(request)
     except (OAuthError, JoseError, httpx.HTTPError):
+        record("unverified")
         return _oauth_error_response(request, status_code=400)
 
     claims = token.get("userinfo") if isinstance(token, Mapping) else None
     if not isinstance(claims, Mapping):
+        record("unverified")
         return _oauth_error_response(request, status_code=400)
 
     try:
@@ -332,14 +350,14 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             expected_nonce=expected_nonce,
         )
     except GoogleDomainDenied as exc:
-        record_login_event(db, "google", "denied_domain", exc.email)
+        record("denied_domain", exc.email)
         return _oauth_error_response(request)
     except GoogleIdentityError:
-        record_login_event(db, "google", "unverified", None)
+        record("unverified")
         return _oauth_error_response(request)
 
     def reject(outcome: str, user_id: int | None = None):
-        record_login_event(db, "google", outcome, normalized_email, user_id)
+        record(outcome, normalized_email, user_id)
         if outcome == "unknown_account":
             return _oauth_access_denied_response(request)
         return _oauth_error_response(request)
@@ -418,7 +436,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
     try:
         # The first Google link and the successful access event commit together.
-        record_login_event(db, "google", "success", normalized_email, user.user_id)
+        record("success", normalized_email, user.user_id)
     except IntegrityError:
         db.rollback()
         return _oauth_error_response(request)

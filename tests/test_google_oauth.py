@@ -302,7 +302,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
             patch.object(auth, "new_google_nonce", return_value="new-nonce"),
             patch.object(auth, "create_google_oauth_client", return_value=client),
         ):
-            response = await auth.google_login(request)
+            response = await auth.google_login(request, _Database([[123]]))
 
         self.assertIs(response, oauth_response)
         client.authorize_redirect.assert_awaited_once_with(
@@ -327,7 +327,7 @@ class GoogleOAuthRouteTests(unittest.IsolatedAsyncioTestCase):
             patch.object(auth, "new_google_nonce", return_value="new-nonce"),
             patch.object(auth, "create_google_oauth_client", return_value=client),
         ):
-            await auth.google_login(request)
+            await auth.google_login(request, _Database([[123]]))
 
         client.authorize_redirect.assert_awaited_once_with(
             request,

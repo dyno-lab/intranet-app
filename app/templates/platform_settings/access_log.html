@@ -29,7 +29,23 @@
               <p>Fechas en hora de Puerto Rico. El historial comienza al activar la bitácora.</p>
             </div>
           </div>
+          {% if not selected_user or selected_user.user_id != current_user_id %}
+          <a class="platform-button platform-button--secondary" href="?usuario_id={{ current_user_id }}">Mi historial</a>
+          {% endif %}
         </header>
+        {% if selected_user %}
+        <div class="px-3 pt-3">
+          <p class="mb-1">{{ selected_user.email or selected_user.username }}{% if selected_user.user_id == current_user_id %} · Estás usando esta cuenta{% endif %}</p>
+          {% if last_login %}
+          <p class="mb-0"><strong>Último inicio de sesión registrado</strong> · {{ last_login|access_time }} (Puerto Rico)</p>
+          {% else %}
+          <p class="mb-0">Aún no hay un inicio de sesión registrado para esta cuenta.</p>
+          {% if selected_user.user_id == current_user_id %}
+          <p class="small mb-0">Si tu sesión ya estaba abierta al activar la bitácora, su hora de inicio no está disponible.</p>
+          {% endif %}
+          {% endif %}
+        </div>
+        {% endif %}
         <form class="d-flex flex-wrap align-items-end gap-3 p-3" method="get" action="/platform/settings/access-log">
           {% if user_id is not none %}<input type="hidden" name="usuario_id" value="{{ user_id }}">{% endif %}
           <div>
@@ -39,7 +55,7 @@
           <div>
             <label for="resultado" class="form-label">Resultado</label>
             <select class="form-select" id="resultado" name="resultado">
-              {% for value, title in [('todos', 'Todos'), ('exitosos', 'Ingresos exitosos'), ('no-autorizados', 'Cuentas no registradas o dominios no autorizados'), ('denegados', 'Todos los intentos rechazados')] %}
+              {% for value, title in [('todos', 'Todos'), ('exitosos', 'Ingresos exitosos'), ('no-autorizados', 'Cuentas no registradas o dominios no autorizados'), ('denegados', 'Todos los intentos rechazados'), ('sin-respuesta', 'Sin respuesta de Google')] %}
               <option value="{{ value }}"{% if result == value %} selected{% endif %}>{{ title }}</option>
               {% endfor %}
             </select>
@@ -47,6 +63,11 @@
           <button class="platform-button platform-button--primary" type="submit">Aplicar filtros</button>
           <a class="platform-button platform-button--secondary" href="/platform/settings/access-log">Restablecer</a>
         </form>
+        {% if result in ('sin-respuesta', 'no-autorizados', 'denegados') %}
+        <p class="px-3 small">Si el proceso termina en la página de Google, la plataforma solo conoce la hora de inicio.
+          {% if result != 'sin-respuesta' %}<a href="/platform/settings/access-log?resultado=sin-respuesta">Ver intentos sin respuesta de Google</a>{% endif %}
+        </p>
+        {% endif %}
         <div class="platform-users-table-wrap">
           <table class="platform-users-table">
             <thead><tr><th scope="col">Fecha y hora</th><th scope="col">Usuario o correo</th><th scope="col">Método</th><th scope="col">Resultado</th></tr></thead>
@@ -60,7 +81,7 @@
                   {% if username and username != event.identifier %}<small class="d-block">{{ username }}</small>{% endif %}
                 </td>
                 <td>{{ 'Google' if event.method == 'google' else 'Cuenta local' }}</td>
-                <td><span class="badge {{ 'text-bg-success' if event.outcome == 'success' else 'text-bg-warning' }}">{{ labels[event.outcome] }}</span></td>
+                <td><span class="badge {{ 'text-bg-success' if event.outcome == 'success' else 'text-bg-secondary' if event.outcome == 'google_pending' else 'text-bg-warning' }}">{{ labels[event.outcome] }}</span></td>
               </tr>
               {% else %}
               <tr><td colspan="4" class="platform-users-empty">No hay accesos registrados con estos filtros.</td></tr>

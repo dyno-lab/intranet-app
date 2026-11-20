@@ -211,7 +211,7 @@ def platform_settings_index(
 @router.get("/access-log", response_class=HTMLResponse)
 def platform_access_log(
     request: Request,
-    resultado: Literal["todos", "exitosos", "denegados", "no-autorizados"] = "todos",
+    resultado: Literal["todos", "exitosos", "denegados", "no-autorizados", "sin-respuesta"] = "todos",
     cuenta: str = Query("", max_length=320),
     usuario_id: OptionalQueryInt = None,
     antes: OptionalQueryInt = None,
@@ -219,6 +219,18 @@ def platform_access_log(
     current_user: User = Depends(require_platform_permission(MANAGE_PLATFORM_SETTINGS)),
 ):
     cuenta = cuenta.strip()
+    selected_user = None
+    if cuenta:
+        # A newly entered account starts a search across the log, even from a user's detail view.
+        usuario_id = None
+        selected_user = platform_login_log.find_history_account(db, cuenta)
+    elif usuario_id is not None:
+        selected_user = db.get(User, usuario_id)
+
+    last_login = None
+    if selected_user is not None:
+        user_id = selected_user.user_id
+        last_login = platform_login_log.last_success_by_user(db, user_id=user_id).get(user_id)
     rows, cursor = platform_login_log.access_history(
         db, result=resultado, account=cuenta, user_id=usuario_id, before=antes,
     )
@@ -232,7 +244,7 @@ def platform_access_log(
         context={
             "request": request, "rows": rows, "labels": platform_login_log.OUTCOMES,
             "result": resultado, "account": cuenta, "user_id": usuario_id,
-            "selected_user": db.get(User, usuario_id) if usuario_id is not None else None,
+            "selected_user": selected_user, "last_login": last_login, "current_user_id": current_user.user_id,
             "next_query": urlencode({**filters, "antes": cursor}) if cursor else None,
             "first_query": urlencode(filters) if antes is not None else None,
         },

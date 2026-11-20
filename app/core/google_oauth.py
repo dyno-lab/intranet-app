@@ -15,6 +15,7 @@ GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configura
 GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 GOOGLE_SCOPES = "openid email profile"
 GOOGLE_NONCE_SESSION_KEY = "google_oauth_nonce"
+GOOGLE_LOGIN_EVENT_SESSION_KEY = "google_login_event_id"
 
 
 class GoogleOAuthConfigurationError(RuntimeError):
@@ -89,6 +90,7 @@ def new_google_nonce() -> str:
 
 def clear_google_oauth_session(session: dict[str, Any]) -> None:
     session.pop(GOOGLE_NONCE_SESSION_KEY, None)
+    session.pop(GOOGLE_LOGIN_EVENT_SESSION_KEY, None)
     for key in list(session):
         if key.startswith("_state_google_"):
             session.pop(key, None)
